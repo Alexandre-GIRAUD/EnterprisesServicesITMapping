@@ -1,0 +1,8 @@
+spring:
+  neo4j:
+    uri: bolt://localhost:7687
+
+logging:
+  level:
+    com.enterprise.itmapping: DEBUG
+    org.springframework.data.neo4j: DEBUG

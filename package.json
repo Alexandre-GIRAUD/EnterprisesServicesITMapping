@@ -1,0 +1,23 @@
+{
+  "name": "enterprise-it-mapping",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enterprise IT mapping platform - SaaS monorepo",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev -w @enterprise-it-mapping/frontend",
+    "build:frontend": "npm run build -w @enterprise-it-mapping/frontend",
+    "dev:backend": "cd apps/backend && mvn spring-boot:run",
+    "build:backend": "cd apps/backend && mvn -DskipTests package",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}

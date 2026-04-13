@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: enterprise-it-mapping-backend
+
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USER:neo4j}
+      password: ${NEO4J_PASSWORD:password}
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api
+
+# Actuator (health, metrics)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Demo: insert sample applications + dependencies when DB has no Application nodes
+app:
+  sample-data:
+    seed: ${SAMPLE_DATA_SEED:true} # set SAMPLE_DATA_SEED=false to disable
+    # Neo4j may not accept Bolt immediately (Docker order, cold start, APOC). Retry before giving up.
+    max-attempts: ${SAMPLE_DATA_MAX_ATTEMPTS:30}
+    retry-delay-ms: ${SAMPLE_DATA_RETRY_DELAY_MS:2000}
+
+# JWT-ready placeholders (no implementation yet)
+# app:
+#   jwt:
+#     secret: ${JWT_SECRET}
+#     expiration-ms: 86400000

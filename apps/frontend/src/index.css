@@ -1,0 +1,77 @@
+:root {
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #1a1a1a;
+  background-color: #f8f9fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-header {
+  padding: 0.75rem 1.5rem;
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.layout-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.layout-main {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+.map-page {
+  height: 100%;
+  min-height: 500px;
+}
+
+.graph-canvas-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.graph-canvas {
+  width: 100%;
+  height: min(70vh, 640px);
+  min-height: 420px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.graph-canvas-status,
+.graph-canvas-error,
+.graph-canvas-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.graph-canvas-error {
+  color: #b91c1c;
+}
+
+.graph-canvas-hint {
+  color: #64748b;
+}
