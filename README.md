@@ -148,11 +148,16 @@ docker-compose up -d
 | `npm run docker:up`     | Start all services        |
 | `npm run docker:down`   | Stop all services         |
 
+### Module graph (drill-down)
+
+- On the main map, **click an Application node** to open `/map/apps/{applicationId}`: Cytoscape shows the **Module** tree (`CONTAINS` edges) for that app.
+- API: `GET /api/applications/{id}/module-graph` with optional `validAt` (ISO instant). Same JSON shape as `GET /api/graph` (`GraphResponseDto`). **404** if the application is not valid at `validAt`; **200** with the application root only if there are no modules.
+- Optional env (backend): **`APP_MODULE_GRAPH_MAX_DEPTH`** (default **10**) — max `CONTAINS` hops in Cypher (hard-capped at 50 in code).
+
 ## What’s Not Included (By Design)
 
-- No business logic yet: only scaffolding, config, and placeholders.
 - No JWT implementation: only auth-ready layout and stubs.
-- No Neo4j entities or repositories: add them under each feature’s domain/infrastructure when implementing.
+- Further enterprise rules (governance, RBAC) are left to product iterations.
 
 ## License
 

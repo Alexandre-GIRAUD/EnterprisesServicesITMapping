@@ -1,13 +1,15 @@
 import cytoscape, { type Core, type ElementDefinition } from 'cytoscape';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { fetchGraph } from '../api/graphApi';
+import { fetchModuleGraph } from '../api/graphApi';
+
+type Props = {
+  applicationId: string;
+};
 
 /**
- * Graphe des applications et dépendances (Cytoscape.js), alimenté par GET /api/graph.
+ * Second Cytoscape instance: module tree under one Application (GET …/module-graph).
  */
-export function GraphCanvas() {
-  const navigate = useNavigate();
+export function ApplicationModuleGraph({ applicationId }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -17,8 +19,10 @@ export function GraphCanvas() {
     let cancelled = false;
 
     (async () => {
+      setStatus('loading');
+      setMessage(null);
       try {
-        const data = await fetchGraph();
+        const data = await fetchModuleGraph(applicationId);
         if (cancelled || !containerRef.current) return;
 
         const elements: ElementDefinition[] = [
@@ -36,7 +40,7 @@ export function GraphCanvas() {
         ];
 
         cyRef.current?.destroy();
-        const cy = cytoscape({
+        cyRef.current = cytoscape({
           container: containerRef.current,
           elements,
           style: [
@@ -49,13 +53,20 @@ export function GraphCanvas() {
                 'font-size': '11px',
                 'font-weight': 'bold',
                 color: '#fff',
-                'background-color': '#2563eb',
+                'background-color': '#0d9488',
                 width: 'label',
                 height: 'label',
                 padding: '12px',
                 'text-wrap': 'wrap',
                 'text-max-width': '120px',
                 'border-width': 2,
+                'border-color': '#0f766e',
+              },
+            },
+            {
+              selector: 'node[nodeType = "Application"]',
+              style: {
+                'background-color': '#2563eb',
                 'border-color': '#1e40af',
               },
             },
@@ -77,35 +88,31 @@ export function GraphCanvas() {
           layout: {
             name: 'breadthfirst',
             directed: true,
-            spacingFactor: 1.35,
+            spacingFactor: 1.4,
             padding: 40,
           },
           wheelSensitivity: 0.35,
           minZoom: 0.25,
           maxZoom: 2.5,
         });
-        cyRef.current = cy;
-
-        cy.on('tap', 'node', (evt) => {
-          const n = evt.target;
-          if (n.nonempty() && n.data('nodeType') === 'Application') {
-            navigate(`/map/apps/${encodeURIComponent(n.id())}`);
-          }
-        });
 
         setStatus('ready');
         setMessage(
-          data.nodes.length === 0
-            ? 'Aucun nœud pour cette date. Démarrez le backend avec Neo4j pour charger les données de démo.'
-            : 'Astuce : cliquez sur une application pour ouvrir le graphe de ses modules.'
+          data.nodes.length <= 1 && data.edges.length === 0
+            ? 'Aucun module lié à cette application pour l’instant (racine seule).'
+            : null
         );
       } catch (e) {
         if (!cancelled) {
           setStatus('error');
-          let msg = e instanceof Error ? e.message : 'Impossible de charger le graphe';
+          let msg = e instanceof Error ? e.message : 'Impossible de charger le graphe modules';
+          if (msg.includes('404')) {
+            msg =
+              'Application introuvable ou inactive à cette date (404). Vérifiez l’identifiant ou revenez à la carte.';
+          }
           if (msg === 'Failed to fetch') {
             msg +=
-              ' — le backend est injoignable. En dev Vite, vérifiez VITE_API_PROXY_TARGET (ex. 8081 avec Docker) ou lancez Spring Boot sur le port attendu.';
+              ' — backend injoignable. Vérifiez VITE_API_PROXY_TARGET ou VITE_API_BASE_URL.';
           }
           setMessage(msg);
         }
@@ -117,13 +124,13 @@ export function GraphCanvas() {
       cyRef.current?.destroy();
       cyRef.current = null;
     };
-  }, [navigate]);
+  }, [applicationId]);
 
   return (
     <div className="graph-canvas-wrap">
       {status === 'loading' && (
         <p className="graph-canvas-status" role="status">
-          Chargement du graphe…
+          Chargement des modules…
         </p>
       )}
       {status === 'error' && message && (
@@ -136,9 +143,9 @@ export function GraphCanvas() {
       )}
       <div
         ref={containerRef}
-        className="graph-canvas"
+        className="graph-canvas module-graph-canvas"
         role="img"
-        aria-label="Graphe des dépendances entre applications"
+        aria-label="Graphe des modules de l’application"
       />
     </div>
   );

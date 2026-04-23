@@ -30,6 +30,9 @@ app:
     # Neo4j may not accept Bolt immediately (Docker order, cold start, APOC). Retry before giving up.
     max-attempts: ${SAMPLE_DATA_MAX_ATTEMPTS:30}
     retry-delay-ms: ${SAMPLE_DATA_RETRY_DELAY_MS:2000}
+  # Max CONTAINS hops for GET /applications/{id}/module-graph (capped in code at 50).
+  module-graph:
+    max-depth: ${APP_MODULE_GRAPH_MAX_DEPTH:10}
 
 # JWT-ready placeholders (no implementation yet)
 # app:

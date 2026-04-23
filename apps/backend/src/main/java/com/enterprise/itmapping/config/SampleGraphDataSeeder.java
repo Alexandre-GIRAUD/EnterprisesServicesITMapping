@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -105,6 +106,9 @@ public class SampleGraphDataSeeder implements ApplicationRunner {
     String o = UUID.randomUUID().toString();
     String c = UUID.randomUUID().toString();
     String pay = UUID.randomUUID().toString();
+    String modUi = UUID.randomUUID().toString();
+    String modApi = UUID.randomUUID().toString();
+    String modPkg = UUID.randomUUID().toString();
 
     String createApps;
     try (InputStream in = new ClassPathResource("seed/sample-graph.cypher").getInputStream()) {
@@ -113,16 +117,16 @@ public class SampleGraphDataSeeder implements ApplicationRunner {
       throw new IllegalStateException("Classpath resource seed/sample-graph.cypher is missing", e);
     }
 
-    neo4jClient
-        .query(createApps)
-        .bindAll(
-            Map.of(
-                "portalId", p,
-                "gatewayId", g,
-                "ordersId", o,
-                "customersId", c,
-                "paymentsId", pay,
-                "vf", Neo4jTemporalParameters.toNeo4j(vf)))
-        .run();
+    Map<String, Object> params = new HashMap<>();
+    params.put("portalId", p);
+    params.put("gatewayId", g);
+    params.put("ordersId", o);
+    params.put("customersId", c);
+    params.put("paymentsId", pay);
+    params.put("modUiId", modUi);
+    params.put("modApiId", modApi);
+    params.put("modPkgId", modPkg);
+    params.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
+    neo4jClient.query(createApps).bindAll(params).run();
   }
 }

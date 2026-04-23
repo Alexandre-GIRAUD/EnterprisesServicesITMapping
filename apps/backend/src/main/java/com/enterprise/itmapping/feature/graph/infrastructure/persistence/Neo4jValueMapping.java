@@ -8,12 +8,12 @@ import java.time.ZonedDateTime;
 import java.util.Map;
 import org.neo4j.driver.Value;
 
-final class Neo4jValueMapping {
+public final class Neo4jValueMapping {
 
   private Neo4jValueMapping() {}
 
   @SuppressWarnings("unchecked")
-  static Map<String, Object> asMap(Object row) {
+  public static Map<String, Object> asMap(Object row) {
     if (row instanceof Map<?, ?> m) {
       return (Map<String, Object>) m;
     }
@@ -21,7 +21,7 @@ final class Neo4jValueMapping {
         "Expected Map row from Neo4jClient, got: " + (row == null ? "null" : row.getClass().getName()));
   }
 
-  static String asString(Object value) {
+  public static String asString(Object value) {
     if (value == null) {
       return null;
     }
@@ -37,7 +37,7 @@ final class Neo4jValueMapping {
     return value.toString();
   }
 
-  static Instant asInstant(Object value) {
+  public static Instant asInstant(Object value) {
     if (value == null) {
       return null;
     }

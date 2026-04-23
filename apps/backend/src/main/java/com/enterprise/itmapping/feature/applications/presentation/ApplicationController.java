@@ -1,8 +1,10 @@
 package com.enterprise.itmapping.feature.applications.presentation;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
+import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
+import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.List;
@@ -24,9 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class ApplicationController {
 
   private final ApplicationService applicationService;
+  private final ModuleGraphService moduleGraphService;
 
-  public ApplicationController(ApplicationService applicationService) {
+  public ApplicationController(
+      ApplicationService applicationService, ModuleGraphService moduleGraphService) {
     this.applicationService = applicationService;
+    this.moduleGraphService = moduleGraphService;
   }
 
   @GetMapping
@@ -44,6 +49,21 @@ public class ApplicationController {
   ) {
     Instant pointInTime = validAt != null ? Instant.parse(validAt) : null;
     return applicationService.findById(id, pointInTime)
+        .map(ResponseEntity::ok)
+        .orElse(ResponseEntity.notFound().build());
+  }
+
+  /**
+   * Module composition tree for one application (same JSON shape as {@code GET /graph} for
+   * Cytoscape). 404 when the application id is not valid at {@code validAt}; 200 with root only
+   * when there are no modules.
+   */
+  @GetMapping("/{id}/module-graph")
+  public ResponseEntity<GraphResponseDto> getModuleGraph(
+      @PathVariable String id, @RequestParam(required = false) String validAt) {
+    Instant pointInTime = validAt != null ? Instant.parse(validAt) : null;
+    return moduleGraphService
+        .getModuleGraph(id, pointInTime)
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.notFound().build());
   }

@@ -8,18 +8,23 @@
 
 import type { GraphResponseDto } from '@/types/api';
 
-function graphUrl(search: string): string {
+function resolveUrl(pathWithQuery: string): string {
   const origin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
     /\/$/,
     ''
   );
-  const path = `/api/graph${search}`;
-  return origin ? `${origin}${path}` : path;
+  return origin ? `${origin}${pathWithQuery}` : pathWithQuery;
 }
 
-export async function fetchGraph(params?: { validAt?: string }): Promise<GraphResponseDto> {
-  const search = params?.validAt ? `?validAt=${encodeURIComponent(params.validAt)}` : '';
-  const res = await fetch(graphUrl(search), {
+function graphUrl(search: string): string {
+  return resolveUrl(`/api/graph${search}`);
+}
+
+async function fetchGraphJson(
+  url: string,
+  label: string
+): Promise<GraphResponseDto> {
+  const res = await fetch(url, {
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) {
@@ -29,8 +34,26 @@ export async function fetchGraph(params?: { validAt?: string }): Promise<GraphRe
         ? ' (vérifie que le backend tourne et le port du proxy Vite : VITE_API_PROXY_TARGET, ex. 8081)'
         : '';
     throw new Error(
-      `Graph API ${res.status} ${res.statusText}${hint}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+      `${label} ${res.status} ${res.statusText}${hint}${detail ? `: ${detail.slice(0, 200)}` : ''}`
     );
   }
   return res.json();
+}
+
+export async function fetchGraph(params?: { validAt?: string }): Promise<GraphResponseDto> {
+  const search = params?.validAt ? `?validAt=${encodeURIComponent(params.validAt)}` : '';
+  return fetchGraphJson(graphUrl(search), 'Graph API');
+}
+
+/**
+ * Module composition tree for one application (same DTO as {@link fetchGraph}).
+ * Backend: GET /api/applications/{id}/module-graph
+ */
+export async function fetchModuleGraph(
+  applicationId: string,
+  params?: { validAt?: string }
+): Promise<GraphResponseDto> {
+  const search = params?.validAt ? `?validAt=${encodeURIComponent(params.validAt)}` : '';
+  const path = `/api/applications/${encodeURIComponent(applicationId)}/module-graph${search}`;
+  return fetchGraphJson(resolveUrl(path), 'Module graph API');
 }

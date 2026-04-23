@@ -1,7 +1,9 @@
 package com.enterprise.itmapping;
 
+import com.enterprise.itmapping.common.Neo4jTemporalParameters;
 import com.enterprise.itmapping.domain.Application;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
+import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRequest;
 import com.enterprise.itmapping.feature.graph.application.GraphService;
@@ -9,12 +11,16 @@ import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import com.enterprise.itmapping.feature.graph.application.dto.VersionSnapshotDto;
 import java.time.Instant;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.Neo4jContainer;
@@ -48,6 +54,59 @@ class TemporalQueryTest {
 
   @Autowired
   GraphService graphService;
+
+  @Autowired
+  ModuleGraphService moduleGraphService;
+
+  @Autowired
+  Neo4jClient neo4jClient;
+
+  @Nested
+  @DisplayName("module-graph")
+  class ModuleGraph {
+
+    @Test
+    @DisplayName("returns Application + Module nodes and CONTAINS edges for GET semantics")
+    void returnsSubgraph() {
+      String appId = UUID.randomUUID().toString();
+      String m1 = UUID.randomUUID().toString();
+      String m2 = UUID.randomUUID().toString();
+      Instant vf = Instant.parse("2024-01-01T00:00:00Z");
+      Map<String, Object> bind = new HashMap<>();
+      bind.put("appId", appId);
+      bind.put("m1", m1);
+      bind.put("m2", m2);
+      bind.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
+      neo4jClient
+          .query(
+              """
+              CREATE (a:Application {id: $appId, name: 'ModParent', description: '', validFrom: $vf, validTo: null})
+              CREATE (x:Module {id: $m1, name: 'M1', description: '', validFrom: $vf, validTo: null})
+              CREATE (y:Module {id: $m2, name: 'M2', description: '', validFrom: $vf, validTo: null})
+              CREATE (a)-[:CONTAINS {validFrom: $vf, validTo: null}]->(x)
+              CREATE (x)-[:CONTAINS {validFrom: $vf, validTo: null}]->(y)
+              """)
+          .bindAll(bind)
+          .run();
+
+      var graph =
+          moduleGraphService
+              .getModuleGraph(appId, Instant.parse("2024-06-01T00:00:00Z"))
+              .orElseThrow();
+
+      assertThat(graph.nodes()).hasSize(3);
+      assertThat(graph.nodes().stream().map(n -> n.type()).distinct())
+          .containsExactlyInAnyOrder("Application", "Module");
+      assertThat(graph.edges()).hasSize(2);
+      assertThat(graph.edges().stream().map(e -> e.type()).distinct()).containsExactly("CONTAINS");
+    }
+
+    @Test
+    @DisplayName("returns empty when application id is unknown at validAt")
+    void returnsEmptyForUnknownApp() {
+      assertThat(moduleGraphService.getModuleGraph("no-such-app-id-xyz", Instant.now())).isEmpty();
+    }
+  }
 
   @Nested
   @DisplayName("getGraphAtDate")
