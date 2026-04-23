@@ -1,12 +1,14 @@
 /**
  * Main map view: graph visualization and drill-down.
- * Will host Cytoscape.js and integrate with graph API.
+ * Includes application search to jump to module graph detail.
  */
+import { ApplicationSearchBar } from '../components/ApplicationSearchBar';
 import { GraphCanvas } from '../components/GraphCanvas';
 
 export function MapPage() {
   return (
     <div className="map-page">
+      <ApplicationSearchBar />
       <GraphCanvas />
     </div>
   );
