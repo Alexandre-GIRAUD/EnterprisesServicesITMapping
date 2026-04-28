@@ -1,7 +1,7 @@
 import cytoscape, { type Core, type ElementDefinition } from 'cytoscape';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ApplicationResponse } from '@/types/api';
+import type { ApplicationResponse, GraphEdgeCreateResponse } from '@/types/api';
 import { fetchGraph } from '../api/graphApi';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
 
@@ -160,6 +160,25 @@ export function GraphCanvas() {
     });
   }
 
+  function handleEdgeCreated(created: GraphEdgeCreateResponse): string | null {
+    const cy = cyRef.current;
+    if (!cy) return 'Graphe non initialisé.';
+    if (cy.getElementById(created.id).nonempty()) return null;
+    if (cy.getElementById(created.sourceId).empty() || cy.getElementById(created.targetId).empty()) {
+      return 'Edge créé mais source/target absent du graphe affiché.';
+    }
+
+    cy.add({
+      data: {
+        id: created.id,
+        source: created.sourceId,
+        target: created.targetId,
+        label: created.type,
+      },
+    });
+    return null;
+  }
+
   return (
     <div className="graph-canvas-wrap">
       {status === 'loading' && (
@@ -208,6 +227,7 @@ export function GraphCanvas() {
           isOpen={isDrawerOpen}
           onClose={() => setIsDrawerOpen(false)}
           onNodeCreated={handleNodeCreated}
+          onEdgeCreated={handleEdgeCreated}
         />
       </div>
     </div>

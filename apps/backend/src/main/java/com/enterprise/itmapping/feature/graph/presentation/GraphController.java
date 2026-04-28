@@ -1,8 +1,11 @@
 package com.enterprise.itmapping.feature.graph.presentation;
 
 import com.enterprise.itmapping.feature.graph.application.GraphService;
+import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeRequestDto;
+import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeResponseDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import com.enterprise.itmapping.feature.graph.application.dto.VersionSnapshotDto;
+import jakarta.validation.Valid;
 import java.time.Instant;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -44,6 +47,14 @@ public class GraphController {
       @RequestBody CreateSnapshotRequest request
   ) {
     VersionSnapshotDto created = graphService.createNewSnapshot(request.versionName());
+    return ResponseEntity.status(HttpStatus.CREATED).body(created);
+  }
+
+  @PostMapping("/edges")
+  public ResponseEntity<CreateGraphEdgeResponseDto> createEdge(
+      @Valid @RequestBody CreateGraphEdgeRequestDto request
+  ) {
+    CreateGraphEdgeResponseDto created = graphService.createEdge(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(created);
   }
 

@@ -24,6 +24,21 @@ export interface GraphEdgeDto {
   type: string;
 }
 
+export interface GraphEdgeCreateRequest {
+  sourceId: string;
+  targetId: string;
+  type: string;
+  validFrom?: string;
+  validTo?: string | null;
+}
+
+export interface GraphEdgeCreateResponse {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  type: string;
+}
+
 export interface GraphResponseDto {
   nodes: GraphNodeDto[];
   edges: GraphEdgeDto[];

@@ -6,7 +6,7 @@
  * - VITE_API_BASE_URL=http://127.0.0.1:8081 : appel direct (CORS activé côté backend).
  */
 
-import type { GraphResponseDto } from '@/types/api';
+import type { GraphEdgeCreateRequest, GraphEdgeCreateResponse, GraphResponseDto } from '@/types/api';
 
 function resolveUrl(pathWithQuery: string): string {
   const origin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
@@ -56,4 +56,31 @@ export async function fetchModuleGraph(
   const search = params?.validAt ? `?validAt=${encodeURIComponent(params.validAt)}` : '';
   const path = `/api/applications/${encodeURIComponent(applicationId)}/module-graph${search}`;
   return fetchGraphJson(resolveUrl(path), 'Module graph API');
+}
+
+export async function createGraphEdge(
+  payload: GraphEdgeCreateRequest
+): Promise<GraphEdgeCreateResponse> {
+  const res = await fetch(resolveUrl('/api/graph/edges'), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    if (res.status === 404 || res.status === 405) {
+      throw new Error(
+        'API create edge non disponible pour le moment. Endpoint backend de creation de relation absent.'
+      );
+    }
+    throw new Error(
+      `Create edge API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+
+  return res.json();
 }

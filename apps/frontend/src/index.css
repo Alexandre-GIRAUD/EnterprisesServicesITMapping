@@ -342,6 +342,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  position: relative;
 }
 
 .graph-drawer-field-label {
@@ -376,6 +377,67 @@ body {
 .graph-drawer-textarea {
   resize: vertical;
   min-height: 84px;
+}
+
+.graph-drawer-field-hint {
+  font-size: 0.76rem;
+  color: #93c5fd;
+}
+
+.graph-drawer-search-dropdown {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgb(15 23 42 / 98%), rgb(2 6 23 / 98%));
+  box-shadow: 0 16px 40px rgb(2 6 23 / 45%);
+  overflow: hidden;
+}
+
+.graph-drawer-search-state,
+.graph-drawer-search-error {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+.graph-drawer-search-state {
+  color: #94a3b8;
+}
+
+.graph-drawer-search-error {
+  color: #fecaca;
+}
+
+.graph-drawer-search-item {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid rgb(51 65 85 / 55%);
+  background: transparent;
+  text-align: left;
+  color: #f8fafc;
+  cursor: pointer;
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.graph-drawer-search-item:hover {
+  background: rgb(30 41 59 / 65%);
+}
+
+.graph-drawer-search-item-name {
+  font-weight: 600;
+}
+
+.graph-drawer-search-item-id {
+  color: #94a3b8;
+  font-size: 0.78rem;
 }
 
 .graph-drawer-form-actions {
