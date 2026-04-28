@@ -48,3 +48,19 @@ export async function createApplication(payload: ApplicationRequest): Promise<Ap
 
   return res.json();
 }
+
+export async function fetchApplicationById(applicationId: string): Promise<ApplicationResponse> {
+  const url = resolveUrl(`/api/applications/${encodeURIComponent(applicationId)}`);
+  const res = await fetch(url, {
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Application API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+
+  return res.json();
+}

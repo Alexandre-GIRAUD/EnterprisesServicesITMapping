@@ -4,6 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import type { ApplicationResponse, GraphEdgeCreateResponse } from '@/types/api';
 import { fetchGraph } from '../api/graphApi';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
+import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
+
+type SelectedApplication = {
+  id: string;
+  label: string;
+};
 
 /**
  * Graphe des applications et dépendances (Cytoscape.js), alimenté par GET /api/graph.
@@ -15,6 +21,8 @@ export function GraphCanvas() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
+  const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,7 +34,11 @@ export function GraphCanvas() {
 
         const elements: ElementDefinition[] = [
           ...data.nodes.map((n) => ({
-            data: { id: n.id, label: n.label, nodeType: n.type },
+            data: {
+              id: n.id,
+              label: n.label,
+              nodeType: n.type,
+            },
           })),
           ...data.edges.map((e) => ({
             data: {
@@ -103,12 +115,28 @@ export function GraphCanvas() {
         });
         cyRef.current = cy;
 
-        cy.on('tap', 'node', (evt) => {
+        const openDetailsForNode = (evt: cytoscape.EventObject) => {
+          const n = evt.target;
+          if (n.nonempty() && n.data('nodeType') === 'Application') {
+            setSelectedApplication({
+              id: n.id(),
+              label: (n.data('label') as string | undefined) ?? n.id(),
+            });
+            setIsDetailsDrawerOpen(true);
+            setIsDrawerOpen(false);
+          }
+        };
+
+        const navigateToModuleMap = (evt: cytoscape.EventObject) => {
           const n = evt.target;
           if (n.nonempty() && n.data('nodeType') === 'Application') {
             navigate(`/map/apps/${encodeURIComponent(n.id())}`);
           }
-        });
+        };
+
+        cy.on('tap', 'node', openDetailsForNode);
+        cy.on('dbltap', 'node', navigateToModuleMap);
+        cy.on('dblclick', 'node', navigateToModuleMap);
 
         setStatus('ready');
         setMessage(
@@ -129,10 +157,18 @@ export function GraphCanvas() {
       }
     })();
 
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsDetailsDrawerOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onEscape);
+
     return () => {
       cancelled = true;
       cyRef.current?.destroy();
       cyRef.current = null;
+      window.removeEventListener('keydown', onEscape);
     };
   }, [navigate]);
 
@@ -214,6 +250,21 @@ export function GraphCanvas() {
             className="graph-canvas"
             role="img"
             aria-label="Graphe des dépendances entre applications"
+          />
+
+          <button
+            type="button"
+            className={`graph-details-overlay${isDetailsDrawerOpen ? ' is-visible' : ''}`}
+            aria-label="Fermer le panneau de détails"
+            onClick={() => setIsDetailsDrawerOpen(false)}
+          />
+          <ApplicationDetailsDrawer
+            isOpen={isDetailsDrawerOpen}
+            application={selectedApplication}
+            onClose={() => setIsDetailsDrawerOpen(false)}
+            onOpenModuleGraph={(applicationId) => {
+              navigate(`/map/apps/${encodeURIComponent(applicationId)}`);
+            }}
           />
         </div>
 
