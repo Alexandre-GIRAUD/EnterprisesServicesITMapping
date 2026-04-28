@@ -7,11 +7,13 @@ import { fetchGraph } from '../api/graphApi';
  * Graphe des applications et dépendances (Cytoscape.js), alimenté par GET /api/graph.
  */
 export function GraphCanvas() {
+  const drawerActions = ['Add Node', 'Add Edge', 'Add Module', 'Settings'];
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,12 +150,71 @@ export function GraphCanvas() {
       {status === 'ready' && message && (
         <p className="graph-canvas-hint">{message}</p>
       )}
-      <div
-        ref={containerRef}
-        className="graph-canvas"
-        role="img"
-        aria-label="Graphe des dépendances entre applications"
-      />
+      <div className={`graph-workspace${isDrawerOpen ? ' is-drawer-open' : ''}`}>
+        <div className="graph-stage">
+          <button
+            type="button"
+            className="graph-drawer-toggle"
+            onClick={() => setIsDrawerOpen((open) => !open)}
+            aria-expanded={isDrawerOpen}
+            aria-controls="graph-actions-drawer"
+          >
+            <span className="graph-drawer-toggle-label">Workspace</span>
+            <span className="graph-drawer-toggle-icon" aria-hidden="true">
+              {isDrawerOpen ? 'Close' : 'Open'}
+            </span>
+          </button>
+
+          <div
+            ref={containerRef}
+            className="graph-canvas"
+            role="img"
+            aria-label="Graphe des dépendances entre applications"
+          />
+        </div>
+
+        <button
+          type="button"
+          className={`graph-drawer-overlay${isDrawerOpen ? ' is-visible' : ''}`}
+          aria-label="Fermer le drawer"
+          onClick={() => setIsDrawerOpen(false)}
+        />
+
+        <aside
+          id="graph-actions-drawer"
+          className={`graph-drawer${isDrawerOpen ? ' is-open' : ''}`}
+          aria-label="Panneau latéral des actions"
+        >
+          <header className="graph-drawer-header">
+            <p className="graph-drawer-eyebrow">Workspace</p>
+            <div className="graph-drawer-title-row">
+              <div>
+                <h2 className="graph-drawer-title">Actions</h2>
+                <p className="graph-drawer-description">
+                  Préparez vos prochaines opérations depuis un panneau latéral sobre et moderne.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="graph-drawer-close"
+                onClick={() => setIsDrawerOpen(false)}
+                aria-label="Fermer le panneau"
+              >
+                x
+              </button>
+            </div>
+          </header>
+
+          <div className="graph-drawer-actions" role="list">
+            {drawerActions.map((action) => (
+              <button key={action} type="button" className="graph-drawer-action" role="listitem">
+                <span className="graph-drawer-action-title">{action}</span>
+                <span className="graph-drawer-action-meta">Soon</span>
+              </button>
+            ))}
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
