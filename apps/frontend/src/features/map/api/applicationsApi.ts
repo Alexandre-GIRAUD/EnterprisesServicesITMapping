@@ -64,3 +64,27 @@ export async function fetchApplicationById(applicationId: string): Promise<Appli
 
   return res.json();
 }
+
+export async function updateApplicationById(
+  applicationId: string,
+  payload: ApplicationRequest
+): Promise<ApplicationResponse> {
+  const url = resolveUrl(`/api/applications/${encodeURIComponent(applicationId)}`);
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Update application API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+
+  return res.json();
+}

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { ApplicationResponse } from '@/types/api';
-import { fetchApplicationById } from '../api/applicationsApi';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import type { ApplicationRequest, ApplicationResponse } from '@/types/api';
+import { fetchApplicationById, updateApplicationById } from '../api/applicationsApi';
 
 type ApplicationDetails = {
   id: string;
@@ -22,18 +22,36 @@ export function ApplicationDetailsDrawer({
 }: ApplicationDetailsDrawerProps) {
   const [details, setDetails] = useState<ApplicationResponse | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+  const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [formState, setFormState] = useState({
+    name: '',
+    description: '',
+    validFrom: '',
+    validTo: '',
+  });
 
   useEffect(() => {
     if (!isOpen || !application?.id) return;
     let cancelled = false;
     setStatus('loading');
     setErrorMessage(null);
+    setSaveSuccessMessage(null);
+    setFormErrorMessage(null);
 
     void fetchApplicationById(application.id)
       .then((data) => {
         if (cancelled) return;
         setDetails(data);
+        setFormState({
+          name: data.name ?? '',
+          description: data.description ?? '',
+          validFrom: isoToDateTimeLocal(data.validFrom),
+          validTo: isoToDateTimeLocal(data.validTo),
+        });
         setStatus('ready');
       })
       .catch((e) => {
@@ -47,6 +65,15 @@ export function ApplicationDetailsDrawer({
     };
   }, [application?.id, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setIsEditing(false);
+      setIsSaving(false);
+      setSaveSuccessMessage(null);
+      setFormErrorMessage(null);
+    }
+  }, [isOpen]);
+
   const description =
     details?.description && details.description.trim().length > 0
       ? details.description
@@ -57,6 +84,69 @@ export function ApplicationDetailsDrawer({
     () => (details?.validTo ? formatIsoDate(details.validTo) : 'Toujours actif'),
     [details?.validTo]
   );
+
+  async function onSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!application?.id || !details) return;
+
+    const name = formState.name.trim();
+    if (!name) {
+      setFormErrorMessage('Le champ name est obligatoire.');
+      return;
+    }
+
+    const validFromDate = formState.validFrom ? new Date(formState.validFrom) : null;
+    const validToDate = formState.validTo ? new Date(formState.validTo) : null;
+    if (validFromDate && validToDate && validToDate.getTime() < validFromDate.getTime()) {
+      setFormErrorMessage('Valid to doit être supérieur ou égal à validFrom.');
+      return;
+    }
+
+    const payload: ApplicationRequest = {
+      name,
+      description: formState.description.trim() || '',
+      validFrom: formState.validFrom ? new Date(formState.validFrom).toISOString() : undefined,
+      validTo: formState.validTo ? new Date(formState.validTo).toISOString() : null,
+    };
+
+    try {
+      setIsSaving(true);
+      setFormErrorMessage(null);
+      setSaveSuccessMessage(null);
+      const updated = await updateApplicationById(application.id, payload);
+      setDetails(updated);
+      setFormState({
+        name: updated.name ?? '',
+        description: updated.description ?? '',
+        validFrom: isoToDateTimeLocal(updated.validFrom),
+        validTo: isoToDateTimeLocal(updated.validTo),
+      });
+      setSaveSuccessMessage('Application mise à jour.');
+      setIsEditing(false);
+    } catch (e) {
+      setFormErrorMessage(
+        e instanceof Error ? e.message : "Impossible d'enregistrer les modifications."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function onCancelEdit() {
+    if (!details) {
+      setIsEditing(false);
+      return;
+    }
+    setFormState({
+      name: details.name ?? '',
+      description: details.description ?? '',
+      validFrom: isoToDateTimeLocal(details.validFrom),
+      validTo: isoToDateTimeLocal(details.validTo),
+    });
+    setFormErrorMessage(null);
+    setSaveSuccessMessage(null);
+    setIsEditing(false);
+  }
 
   return (
     <aside
@@ -81,51 +171,147 @@ export function ApplicationDetailsDrawer({
         </div>
       </header>
 
-      <section className="graph-details-section">
-        <h3 className="graph-details-section-title">Description</h3>
+      <div className="graph-details-content">
         {status === 'loading' && <p className="graph-details-text">Chargement...</p>}
         {status === 'error' && (
           <p className="graph-details-text graph-details-text-error">
             {errorMessage ?? 'Impossible de charger les détails.'}
           </p>
         )}
-        {status !== 'loading' && status !== 'error' && <p className="graph-details-text">{description}</p>}
-      </section>
+        {status === 'ready' && (
+        <>
+          {!isEditing ? (
+            <>
+              {saveSuccessMessage && (
+                <p className="graph-drawer-feedback graph-drawer-feedback-success" role="status">
+                  {saveSuccessMessage}
+                </p>
+              )}
+              <section className="graph-details-section">
+                <h3 className="graph-details-section-title">Description</h3>
+                <p className="graph-details-text">{description}</p>
+              </section>
 
-      <section className="graph-details-section">
-        <h3 className="graph-details-section-title">Validité</h3>
-        {status === 'loading' && <p className="graph-details-text">Chargement...</p>}
-        {status === 'error' && (
-          <p className="graph-details-text graph-details-text-error">
-            Impossible de charger la validité.
-          </p>
+              <section className="graph-details-section">
+                <h3 className="graph-details-section-title">Validité</h3>
+                <p className="graph-details-text">
+                  <strong>Valid from:</strong> {validFromText}
+                </p>
+                <p className="graph-details-text">
+                  <strong>Valid to:</strong> {validToText}
+                </p>
+              </section>
+            </>
+          ) : (
+            <form className="graph-drawer-form" onSubmit={onSave}>
+              <label className="graph-drawer-field">
+                <span className="graph-drawer-field-label">Name</span>
+                <input
+                  className="graph-drawer-input"
+                  type="text"
+                  value={formState.name}
+                  onChange={(e) =>
+                    setFormState((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  disabled={isSaving}
+                  required
+                />
+              </label>
+              <label className="graph-drawer-field">
+                <span className="graph-drawer-field-label">Description</span>
+                <textarea
+                  className="graph-drawer-input graph-drawer-textarea"
+                  value={formState.description}
+                  onChange={(e) =>
+                    setFormState((prev) => ({ ...prev, description: e.target.value }))
+                  }
+                  rows={3}
+                  disabled={isSaving}
+                />
+              </label>
+              <label className="graph-drawer-field">
+                <span className="graph-drawer-field-label">validFrom</span>
+                <input
+                  className="graph-drawer-input"
+                  type="datetime-local"
+                  value={formState.validFrom}
+                  onChange={(e) =>
+                    setFormState((prev) => ({ ...prev, validFrom: e.target.value }))
+                  }
+                  disabled={isSaving}
+                />
+              </label>
+              <label className="graph-drawer-field">
+                <span className="graph-drawer-field-label">validTo</span>
+                <input
+                  className="graph-drawer-input"
+                  type="datetime-local"
+                  value={formState.validTo}
+                  onChange={(e) =>
+                    setFormState((prev) => ({ ...prev, validTo: e.target.value }))
+                  }
+                  disabled={isSaving}
+                />
+              </label>
+              {formErrorMessage && (
+                <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
+                  {formErrorMessage}
+                </p>
+              )}
+              <div className="graph-drawer-form-actions">
+                <button
+                  type="submit"
+                  className="graph-drawer-action graph-drawer-action-primary"
+                  disabled={isSaving}
+                >
+                  <span className="graph-drawer-action-title">
+                    {isSaving ? 'Saving…' : 'Save'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="graph-drawer-action"
+                  onClick={onCancelEdit}
+                  disabled={isSaving}
+                >
+                  <span className="graph-drawer-action-title">Cancel</span>
+                </button>
+              </div>
+            </form>
+          )}
+        </>
         )}
-        {status !== 'loading' && status !== 'error' && (
-          <>
-            <p className="graph-details-text">
-              <strong>Valid from:</strong> {validFromText}
-            </p>
-            <p className="graph-details-text">
-              <strong>Valid to:</strong> {validToText}
-            </p>
-          </>
+
+        <section className="graph-details-section">
+          <h3 className="graph-details-section-title">Contributors</h3>
+          <p className="graph-details-text">Contributors: à venir</p>
+        </section>
+      </div>
+
+      <div className="graph-details-actions">
+        {application?.id && (
+          <button
+            type="button"
+            className="graph-drawer-action graph-drawer-action-primary"
+            onClick={() => onOpenModuleGraph(application.id)}
+          >
+            <span className="graph-drawer-action-title">Open module graph</span>
+          </button>
         )}
-      </section>
-
-      <section className="graph-details-section">
-        <h3 className="graph-details-section-title">Contributors</h3>
-        <p className="graph-details-text">Contributors: à venir</p>
-      </section>
-
-      {application?.id && (
-        <button
-          type="button"
-          className="graph-drawer-action graph-drawer-action-primary"
-          onClick={() => onOpenModuleGraph(application.id)}
-        >
-          <span className="graph-drawer-action-title">Open module graph</span>
-        </button>
-      )}
+        {status === 'ready' && !isEditing && (
+          <button
+            type="button"
+            className="graph-drawer-action"
+            onClick={() => {
+              setFormErrorMessage(null);
+              setSaveSuccessMessage(null);
+              setIsEditing(true);
+            }}
+          >
+            <span className="graph-drawer-action-title">Edit</span>
+          </button>
+        )}
+      </div>
     </aside>
   );
 }
@@ -138,4 +324,12 @@ function formatIsoDate(value?: string | null): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date);
+}
+
+function isoToDateTimeLocal(value?: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
 }

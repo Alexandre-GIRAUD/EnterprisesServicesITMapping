@@ -443,6 +443,8 @@ body {
   transition:
     transform 220ms ease,
     opacity 220ms ease;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .graph-details-drawer.is-open {
@@ -452,9 +454,47 @@ body {
 }
 
 .graph-details-header {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
+}
+
+.graph-details-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  scrollbar-width: thin;
+  scrollbar-color: #475569 transparent;
+}
+
+.graph-details-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.graph-details-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.graph-details-content::-webkit-scrollbar-thumb {
+  background: rgb(71 85 105 / 70%);
+  border-radius: 999px;
+}
+
+.graph-details-content::-webkit-scrollbar-thumb:hover {
+  background: rgb(100 116 139 / 82%);
+}
+
+.graph-details-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 0.2rem;
 }
 
 .graph-details-id {
