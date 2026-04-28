@@ -13,8 +13,8 @@ export function ApplicationSearchBar() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [allApps, setAllApps] = useState<ApplicationResponse[] | null>(null);
 
-  const allAppsRef = useRef<ApplicationResponse[] | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export function ApplicationSearchBar() {
 
       setIsOpen(true);
 
-      if (allAppsRef.current) {
+      if (allApps) {
         setStatus('ready');
         setErrorMessage(null);
         return;
@@ -59,7 +59,7 @@ export function ApplicationSearchBar() {
       try {
         const apps = await fetchApplications();
         if (cancelled) return;
-        allAppsRef.current = apps;
+        setAllApps(apps);
         setStatus('ready');
       } catch (e) {
         if (cancelled) return;
@@ -72,17 +72,17 @@ export function ApplicationSearchBar() {
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery]);
+  }, [allApps, debouncedQuery]);
 
   const filteredApps = useMemo(() => {
-    if (!debouncedQuery || !allAppsRef.current) return [];
+    if (!debouncedQuery || !allApps) return [];
     const q = debouncedQuery.toLowerCase();
-    return allAppsRef.current.filter((app) => {
+    return allApps.filter((app) => {
       const name = app.name.toLowerCase();
       const description = (app.description ?? '').toLowerCase();
       return name.includes(q) || description.includes(q) || app.id.toLowerCase().includes(q);
     });
-  }, [debouncedQuery, status]);
+  }, [allApps, debouncedQuery]);
 
   function openApplication(appId: string) {
     setIsOpen(false);
