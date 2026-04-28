@@ -1,0 +1,49 @@
+<svg width="800" height="800" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .line {
+        fill: none;
+        stroke: #111111;
+        stroke-width: 6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .thin {
+        fill: none;
+        stroke: #111111;
+        stroke-width: 3;
+        opacity: 0.9;
+      }
+      .dot {
+        fill: #111111;
+      }
+    </style>
+  </defs>
+
+  <!-- Flower core -->
+  <circle cx="400" cy="400" r="42" class="line"></circle>
+
+  <!-- Petals -->
+  <ellipse cx="400" cy="280" rx="48" ry="95" class="line"></ellipse>
+  <ellipse cx="520" cy="400" rx="48" ry="95" class="line" transform="rotate(90 520 400)"></ellipse>
+  <ellipse cx="400" cy="520" rx="48" ry="95" class="line"></ellipse>
+  <ellipse cx="280" cy="400" rx="48" ry="95" class="line" transform="rotate(90 280 400)"></ellipse>
+
+  <ellipse cx="485" cy="315" rx="40" ry="78" class="line" transform="rotate(45 485 315)"></ellipse>
+  <ellipse cx="485" cy="485" rx="40" ry="78" class="line" transform="rotate(135 485 485)"></ellipse>
+  <ellipse cx="315" cy="485" rx="40" ry="78" class="line" transform="rotate(225 315 485)"></ellipse>
+  <ellipse cx="315" cy="315" rx="40" ry="78" class="line" transform="rotate(315 315 315)"></ellipse>
+
+  <!-- Atomic orbits -->
+  <ellipse cx="400" cy="400" rx="250" ry="95" class="thin"></ellipse>
+  <ellipse cx="400" cy="400" rx="250" ry="95" class="thin" transform="rotate(60 400 400)"></ellipse>
+  <ellipse cx="400" cy="400" rx="250" ry="95" class="thin" transform="rotate(120 400 400)"></ellipse>
+
+  <!-- Electrons -->
+  <circle cx="650" cy="400" r="10" class="dot"></circle>
+  <circle cx="520" cy="615" r="10" class="dot"></circle>
+  <circle cx="275" cy="555" r="10" class="dot"></circle>
+  <circle cx="210" cy="305" r="10" class="dot"></circle>
+  <circle cx="465" cy="170" r="10" class="dot"></circle>
+  <circle cx="575" cy="285" r="10" class="dot"></circle>
+</svg>
