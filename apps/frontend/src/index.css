@@ -198,7 +198,8 @@ body {
 
 .graph-drawer-toggle:focus-visible,
 .graph-drawer-close:focus-visible,
-.graph-drawer-action:focus-visible {
+.graph-drawer-action:focus-visible,
+.graph-drawer-input:focus-visible {
   outline: 2px solid #60a5fa;
   outline-offset: 2px;
 }
@@ -329,6 +330,95 @@ body {
 
 .graph-drawer-overlay {
   display: none;
+}
+
+.graph-drawer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.graph-drawer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.graph-drawer-field-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.graph-drawer-input {
+  width: 100%;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 0.68rem 0.78rem;
+  background: rgb(15 23 42 / 70%);
+  color: #f8fafc;
+  font-size: 0.9rem;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+.graph-drawer-input::placeholder {
+  color: #64748b;
+}
+
+.graph-drawer-input:hover {
+  border-color: #475569;
+  background: rgb(15 23 42 / 82%);
+}
+
+.graph-drawer-textarea {
+  resize: vertical;
+  min-height: 84px;
+}
+
+.graph-drawer-form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.2rem;
+}
+
+.graph-drawer-action-primary {
+  border-color: #2563eb;
+  background: linear-gradient(180deg, rgb(37 99 235 / 92%), rgb(29 78 216 / 88%));
+}
+
+.graph-drawer-action-primary:hover {
+  border-color: #60a5fa;
+}
+
+.graph-drawer-action:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.graph-drawer-feedback {
+  margin: 0;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  background: rgb(15 23 42 / 65%);
+}
+
+.graph-drawer-feedback-error {
+  border-color: rgb(220 38 38 / 55%);
+  color: #fecaca;
+}
+
+.graph-drawer-feedback-success {
+  border-color: rgb(14 116 144 / 55%);
+  color: #a7f3d0;
 }
 
 .graph-canvas-status,
