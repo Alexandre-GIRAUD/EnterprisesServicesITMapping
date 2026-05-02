@@ -60,3 +60,13 @@ export interface ApplicationResponse {
   validFrom: string;
   validTo: string | null;
 }
+
+/** GitHub repo summary from {@code GET /api/integrations/github/repos} */
+export interface GitHubRepoDto {
+  id: number;
+  fullName: string;
+  name: string;
+  description?: string;
+  htmlUrl: string;
+  repoPrivate: boolean;
+}

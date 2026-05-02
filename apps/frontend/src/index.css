@@ -113,6 +113,356 @@ body {
   box-shadow: 0 0 0 3px rgb(37 99 235 / 15%);
 }
 
+.map-toolbar-trailing {
+  margin-left: auto;
+  display: flex;
+  align-items: flex-end;
+}
+
+.map-github-import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid rgb(51 65 85 / 70%);
+  border-radius: 999px;
+  padding: 0.58rem 0.95rem;
+  background:
+    linear-gradient(180deg, rgb(15 23 42 / 95%), rgb(3 7 18 / 97%)),
+    #0f172a;
+  color: #f8fafc;
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: 0 10px 26px rgb(15 23 42 / 18%);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.map-github-import-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgb(96 165 250 / 55%);
+  box-shadow: 0 14px 32px rgb(15 23 42 / 24%);
+}
+
+.map-github-import-btn:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.map-github-import-btn-meta {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+/* ===== GitHub import page ===== */
+.github-import-page {
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.github-import-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.github-import-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.github-import-title {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.github-import-subtitle {
+  margin: 0.55rem 0 0;
+  max-width: 52ch;
+  color: #475569;
+  font-size: 0.92rem;
+}
+
+.github-import-code {
+  font-size: 0.82em;
+  padding: 0.12rem 0.35rem;
+  border-radius: 6px;
+  background: rgb(15 23 42 / 6%);
+  color: #0f172a;
+}
+
+.github-import-back {
+  flex-shrink: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1e293b;
+  text-decoration: none;
+  background: #fff;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.github-import-back:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.github-import-back:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.github-import-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.github-import-search-label {
+  flex: 1 1 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.github-import-search-span {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.github-import-search-input {
+  border: 1px solid rgb(51 65 85 / 45%);
+  border-radius: 14px;
+  padding: 0.72rem 0.85rem;
+  font-size: 0.92rem;
+  outline: none;
+  background:
+    linear-gradient(180deg, rgb(15 23 42 / 4%), rgb(255 255 255 / 98%)),
+    #fff;
+  color: #0f172a;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 8%);
+}
+
+.github-import-search-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 14%), 0 10px 28px rgb(15 23 42 / 10%);
+}
+
+.github-import-primary {
+  border: 1px solid #1d4ed8;
+  border-radius: 14px;
+  padding: 0.72rem 1.2rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #f8fafc;
+  cursor: pointer;
+  background: linear-gradient(180deg, rgb(37 99 235 / 95%), rgb(29 78 216 / 92%));
+  box-shadow: 0 14px 32px rgb(37 99 235 / 22%);
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.github-import-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 40px rgb(37 99 235 / 28%);
+}
+
+.github-import-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.github-import-primary:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 3px;
+}
+
+.github-import-state {
+  margin: 0 0 0.85rem;
+  font-size: 0.92rem;
+  color: #64748b;
+}
+
+.github-import-state-error {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.github-import-feedback {
+  margin: 0 0 1rem;
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  font-size: 0.88rem;
+  border: 1px solid #334155;
+}
+
+.github-import-feedback-title {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+}
+
+.github-import-feedback-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.github-import-feedback-error {
+  border-color: rgb(220 38 38 / 55%);
+  background: rgb(254 226 226 / 45%);
+  color: #991b1b;
+}
+
+.github-import-feedback-success {
+  border-color: rgb(14 116 144 / 45%);
+  background: rgb(236 254 255 / 55%);
+  color: #0f766e;
+}
+
+.github-import-inline-link {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: #0d9488;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+}
+
+.github-import-inline-link:focus-visible {
+  outline: 2px solid #0d9488;
+  outline-offset: 2px;
+}
+
+.github-import-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.github-import-card {
+  border-radius: 18px;
+  border: 1px solid rgb(51 65 85 / 35%);
+  background:
+    radial-gradient(circle at top right, rgb(59 130 246 / 8%), transparent 42%),
+    linear-gradient(180deg, rgb(15 23 42 / 6%), rgb(255 255 255 / 96%));
+  box-shadow: 0 16px 40px rgb(15 23 42 / 10%);
+}
+
+.github-import-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.95rem 1rem;
+  cursor: pointer;
+}
+
+.github-import-checkbox {
+  margin-top: 0.2rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #2563eb;
+  flex-shrink: 0;
+}
+
+.github-import-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.github-import-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.github-import-card-desc {
+  font-size: 0.84rem;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.github-import-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.github-import-badge-private {
+  color: #c4b5fd;
+  background: rgb(46 16 101 / 88%);
+  border-color: rgb(139 92 246 / 45%);
+}
+
+.github-import-badge-imported {
+  color: #a7f3d0;
+  background: rgb(6 78 59 / 88%);
+  border-color: rgb(16 185 129 / 45%);
+}
+
+.github-import-link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+  margin-top: 0.15rem;
+  width: fit-content;
+}
+
+.github-import-link:hover {
+  text-decoration: underline;
+}
+
+.github-import-link:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.github-import-footnote {
+  margin: 1.25rem 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
 /* ===== Application search bar ===== */
 .application-search {
   position: relative;
@@ -207,6 +557,16 @@ body {
 
   .map-date-filters {
     margin-top: 0.75rem;
+  }
+
+  .map-toolbar-trailing {
+    margin-left: 0;
+    margin-top: 0.75rem;
+  }
+
+  .map-github-import-btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .map-date-filter-field {

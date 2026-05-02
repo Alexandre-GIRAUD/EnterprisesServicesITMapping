@@ -25,6 +25,13 @@ management:
 
 # Demo: insert sample applications + dependencies when DB has no Application nodes
 app:
+  # GitHub: server-side PAT only (OAuth flow can replace this later).
+  # Export GITHUB_TOKEN in the environment; never send tokens to the frontend.
+  integrations:
+    github:
+      token: ${GITHUB_TOKEN:}
+      api-base-url: https://api.github.com
+      max-repos: 100
   sample-data:
     seed: ${SAMPLE_DATA_SEED:true} # set SAMPLE_DATA_SEED=false to disable
     # Neo4j may not accept Bolt immediately (Docker order, cold start, APOC). Retry before giving up.

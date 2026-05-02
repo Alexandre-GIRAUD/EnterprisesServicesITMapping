@@ -5,6 +5,7 @@ import { useState } from 'react';
  */
 import { ApplicationSearchBar } from '../components/ApplicationSearchBar';
 import { GraphCanvas } from '../components/GraphCanvas';
+import { MapGitHubImportButton } from '../components/MapGitHubImportButton';
 
 export function MapPage() {
   const [validFrom, setValidFrom] = useState('');
@@ -33,6 +34,9 @@ export function MapPage() {
               onChange={(e) => setValidTo(e.target.value)}
             />
           </label>
+        </div>
+        <div className="map-toolbar-trailing">
+          <MapGitHubImportButton />
         </div>
       </div>
       <GraphCanvas />
