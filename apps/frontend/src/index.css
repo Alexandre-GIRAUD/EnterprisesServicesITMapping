@@ -770,6 +770,48 @@ body {
   color: #94a3b8;
 }
 
+.graph-drawer-action-danger {
+  border-color: rgb(185 28 28 / 55%);
+  background: linear-gradient(180deg, rgb(30 10 10 / 88%), rgb(24 6 6 / 82%));
+}
+
+.graph-drawer-action-danger:hover:not(:disabled) {
+  border-color: rgb(248 113 113 / 55%);
+  box-shadow: 0 12px 28px rgb(127 29 29 / 22%);
+}
+
+.graph-drawer-action-danger-solid {
+  border-color: rgb(185 28 28 / 75%);
+  background: linear-gradient(180deg, rgb(220 38 38 / 92%), rgb(185 28 28 / 90%));
+}
+
+.graph-drawer-action-danger-solid:hover:not(:disabled) {
+  border-color: #fecaca;
+  box-shadow: 0 12px 28px rgb(127 29 29 / 28%);
+}
+
+.graph-details-delete-confirm {
+  margin-top: 0.35rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: 16px;
+  border: 1px solid rgb(185 28 28 / 45%);
+  background: rgb(30 10 10 / 55%);
+}
+
+.graph-details-delete-confirm-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #fecaca;
+  font-weight: 600;
+}
+
+.graph-details-delete-confirm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
 .graph-drawer-overlay {
   display: none;
 }

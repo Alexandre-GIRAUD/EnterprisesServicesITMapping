@@ -65,6 +65,24 @@ export async function fetchApplicationById(applicationId: string): Promise<Appli
   return res.json();
 }
 
+/**
+ * Cascade-delete application (backend removes CONTAINS subtree Modules and DETACH DELETE the app node).
+ */
+export async function deleteApplicationById(applicationId: string): Promise<void> {
+  const url = resolveUrl(`/api/applications/${encodeURIComponent(applicationId)}`);
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Delete application API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+}
+
 export async function updateApplicationById(
   applicationId: string,
   payload: ApplicationRequest

@@ -117,10 +117,46 @@ public class ApplicationService {
     return Optional.of(toResponse(saved));
   }
 
+  /**
+   * Deletes the Application vertex identified by {@code id} ({@link Application#getId()}), together
+   * with:
+   * <ul>
+   *   <li>all descendant {@code Module} nodes reachable via outbound {@code CONTAINS*} (bounded 1–50 hops);
+   *   <li>all relationships touching that application ({@code DEPENDS_ON}, {@code CONTAINS}, {@code VALID_DURING}, etc.) via {@code DETACH DELETE}.
+   * </ul>
+   * <p>If your data model uses temporal <em>duplicate</em> Application nodes over time ({@link
+   * #softUpdate}), {@code id} refers to <strong>a single node's id</strong> — deleting does not remove
+   * other versions that may share the same name.
+   *
+   * @return {@code false} when no Application exists with {@code id}
+   */
   @Transactional
   public boolean delete(String id) {
-    if (!applicationRepository.existsById(id)) return false;
-    applicationRepository.deleteById(id);
+    if (applicationRepository.findProjectionById(id).isEmpty()) {
+      return false;
+    }
+
+    neo4jClient
+        .query(
+            """
+            MATCH (:Application {id: $id})-[:CONTAINS*1..50]->(m:Module)
+            WITH DISTINCT m
+            DETACH DELETE m
+            """)
+        .bind(id)
+        .to("id")
+        .run();
+
+    neo4jClient
+        .query(
+            """
+            MATCH (a:Application {id: $id})
+            DETACH DELETE a
+            """)
+        .bind(id)
+        .to("id")
+        .run();
+
     return true;
   }
 

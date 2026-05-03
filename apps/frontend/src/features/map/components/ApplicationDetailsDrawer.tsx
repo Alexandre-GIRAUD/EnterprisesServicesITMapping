@@ -1,6 +1,10 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import type { ApplicationRequest, ApplicationResponse } from '@/types/api';
-import { fetchApplicationById, updateApplicationById } from '../api/applicationsApi';
+import {
+  deleteApplicationById,
+  fetchApplicationById,
+  updateApplicationById,
+} from '../api/applicationsApi';
 
 type ApplicationDetails = {
   id: string;
@@ -12,6 +16,8 @@ type ApplicationDetailsDrawerProps = {
   application: ApplicationDetails | null;
   onClose: () => void;
   onOpenModuleGraph: (applicationId: string) => void;
+  /** Invoked after backend delete succeeds; parent should remove the node from Cytoscape and close UI. */
+  onApplicationDeleted: (applicationId: string) => void;
 };
 
 export function ApplicationDetailsDrawer({
@@ -19,6 +25,7 @@ export function ApplicationDetailsDrawer({
   application,
   onClose,
   onOpenModuleGraph,
+  onApplicationDeleted,
 }: ApplicationDetailsDrawerProps) {
   const [details, setDetails] = useState<ApplicationResponse | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
@@ -26,6 +33,9 @@ export function ApplicationDetailsDrawer({
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formState, setFormState] = useState({
     name: '',
@@ -71,6 +81,9 @@ export function ApplicationDetailsDrawer({
       setIsSaving(false);
       setSaveSuccessMessage(null);
       setFormErrorMessage(null);
+      setShowDeleteConfirm(false);
+      setDeleteErrorMessage(null);
+      setIsDeleting(false);
     }
   }, [isOpen]);
 
@@ -145,7 +158,27 @@ export function ApplicationDetailsDrawer({
     });
     setFormErrorMessage(null);
     setSaveSuccessMessage(null);
+    setShowDeleteConfirm(false);
+    setDeleteErrorMessage(null);
     setIsEditing(false);
+  }
+
+  async function onConfirmDelete() {
+    const id = application?.id;
+    if (!id) return;
+    try {
+      setIsDeleting(true);
+      setDeleteErrorMessage(null);
+      await deleteApplicationById(id);
+      onApplicationDeleted(id);
+      setShowDeleteConfirm(false);
+    } catch (e) {
+      setDeleteErrorMessage(
+        e instanceof Error ? e.message : 'Impossible de supprimer cette application.'
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   return (
@@ -213,7 +246,7 @@ export function ApplicationDetailsDrawer({
                   onChange={(e) =>
                     setFormState((prev) => ({ ...prev, name: e.target.value }))
                   }
-                  disabled={isSaving}
+                  disabled={isSaving || isDeleting}
                   required
                 />
               </label>
@@ -226,7 +259,7 @@ export function ApplicationDetailsDrawer({
                     setFormState((prev) => ({ ...prev, description: e.target.value }))
                   }
                   rows={3}
-                  disabled={isSaving}
+                  disabled={isSaving || isDeleting}
                 />
               </label>
               <label className="graph-drawer-field">
@@ -238,7 +271,7 @@ export function ApplicationDetailsDrawer({
                   onChange={(e) =>
                     setFormState((prev) => ({ ...prev, validFrom: e.target.value }))
                   }
-                  disabled={isSaving}
+                  disabled={isSaving || isDeleting}
                 />
               </label>
               <label className="graph-drawer-field">
@@ -250,7 +283,7 @@ export function ApplicationDetailsDrawer({
                   onChange={(e) =>
                     setFormState((prev) => ({ ...prev, validTo: e.target.value }))
                   }
-                  disabled={isSaving}
+                  disabled={isSaving || isDeleting}
                 />
               </label>
               {formErrorMessage && (
@@ -262,7 +295,7 @@ export function ApplicationDetailsDrawer({
                 <button
                   type="submit"
                   className="graph-drawer-action graph-drawer-action-primary"
-                  disabled={isSaving}
+                  disabled={isSaving || isDeleting}
                 >
                   <span className="graph-drawer-action-title">
                     {isSaving ? 'Saving…' : 'Save'}
@@ -272,11 +305,67 @@ export function ApplicationDetailsDrawer({
                   type="button"
                   className="graph-drawer-action"
                   onClick={onCancelEdit}
-                  disabled={isSaving}
+                  disabled={isSaving || isDeleting}
                 >
                   <span className="graph-drawer-action-title">Cancel</span>
                 </button>
               </div>
+              {!showDeleteConfirm ? (
+                <button
+                  type="button"
+                  className="graph-drawer-action graph-drawer-action-danger"
+                  disabled={isSaving || isDeleting}
+                  onClick={() => {
+                    setDeleteErrorMessage(null);
+                    setShowDeleteConfirm(true);
+                  }}
+                >
+                  <span className="graph-drawer-action-title">Delete application</span>
+                  <span className="graph-drawer-action-meta" aria-hidden="true">
+                    Neo4j
+                  </span>
+                </button>
+              ) : (
+                <div
+                  className="graph-details-delete-confirm"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="graph-delete-confirm-title"
+                >
+                  <p id="graph-delete-confirm-title" className="graph-details-delete-confirm-title">
+                    Supprimer cette application ? Les modules reliés via CONTAINS et les arêtes attachées
+                    seront supprimés définitivement.
+                  </p>
+                  <div className="graph-details-delete-confirm-actions">
+                    <button
+                      type="button"
+                      className="graph-drawer-action graph-drawer-action-danger-solid"
+                      disabled={isDeleting}
+                      onClick={() => void onConfirmDelete()}
+                    >
+                      <span className="graph-drawer-action-title">
+                        {isDeleting ? 'Suppression…' : 'Confirmer la suppression'}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="graph-drawer-action"
+                      disabled={isDeleting}
+                      onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setDeleteErrorMessage(null);
+                      }}
+                    >
+                      <span className="graph-drawer-action-title">Annuler</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+              {deleteErrorMessage && (
+                <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
+                  {deleteErrorMessage}
+                </p>
+              )}
             </form>
           )}
         </>
@@ -305,6 +394,8 @@ export function ApplicationDetailsDrawer({
             onClick={() => {
               setFormErrorMessage(null);
               setSaveSuccessMessage(null);
+              setShowDeleteConfirm(false);
+              setDeleteErrorMessage(null);
               setIsEditing(true);
             }}
           >

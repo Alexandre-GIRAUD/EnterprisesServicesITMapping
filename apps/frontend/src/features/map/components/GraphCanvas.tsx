@@ -215,6 +215,18 @@ export function GraphCanvas() {
     return null;
   }
 
+  /** Remove application node + incident edges from Cytoscape after successful API delete */
+  function handleApplicationDeleted(applicationId: string) {
+    const cy = cyRef.current;
+    if (!cy) return;
+    const node = cy.getElementById(applicationId);
+    if (node.nonempty() && node.isNode()) {
+      cy.remove(node);
+    }
+    setSelectedApplication(null);
+    setIsDetailsDrawerOpen(false);
+  }
+
   return (
     <div className="graph-canvas-wrap">
       {status === 'loading' && (
@@ -265,6 +277,7 @@ export function GraphCanvas() {
             onOpenModuleGraph={(applicationId) => {
               navigate(`/map/apps/${encodeURIComponent(applicationId)}`);
             }}
+            onApplicationDeleted={handleApplicationDeleted}
           />
         </div>
 
