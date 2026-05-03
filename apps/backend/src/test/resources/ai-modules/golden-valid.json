@@ -1,0 +1,24 @@
+{
+  "modules": [
+    {
+      "id": "Billing_Module",
+      "business_name": "Facturation",
+      "description_metier_breve": "Encaissement et contrats.",
+      "evidence_paths": ["apps/billing/src/index.ts"]
+    },
+    {
+      "id": "catalog",
+      "business_name": "Catalogue produit",
+      "description_metier_breve": "SKU et tarifs.",
+      "evidence_paths": ["packages/catalog/README.md"]
+    }
+  ],
+  "relationships": [
+    {
+      "from_module_id": "billing_module",
+      "to_module_id": "catalog",
+      "relationship_kind": "structural_contains",
+      "evidence_paths": ["apps/billing/tsconfig.json"]
+    }
+  ]
+}

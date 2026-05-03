@@ -438,6 +438,39 @@ body {
   border-color: rgb(16 185 129 / 45%);
 }
 
+.github-import-ai-live {
+  margin-top: 0.35rem;
+}
+
+.github-import-card-ai {
+  margin-top: 0.55rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.github-import-ai-btn {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  border: 1px solid rgb(59 130 246 / 40%);
+  background: rgb(37 99 235 / 12%);
+  color: #dbeafe;
+  padding: 0.35rem 0.65rem;
+}
+
+.github-import-ai-btn:hover:not(:disabled) {
+  background: rgb(37 99 235 / 22%);
+}
+
+.github-import-ai-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .github-import-link {
   font-size: 0.8rem;
   font-weight: 600;

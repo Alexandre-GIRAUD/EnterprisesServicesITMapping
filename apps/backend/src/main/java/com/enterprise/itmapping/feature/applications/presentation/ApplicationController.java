@@ -2,8 +2,11 @@ package com.enterprise.itmapping.feature.applications.presentation;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
+import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
+import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubRequest;
+import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import jakarta.validation.Valid;
 import java.time.Instant;
@@ -27,11 +30,15 @@ public class ApplicationController {
 
   private final ApplicationService applicationService;
   private final ModuleGraphService moduleGraphService;
+  private final ModuleSuggestionService moduleSuggestionService;
 
   public ApplicationController(
-      ApplicationService applicationService, ModuleGraphService moduleGraphService) {
+      ApplicationService applicationService,
+      ModuleGraphService moduleGraphService,
+      ModuleSuggestionService moduleSuggestionService) {
     this.applicationService = applicationService;
     this.moduleGraphService = moduleGraphService;
+    this.moduleSuggestionService = moduleSuggestionService;
   }
 
   @GetMapping
@@ -51,6 +58,21 @@ public class ApplicationController {
     return applicationService.findById(id, pointInTime)
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.notFound().build());
+  }
+
+  /**
+   * Builds {@code Module} subgraph from GitHub tree paths + LLM suggestion (evidence-only JSON).
+   * Structural edges are persisted as {@code CONTAINS} only (see {@link ModuleSuggestionService}
+   * documentation).
+   */
+  @PostMapping("/{id}/modules/suggest-from-github")
+  public ResponseEntity<SuggestModulesFromGithubResponse> suggestModulesFromGithub(
+      @PathVariable String id,
+      @RequestBody(required = false) SuggestModulesFromGithubRequest body
+  ) {
+    SuggestModulesFromGithubResponse response =
+        moduleSuggestionService.suggestFromGithub(id, body != null ? body : new SuggestModulesFromGithubRequest(null));
+    return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
   /**

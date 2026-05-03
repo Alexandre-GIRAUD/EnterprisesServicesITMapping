@@ -70,3 +70,25 @@ export interface GitHubRepoDto {
   htmlUrl: string;
   repoPrivate: boolean;
 }
+
+/** {@code POST /api/applications/{id}/modules/suggest-from-github} */
+export interface SuggestModulesFromGithubRequest {
+  fullName?: string | null;
+}
+
+export interface SuggestModulesCreatedItem {
+  neo4jModuleId: string;
+  slugId: string;
+  businessName: string;
+}
+
+export interface SuggestModulesSkippedItem {
+  scope: string;
+  reason: string;
+  detail: string;
+}
+
+export interface SuggestModulesFromGithubResponse {
+  created: SuggestModulesCreatedItem[];
+  skipped: SuggestModulesSkippedItem[];
+}

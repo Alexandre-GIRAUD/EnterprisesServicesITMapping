@@ -32,6 +32,16 @@ app:
       token: ${GITHUB_TOKEN:}
       api-base-url: https://api.github.com
       max-repos: 100
+    # OpenAI-compatible chat (server key only; never expose to browser).
+    llm:
+      api-key: ${OPENAI_API_KEY:}
+      base-url: https://api.openai.com
+      chat-completions-path: /v1/chat/completions
+      model: gpt-4o-mini
+      timeout-ms: 120000
+      max-completion-tokens: 4096
+      max-user-prompt-chars: 120000
+      max-paths-in-prompt: 800
   sample-data:
     seed: ${SAMPLE_DATA_SEED:true} # set SAMPLE_DATA_SEED=false to disable
     # Neo4j may not accept Bolt immediately (Docker order, cold start, APOC). Retry before giving up.

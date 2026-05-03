@@ -1,10 +1,13 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { ApplicationRequest, ApplicationResponse } from '@/types/api';
 import {
   deleteApplicationById,
   fetchApplicationById,
+  suggestModulesFromGithub,
   updateApplicationById,
 } from '../api/applicationsApi';
+import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 
 type ApplicationDetails = {
   id: string;
@@ -37,6 +40,9 @@ export function ApplicationDetailsDrawer({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [suggestBusy, setSuggestBusy] = useState(false);
+  const [suggestErrorMessage, setSuggestErrorMessage] = useState<string | null>(null);
+  const [suggestSuccessMessage, setSuggestSuccessMessage] = useState<string | null>(null);
   const [formState, setFormState] = useState({
     name: '',
     description: '',
@@ -51,6 +57,8 @@ export function ApplicationDetailsDrawer({
     setErrorMessage(null);
     setSaveSuccessMessage(null);
     setFormErrorMessage(null);
+    setSuggestErrorMessage(null);
+    setSuggestSuccessMessage(null);
 
     void fetchApplicationById(application.id)
       .then((data) => {
@@ -84,6 +92,9 @@ export function ApplicationDetailsDrawer({
       setShowDeleteConfirm(false);
       setDeleteErrorMessage(null);
       setIsDeleting(false);
+      setSuggestBusy(false);
+      setSuggestErrorMessage(null);
+      setSuggestSuccessMessage(null);
     }
   }, [isOpen]);
 
@@ -161,6 +172,26 @@ export function ApplicationDetailsDrawer({
     setShowDeleteConfirm(false);
     setDeleteErrorMessage(null);
     setIsEditing(false);
+  }
+
+  async function onSuggestModulesFromGithub() {
+    const id = application?.id;
+    if (!id || !details) return;
+    setSuggestErrorMessage(null);
+    setSuggestSuccessMessage(null);
+    try {
+      setSuggestBusy(true);
+      const res = await suggestModulesFromGithub(id);
+      setSuggestSuccessMessage(
+        `${res.created.length} module(s) créé(s). ${res.skipped.length} entrée(s) ignorée(s).`
+      );
+    } catch (e) {
+      setSuggestErrorMessage(
+        e instanceof Error ? e.message : 'Suggestion modules IA impossible.'
+      );
+    } finally {
+      setSuggestBusy(false);
+    }
   }
 
   async function onConfirmDelete() {
@@ -378,6 +409,45 @@ export function ApplicationDetailsDrawer({
       </div>
 
       <div className="graph-details-actions">
+        {suggestErrorMessage && (
+          <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
+            {suggestErrorMessage}
+          </p>
+        )}
+        {suggestSuccessMessage && (
+          <p
+            className="graph-drawer-feedback graph-drawer-feedback-success"
+            role="status"
+            aria-live="polite"
+          >
+            {suggestSuccessMessage}{' '}
+            {application?.id ? (
+              <Link
+                className="github-import-inline-link"
+                to={`/map/apps/${encodeURIComponent(application.id)}`}
+              >
+                Voir le graphe modules
+              </Link>
+            ) : null}
+          </p>
+        )}
+        {application?.id &&
+          status === 'ready' &&
+          !isEditing &&
+          details &&
+          isGitHubLinkedApplication(details) && (
+            <button
+              type="button"
+              className="graph-drawer-action"
+              disabled={suggestBusy || isDeleting}
+              aria-busy={suggestBusy}
+              onClick={() => void onSuggestModulesFromGithub()}
+            >
+              <span className="graph-drawer-action-title">
+                {suggestBusy ? 'Analyse IA…' : 'Suggérer les modules (IA)'}
+              </span>
+            </button>
+          )}
         {application?.id && (
           <button
             type="button"

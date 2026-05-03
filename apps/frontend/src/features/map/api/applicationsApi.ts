@@ -1,4 +1,9 @@
-import type { ApplicationRequest, ApplicationResponse } from '@/types/api';
+import type {
+  ApplicationRequest,
+  ApplicationResponse,
+  SuggestModulesFromGithubRequest,
+  SuggestModulesFromGithubResponse,
+} from '@/types/api';
 
 function resolveUrl(pathWithQuery: string): string {
   const origin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
@@ -81,6 +86,32 @@ export async function deleteApplicationById(applicationId: string): Promise<void
       `Delete application API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
     );
   }
+}
+
+export async function suggestModulesFromGithub(
+  applicationId: string,
+  body?: SuggestModulesFromGithubRequest
+): Promise<SuggestModulesFromGithubResponse> {
+  const url = resolveUrl(
+    `/api/applications/${encodeURIComponent(applicationId)}/modules/suggest-from-github`
+  );
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Suggestion modules IA ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 240)}` : ''}`
+    );
+  }
+
+  return res.json();
 }
 
 export async function updateApplicationById(

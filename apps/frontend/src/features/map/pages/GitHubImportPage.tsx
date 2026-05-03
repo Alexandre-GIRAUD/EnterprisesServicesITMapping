@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { GitHubRepoDto } from '@/types/api';
-import { createApplication, fetchApplications } from '../api/applicationsApi';
+import type { ApplicationResponse, GitHubRepoDto } from '@/types/api';
+import {
+  createApplication,
+  fetchApplications,
+  suggestModulesFromGithub,
+} from '../api/applicationsApi';
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
+import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 
 function normalizeName(s: string): string {
   return s.trim().toLowerCase();
@@ -11,7 +16,7 @@ function normalizeName(s: string): string {
 export function GitHubImportPage() {
   const navigate = useNavigate();
   const [repos, setRepos] = useState<GitHubRepoDto[]>([]);
-  const [importedNames, setImportedNames] = useState<Set<string>>(new Set());
+  const [applications, setApplications] = useState<ApplicationResponse[]>([]);
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
@@ -19,6 +24,14 @@ export function GitHubImportPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [aiBanner, setAiBanner] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
+  const [lastSuggestApplicationId, setLastSuggestApplicationId] = useState<string | null>(null);
+  const [aiBusyRepoId, setAiBusyRepoId] = useState<number | null>(null);
+
+  const importedNames = useMemo(
+    () => new Set(applications.map((a) => normalizeName(a.name ?? '')).filter(Boolean)),
+    [applications]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -33,9 +46,7 @@ export function GitHubImportPage() {
         ]);
         if (cancelled) return;
         setRepos(githubList);
-        setImportedNames(
-          new Set(apps.map((a) => normalizeName(a.name ?? '')).filter(Boolean))
-        );
+        setApplications(apps);
         setStatus('ready');
       } catch (e) {
         if (cancelled) return;
@@ -77,6 +88,7 @@ export function GitHubImportPage() {
 
   async function handleImportSelection() {
     setSuccessMessage(null);
+    setAiBanner(null);
     setImportErrors([]);
     const toCreate = repos.filter((r) => selected.has(r.id) && !isImported(r));
     if (toCreate.length === 0) {
@@ -91,12 +103,13 @@ export function GitHubImportPage() {
       setIsImporting(true);
       for (const repo of toCreate) {
         try {
-          await createApplication({
+          const created = await createApplication({
             name: repo.fullName,
             description: repo.description?.trim() || `GitHub: ${repo.htmlUrl}`,
             validFrom: new Date().toISOString(),
             validTo: null,
           });
+          setApplications((prev) => [...prev, created]);
           createdNames.push(normalizeName(repo.fullName));
         } catch (e) {
           errors.push(
@@ -106,7 +119,6 @@ export function GitHubImportPage() {
       }
 
       if (createdNames.length > 0) {
-        setImportedNames((prev) => new Set([...prev, ...createdNames]));
         setSelected(new Set());
         setSuccessMessage(
           `${createdNames.length} application(s) créée(s). Ouvrez la carte pour voir le graphe mis à jour.`
@@ -115,6 +127,41 @@ export function GitHubImportPage() {
       setImportErrors(errors);
     } finally {
       setIsImporting(false);
+    }
+  }
+
+  function resolveApplicationId(repo: GitHubRepoDto): string | undefined {
+    const key = normalizeName(repo.fullName);
+    const app = applications.find((a) => normalizeName(a.name ?? '') === key);
+    return app?.id;
+  }
+
+  async function handleSuggestModules(repo: GitHubRepoDto) {
+    const appId = resolveApplicationId(repo);
+    setAiBanner(null);
+    setLastSuggestApplicationId(null);
+    if (!appId || !isGitHubLinkedApplication({ name: repo.fullName })) {
+      setAiBanner({
+        tone: 'err',
+        text: `Application Neo4j introuvable pour ${repo.fullName} ou dépôt non détecté comme GitHub.`,
+      });
+      return;
+    }
+    try {
+      setAiBusyRepoId(repo.id);
+      const res = await suggestModulesFromGithub(appId);
+      setLastSuggestApplicationId(appId);
+      setAiBanner({
+        tone: 'ok',
+        text: `${res.created.length} module(s) créé(s). ${res.skipped.length} entrée(s) ignorée(s).`,
+      });
+    } catch (e) {
+      setAiBanner({
+        tone: 'err',
+        text: e instanceof Error ? e.message : 'Suggestion IA impossible.',
+      });
+    } finally {
+      setAiBusyRepoId(null);
     }
   }
 
@@ -134,6 +181,38 @@ export function GitHubImportPage() {
           Retour carte
         </Link>
       </header>
+
+      <div
+        className="github-import-ai-live"
+        aria-live="polite"
+        aria-relevant="additions text"
+      >
+        {aiBanner && (
+          <p
+            className={
+              aiBanner.tone === 'err'
+                ? 'github-import-feedback github-import-feedback-error'
+                : 'github-import-feedback github-import-feedback-success'
+            }
+            role={aiBanner.tone === 'err' ? 'alert' : 'status'}
+          >
+            {aiBanner.text}{' '}
+            {aiBanner.tone === 'ok' && lastSuggestApplicationId ? (
+              <button
+                type="button"
+                className="github-import-inline-link"
+                onClick={() =>
+                  navigate(
+                    `/map/apps/${encodeURIComponent(lastSuggestApplicationId)}`
+                  )
+                }
+              >
+                Voir le graphe modules
+              </button>
+            ) : null}
+          </p>
+        )}
+      </div>
 
       <div className="github-import-toolbar">
         <label className="github-import-search-label">
@@ -241,6 +320,31 @@ export function GitHubImportPage() {
                   >
                     Ouvrir sur GitHub
                   </a>
+                  {imported &&
+                    isGitHubLinkedApplication({
+                      name: repo.fullName,
+                      description:
+                        repo.description?.trim() || `GitHub: ${repo.htmlUrl}`,
+                    }) && (
+                      <div className="github-import-card-ai">
+                        <button
+                          type="button"
+                          className="github-import-ai-btn"
+                          disabled={
+                            status !== 'ready' ||
+                            aiBusyRepoId !== null ||
+                            isImporting ||
+                            !resolveApplicationId(repo)
+                          }
+                          aria-busy={aiBusyRepoId === repo.id}
+                          onClick={() => void handleSuggestModules(repo)}
+                        >
+                          {aiBusyRepoId === repo.id
+                            ? 'Analyse IA…'
+                            : 'Suggérer les modules (IA)'}
+                        </button>
+                      </div>
+                    )}
                 </span>
               </label>
             </li>
@@ -251,7 +355,15 @@ export function GitHubImportPage() {
       <p className="github-import-footnote" role="note">
         Pagination GitHub : la première page seulement est chargée (max 100 dépôts les plus
         récemment mis à jour). Les applications existantes sont détectées par nom exact (
-        <code className="github-import-code">full_name</code> GitHub).
+        <code className="github-import-code">full_name</code> GitHub). Le bouton « Suggérer les modules
+        (IA) » apparaît pour les lignes déjà importées lorsque{' '}
+        <code className="github-import-code">name</code> ressemble à <code className="github-import-code">
+          owner/repo
+        </code>{' '}
+        ou que la description suit le schéma d’import <code className="github-import-code">
+          GitHub: https://…
+        </code>
+        .
       </p>
     </div>
   );
