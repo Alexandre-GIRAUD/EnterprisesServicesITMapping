@@ -7,5 +7,7 @@ public record ApplicationResponse(
     String name,
     String description,
     Instant validFrom,
-    Instant validTo
+    Instant validTo,
+    /** True when IA module suggestion must be disabled ({@code CONTAINS*} to at least one {@code Module}). */
+    boolean hasModuleSubtree
 ) {}

@@ -130,10 +130,13 @@ export function GitHubImportPage() {
     }
   }
 
-  function resolveApplicationId(repo: GitHubRepoDto): string | undefined {
+  function applicationForRepo(repo: GitHubRepoDto): ApplicationResponse | undefined {
     const key = normalizeName(repo.fullName);
-    const app = applications.find((a) => normalizeName(a.name ?? '') === key);
-    return app?.id;
+    return applications.find((a) => normalizeName(a.name ?? '') === key);
+  }
+
+  function resolveApplicationId(repo: GitHubRepoDto): string | undefined {
+    return applicationForRepo(repo)?.id;
   }
 
   async function handleSuggestModules(repo: GitHubRepoDto) {
@@ -151,6 +154,7 @@ export function GitHubImportPage() {
       setAiBusyRepoId(repo.id);
       const res = await suggestModulesFromGithub(appId);
       setLastSuggestApplicationId(appId);
+      setApplications(await fetchApplications());
       setAiBanner({
         tone: 'ok',
         text: `${res.created.length} module(s) créé(s). ${res.skipped.length} entrée(s) ignorée(s).`,
@@ -283,6 +287,8 @@ export function GitHubImportPage() {
       <ul className="github-import-list" aria-label="Dépôts GitHub">
         {filteredRepos.map((repo) => {
           const imported = isImported(repo);
+          const appRow = applicationForRepo(repo);
+          const modulesLocked = Boolean(appRow?.hasModuleSubtree);
           const checked = imported || selected.has(repo.id);
           return (
             <li key={repo.id} className="github-import-card">
@@ -334,14 +340,22 @@ export function GitHubImportPage() {
                             status !== 'ready' ||
                             aiBusyRepoId !== null ||
                             isImporting ||
-                            !resolveApplicationId(repo)
+                            !resolveApplicationId(repo) ||
+                            modulesLocked
+                          }
+                          title={
+                            modulesLocked
+                              ? 'Des modules sont déjà liés à cette application. La suggestion IA ne peut être relancée.'
+                              : undefined
                           }
                           aria-busy={aiBusyRepoId === repo.id}
                           onClick={() => void handleSuggestModules(repo)}
                         >
                           {aiBusyRepoId === repo.id
                             ? 'Analyse IA…'
-                            : 'Suggérer les modules (IA)'}
+                            : modulesLocked
+                              ? 'Modules déjà en place'
+                              : 'Suggérer les modules (IA)'}
                         </button>
                       </div>
                     )}
@@ -363,7 +377,8 @@ export function GitHubImportPage() {
         ou que la description suit le schéma d’import <code className="github-import-code">
           GitHub: https://…
         </code>
-        .
+        . Une fois des modules liés à l’application, le bouton passe en « Modules déjà en place » (pas de
+        nouvelle suggestion IA).
       </p>
     </div>
   );

@@ -20,17 +20,27 @@ public class ApplicationService {
 
   private final ApplicationRepository applicationRepository;
   private final Neo4jClient neo4jClient;
+  private final ApplicationModuleSubtreeQuery moduleSubtreeQuery;
 
-  public ApplicationService(ApplicationRepository applicationRepository, Neo4jClient neo4jClient) {
+  public ApplicationService(
+      ApplicationRepository applicationRepository,
+      Neo4jClient neo4jClient,
+      ApplicationModuleSubtreeQuery moduleSubtreeQuery) {
     this.applicationRepository = applicationRepository;
     this.neo4jClient = neo4jClient;
+    this.moduleSubtreeQuery = moduleSubtreeQuery;
   }
 
   @Transactional(readOnly = true)
   public List<ApplicationResponse> findAll(Instant validAt) {
     Instant pointInTime = validAt != null ? validAt : Instant.now();
-    return applicationRepository.findAllValidAtForGraph(pointInTime).stream()
-        .map(this::toResponse)
+    List<ApplicationGraphNodeProjection> rows =
+        applicationRepository.findAllValidAtForGraph(pointInTime);
+    var flags =
+        moduleSubtreeQuery.hasAnyModuleViaContainsBatch(
+            rows.stream().map(ApplicationGraphNodeProjection::getId).collect(Collectors.toList()));
+    return rows.stream()
+        .map(p -> graphProjectionToResponse(p, flags.getOrDefault(p.getId(), false)))
         .collect(Collectors.toList());
   }
 
@@ -166,17 +176,22 @@ public class ApplicationService {
         a.getName(),
         a.getDescription(),
         a.getValidFrom(),
-        a.getValidTo()
-    );
+        a.getValidTo(),
+        moduleSubtreeQuery.hasAnyModuleViaContains(a.getId()));
   }
 
   private ApplicationResponse toResponse(ApplicationGraphNodeProjection p) {
+    return graphProjectionToResponse(p, moduleSubtreeQuery.hasAnyModuleViaContains(p.getId()));
+  }
+
+  private ApplicationResponse graphProjectionToResponse(
+      ApplicationGraphNodeProjection p, boolean hasModuleSubtree) {
     return new ApplicationResponse(
         p.getId(),
         p.getName(),
         p.getDescription(),
         p.getValidFrom(),
-        p.getValidTo()
-    );
+        p.getValidTo(),
+        hasModuleSubtree);
   }
 }

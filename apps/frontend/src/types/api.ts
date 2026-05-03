@@ -59,6 +59,8 @@ export interface ApplicationResponse {
   description?: string;
   validFrom: string;
   validTo: string | null;
+  /** True when the app already has modules (CONTAINS); IA suggestion is blocked server-side. */
+  hasModuleSubtree?: boolean;
 }
 
 /** GitHub repo summary from {@code GET /api/integrations/github/repos} */

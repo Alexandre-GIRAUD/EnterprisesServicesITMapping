@@ -182,6 +182,7 @@ export function ApplicationDetailsDrawer({
     try {
       setSuggestBusy(true);
       const res = await suggestModulesFromGithub(id);
+      setDetails(await fetchApplicationById(id));
       setSuggestSuccessMessage(
         `${res.created.length} module(s) créé(s). ${res.skipped.length} entrée(s) ignorée(s).`
       );
@@ -439,12 +440,23 @@ export function ApplicationDetailsDrawer({
             <button
               type="button"
               className="graph-drawer-action"
-              disabled={suggestBusy || isDeleting}
+              disabled={
+                suggestBusy || isDeleting || Boolean(details.hasModuleSubtree)
+              }
+              title={
+                details.hasModuleSubtree
+                  ? 'Des modules sont déjà liés à cette application. La suggestion IA ne peut être relancée.'
+                  : undefined
+              }
               aria-busy={suggestBusy}
               onClick={() => void onSuggestModulesFromGithub()}
             >
               <span className="graph-drawer-action-title">
-                {suggestBusy ? 'Analyse IA…' : 'Suggérer les modules (IA)'}
+                {suggestBusy
+                  ? 'Analyse IA…'
+                  : details.hasModuleSubtree
+                    ? 'Modules déjà en place'
+                    : 'Suggérer les modules (IA)'}
               </span>
             </button>
           )}

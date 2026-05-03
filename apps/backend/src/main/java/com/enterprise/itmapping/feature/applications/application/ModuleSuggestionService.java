@@ -45,6 +45,10 @@ import org.springframework.web.server.ResponseStatusException;
  * <p><strong>Edge strategy (MVP):</strong> only {@code structural_contains} from the IA is materialized
  * as Neo4j {@code CONTAINS}. {@code structural_adjacency} is never emitted by the prompt and is ignored
  * if present.
+ *
+ * <p><strong>Idempotence:</strong> if the application already has at least one {@code Module} reachable
+ * via outbound {@code CONTAINS}, returns {@code 409 Conflict} without calling GitHub or the LLM (retry
+ * allowed when the subtree is empty, e.g. all modules removed).
  */
 @Service
 public class ModuleSuggestionService {
@@ -60,6 +64,7 @@ public class ModuleSuggestionService {
   private final ObjectMapper objectMapper;
   private final ResourceLoader resourceLoader;
   private final ObjectProvider<ModuleSuggestionService> self;
+  private final ApplicationModuleSubtreeQuery moduleSubtreeQuery;
 
   public ModuleSuggestionService(
       ApplicationRepository applicationRepository,
@@ -69,7 +74,8 @@ public class ModuleSuggestionService {
       Neo4jClient neo4jClient,
       ObjectMapper objectMapper,
       ResourceLoader resourceLoader,
-      ObjectProvider<ModuleSuggestionService> self) {
+      ObjectProvider<ModuleSuggestionService> self,
+      ApplicationModuleSubtreeQuery moduleSubtreeQuery) {
     this.applicationRepository = applicationRepository;
     this.gitHubRepoTreeService = gitHubRepoTreeService;
     this.openAiChatJsonClient = openAiChatJsonClient;
@@ -78,6 +84,7 @@ public class ModuleSuggestionService {
     this.objectMapper = objectMapper;
     this.resourceLoader = resourceLoader;
     this.self = self;
+    this.moduleSubtreeQuery = moduleSubtreeQuery;
   }
 
   public SuggestModulesFromGithubResponse suggestFromGithub(
@@ -96,6 +103,12 @@ public class ModuleSuggestionService {
                 () ->
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Application introuvable: " + applicationId));
+
+    if (moduleSubtreeQuery.hasAnyModuleViaContains(applicationId)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "Les modules ont déjà été suggérés pour cette application.");
+    }
 
     String fullName =
         GithubRepoIdentityResolver.resolveFullName(

@@ -106,6 +106,20 @@ export async function suggestModulesFromGithub(
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
+    if (res.status === 409) {
+      const fallback =
+        'Les modules ont déjà été suggérés pour cette application.';
+      let msg = fallback;
+      try {
+        const json = JSON.parse(detail) as { message?: string };
+        if (json.message?.trim()) {
+          msg = json.message.trim();
+        }
+      } catch {
+        /* keep fallback */
+      }
+      throw new Error(msg);
+    }
     throw new Error(
       `Suggestion modules IA ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 240)}` : ''}`
     );
