@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import flowraLogo from '@/assets/flowra.svg.svg';
 
 interface LayoutProps {
@@ -9,10 +10,10 @@ export function Layout({ children }: LayoutProps) {
   return (
     <div className="layout">
       <header className="layout-header">
-        <div className="layout-brand">
-          <img src={flowraLogo} alt="Flowra logo" className="layout-brand-logo" />
+        <Link to="/map" className="layout-brand layout-brand-link">
+          <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
           <h1>Flowra.AI</h1>
-        </div>
+        </Link>
         {/* Auth placeholder: login / user menu when JWT is implemented */}
       </header>
       <main className="layout-main">{children}</main>

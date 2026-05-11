@@ -50,6 +50,25 @@ body {
   gap: 0.65rem;
 }
 
+/* Home to map: logo + title act as one router link */
+.layout-brand-link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 0.35rem;
+  transition: opacity 140ms ease, background-color 140ms ease;
+}
+
+.layout-brand-link:hover {
+  text-decoration: none;
+  background-color: rgb(148 163 184 / 12%);
+}
+
+.layout-brand-link:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 3px;
+}
+
 .layout-brand-logo {
   width: 1.9rem;
   height: 1.9rem;
