@@ -172,6 +172,26 @@ export function GraphCanvas() {
     };
   }, [navigate]);
 
+  /** Keep Cytoscape sized to its flex container (viewport / drawer / responsive). */
+  useEffect(() => {
+    if (status !== 'ready') return;
+    const cy = cyRef.current;
+    const el = containerRef.current;
+    if (!cy || !el) return;
+
+    const resize = () => {
+      cy.resize();
+    };
+    resize();
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(el);
+    window.addEventListener('resize', resize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', resize);
+    };
+  }, [status]);
+
   function handleNodeCreated(created: ApplicationResponse) {
     const cy = cyRef.current;
     if (!cy) return;

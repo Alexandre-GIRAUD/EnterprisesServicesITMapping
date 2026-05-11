@@ -85,8 +85,7 @@ body {
 
 /* ===== Map pages ===== */
 .map-page {
-  height: 100%;
-  min-height: 500px;
+  width: 100%;
 }
 
 .map-filters-toolbar {
@@ -666,7 +665,8 @@ body {
 
 .graph-canvas {
   width: 100%;
-  height: min(70vh, 640px);
+  /* fill the viewport below header (~56px) + toolbar (~60px) + layout padding (~48px) */
+  height: calc(100vh - 300px);
   min-height: 420px;
   background:
     radial-gradient(circle at top, rgb(59 130 246 / 10%), transparent 38%),
@@ -1246,7 +1246,8 @@ body {
 
 @media (max-width: 640px) {
   .graph-canvas {
-    min-height: 520px;
+    height: calc(100vh - 300px);
+    min-height: 360px;
   }
 
   .graph-drawer-toggle {
@@ -1268,6 +1269,7 @@ body {
 
 /* ===== Module map page ===== */
 .module-map-toolbar {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

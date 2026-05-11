@@ -140,6 +140,25 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
     };
   }, [applicationId]);
 
+  useEffect(() => {
+    if (status !== 'ready') return;
+    const cy = cyRef.current;
+    const el = containerRef.current;
+    if (!cy || !el) return;
+
+    const resize = () => {
+      cy.resize();
+    };
+    resize();
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(el);
+    window.addEventListener('resize', resize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', resize);
+    };
+  }, [status]);
+
   return (
     <div className="graph-canvas-wrap">
       {status === 'loading' && (
