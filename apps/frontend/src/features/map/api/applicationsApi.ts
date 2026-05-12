@@ -71,6 +71,32 @@ export async function fetchApplicationById(applicationId: string): Promise<Appli
   return res.json();
 }
 
+export async function patchApplicationBusinessUnit(
+  applicationId: string,
+  businessUnitId: string | null
+): Promise<ApplicationResponse> {
+  const url = resolveUrl(
+    `/api/applications/${encodeURIComponent(applicationId)}/business-unit`
+  );
+  const res = await authenticatedFetch(url, {
+    method: 'PATCH',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ businessUnitId }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Business unit lien ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+
+  return res.json();
+}
+
 /**
  * Cascade-delete application (backend removes CONTAINS subtree Modules and DETACH DELETE the app node).
  */

@@ -3,8 +3,10 @@ package com.enterprise.itmapping.feature.applications.presentation;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
+import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationBusinessUnitPatchRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
+import com.enterprise.itmapping.feature.businessunit.application.BusinessUnitApplicationLinkService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
@@ -31,14 +33,17 @@ public class ApplicationController {
   private final ApplicationService applicationService;
   private final ModuleGraphService moduleGraphService;
   private final ModuleSuggestionService moduleSuggestionService;
+  private final BusinessUnitApplicationLinkService businessUnitApplicationLinkService;
 
   public ApplicationController(
       ApplicationService applicationService,
       ModuleGraphService moduleGraphService,
-      ModuleSuggestionService moduleSuggestionService) {
+      ModuleSuggestionService moduleSuggestionService,
+      BusinessUnitApplicationLinkService businessUnitApplicationLinkService) {
     this.applicationService = applicationService;
     this.moduleGraphService = moduleGraphService;
     this.moduleSuggestionService = moduleSuggestionService;
+    this.businessUnitApplicationLinkService = businessUnitApplicationLinkService;
   }
 
   @GetMapping
@@ -102,6 +107,25 @@ public class ApplicationController {
       @Valid @RequestBody ApplicationRequest request
   ) {
     return applicationService.update(id, request)
+        .map(ResponseEntity::ok)
+        .orElse(ResponseEntity.notFound().build());
+  }
+
+  /**
+   * Sets or clears the {@code HAS_APPLICATION} link from a {@code BusinessUnit} to this
+   * application node. {@code businessUnitId} {@code null} removes any existing link.
+   */
+  @PatchMapping("/{id}/business-unit")
+  public ResponseEntity<ApplicationResponse> patchBusinessUnit(
+      @PathVariable String id,
+      @RequestBody(required = false) ApplicationBusinessUnitPatchRequest body) {
+    String buId = body != null ? body.businessUnitId() : null;
+    if (!businessUnitApplicationLinkService.setBusinessUnitForApplication(id, buId)) {
+      return ResponseEntity.notFound().build();
+    }
+    Instant now = Instant.now();
+    return applicationService
+        .findById(id, now)
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.notFound().build());
   }

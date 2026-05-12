@@ -1,5 +1,10 @@
 import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useState } from 'react';
-import type { ApplicationResponse, GraphEdgeCreateResponse } from '@/types/api';
+import type {
+  ApplicationResponse,
+  BusinessUnitCreateRequest,
+  GraphEdgeCreateResponse,
+} from '@/types/api';
+import { createBusinessUnit } from '../api/businessUnitsApi';
 import { fetchApplications } from '../api/applicationsApi';
 import { useCreateApplicationNode } from '../hooks/useCreateApplicationNode';
 import { useCreateGraphEdge } from '../hooks/useCreateGraphEdge';
@@ -9,9 +14,11 @@ type WorkspaceDrawerProps = {
   onClose: () => void;
   onNodeCreated?: (application: ApplicationResponse) => void;
   onEdgeCreated?: (edge: GraphEdgeCreateResponse) => string | null;
+  /** After creating a BU, refresh lists (e.g. map filter dropdown). */
+  onBusinessUnitsChanged?: () => void | Promise<void>;
 };
 
-type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form';
+type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-bu-form';
 
 type AddNodeFormState = {
   name: string;
@@ -43,13 +50,26 @@ const DEFAULT_EDGE_FORM_STATE: AddEdgeFormState = {
   validTo: '',
 };
 
-const DRAWER_ACTIONS = ['Add Node', 'Add Edge', 'Profile', 'Settings'] as const;
+type AddBuFormState = {
+  name: string;
+  code: string;
+  description: string;
+};
+
+const DEFAULT_BU_FORM_STATE: AddBuFormState = {
+  name: '',
+  code: '',
+  description: '',
+};
+
+const DRAWER_ACTIONS = ['Add Node', 'Add Edge', 'Add Business Unit', 'Profile', 'Settings'] as const;
 
 export function WorkspaceDrawer({
   isOpen,
   onClose,
   onNodeCreated,
   onEdgeCreated,
+  onBusinessUnitsChanged,
 }: WorkspaceDrawerProps) {
   const [view, setView] = useState<DrawerView>('menu');
   const [nodeFormState, setNodeFormState] = useState<AddNodeFormState>(DEFAULT_FORM_STATE);
@@ -63,6 +83,8 @@ export function WorkspaceDrawer({
   const [isTargetSuggestionsOpen, setIsTargetSuggestionsOpen] = useState(false);
   const [debouncedSourceQuery, setDebouncedSourceQuery] = useState('');
   const [debouncedTargetQuery, setDebouncedTargetQuery] = useState('');
+  const [buFormState, setBuFormState] = useState<AddBuFormState>(DEFAULT_BU_FORM_STATE);
+  const [isBuSubmitting, setIsBuSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const {
@@ -75,7 +97,7 @@ export function WorkspaceDrawer({
     isSubmitting: isEdgeSubmitting,
     error: edgeError,
   } = useCreateGraphEdge();
-  const isSubmitting = isNodeSubmitting || isEdgeSubmitting;
+  const isSubmitting = isNodeSubmitting || isEdgeSubmitting || isBuSubmitting;
   const backendError = nodeError ?? edgeError ?? searchError;
 
   const feedback = localError ?? backendError ?? feedbackMessage;
@@ -119,6 +141,46 @@ export function WorkspaceDrawer({
     setFeedbackMessage(null);
   }
 
+  function openAddBuForm() {
+    setView('add-bu-form');
+    setLocalError(null);
+    setFeedbackMessage(null);
+  }
+
+  function updateBuField(field: keyof AddBuFormState, value: string) {
+    setBuFormState((prev) => ({ ...prev, [field]: value }));
+    setLocalError(null);
+    setFeedbackMessage(null);
+  }
+
+  async function onSubmitBu(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedName = buFormState.name.trim();
+    if (!normalizedName) {
+      setLocalError('Le nom de la business unit est obligatoire.');
+      return;
+    }
+    const payload: BusinessUnitCreateRequest = {
+      name: normalizedName,
+      ...(buFormState.code.trim() ? { code: buFormState.code.trim() } : {}),
+      ...(buFormState.description.trim() ? { description: buFormState.description.trim() } : {}),
+    };
+    try {
+      setIsBuSubmitting(true);
+      setLocalError(null);
+      setFeedbackMessage(null);
+      await createBusinessUnit(payload);
+      setBuFormState(DEFAULT_BU_FORM_STATE);
+      setFeedbackMessage(`Business unit « ${normalizedName} » créée.`);
+      await onBusinessUnitsChanged?.();
+      setView('menu');
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : 'Impossible de créer la business unit.');
+    } finally {
+      setIsBuSubmitting(false);
+    }
+  }
+
   function closeDrawer() {
     setView('menu');
     setLocalError(null);
@@ -137,6 +199,7 @@ export function WorkspaceDrawer({
     setSelectedSourceApp(null);
     setSelectedTargetApp(null);
     setEdgeFormState(DEFAULT_EDGE_FORM_STATE);
+    setBuFormState(DEFAULT_BU_FORM_STATE);
   }
 
   useEffect(() => {
@@ -320,14 +383,22 @@ export function WorkspaceDrawer({
         <div className="graph-drawer-title-row">
           <div>
             <h2 className="graph-drawer-title">
-              {view === 'menu' ? 'Actions' : view === 'add-node-form' ? 'Create Node' : 'Create Edge'}
+              {view === 'menu'
+                ? 'Actions'
+                : view === 'add-node-form'
+                  ? 'Create Node'
+                  : view === 'add-edge-form'
+                    ? 'Create Edge'
+                    : 'Nouvelle business unit'}
             </h2>
             <p className="graph-drawer-description">
               {view === 'menu'
                 ? 'Préparez vos prochaines opérations depuis un panneau latéral sobre et moderne.'
                 : view === 'add-node-form'
                   ? 'Créez un nœud Application avec les attributs temporels attendus.'
-                  : 'Créez une relation typée entre deux nœuds déjà visibles dans le graphe.'}
+                  : view === 'add-edge-form'
+                    ? 'Créez une relation typée entre deux nœuds déjà visibles dans le graphe.'
+                    : 'Créez une business unit (regroupement au-dessus des applications).'}
             </p>
           </div>
           <button
@@ -360,12 +431,18 @@ export function WorkspaceDrawer({
                   ? openAddNodeForm
                   : action === 'Add Edge'
                     ? openAddEdgeForm
-                    : undefined
+                    : action === 'Add Business Unit'
+                      ? openAddBuForm
+                      : undefined
               }
             >
               <span className="graph-drawer-action-title">{action}</span>
               <span className="graph-drawer-action-meta">
-                {action === 'Add Node' || action === 'Add Edge' ? 'Open' : 'Soon'}
+                {action === 'Add Node' ||
+                action === 'Add Edge' ||
+                action === 'Add Business Unit'
+                  ? 'Open'
+                  : 'Soon'}
               </span>
             </button>
           ))}
@@ -427,6 +504,56 @@ export function WorkspaceDrawer({
             </button>
             <button type="button" className="graph-drawer-action" onClick={cancelForm}>
               <span className="graph-drawer-action-title">Cancel</span>
+            </button>
+          </div>
+        </form>
+      ) : view === 'add-bu-form' ? (
+        <form className="graph-drawer-form" onSubmit={onSubmitBu}>
+          <label className="graph-drawer-field">
+            <span className="graph-drawer-field-label">Nom</span>
+            <input
+              className="graph-drawer-input"
+              type="text"
+              value={buFormState.name}
+              onChange={(e) => updateBuField('name', e.target.value)}
+              required
+              placeholder="Ex: Retail France"
+              disabled={isBuSubmitting}
+            />
+          </label>
+          <label className="graph-drawer-field">
+            <span className="graph-drawer-field-label">Code (optionnel)</span>
+            <input
+              className="graph-drawer-input"
+              type="text"
+              value={buFormState.code}
+              onChange={(e) => updateBuField('code', e.target.value)}
+              placeholder="Ex: RETAIL-FR"
+              disabled={isBuSubmitting}
+            />
+          </label>
+          <label className="graph-drawer-field">
+            <span className="graph-drawer-field-label">Description (optionnel)</span>
+            <textarea
+              className="graph-drawer-input graph-drawer-textarea"
+              value={buFormState.description}
+              onChange={(e) => updateBuField('description', e.target.value)}
+              rows={3}
+              disabled={isBuSubmitting}
+            />
+          </label>
+          <div className="graph-drawer-form-actions">
+            <button
+              type="submit"
+              className="graph-drawer-action graph-drawer-action-primary"
+              disabled={isBuSubmitting}
+            >
+              <span className="graph-drawer-action-title">
+                {isBuSubmitting ? 'Création…' : 'Créer la business unit'}
+              </span>
+            </button>
+            <button type="button" className="graph-drawer-action" onClick={cancelForm} disabled={isBuSubmitting}>
+              <span className="graph-drawer-action-title">Annuler</span>
             </button>
           </div>
         </form>

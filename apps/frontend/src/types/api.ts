@@ -78,6 +78,13 @@ export interface BusinessUnitListItem {
   name: string;
 }
 
+/** POST /business-units */
+export interface BusinessUnitCreateRequest {
+  name: string;
+  code?: string;
+  description?: string;
+}
+
 /** GitHub repo summary from {@code GET /api/integrations/github/repos} */
 export interface GitHubRepoDto {
   id: number;

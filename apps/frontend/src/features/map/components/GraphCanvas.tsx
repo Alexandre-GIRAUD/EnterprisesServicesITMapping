@@ -1,8 +1,9 @@
 import cytoscape, { type Core, type ElementDefinition } from 'cytoscape';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ApplicationResponse, BusinessUnitListItem, GraphEdgeCreateResponse } from '@/types/api';
-import { fetchBusinessUnits, fetchGraph } from '../api/graphApi';
+import { fetchBusinessUnits } from '../api/businessUnitsApi';
+import { fetchGraph } from '../api/graphApi';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
 import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
 
@@ -26,19 +27,18 @@ export function GraphCanvas() {
   const [businessUnits, setBusinessUnits] = useState<BusinessUnitListItem[]>([]);
   const [businessUnitId, setBusinessUnitId] = useState<string>('');
 
-  useEffect(() => {
-    let cancelled = false;
-    void fetchBusinessUnits()
-      .then((rows) => {
-        if (!cancelled) setBusinessUnits(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setBusinessUnits([]);
-      });
-    return () => {
-      cancelled = true;
-    };
+  const refreshBusinessUnits = useCallback(async () => {
+    try {
+      const rows = await fetchBusinessUnits();
+      setBusinessUnits(rows);
+    } catch {
+      /* ignore */
+    }
   }, []);
+
+  useEffect(() => {
+    void refreshBusinessUnits();
+  }, [refreshBusinessUnits]);
 
   useEffect(() => {
     let cancelled = false;
@@ -353,6 +353,7 @@ export function GraphCanvas() {
           onClose={() => setIsDrawerOpen(false)}
           onNodeCreated={handleNodeCreated}
           onEdgeCreated={handleEdgeCreated}
+          onBusinessUnitsChanged={refreshBusinessUnits}
         />
       </div>
     </div>

@@ -6,7 +6,7 @@
  * - VITE_API_BASE_URL=http://127.0.0.1:8081 : appel direct (CORS activé côté backend).
  */
 
-import type { GraphEdgeCreateRequest, GraphEdgeCreateResponse, GraphResponseDto, BusinessUnitListItem } from '@/types/api';
+import type { GraphEdgeCreateRequest, GraphEdgeCreateResponse, GraphResponseDto } from '@/types/api';
 import { authenticatedFetch } from '@/config/api';
 
 function resolveUrl(pathWithQuery: string): string {
@@ -19,19 +19,6 @@ function resolveUrl(pathWithQuery: string): string {
 
 function graphUrl(search: string): string {
   return resolveUrl(`/api/graph${search}`);
-}
-
-export async function fetchBusinessUnits(): Promise<BusinessUnitListItem[]> {
-  const res = await authenticatedFetch(resolveUrl('/api/business-units'), {
-    headers: { Accept: 'application/json' },
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(
-      `Business units API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
-    );
-  }
-  return res.json();
 }
 
 async function fetchGraphJson(

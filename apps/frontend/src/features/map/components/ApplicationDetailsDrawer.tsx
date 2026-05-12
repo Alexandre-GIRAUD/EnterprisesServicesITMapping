@@ -1,12 +1,14 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { ApplicationRequest, ApplicationResponse } from '@/types/api';
+import type { ApplicationRequest, ApplicationResponse, BusinessUnitListItem } from '@/types/api';
 import {
   deleteApplicationById,
   fetchApplicationById,
+  patchApplicationBusinessUnit,
   suggestModulesFromGithub,
   updateApplicationById,
 } from '../api/applicationsApi';
+import { fetchBusinessUnits } from '../api/businessUnitsApi';
 import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 
 type ApplicationDetails = {
@@ -48,7 +50,9 @@ export function ApplicationDetailsDrawer({
     description: '',
     validFrom: '',
     validTo: '',
+    businessUnitId: '',
   });
+  const [businessUnitsCatalog, setBusinessUnitsCatalog] = useState<BusinessUnitListItem[]>([]);
 
   useEffect(() => {
     if (!isOpen || !application?.id) return;
@@ -69,6 +73,7 @@ export function ApplicationDetailsDrawer({
           description: data.description ?? '',
           validFrom: isoToDateTimeLocal(data.validFrom),
           validTo: isoToDateTimeLocal(data.validTo),
+          businessUnitId: data.businessUnit?.id ?? '',
         });
         setStatus('ready');
       })
@@ -82,6 +87,21 @@ export function ApplicationDetailsDrawer({
       cancelled = true;
     };
   }, [application?.id, isOpen]);
+
+  useEffect(() => {
+    if (!isEditing || !isOpen) return;
+    let cancelled = false;
+    void fetchBusinessUnits()
+      .then((rows) => {
+        if (!cancelled) setBusinessUnitsCatalog(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setBusinessUnitsCatalog([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditing, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -133,17 +153,23 @@ export function ApplicationDetailsDrawer({
       validTo: formState.validTo ? new Date(formState.validTo).toISOString() : null,
     };
 
+    const buIdTrimmed = formState.businessUnitId.trim();
+    const businessUnitIdPatch: string | null = buIdTrimmed.length > 0 ? buIdTrimmed : null;
+
     try {
       setIsSaving(true);
       setFormErrorMessage(null);
       setSaveSuccessMessage(null);
-      const updated = await updateApplicationById(application.id, payload);
-      setDetails(updated);
+      await updateApplicationById(application.id, payload);
+      await patchApplicationBusinessUnit(application.id, businessUnitIdPatch);
+      const refreshed = await fetchApplicationById(application.id);
+      setDetails(refreshed);
       setFormState({
-        name: updated.name ?? '',
-        description: updated.description ?? '',
-        validFrom: isoToDateTimeLocal(updated.validFrom),
-        validTo: isoToDateTimeLocal(updated.validTo),
+        name: refreshed.name ?? '',
+        description: refreshed.description ?? '',
+        validFrom: isoToDateTimeLocal(refreshed.validFrom),
+        validTo: isoToDateTimeLocal(refreshed.validTo),
+        businessUnitId: refreshed.businessUnit?.id ?? '',
       });
       setSaveSuccessMessage('Application mise à jour.');
       setIsEditing(false);
@@ -166,6 +192,7 @@ export function ApplicationDetailsDrawer({
       description: details.description ?? '',
       validFrom: isoToDateTimeLocal(details.validFrom),
       validTo: isoToDateTimeLocal(details.validTo),
+      businessUnitId: details.businessUnit?.id ?? '',
     });
     setFormErrorMessage(null);
     setSaveSuccessMessage(null);
@@ -304,6 +331,25 @@ export function ApplicationDetailsDrawer({
                   rows={3}
                   disabled={isSaving || isDeleting}
                 />
+              </label>
+              <label className="graph-drawer-field">
+                <span className="graph-drawer-field-label">Business unit</span>
+                <select
+                  className="graph-drawer-input"
+                  value={formState.businessUnitId}
+                  onChange={(e) =>
+                    setFormState((prev) => ({ ...prev, businessUnitId: e.target.value }))
+                  }
+                  disabled={isSaving || isDeleting}
+                  aria-label="Business unit de l'application"
+                >
+                  <option value="">Aucune / non rattachée</option>
+                  {businessUnitsCatalog.map((bu) => (
+                    <option key={bu.id} value={bu.id}>
+                      {bu.name}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="graph-drawer-field">
                 <span className="graph-drawer-field-label">validFrom</span>
@@ -485,10 +531,18 @@ export function ApplicationDetailsDrawer({
             type="button"
             className="graph-drawer-action"
             onClick={() => {
+              if (!details) return;
               setFormErrorMessage(null);
               setSaveSuccessMessage(null);
               setShowDeleteConfirm(false);
               setDeleteErrorMessage(null);
+              setFormState({
+                name: details.name ?? '',
+                description: details.description ?? '',
+                validFrom: isoToDateTimeLocal(details.validFrom),
+                validTo: isoToDateTimeLocal(details.validTo),
+                businessUnitId: details.businessUnit?.id ?? '',
+              });
               setIsEditing(true);
             }}
           >
