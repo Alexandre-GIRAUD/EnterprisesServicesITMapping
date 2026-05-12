@@ -4,6 +4,7 @@ import type {
   SuggestModulesFromGithubRequest,
   SuggestModulesFromGithubResponse,
 } from '@/types/api';
+import { authenticatedFetch } from '@/config/api';
 
 function resolveUrl(pathWithQuery: string): string {
   const origin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
@@ -19,7 +20,7 @@ export async function fetchApplications(params?: {
 }): Promise<ApplicationResponse[]> {
   const search = params?.validAt ? `?validAt=${encodeURIComponent(params.validAt)}` : '';
   const url = resolveUrl(`/api/applications${search}`);
-  const res = await fetch(url, {
+  const res = await authenticatedFetch(url, {
     headers: { Accept: 'application/json' },
   });
 
@@ -35,7 +36,7 @@ export async function fetchApplications(params?: {
 
 export async function createApplication(payload: ApplicationRequest): Promise<ApplicationResponse> {
   const url = resolveUrl('/api/applications');
-  const res = await fetch(url, {
+  const res = await authenticatedFetch(url, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -56,7 +57,7 @@ export async function createApplication(payload: ApplicationRequest): Promise<Ap
 
 export async function fetchApplicationById(applicationId: string): Promise<ApplicationResponse> {
   const url = resolveUrl(`/api/applications/${encodeURIComponent(applicationId)}`);
-  const res = await fetch(url, {
+  const res = await authenticatedFetch(url, {
     headers: { Accept: 'application/json' },
   });
 
@@ -75,7 +76,7 @@ export async function fetchApplicationById(applicationId: string): Promise<Appli
  */
 export async function deleteApplicationById(applicationId: string): Promise<void> {
   const url = resolveUrl(`/api/applications/${encodeURIComponent(applicationId)}`);
-  const res = await fetch(url, {
+  const res = await authenticatedFetch(url, {
     method: 'DELETE',
     headers: { Accept: 'application/json' },
   });
@@ -95,7 +96,7 @@ export async function suggestModulesFromGithub(
   const url = resolveUrl(
     `/api/applications/${encodeURIComponent(applicationId)}/modules/suggest-from-github`
   );
-  const res = await fetch(url, {
+  const res = await authenticatedFetch(url, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -133,7 +134,7 @@ export async function updateApplicationById(
   payload: ApplicationRequest
 ): Promise<ApplicationResponse> {
   const url = resolveUrl(`/api/applications/${encodeURIComponent(applicationId)}`);
-  const res = await fetch(url, {
+  const res = await authenticatedFetch(url, {
     method: 'PUT',
     headers: {
       Accept: 'application/json',

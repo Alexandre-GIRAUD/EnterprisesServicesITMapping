@@ -7,10 +7,10 @@ Production-ready SaaS monorepo for mapping enterprise applications, their depend
 | Layer        | Technology                          |
 |-------------|--------------------------------------|
 | Backend     | Java 21, Spring Boot 3.2             |
-| Database    | Neo4j 5 (graph)                      |
+| Database    | Neo4j 5 (graph), PostgreSQL (users / auth) |
 | Frontend    | React 18, TypeScript, Vite 5         |
 | Visualization | Cytoscape.js                       |
-| Auth (ready) | JWT-based (architecture only)       |
+| Auth        | Spring Security, JWT, JPA + Flyway   |
 | Runtime     | Docker, Docker Compose               |
 
 ## Repository Structure
@@ -84,15 +84,15 @@ Dependencies point inward: presentation → application → domain; infrastructu
 - **Backend**: Pagination and bounded graph queries (e.g. by application id, depth, or time window); avoid “load entire graph” APIs; use Neo4j indexes and projection for hot paths.
 - **Frontend**: Cytoscape.js supports large graphs with layout options and filtering; use viewport-based or level-of-detail loading where applicable (e.g. load neighborhood of selected node).
 
-### JWT-Ready Auth (No Implementation Yet)
+### Authentification (SQL + JWT)
 
-- **Backend**: `SecurityConfigStub` and optional JWT dependencies are commented in `pom.xml`; config placeholders in `application.yml`. Add a `feature.auth` package when you implement filters and login.
-- **Frontend**: `config/api.ts` has `getAuthHeaders()` stub; extend the app with a login flow when needed.
-- When implementing: add Spring Security + JWT filter, login endpoint, and frontend login flow + attaching `Authorization: Bearer <token>` to API calls.
+- Comptes utilisateurs en **PostgreSQL** (Flyway `V1__create_users.sql`), mots de passe **BCrypt**, API **JWT**.
+- Connexion SPA : `/login` ; création de comptes : page **`/admin/users`** (rôle **ADMIN** uniquement).
+- Variables d’environnement, bootstrap du premier admin, CORS : voir **[docs/AUTH.md](docs/AUTH.md)**.
 
 ### Docker
 
-- **docker-compose** runs Neo4j, backend, and frontend (nginx serving built SPA; `/api` proxied to backend).
+- **docker-compose** lance **Postgres**, Neo4j, backend et frontend (nginx pour le build SPA ; `/api` proxifié vers le backend).
 - Backend Dockerfile uses Maven in Alpine; frontend uses multi-stage build (Node for build, nginx for serve).
 - Neo4j has a healthcheck so the backend starts only when the DB is ready.
 
@@ -113,14 +113,16 @@ Dependencies point inward: presentation → application → domain; infrastructu
    ```
    Or start the full stack: `docker-compose up -d neo4j`.
 
-2. **Backend**
+2. **PostgreSQL** (requis pour les comptes / JWT) : par ex. `docker run -d --name postgres -e POSTGRES_DB=itmapping -e POSTGRES_USER=itmapping -e POSTGRES_PASSWORD=itmapping -p 5432:5432 postgres:16-alpine`
+
+3. **Backend** — définir au minimum `JWT_SECRET` (≥ 32 caractères UTF-8), `DATABASE_*` si besoin, puis :
    ```bash
    cd apps/backend && ./mvnw spring-boot:run
    # Or: mvn spring-boot:run
    ```
    API base: `http://localhost:8080/api`.
 
-3. **Frontend**
+4. **Frontend**
    ```bash
    npm install
    npm run dev:frontend

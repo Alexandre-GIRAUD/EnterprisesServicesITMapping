@@ -1,4 +1,5 @@
 import type { GitHubRepoDto } from '@/types/api';
+import { authenticatedFetch } from '@/config/api';
 
 function resolveUrl(pathWithQuery: string): string {
   const origin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
@@ -13,7 +14,7 @@ function resolveUrl(pathWithQuery: string): string {
  */
 export async function fetchGitHubRepos(): Promise<GitHubRepoDto[]> {
   const url = resolveUrl('/api/integrations/github/repos');
-  const res = await fetch(url, {
+  const res = await authenticatedFetch(url, {
     headers: { Accept: 'application/json' },
   });
 
