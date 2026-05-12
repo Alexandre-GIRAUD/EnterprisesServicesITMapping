@@ -6,7 +6,7 @@
  * - VITE_API_BASE_URL=http://127.0.0.1:8081 : appel direct (CORS activé côté backend).
  */
 
-import type { GraphEdgeCreateRequest, GraphEdgeCreateResponse, GraphResponseDto } from '@/types/api';
+import type { GraphEdgeCreateRequest, GraphEdgeCreateResponse, GraphResponseDto, BusinessUnitListItem } from '@/types/api';
 import { authenticatedFetch } from '@/config/api';
 
 function resolveUrl(pathWithQuery: string): string {
@@ -19,6 +19,19 @@ function resolveUrl(pathWithQuery: string): string {
 
 function graphUrl(search: string): string {
   return resolveUrl(`/api/graph${search}`);
+}
+
+export async function fetchBusinessUnits(): Promise<BusinessUnitListItem[]> {
+  const res = await authenticatedFetch(resolveUrl('/api/business-units'), {
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Business units API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+  return res.json();
 }
 
 async function fetchGraphJson(
@@ -41,8 +54,18 @@ async function fetchGraphJson(
   return res.json();
 }
 
-export async function fetchGraph(params?: { validAt?: string }): Promise<GraphResponseDto> {
-  const search = params?.validAt ? `?validAt=${encodeURIComponent(params.validAt)}` : '';
+export async function fetchGraph(params?: {
+  validAt?: string;
+  businessUnitId?: string;
+}): Promise<GraphResponseDto> {
+  const sp = new URLSearchParams();
+  if (params?.validAt) {
+    sp.set('validAt', params.validAt);
+  }
+  if (params?.businessUnitId) {
+    sp.set('businessUnitId', params.businessUnitId);
+  }
+  const search = sp.toString() ? `?${sp.toString()}` : '';
   return fetchGraphJson(graphUrl(search), 'Graph API');
 }
 

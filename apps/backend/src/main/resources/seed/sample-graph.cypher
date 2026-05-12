@@ -62,3 +62,20 @@ CREATE (m_pkg:Module {
 CREATE (portal)-[:CONTAINS { validFrom: $vf, validTo: null }]->(m_ui)
 CREATE (portal)-[:CONTAINS { validFrom: $vf, validTo: null }]->(m_api)
 CREATE (m_ui)-[:CONTAINS { validFrom: $vf, validTo: null }]->(m_pkg)
+CREATE (bu_retail:BusinessUnit {
+  id: $buRetailId,
+  name: 'Retail & expérience client',
+  code: 'RETAIL',
+  description: 'Parcours front-office'
+})
+CREATE (bu_platform:BusinessUnit {
+  id: $buPlatformId,
+  name: 'Plateforme & paiements',
+  code: 'PLAT',
+  description: 'Services transverses'
+})
+CREATE (bu_retail)-[:HAS_APPLICATION]->(portal)
+CREATE (bu_retail)-[:HAS_APPLICATION]->(gateway)
+CREATE (bu_retail)-[:HAS_APPLICATION]->(customers)
+CREATE (bu_platform)-[:HAS_APPLICATION]->(orders)
+CREATE (bu_platform)-[:HAS_APPLICATION]->(payments)

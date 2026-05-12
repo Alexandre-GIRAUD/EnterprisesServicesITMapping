@@ -723,6 +723,49 @@ body {
   min-width: 0;
 }
 
+.graph-bu-filter {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgb(148 163 184 / 22%);
+  background: rgb(2 6 23 / 82%);
+  color: #e2e8f0;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 24px rgb(2 6 23 / 25%);
+  max-width: min(280px, 46vw);
+}
+
+.graph-bu-filter-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+}
+
+.graph-bu-filter-select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #f8fafc;
+  min-width: 0;
+  width: 100%;
+}
+
+.graph-bu-filter-select:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 1px;
+}
+
 .graph-canvas {
   width: 100%;
   /* fill the viewport below header (~56px) + toolbar (~60px) + layout padding (~48px) */

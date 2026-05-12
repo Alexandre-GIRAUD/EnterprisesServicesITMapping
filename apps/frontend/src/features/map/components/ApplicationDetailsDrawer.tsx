@@ -258,6 +258,17 @@ export function ApplicationDetailsDrawer({
               </section>
 
               <section className="graph-details-section">
+                <h3 className="graph-details-section-title">Business unit</h3>
+                <p className="graph-details-text">
+                  {details && details.businessUnit
+                    ? `${details.businessUnit.name ?? '—'}${
+                        details.businessUnit.code ? ` (${details.businessUnit.code})` : ''
+                      }`
+                    : 'Non rattachée à une business unit.'}
+                </p>
+              </section>
+
+              <section className="graph-details-section">
                 <h3 className="graph-details-section-title">Validité</h3>
                 <p className="graph-details-text">
                   <strong>Valid from:</strong> {validFromText}

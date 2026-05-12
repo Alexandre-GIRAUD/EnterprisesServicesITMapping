@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.graph.application;
 
 import com.enterprise.itmapping.common.Neo4jTemporalParameters;
 import com.enterprise.itmapping.domain.VersionSnapshot;
+import com.enterprise.itmapping.feature.businessunit.infrastructure.persistence.BusinessUnitRepository;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeRequestDto;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeResponseDto;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.GraphLoader;
@@ -32,15 +33,18 @@ public class GraphService {
   private final GraphLoader graphLoader;
   private final VersionSnapshotRepository versionSnapshotRepository;
   private final Neo4jClient neo4jClient;
+  private final BusinessUnitRepository businessUnitRepository;
 
   public GraphService(
       GraphLoader graphLoader,
       VersionSnapshotRepository versionSnapshotRepository,
-      Neo4jClient neo4jClient
+      Neo4jClient neo4jClient,
+      BusinessUnitRepository businessUnitRepository
   ) {
     this.graphLoader = graphLoader;
     this.versionSnapshotRepository = versionSnapshotRepository;
     this.neo4jClient = neo4jClient;
+    this.businessUnitRepository = businessUnitRepository;
   }
 
   /**
@@ -70,18 +74,24 @@ public class GraphService {
    * Uses index-optimized temporal predicates for large graphs.
    */
   @Transactional(readOnly = true)
-  public GraphResponseDto getGraphAtDate(Date date) {
+  public GraphResponseDto getGraphAtDate(Date date, String businessUnitId) {
     Instant pointInTime = date != null ? date.toInstant() : Instant.now();
-    return getGraph(pointInTime);
+    return getGraph(pointInTime, businessUnitId);
   }
 
+  /** @param businessUnitId optional; when set, only applications under that BU are included. */
   @Transactional(readOnly = true)
-  public GraphResponseDto getGraph(Instant validAt) {
+  public GraphResponseDto getGraph(Instant validAt, String businessUnitId) {
     Instant pointInTime = validAt != null ? validAt : Instant.now();
-    List<GraphEdgeProjection> edges = graphLoader.loadEdges(pointInTime);
+    String bu = businessUnitId != null && !businessUnitId.isBlank() ? businessUnitId.trim() : null;
+    if (bu != null && !businessUnitRepository.existsById(bu)) {
+      return new GraphResponseDto(List.of(), List.of());
+    }
+
+    List<GraphEdgeProjection> edges = graphLoader.loadEdges(pointInTime, bu);
 
     List<GraphNodeDto> nodes =
-        graphLoader.loadNodesValidAt(pointInTime).stream()
+        graphLoader.loadNodesValidAt(pointInTime, bu).stream()
             .map(
                 a ->
                     new GraphNodeDto(

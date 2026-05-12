@@ -1,8 +1,8 @@
 import cytoscape, { type Core, type ElementDefinition } from 'cytoscape';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ApplicationResponse, GraphEdgeCreateResponse } from '@/types/api';
-import { fetchGraph } from '../api/graphApi';
+import type { ApplicationResponse, BusinessUnitListItem, GraphEdgeCreateResponse } from '@/types/api';
+import { fetchBusinessUnits, fetchGraph } from '../api/graphApi';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
 import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
 
@@ -23,13 +23,33 @@ export function GraphCanvas() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
+  const [businessUnits, setBusinessUnits] = useState<BusinessUnitListItem[]>([]);
+  const [businessUnitId, setBusinessUnitId] = useState<string>('');
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchBusinessUnits()
+      .then((rows) => {
+        if (!cancelled) setBusinessUnits(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setBusinessUnits([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
-        const data = await fetchGraph();
+        setStatus('loading');
+        setMessage(null);
+        const data = await fetchGraph({
+          businessUnitId: businessUnitId || undefined,
+        });
         if (cancelled || !containerRef.current) return;
 
         const elements: ElementDefinition[] = [
@@ -139,11 +159,13 @@ export function GraphCanvas() {
         cy.on('dblclick', 'node', navigateToModuleMap);
 
         setStatus('ready');
-        setMessage(
+        const emptyHint =
           data.nodes.length === 0
-            ? 'Aucun nœud pour cette date. Démarrez le backend avec Neo4j pour charger les données de démo.'
-            : 'Astuce : cliquez sur une application pour ouvrir le graphe de ses modules.'
-        );
+            ? businessUnitId
+              ? 'Aucune application dans cette business unit (ou identifiant inconnu). Essayez « Toutes » ou une autre unité.'
+              : 'Aucun nœud pour cette date. Démarrez le backend avec Neo4j pour charger les données de démo.'
+            : 'Astuce : cliquez sur une application pour ouvrir le graphe de ses modules.';
+        setMessage(emptyHint);
       } catch (e) {
         if (!cancelled) {
           setStatus('error');
@@ -170,7 +192,7 @@ export function GraphCanvas() {
       cyRef.current = null;
       window.removeEventListener('keydown', onEscape);
     };
-  }, [navigate]);
+  }, [navigate, businessUnitId]);
 
   /** Keep Cytoscape sized to its flex container (viewport / drawer / responsive). */
   useEffect(() => {
@@ -264,6 +286,25 @@ export function GraphCanvas() {
       )}
       <div className={`graph-workspace${isDrawerOpen ? ' is-drawer-open' : ''}`}>
         <div className="graph-stage">
+          <div className="graph-bu-filter">
+            <label className="graph-bu-filter-label" htmlFor="graph-bu-select">
+              Business unit
+            </label>
+            <select
+              id="graph-bu-select"
+              className="graph-bu-filter-select"
+              value={businessUnitId}
+              onChange={(e) => setBusinessUnitId(e.target.value)}
+              aria-label="Filtrer le graphe par business unit"
+            >
+              <option value="">Toutes</option>
+              {businessUnits.map((bu) => (
+                <option key={bu.id} value={bu.id}>
+                  {bu.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             type="button"
             className="graph-drawer-toggle"

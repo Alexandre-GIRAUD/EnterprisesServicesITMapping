@@ -52,6 +52,13 @@ export interface ApplicationRequest {
   validTo?: string | null;
 }
 
+export interface BusinessUnitSummary {
+  id: string;
+  name: string | null;
+  code: string | null;
+  description: string | null;
+}
+
 /** Application CRUD – response body */
 export interface ApplicationResponse {
   id: string;
@@ -61,6 +68,14 @@ export interface ApplicationResponse {
   validTo: string | null;
   /** True when the app already has modules (CONTAINS); IA suggestion is blocked server-side. */
   hasModuleSubtree?: boolean;
+  /** Set on GET /applications/{id} when linked via HAS_APPLICATION from a BusinessUnit. */
+  businessUnit?: BusinessUnitSummary | null;
+}
+
+/** GET /business-units — filter dropdown */
+export interface BusinessUnitListItem {
+  id: string;
+  name: string;
 }
 
 /** GitHub repo summary from {@code GET /api/integrations/github/repos} */

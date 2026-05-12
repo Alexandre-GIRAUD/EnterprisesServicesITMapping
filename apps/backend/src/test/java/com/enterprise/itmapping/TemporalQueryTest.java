@@ -131,14 +131,14 @@ class TemporalQueryTest {
       applicationRepository.save(current);
 
       Date queryDate = Date.from(Instant.parse("2024-02-15T00:00:00Z"));
-      GraphResponseDto graph = graphService.getGraphAtDate(queryDate);
+      GraphResponseDto graph = graphService.getGraphAtDate(queryDate, null);
 
       assertThat(graph.nodes()).hasSize(2);
       assertThat(graph.nodes().stream().map(n -> n.label()).toList())
           .containsExactlyInAnyOrder("PastApp", "CurrentApp");
 
       Date afterPastEnd = Date.from(Instant.parse("2024-04-01T00:00:00Z"));
-      GraphResponseDto graphLater = graphService.getGraphAtDate(afterPastEnd);
+      GraphResponseDto graphLater = graphService.getGraphAtDate(afterPastEnd, null);
       assertThat(graphLater.nodes()).hasSize(1);
       assertThat(graphLater.nodes().getFirst().label()).isEqualTo("CurrentApp");
     }
@@ -153,7 +153,7 @@ class TemporalQueryTest {
       applicationRepository.save(app);
 
       Date queryDate = Date.from(Instant.parse("2020-01-01T00:00:00Z"));
-      GraphResponseDto graph = graphService.getGraphAtDate(queryDate);
+      GraphResponseDto graph = graphService.getGraphAtDate(queryDate, null);
 
       assertThat(graph.nodes()).isEmpty();
       assertThat(graph.edges()).isEmpty();
@@ -200,6 +200,106 @@ class TemporalQueryTest {
       VersionSnapshotDto snapshot = graphService.createNewSnapshot("v2");
 
       assertThat(snapshot.linkedNodeCount()).isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("graph filtered by business unit")
+  class GraphFilteredByBusinessUnit {
+
+    @Test
+    @DisplayName("returns only applications linked to the BU and edges inside that set")
+    void filtersNodesAndEdges() {
+      Instant vf = Instant.parse("2024-01-01T00:00:00Z");
+      String buId = UUID.randomUUID().toString();
+      String appA = UUID.randomUUID().toString();
+      String appB = UUID.randomUUID().toString();
+      String appC = UUID.randomUUID().toString();
+      Map<String, Object> bind = new HashMap<>();
+      bind.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
+      bind.put("buId", buId);
+      bind.put("appA", appA);
+      bind.put("appB", appB);
+      bind.put("appC", appC);
+      neo4jClient
+          .query(
+              """
+              CREATE (bu:BusinessUnit {id: $buId, name: 'BU1', code: 'B1', description: ''})
+              CREATE (a:Application {id: $appA, name: 'A', description: '', validFrom: $vf, validTo: null})
+              CREATE (b:Application {id: $appB, name: 'B', description: '', validFrom: $vf, validTo: null})
+              CREATE (c:Application {id: $appC, name: 'C', description: '', validFrom: $vf, validTo: null})
+              CREATE (bu)-[:HAS_APPLICATION]->(a)
+              CREATE (bu)-[:HAS_APPLICATION]->(b)
+              CREATE (a)-[:DEPENDS_ON {validFrom: $vf, validTo: null}]->(b)
+              CREATE (a)-[:DEPENDS_ON {validFrom: $vf, validTo: null}]->(c)
+              """)
+          .bindAll(bind)
+          .run();
+
+      GraphResponseDto all = graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null);
+      assertThat(all.nodes()).hasSize(3);
+
+      GraphResponseDto filtered = graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), buId);
+      assertThat(filtered.nodes()).hasSize(2);
+      assertThat(filtered.nodes().stream().map(n -> n.id()).toList())
+          .containsExactlyInAnyOrder(appA, appB);
+      assertThat(filtered.edges()).hasSize(1);
+      assertThat(filtered.edges().getFirst().sourceId()).isEqualTo(appA);
+      assertThat(filtered.edges().getFirst().targetId()).isEqualTo(appB);
+    }
+
+    @Test
+    @DisplayName("unknown business unit id yields empty graph")
+    void unknownBuReturnsEmpty() {
+      GraphResponseDto graph = graphService.getGraph(Instant.now(), UUID.randomUUID().toString());
+      assertThat(graph.nodes()).isEmpty();
+      assertThat(graph.edges()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("application detail includes business unit when linked")
+    void findByIdIncludesBusinessUnit() {
+      Instant vf = Instant.parse("2024-01-01T00:00:00Z");
+      String buId = UUID.randomUUID().toString();
+      String appId = UUID.randomUUID().toString();
+      Map<String, Object> bind = new HashMap<>();
+      bind.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
+      bind.put("buId", buId);
+      bind.put("appId", appId);
+      neo4jClient
+          .query(
+              """
+              CREATE (bu:BusinessUnit {id: $buId, name: 'BU X', code: 'BX', description: 'd'})
+              CREATE (a:Application {id: $appId, name: 'AppX', description: '', validFrom: $vf, validTo: null})
+              CREATE (bu)-[:HAS_APPLICATION]->(a)
+              """)
+          .bindAll(bind)
+          .run();
+
+      var res = applicationService.findById(appId, Instant.parse("2024-06-01T00:00:00Z")).orElseThrow();
+      assertThat(res.businessUnit()).isNotNull();
+      assertThat(res.businessUnit().id()).isEqualTo(buId);
+      assertThat(res.businessUnit().name()).isEqualTo("BU X");
+    }
+
+    @Test
+    @DisplayName("application detail has null business unit when not linked")
+    void findByIdWithoutBusinessUnit() {
+      Instant vf = Instant.parse("2024-01-01T00:00:00Z");
+      String appId = UUID.randomUUID().toString();
+      neo4jClient
+          .query(
+              """
+              CREATE (a:Application {id: $appId, name: 'Solo', description: '', validFrom: $vf, validTo: null})
+              """)
+          .bind(appId)
+          .to("appId")
+          .bind(Neo4jTemporalParameters.toNeo4j(vf))
+          .to("vf")
+          .run();
+
+      var res = applicationService.findById(appId, Instant.parse("2024-06-01T00:00:00Z")).orElseThrow();
+      assertThat(res.businessUnit()).isNull();
     }
   }
 

@@ -21,14 +21,17 @@ public class ApplicationService {
   private final ApplicationRepository applicationRepository;
   private final Neo4jClient neo4jClient;
   private final ApplicationModuleSubtreeQuery moduleSubtreeQuery;
+  private final ApplicationBusinessUnitLookup applicationBusinessUnitLookup;
 
   public ApplicationService(
       ApplicationRepository applicationRepository,
       Neo4jClient neo4jClient,
-      ApplicationModuleSubtreeQuery moduleSubtreeQuery) {
+      ApplicationModuleSubtreeQuery moduleSubtreeQuery,
+      ApplicationBusinessUnitLookup applicationBusinessUnitLookup) {
     this.applicationRepository = applicationRepository;
     this.neo4jClient = neo4jClient;
     this.moduleSubtreeQuery = moduleSubtreeQuery;
+    this.applicationBusinessUnitLookup = applicationBusinessUnitLookup;
   }
 
   @Transactional(readOnly = true)
@@ -47,7 +50,9 @@ public class ApplicationService {
   @Transactional(readOnly = true)
   public Optional<ApplicationResponse> findById(String id, Instant validAt) {
     Instant pointInTime = validAt != null ? validAt : Instant.now();
-    return applicationRepository.findByIdValidAtForGraph(id, pointInTime).map(this::toResponse);
+    return applicationRepository
+        .findByIdValidAtForGraph(id, pointInTime)
+        .map(p -> toResponseWithBusinessUnit(p, pointInTime));
   }
 
   @Transactional
@@ -93,7 +98,7 @@ public class ApplicationService {
           .bind(Neo4jTemporalParameters.toNeo4j(request.validTo())).to("vt")
           .run();
     }
-    return applicationRepository.findByIdValidAtForGraph(id, Instant.now()).map(this::toResponse);
+    return applicationRepository.findByIdValidAtForGraph(id, Instant.now()).map(p -> toResponseWithBusinessUnit(p, Instant.now()));
   }
 
   /**
@@ -171,17 +176,27 @@ public class ApplicationService {
   }
 
   private ApplicationResponse toResponse(Application a) {
+    Instant validAt = a.getValidFrom() != null ? a.getValidFrom() : Instant.now();
     return new ApplicationResponse(
         a.getId(),
         a.getName(),
         a.getDescription(),
         a.getValidFrom(),
         a.getValidTo(),
-        moduleSubtreeQuery.hasAnyModuleViaContains(a.getId()));
+        moduleSubtreeQuery.hasAnyModuleViaContains(a.getId()),
+        applicationBusinessUnitLookup.findForApplication(a.getId(), validAt).orElse(null));
   }
 
-  private ApplicationResponse toResponse(ApplicationGraphNodeProjection p) {
-    return graphProjectionToResponse(p, moduleSubtreeQuery.hasAnyModuleViaContains(p.getId()));
+  private ApplicationResponse toResponseWithBusinessUnit(
+      ApplicationGraphNodeProjection p, Instant validAt) {
+    return new ApplicationResponse(
+        p.getId(),
+        p.getName(),
+        p.getDescription(),
+        p.getValidFrom(),
+        p.getValidTo(),
+        moduleSubtreeQuery.hasAnyModuleViaContains(p.getId()),
+        applicationBusinessUnitLookup.findForApplication(p.getId(), validAt).orElse(null));
   }
 
   private ApplicationResponse graphProjectionToResponse(
@@ -192,6 +207,7 @@ public class ApplicationService {
         p.getDescription(),
         p.getValidFrom(),
         p.getValidTo(),
-        hasModuleSubtree);
+        hasModuleSubtree,
+        null);
   }
 }

@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.applications.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationGraphNodeProjection;
@@ -25,6 +26,7 @@ class ApplicationServiceHasModuleSubtreeTest {
   @Mock ApplicationRepository applicationRepository;
   @Mock Neo4jClient neo4jClient;
   @Mock ApplicationModuleSubtreeQuery moduleSubtreeQuery;
+  @Mock ApplicationBusinessUnitLookup applicationBusinessUnitLookup;
 
   @InjectMocks ApplicationService applicationService;
 
@@ -32,6 +34,9 @@ class ApplicationServiceHasModuleSubtreeTest {
 
   @BeforeEach
   void setUp() {
+    lenient()
+        .when(applicationBusinessUnitLookup.findForApplication(any(), any()))
+        .thenReturn(Optional.empty());
     projection =
         new ApplicationGraphNodeProjection() {
           @Override
