@@ -15,5 +15,7 @@ public record LlmModuleSuggestionProperties(
     /** Max chars for user message listing paths (hard cap before LLM call). */
     @DefaultValue("120000") int maxUserPromptChars,
     /** After filtering, truncate to this many path lines sent to LLM. */
-    @DefaultValue("800") int maxPathsInPrompt
+    @DefaultValue("800") int maxPathsInPrompt,
+    /** Max UTF-16 code units of root README text injected into the user prompt (0 disables). */
+    @DefaultValue("8000") int maxReadmeCharsInPrompt
 ) {}

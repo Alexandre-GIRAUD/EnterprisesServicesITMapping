@@ -9,6 +9,7 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestMod
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse.CreatedItem;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse.SkippedItem;
+import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoReadmeService;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoTreeService;
 import com.enterprise.itmapping.feature.integrations.llm.LlmModuleSuggestionProperties;
 import com.enterprise.itmapping.feature.integrations.llm.OpenAiChatJsonClient;
@@ -58,6 +59,7 @@ public class ModuleSuggestionService {
 
   private final ApplicationRepository applicationRepository;
   private final GitHubRepoTreeService gitHubRepoTreeService;
+  private final GitHubRepoReadmeService gitHubRepoReadmeService;
   private final OpenAiChatJsonClient openAiChatJsonClient;
   private final LlmModuleSuggestionProperties llmProperties;
   private final Neo4jClient neo4jClient;
@@ -69,6 +71,7 @@ public class ModuleSuggestionService {
   public ModuleSuggestionService(
       ApplicationRepository applicationRepository,
       GitHubRepoTreeService gitHubRepoTreeService,
+      GitHubRepoReadmeService gitHubRepoReadmeService,
       OpenAiChatJsonClient openAiChatJsonClient,
       LlmModuleSuggestionProperties llmProperties,
       Neo4jClient neo4jClient,
@@ -78,6 +81,7 @@ public class ModuleSuggestionService {
       ApplicationModuleSubtreeQuery moduleSubtreeQuery) {
     this.applicationRepository = applicationRepository;
     this.gitHubRepoTreeService = gitHubRepoTreeService;
+    this.gitHubRepoReadmeService = gitHubRepoReadmeService;
     this.openAiChatJsonClient = openAiChatJsonClient;
     this.llmProperties = llmProperties;
     this.neo4jClient = neo4jClient;
@@ -133,7 +137,14 @@ public class ModuleSuggestionService {
 
     Set<String> pathSet = new LinkedHashSet<>(paths);
     String systemPrompt = loadSystemPrompt();
-    String userPrompt = buildUserPrompt(paths);
+    String readme =
+        gitHubRepoReadmeService
+            .fetchRootReadmePlaintextForKnownPaths(
+                owner, repo, pathSet, llmProperties.maxReadmeCharsInPrompt())
+            .orElse(null);
+    String userPrompt =
+        ModuleSuggestionUserPromptBuilder.build(
+            paths, readme, llmProperties.maxUserPromptChars());
 
     String rawJson;
     try {
@@ -323,20 +334,6 @@ public class ModuleSuggestionService {
     } catch (IOException e) {
       throw new IllegalStateException("Impossible de lire le prompt system module-suggest.", e);
     }
-  }
-
-  private String buildUserPrompt(List<String> paths) {
-    StringBuilder sb = new StringBuilder();
-    sb.append(
-        "Liste des chemins du depot (POSIX, sans secret). Deduis modules metier uniquement.\n\n");
-    for (String p : paths) {
-      sb.append(p).append('\n');
-      if (sb.length() >= llmProperties.maxUserPromptChars()) {
-        sb.append("\n... (tronque pour limite technique)\n");
-        break;
-      }
-    }
-    return sb.toString();
   }
 
   private static boolean hasCycle(List<Rel> edges) {

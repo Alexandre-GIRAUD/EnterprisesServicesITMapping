@@ -42,6 +42,7 @@ app:
       max-completion-tokens: 4096
       max-user-prompt-chars: 120000
       max-paths-in-prompt: 800
+      max-readme-chars-in-prompt: 8000
   sample-data:
     seed: ${SAMPLE_DATA_SEED:true} # set SAMPLE_DATA_SEED=false to disable
     # Neo4j may not accept Bolt immediately (Docker order, cold start, APOC). Retry before giving up.
