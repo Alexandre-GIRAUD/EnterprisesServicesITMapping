@@ -79,3 +79,21 @@ CREATE (bu_retail)-[:HAS_APPLICATION]->(gateway)
 CREATE (bu_retail)-[:HAS_APPLICATION]->(customers)
 CREATE (bu_platform)-[:HAS_APPLICATION]->(orders)
 CREATE (bu_platform)-[:HAS_APPLICATION]->(payments)
+CREATE (alice:Contributor {
+  id: $contribAliceId,
+  firstName: 'Alice',
+  lastName: 'Dupont',
+  team: 'Checkout'
+})
+CREATE (bob:Contributor {
+  id: $contribBobId,
+  firstName: 'Bob',
+  lastName: 'Martin',
+  team: 'Paiements'
+})
+CREATE (alice)-[:WORK_IN]->(bu_retail)
+CREATE (bob)-[:WORK_IN]->(bu_platform)
+CREATE (alice)-[:WORK_ON]->(portal)
+CREATE (alice)-[:WORK_ON]->(gateway)
+CREATE (bob)-[:WORK_ON]->(orders)
+CREATE (alice)-[:REPORTS_TO]->(bob)

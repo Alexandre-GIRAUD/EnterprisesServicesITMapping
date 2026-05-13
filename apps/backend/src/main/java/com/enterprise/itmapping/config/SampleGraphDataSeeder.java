@@ -111,6 +111,8 @@ public class SampleGraphDataSeeder implements ApplicationRunner {
     String modPkg = UUID.randomUUID().toString();
     String buRetail = UUID.randomUUID().toString();
     String buPlatform = UUID.randomUUID().toString();
+    String contribAlice = UUID.randomUUID().toString();
+    String contribBob = UUID.randomUUID().toString();
 
     String createApps;
     try (InputStream in = new ClassPathResource("seed/sample-graph.cypher").getInputStream()) {
@@ -130,6 +132,8 @@ public class SampleGraphDataSeeder implements ApplicationRunner {
     params.put("modPkgId", modPkg);
     params.put("buRetailId", buRetail);
     params.put("buPlatformId", buPlatform);
+    params.put("contribAliceId", contribAlice);
+    params.put("contribBobId", contribBob);
     params.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
     neo4jClient.query(createApps).bindAll(params).run();
   }

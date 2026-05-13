@@ -6,7 +6,9 @@ import com.enterprise.itmapping.feature.applications.infrastructure.persistence.
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
+import com.enterprise.itmapping.feature.contributors.presentation.dto.ContributorSummaryDto;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -22,16 +24,19 @@ public class ApplicationService {
   private final Neo4jClient neo4jClient;
   private final ApplicationModuleSubtreeQuery moduleSubtreeQuery;
   private final ApplicationBusinessUnitLookup applicationBusinessUnitLookup;
+  private final ApplicationContributorLookup applicationContributorLookup;
 
   public ApplicationService(
       ApplicationRepository applicationRepository,
       Neo4jClient neo4jClient,
       ApplicationModuleSubtreeQuery moduleSubtreeQuery,
-      ApplicationBusinessUnitLookup applicationBusinessUnitLookup) {
+      ApplicationBusinessUnitLookup applicationBusinessUnitLookup,
+      ApplicationContributorLookup applicationContributorLookup) {
     this.applicationRepository = applicationRepository;
     this.neo4jClient = neo4jClient;
     this.moduleSubtreeQuery = moduleSubtreeQuery;
     this.applicationBusinessUnitLookup = applicationBusinessUnitLookup;
+    this.applicationContributorLookup = applicationContributorLookup;
   }
 
   @Transactional(readOnly = true)
@@ -177,6 +182,8 @@ public class ApplicationService {
 
   private ApplicationResponse toResponse(Application a) {
     Instant validAt = a.getValidFrom() != null ? a.getValidFrom() : Instant.now();
+    List<ContributorSummaryDto> contributors =
+        applicationContributorLookup.findForApplication(a.getId());
     return new ApplicationResponse(
         a.getId(),
         a.getName(),
@@ -184,11 +191,14 @@ public class ApplicationService {
         a.getValidFrom(),
         a.getValidTo(),
         moduleSubtreeQuery.hasAnyModuleViaContains(a.getId()),
-        applicationBusinessUnitLookup.findForApplication(a.getId(), validAt).orElse(null));
+        applicationBusinessUnitLookup.findForApplication(a.getId(), validAt).orElse(null),
+        contributors);
   }
 
   private ApplicationResponse toResponseWithBusinessUnit(
       ApplicationGraphNodeProjection p, Instant validAt) {
+    List<ContributorSummaryDto> contributors =
+        applicationContributorLookup.findForApplication(p.getId());
     return new ApplicationResponse(
         p.getId(),
         p.getName(),
@@ -196,7 +206,8 @@ public class ApplicationService {
         p.getValidFrom(),
         p.getValidTo(),
         moduleSubtreeQuery.hasAnyModuleViaContains(p.getId()),
-        applicationBusinessUnitLookup.findForApplication(p.getId(), validAt).orElse(null));
+        applicationBusinessUnitLookup.findForApplication(p.getId(), validAt).orElse(null),
+        contributors);
   }
 
   private ApplicationResponse graphProjectionToResponse(
@@ -208,6 +219,7 @@ public class ApplicationService {
         p.getValidFrom(),
         p.getValidTo(),
         hasModuleSubtree,
-        null);
+        null,
+        Collections.emptyList());
   }
 }

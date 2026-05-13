@@ -10,6 +10,7 @@ import com.enterprise.itmapping.feature.applications.infrastructure.persistence.
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +29,8 @@ class ApplicationServiceHasModuleSubtreeTest {
   @Mock ApplicationModuleSubtreeQuery moduleSubtreeQuery;
   @Mock ApplicationBusinessUnitLookup applicationBusinessUnitLookup;
 
+  @Mock ApplicationContributorLookup applicationContributorLookup;
+
   @InjectMocks ApplicationService applicationService;
 
   ApplicationGraphNodeProjection projection;
@@ -37,6 +40,9 @@ class ApplicationServiceHasModuleSubtreeTest {
     lenient()
         .when(applicationBusinessUnitLookup.findForApplication(any(), any()))
         .thenReturn(Optional.empty());
+    lenient()
+        .when(applicationContributorLookup.findForApplication(any()))
+        .thenReturn(Collections.emptyList());
     projection =
         new ApplicationGraphNodeProjection() {
           @Override

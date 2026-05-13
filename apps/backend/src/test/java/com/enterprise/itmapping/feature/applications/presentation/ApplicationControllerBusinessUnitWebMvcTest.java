@@ -15,6 +15,7 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.Applicatio
 import com.enterprise.itmapping.feature.applications.presentation.dto.BusinessUnitSummary;
 import com.enterprise.itmapping.feature.businessunit.application.BusinessUnitApplicationLinkService;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,7 +51,8 @@ class ApplicationControllerBusinessUnitWebMvcTest {
             Instant.parse("2024-01-01T00:00:00Z"),
             null,
             false,
-            new BusinessUnitSummary("bu-1", "BU One", "B1", null));
+            new BusinessUnitSummary("bu-1", "BU One", "B1", null),
+            List.of());
     when(applicationService.findById(eq("app-1"), any())).thenReturn(Optional.of(body));
 
     mockMvc
@@ -70,7 +72,7 @@ class ApplicationControllerBusinessUnitWebMvcTest {
         .thenReturn(true);
     ApplicationResponse body =
         new ApplicationResponse(
-            "app-1", "App", "", Instant.parse("2024-01-01T00:00:00Z"), null, false, null);
+            "app-1", "App", "", Instant.parse("2024-01-01T00:00:00Z"), null, false, null, List.of());
     when(applicationService.findById(eq("app-1"), any())).thenReturn(Optional.of(body));
 
     mockMvc

@@ -70,6 +70,46 @@ export interface ApplicationResponse {
   hasModuleSubtree?: boolean;
   /** Set on GET /applications/{id} when linked via HAS_APPLICATION from a BusinessUnit. */
   businessUnit?: BusinessUnitSummary | null;
+  /** Contributors with WORK_ON → this application (GET /applications/{id} when non-empty). */
+  contributors?: ContributorSummary[];
+}
+
+/** Minimal contributor row for application detail and lists. */
+export interface ContributorSummary {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+}
+
+export interface ContributorListItem {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  team: string | null;
+}
+
+export interface ContributorLinkedApplication {
+  id: string;
+  name: string | null;
+}
+
+export interface ContributorDetail {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  team: string | null;
+  businessUnit: BusinessUnitSummary | null;
+  manager: ContributorSummary | null;
+  applications: ContributorLinkedApplication[];
+}
+
+export interface ContributorWriteRequest {
+  firstName: string;
+  lastName: string;
+  team?: string | null;
+  businessUnitId?: string | null;
+  managerContributorId?: string | null;
+  applicationIds?: string[];
 }
 
 /** GET /business-units — filter dropdown */

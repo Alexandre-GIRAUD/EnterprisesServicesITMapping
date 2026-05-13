@@ -462,7 +462,17 @@ export function ApplicationDetailsDrawer({
 
         <section className="graph-details-section">
           <h3 className="graph-details-section-title">Contributors</h3>
-          <p className="graph-details-text">Contributors: à venir</p>
+          {details?.contributors && details.contributors.length > 0 ? (
+            <>
+              {details.contributors.map((c) => (
+                <p key={c.id} className="graph-details-text">
+                  {[c.firstName, c.lastName].filter(Boolean).join(' ').trim() || '—'}
+                </p>
+              ))}
+            </>
+          ) : (
+            <p className="graph-details-text">Aucun contributor lié à cette application.</p>
+          )}
         </section>
       </div>
 
