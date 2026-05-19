@@ -8,12 +8,14 @@ export interface TemporalDto {
   validTo: string | null;
 }
 
-/** Graph node as returned by /api/graph */
+/** Graph node as returned by /api/graph and module-graph */
 export interface GraphNodeDto {
   id: string;
   label: string;
   type: string;
   temporal?: TemporalDto;
+  /** Present on GET …/module-graph when non-empty (Neo4j description). */
+  description?: string | null;
 }
 
 /** Graph edge as returned by /api/graph */

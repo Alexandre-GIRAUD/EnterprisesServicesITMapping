@@ -98,7 +98,8 @@ public class GraphService {
                         a.id(),
                         a.name() != null ? a.name() : a.id(),
                         "Application",
-                        toTemporalDto(a.validFrom(), a.validTo())))
+                        toTemporalDto(a.validFrom(), a.validTo()),
+                        null))
             .collect(Collectors.toList());
 
     List<GraphEdgeDto> edgeDtos = new ArrayList<>();

@@ -20,6 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>HTTP semantics:</b> {@code Optional.empty()} means the application id is not valid at
  * {@code validAt} → caller should respond with <b>404</b>. When the application exists but has no
  * modules, returns <b>200</b> with the root Application node and empty edges.
+ *
+ * <p>{@code description} is forwarded from Neo4j for Application and Module nodes when non-blank
+ * (property already stored on {@code :Module} / {@code :Application}).
  */
 @Service
 public class ModuleGraphService {
@@ -49,7 +52,8 @@ public class ModuleGraphService {
                         r.id(),
                         r.name() != null && !r.name().isEmpty() ? r.name() : r.id(),
                         r.nodeType() != null ? r.nodeType() : "Module",
-                        toTemporalDto(r.validFrom(), r.validTo())))
+                        toTemporalDto(r.validFrom(), r.validTo()),
+                        normalizedDescription(r.description())))
             .collect(Collectors.toList());
 
     List<GraphEdgeDto> edges = new ArrayList<>();
@@ -65,5 +69,12 @@ public class ModuleGraphService {
   private static GraphNodeDto.TemporalDto toTemporalDto(Instant from, Instant to) {
     return new GraphNodeDto.TemporalDto(
         from != null ? from.toString() : null, to != null ? to.toString() : null);
+  }
+
+  private static String normalizedDescription(String description) {
+    if (description == null || description.isBlank()) {
+      return null;
+    }
+    return description.trim();
   }
 }

@@ -1,19 +1,26 @@
 import cytoscape, { type Core, type ElementDefinition } from 'cytoscape';
+import nodeHtmlLabel from 'cytoscape-node-html-label';
 import { useEffect, useRef, useState } from 'react';
 import { fetchModuleGraph } from '../api/graphApi';
+import { buildModuleNodeCardHtml, buildNodeHoverHint } from './moduleNodeCardHtml';
+
+nodeHtmlLabel(cytoscape);
 
 type Props = {
   applicationId: string;
 };
 
 /**
- * Second Cytoscape instance: module tree under one Application (GET …/module-graph).
+ * Module tree graph (GET …/module-graph).
+ * Card UI uses cytoscape-node-html-label: native Cytoscape labels cannot render
+ * separate title weight, hr divider, and smaller description text on one node.
  */
 export function ApplicationModuleGraph({ applicationId }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
+  const [hoverHint, setHoverHint] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -21,14 +28,26 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
     (async () => {
       setStatus('loading');
       setMessage(null);
+      setHoverHint(null);
       try {
         const data = await fetchModuleGraph(applicationId);
         if (cancelled || !containerRef.current) return;
 
         const elements: ElementDefinition[] = [
-          ...data.nodes.map((n) => ({
-            data: { id: n.id, label: n.label, nodeType: n.type },
-          })),
+          ...data.nodes.map((n) => {
+            const name = n.label?.trim() || n.id;
+            const description = n.description?.trim() ?? '';
+            const hasDescription = description.length > 0;
+            return {
+              data: {
+                id: n.id,
+                name,
+                description,
+                nodeType: n.type,
+                cardSize: hasDescription ? 'tall' : 'short',
+              },
+            };
+          }),
           ...data.edges.map((e) => ({
             data: {
               id: e.id,
@@ -40,7 +59,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
         ];
 
         cyRef.current?.destroy();
-        cyRef.current = cytoscape({
+        const cy = cytoscape({
           container: containerRef.current,
           elements,
           style: [
@@ -48,39 +67,24 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
               selector: 'node',
               style: {
                 shape: 'round-rectangle',
-                label: 'data(label)',
-                'text-valign': 'center',
-                'text-halign': 'center',
-                'font-size': '12px',
-                'font-weight': 600,
-                color: '#f8fafc',
-                'text-outline-width': 0,
-                'background-color': '#111827',
-                width: 'label',
-                height: 'label',
-                'min-width': '112px',
-                'min-height': '40px',
-                padding: '14px',
-                'text-wrap': 'wrap',
-                'text-max-width': '140px',
-                'border-width': '1.5px',
-                'border-color': '#334155',
-                'border-opacity': 1,
+                label: '',
+                'background-opacity': 0,
+                'border-opacity': 0,
+                width: 172,
+                height: 56,
+                padding: '0px',
+              },
+            },
+            {
+              selector: 'node[cardSize = "tall"]',
+              style: {
+                height: 96,
               },
             },
             {
               selector: 'node[nodeType = "Application"]',
               style: {
-                'background-color': '#0a0a0a',
-                'border-width': '2px',
-                'border-color': '#38bdf8',
-                'border-opacity': 0.95,
-              },
-            },
-            {
-              selector: 'node[nodeType = "Module"]',
-              style: {
-                'border-color': '#52525b',
+                width: 184,
               },
             },
             {
@@ -102,13 +106,59 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
           layout: {
             name: 'breadthfirst',
             directed: true,
-            spacingFactor: 1.4,
-            padding: 40,
+            spacingFactor: 1.5,
+            padding: 48,
           },
           wheelSensitivity: 0.35,
           minZoom: 0.25,
           maxZoom: 2.5,
         });
+
+        type CyWithHtmlLabel = Core & {
+          nodeHtmlLabel: (
+            configs: Array<{
+              query: string;
+              tpl: (data: Record<string, unknown>) => string;
+              cssClass?: string;
+              valign?: string;
+              halign?: string;
+            }>,
+            options?: { enablePointerEvents?: boolean }
+          ) => void;
+        };
+        (cy as unknown as CyWithHtmlLabel).nodeHtmlLabel(
+          [
+            {
+              query: 'node',
+              cssClass: 'module-node-html-label',
+              valign: 'center',
+              halign: 'center',
+              tpl: (nodeData: Record<string, unknown>) =>
+                buildModuleNodeCardHtml({
+                  name: String(nodeData.name ?? ''),
+                  description: String(nodeData.description ?? ''),
+                  nodeType: String(nodeData.nodeType ?? 'Module'),
+                }),
+            },
+          ],
+          { enablePointerEvents: true }
+        );
+
+        cy.on('layoutstop', () => {
+          cy.fit(undefined, 48);
+        });
+
+        cy.on('mouseover', 'node', (evt: cytoscape.EventObject) => {
+          const name = String(evt.target.data('name') ?? '');
+          const desc = String(evt.target.data('description') ?? '');
+          setHoverHint(buildNodeHoverHint(name, desc));
+        });
+
+        cy.on('mouseout', 'node', () => {
+          setHoverHint(null);
+        });
+
+        cyRef.current = cy;
 
         setStatus('ready');
         setMessage(
@@ -159,8 +209,10 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
     };
   }, [status]);
 
+  const hintText = hoverHint ?? (status === 'ready' ? message : null);
+
   return (
-    <div className="graph-canvas-wrap">
+    <div className="graph-canvas-wrap module-graph-wrap">
       {status === 'loading' && (
         <p className="graph-canvas-status" role="status">
           Chargement des modules…
@@ -171,8 +223,10 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
           {message}
         </p>
       )}
-      {status === 'ready' && message && (
-        <p className="graph-canvas-hint">{message}</p>
+      {hintText && status !== 'error' && (
+        <p className="graph-canvas-hint module-graph-hint" title={hoverHint ?? undefined}>
+          {hintText}
+        </p>
       )}
       <div
         ref={containerRef}
