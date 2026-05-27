@@ -156,6 +156,13 @@ docker-compose up -d
 - API: `GET /api/applications/{id}/module-graph` with optional `validAt` (ISO instant). Same JSON shape as `GET /api/graph` (`GraphResponseDto`). **404** if the application is not valid at `validAt`; **200** with the application root only if there are no modules.
 - Optional env (backend): **`APP_MODULE_GRAPH_MAX_DEPTH`** (default **10**) — max `CONTAINS` hops in Cypher (hard-capped at 50 in code).
 
+### Regions (application detail)
+
+- Neo4j: `(:Application)-[:IS_USED_IN]->(:Region)`. Main map graph can be filtered with **`GET /api/graph?regionCode=...`** (regions are not nodes in that JSON).
+- **Catalogue:** `GET /api/regions` (sorted by `code`) for UI pickers.
+- **Application detail:** `GET /api/applications/{id}` includes **`regions`** (`id`, `code`, `name`) when non-empty.
+- **Edit links (replace all):** `PATCH /api/applications/{id}/regions` with body `{"regionCodes":["EMEA","APAC"]}`; `[]` clears. Unknown codes → **400**.
+
 ## What’s Not Included (By Design)
 
 - No JWT implementation: only auth-ready layout and stubs.

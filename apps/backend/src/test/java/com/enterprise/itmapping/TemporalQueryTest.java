@@ -31,7 +31,7 @@ import org.testcontainers.utility.DockerImageName;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class TemporalQueryTest {
 
   @Container
@@ -131,14 +131,14 @@ class TemporalQueryTest {
       applicationRepository.save(current);
 
       Date queryDate = Date.from(Instant.parse("2024-02-15T00:00:00Z"));
-      GraphResponseDto graph = graphService.getGraphAtDate(queryDate, null);
+      GraphResponseDto graph = graphService.getGraphAtDate(queryDate, null, null);
 
       assertThat(graph.nodes()).hasSize(2);
       assertThat(graph.nodes().stream().map(n -> n.label()).toList())
           .containsExactlyInAnyOrder("PastApp", "CurrentApp");
 
       Date afterPastEnd = Date.from(Instant.parse("2024-04-01T00:00:00Z"));
-      GraphResponseDto graphLater = graphService.getGraphAtDate(afterPastEnd, null);
+      GraphResponseDto graphLater = graphService.getGraphAtDate(afterPastEnd, null, null);
       assertThat(graphLater.nodes()).hasSize(1);
       assertThat(graphLater.nodes().getFirst().label()).isEqualTo("CurrentApp");
     }
@@ -153,7 +153,7 @@ class TemporalQueryTest {
       applicationRepository.save(app);
 
       Date queryDate = Date.from(Instant.parse("2020-01-01T00:00:00Z"));
-      GraphResponseDto graph = graphService.getGraphAtDate(queryDate, null);
+      GraphResponseDto graph = graphService.getGraphAtDate(queryDate, null, null);
 
       assertThat(graph.nodes()).isEmpty();
       assertThat(graph.edges()).isEmpty();
@@ -236,10 +236,11 @@ class TemporalQueryTest {
           .bindAll(bind)
           .run();
 
-      GraphResponseDto all = graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null);
+      GraphResponseDto all = graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, null);
       assertThat(all.nodes()).hasSize(3);
 
-      GraphResponseDto filtered = graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), buId);
+      GraphResponseDto filtered =
+          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), buId, null);
       assertThat(filtered.nodes()).hasSize(2);
       assertThat(filtered.nodes().stream().map(n -> n.id()).toList())
           .containsExactlyInAnyOrder(appA, appB);
@@ -251,7 +252,8 @@ class TemporalQueryTest {
     @Test
     @DisplayName("unknown business unit id yields empty graph")
     void unknownBuReturnsEmpty() {
-      GraphResponseDto graph = graphService.getGraph(Instant.now(), UUID.randomUUID().toString());
+      GraphResponseDto graph =
+          graphService.getGraph(Instant.now(), UUID.randomUUID().toString(), null);
       assertThat(graph.nodes()).isEmpty();
       assertThat(graph.edges()).isEmpty();
     }
@@ -300,6 +302,99 @@ class TemporalQueryTest {
 
       var res = applicationService.findById(appId, Instant.parse("2024-06-01T00:00:00Z")).orElseThrow();
       assertThat(res.businessUnit()).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("graph filtered by region")
+  class GraphFilteredByRegion {
+
+    @Test
+    @DisplayName("returns only applications used in the region and edges inside that set")
+    void filtersNodesAndEdges() {
+      Instant vf = Instant.parse("2024-01-01T00:00:00Z");
+      String appA = UUID.randomUUID().toString();
+      String appB = UUID.randomUUID().toString();
+      String appC = UUID.randomUUID().toString();
+      Map<String, Object> bind = new HashMap<>();
+      bind.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
+      bind.put("appA", appA);
+      bind.put("appB", appB);
+      bind.put("appC", appC);
+      neo4jClient
+          .query(
+              """
+              CREATE (reg:Region {id: randomUUID(), code: 'EMEA', name: 'EMEA', description: ''})
+              CREATE (a:Application {id: $appA, name: 'A', description: '', validFrom: $vf, validTo: null})
+              CREATE (b:Application {id: $appB, name: 'B', description: '', validFrom: $vf, validTo: null})
+              CREATE (c:Application {id: $appC, name: 'C', description: '', validFrom: $vf, validTo: null})
+              CREATE (a)-[:IS_USED_IN]->(reg)
+              CREATE (b)-[:IS_USED_IN]->(reg)
+              CREATE (a)-[:DEPENDS_ON {validFrom: $vf, validTo: null}]->(b)
+              CREATE (a)-[:DEPENDS_ON {validFrom: $vf, validTo: null}]->(c)
+              """)
+          .bindAll(bind)
+          .run();
+
+      GraphResponseDto all =
+          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, null);
+      assertThat(all.nodes()).hasSize(3);
+
+      GraphResponseDto filtered =
+          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, "EMEA");
+      assertThat(filtered.nodes()).hasSize(2);
+      assertThat(filtered.nodes().stream().map(n -> n.id()).toList())
+          .containsExactlyInAnyOrder(appA, appB);
+      assertThat(filtered.edges()).hasSize(1);
+      assertThat(filtered.edges().getFirst().sourceId()).isEqualTo(appA);
+      assertThat(filtered.edges().getFirst().targetId()).isEqualTo(appB);
+    }
+
+    @Test
+    @DisplayName("unknown region code yields empty graph")
+    void unknownRegionReturnsEmpty() {
+      GraphResponseDto graph =
+          graphService.getGraph(Instant.now(), null, "NO_SUCH_REGION");
+      assertThat(graph.nodes()).isEmpty();
+      assertThat(graph.edges()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("business unit and region filters intersect")
+    void buAndRegionIntersect() {
+      Instant vf = Instant.parse("2024-01-01T00:00:00Z");
+      String buId = UUID.randomUUID().toString();
+      String appA = UUID.randomUUID().toString();
+      String appB = UUID.randomUUID().toString();
+      String appC = UUID.randomUUID().toString();
+      Map<String, Object> bind = new HashMap<>();
+      bind.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
+      bind.put("buId", buId);
+      bind.put("appA", appA);
+      bind.put("appB", appB);
+      bind.put("appC", appC);
+      neo4jClient
+          .query(
+              """
+              CREATE (bu:BusinessUnit {id: $buId, name: 'BU1', code: 'B1', description: ''})
+              CREATE (reg:Region {id: randomUUID(), code: 'APAC', name: 'APAC', description: ''})
+              CREATE (a:Application {id: $appA, name: 'A', description: '', validFrom: $vf, validTo: null})
+              CREATE (b:Application {id: $appB, name: 'B', description: '', validFrom: $vf, validTo: null})
+              CREATE (c:Application {id: $appC, name: 'C', description: '', validFrom: $vf, validTo: null})
+              CREATE (bu)-[:HAS_APPLICATION]->(a)
+              CREATE (bu)-[:HAS_APPLICATION]->(b)
+              CREATE (a)-[:IS_USED_IN]->(reg)
+              CREATE (b)-[:IS_USED_IN]->(reg)
+              CREATE (c)-[:IS_USED_IN]->(reg)
+              """)
+          .bindAll(bind)
+          .run();
+
+      GraphResponseDto filtered =
+          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), buId, "APAC");
+      assertThat(filtered.nodes()).hasSize(2);
+      assertThat(filtered.nodes().stream().map(n -> n.id()).toList())
+          .containsExactlyInAnyOrder(appA, appB);
     }
   }
 

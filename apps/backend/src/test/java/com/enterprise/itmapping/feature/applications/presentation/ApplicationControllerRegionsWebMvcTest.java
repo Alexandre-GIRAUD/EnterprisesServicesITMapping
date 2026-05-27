@@ -1,6 +1,5 @@
 package com.enterprise.itmapping.feature.applications.presentation;
 
-import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -13,7 +12,6 @@ import com.enterprise.itmapping.feature.applications.application.ApplicationServ
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
-import com.enterprise.itmapping.feature.applications.presentation.dto.BusinessUnitSummary;
 import com.enterprise.itmapping.feature.applications.presentation.dto.RegionSummary;
 import com.enterprise.itmapping.feature.businessunit.application.BusinessUnitApplicationLinkService;
 import java.time.Instant;
@@ -29,7 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
 @WebMvcTest(controllers = ApplicationController.class, excludeAutoConfiguration = SecurityAutoConfiguration.class)
-class ApplicationControllerBusinessUnitWebMvcTest {
+class ApplicationControllerRegionsWebMvcTest {
 
   @Autowired MockMvc mockMvc;
 
@@ -44,8 +42,8 @@ class ApplicationControllerBusinessUnitWebMvcTest {
   @MockBean ApplicationRegionLinkService applicationRegionLinkService;
 
   @Test
-  void patchBusinessUnitReturnsUpdatedApplication() throws Exception {
-    when(businessUnitApplicationLinkService.setBusinessUnitForApplication(eq("app-1"), eq("bu-1")))
+  void patchRegionsReturnsUpdatedApplication() throws Exception {
+    when(applicationRegionLinkService.setRegionsForApplication(eq("app-1"), any()))
         .thenReturn(true);
     ApplicationResponse body =
         new ApplicationResponse(
@@ -55,72 +53,45 @@ class ApplicationControllerBusinessUnitWebMvcTest {
             Instant.parse("2024-01-01T00:00:00Z"),
             null,
             false,
-            new BusinessUnitSummary("bu-1", "BU One", "B1", null),
+            null,
             List.of(),
-            List.<RegionSummary>of());
+            List.of(new RegionSummary("rid", "EMEA", "EU")));
     when(applicationService.findById(eq("app-1"), any())).thenReturn(Optional.of(body));
 
     mockMvc
         .perform(
-            patch("/applications/app-1/business-unit")
+            patch("/applications/app-1/regions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
-                .content("{\"businessUnitId\":\"bu-1\"}"))
+                .content("{\"regionCodes\":[\"EMEA\"]}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value("app-1"))
-        .andExpect(jsonPath("$.businessUnit.id").value("bu-1"));
+        .andExpect(jsonPath("$.regions[0].code").value("EMEA"));
   }
 
   @Test
-  void patchBusinessUnitWithNullClearsLink() throws Exception {
-    when(businessUnitApplicationLinkService.setBusinessUnitForApplication(eq("app-1"), eq(null)))
-        .thenReturn(true);
-    ApplicationResponse body =
-        new ApplicationResponse(
-            "app-1",
-            "App",
-            "",
-            Instant.parse("2024-01-01T00:00:00Z"),
-            null,
-            false,
-            null,
-            List.of(),
-            List.<RegionSummary>of());
-    when(applicationService.findById(eq("app-1"), any())).thenReturn(Optional.of(body));
+  void patchRegionsReturns400WhenUnknownCode() throws Exception {
+    when(applicationRegionLinkService.setRegionsForApplication(eq("app-1"), any()))
+        .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Region"));
 
     mockMvc
         .perform(
-            patch("/applications/app-1/business-unit")
+            patch("/applications/app-1/regions")
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON)
-                .content("{\"businessUnitId\":null}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.businessUnit").value(nullValue()));
+                .content("{\"regionCodes\":[\"NOPE\"]}"))
+        .andExpect(status().isBadRequest());
   }
 
   @Test
-  void patchBusinessUnitReturns404WhenApplicationMissing() throws Exception {
-    when(businessUnitApplicationLinkService.setBusinessUnitForApplication(eq("missing"), eq("bu-1")))
+  void patchRegionsReturns404WhenApplicationMissing() throws Exception {
+    when(applicationRegionLinkService.setRegionsForApplication(eq("missing"), any()))
         .thenReturn(false);
 
     mockMvc
         .perform(
-            patch("/applications/missing/business-unit")
+            patch("/applications/missing/regions")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"businessUnitId\":\"bu-1\"}"))
-        .andExpect(status().isNotFound());
-  }
-
-  @Test
-  void patchBusinessUnitReturns404WhenBuUnknown() throws Exception {
-    when(businessUnitApplicationLinkService.setBusinessUnitForApplication(eq("app-1"), eq("no-bu")))
-        .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "x"));
-
-    mockMvc
-        .perform(
-            patch("/applications/app-1/business-unit")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"businessUnitId\":\"no-bu\"}"))
+                .content("{\"regionCodes\":[\"EMEA\"]}"))
         .andExpect(status().isNotFound());
   }
 }

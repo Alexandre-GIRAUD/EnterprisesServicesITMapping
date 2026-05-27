@@ -25,18 +25,21 @@ public class ApplicationService {
   private final ApplicationModuleSubtreeQuery moduleSubtreeQuery;
   private final ApplicationBusinessUnitLookup applicationBusinessUnitLookup;
   private final ApplicationContributorLookup applicationContributorLookup;
+  private final ApplicationRegionLookup applicationRegionLookup;
 
   public ApplicationService(
       ApplicationRepository applicationRepository,
       Neo4jClient neo4jClient,
       ApplicationModuleSubtreeQuery moduleSubtreeQuery,
       ApplicationBusinessUnitLookup applicationBusinessUnitLookup,
-      ApplicationContributorLookup applicationContributorLookup) {
+      ApplicationContributorLookup applicationContributorLookup,
+      ApplicationRegionLookup applicationRegionLookup) {
     this.applicationRepository = applicationRepository;
     this.neo4jClient = neo4jClient;
     this.moduleSubtreeQuery = moduleSubtreeQuery;
     this.applicationBusinessUnitLookup = applicationBusinessUnitLookup;
     this.applicationContributorLookup = applicationContributorLookup;
+    this.applicationRegionLookup = applicationRegionLookup;
   }
 
   @Transactional(readOnly = true)
@@ -192,7 +195,8 @@ public class ApplicationService {
         a.getValidTo(),
         moduleSubtreeQuery.hasAnyModuleViaContains(a.getId()),
         applicationBusinessUnitLookup.findForApplication(a.getId(), validAt).orElse(null),
-        contributors);
+        contributors,
+        applicationRegionLookup.findForApplication(a.getId(), validAt));
   }
 
   private ApplicationResponse toResponseWithBusinessUnit(
@@ -207,7 +211,8 @@ public class ApplicationService {
         p.getValidTo(),
         moduleSubtreeQuery.hasAnyModuleViaContains(p.getId()),
         applicationBusinessUnitLookup.findForApplication(p.getId(), validAt).orElse(null),
-        contributors);
+        contributors,
+        applicationRegionLookup.findForApplication(p.getId(), validAt));
   }
 
   private ApplicationResponse graphProjectionToResponse(
@@ -220,6 +225,7 @@ public class ApplicationService {
         p.getValidTo(),
         hasModuleSubtree,
         null,
+        Collections.emptyList(),
         Collections.emptyList());
   }
 }

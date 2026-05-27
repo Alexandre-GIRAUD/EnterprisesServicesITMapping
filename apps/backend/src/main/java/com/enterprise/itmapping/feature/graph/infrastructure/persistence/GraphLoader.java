@@ -37,6 +37,30 @@ public class GraphLoader {
       RETURN a.id AS id, a.name AS name, a.description AS description, a.validFrom AS validFrom, a.validTo AS validTo
       """;
 
+  /**
+   * Applications used in a region ({@code IS_USED_IN}); {@code Region} nodes are not returned in
+   * the API payload.
+   */
+  private static final String NODES_CYPHER_FOR_REGION = """
+      MATCH (a:Application)-[:IS_USED_IN]->(reg:Region)
+      WHERE toUpper(reg.code) = toUpper($regionCode)
+        AND (a.validFrom IS NULL OR a.validFrom <= $validAt)
+        AND (a.validTo IS NULL OR a.validTo > $validAt)
+      WITH a ORDER BY a.name
+      RETURN a.id AS id, a.name AS name, a.description AS description, a.validFrom AS validFrom, a.validTo AS validTo
+      """;
+
+  /** Intersection: application in BU and used in region. */
+  private static final String NODES_CYPHER_FOR_BUSINESS_UNIT_AND_REGION = """
+      MATCH (bu:BusinessUnit {id: $businessUnitId})-[:HAS_APPLICATION]->(a:Application)
+      MATCH (a)-[:IS_USED_IN]->(reg:Region)
+      WHERE toUpper(reg.code) = toUpper($regionCode)
+        AND (a.validFrom IS NULL OR a.validFrom <= $validAt)
+        AND (a.validTo IS NULL OR a.validTo > $validAt)
+      WITH a ORDER BY a.name
+      RETURN a.id AS id, a.name AS name, a.description AS description, a.validFrom AS validFrom, a.validTo AS validTo
+      """;
+
   private static final String EDGES_CYPHER = """
       MATCH (a:Application)-[r:DEPENDS_ON]->(b:Application)
       WHERE (a.validFrom IS NULL OR a.validFrom <= $validAt)
@@ -65,6 +89,42 @@ public class GraphLoader {
       RETURN x.id AS sourceId, y.id AS targetId, type(r) AS relType
       """;
 
+  /** {@code DEPENDS_ON} only when both endpoints are used in the given region. */
+  private static final String EDGES_CYPHER_FOR_REGION = """
+      MATCH (a:Application)-[:IS_USED_IN]->(reg:Region)
+      WHERE toUpper(reg.code) = toUpper($regionCode)
+        AND (a.validFrom IS NULL OR a.validFrom <= $validAt)
+        AND (a.validTo IS NULL OR a.validTo > $validAt)
+      WITH collect(DISTINCT a.id) AS appIds
+      MATCH (x:Application)-[r:DEPENDS_ON]->(y:Application)
+      WHERE x.id IN appIds AND y.id IN appIds
+        AND (x.validFrom IS NULL OR x.validFrom <= $validAt)
+        AND (x.validTo IS NULL OR x.validTo > $validAt)
+        AND (y.validFrom IS NULL OR y.validFrom <= $validAt)
+        AND (y.validTo IS NULL OR y.validTo > $validAt)
+        AND (r.validFrom IS NULL OR r.validFrom <= $validAt)
+        AND (r.validTo IS NULL OR r.validTo > $validAt)
+      RETURN x.id AS sourceId, y.id AS targetId, type(r) AS relType
+      """;
+
+  private static final String EDGES_CYPHER_FOR_BUSINESS_UNIT_AND_REGION = """
+      MATCH (bu:BusinessUnit {id: $businessUnitId})-[:HAS_APPLICATION]->(a:Application)
+      MATCH (a)-[:IS_USED_IN]->(reg:Region)
+      WHERE toUpper(reg.code) = toUpper($regionCode)
+        AND (a.validFrom IS NULL OR a.validFrom <= $validAt)
+        AND (a.validTo IS NULL OR a.validTo > $validAt)
+      WITH collect(DISTINCT a.id) AS appIds
+      MATCH (x:Application)-[r:DEPENDS_ON]->(y:Application)
+      WHERE x.id IN appIds AND y.id IN appIds
+        AND (x.validFrom IS NULL OR x.validFrom <= $validAt)
+        AND (x.validTo IS NULL OR x.validTo > $validAt)
+        AND (y.validFrom IS NULL OR y.validFrom <= $validAt)
+        AND (y.validTo IS NULL OR y.validTo > $validAt)
+        AND (r.validFrom IS NULL OR r.validFrom <= $validAt)
+        AND (r.validTo IS NULL OR r.validTo > $validAt)
+      RETURN x.id AS sourceId, y.id AS targetId, type(r) AS relType
+      """;
+
   private final Neo4jClient neo4jClient;
 
   public GraphLoader(Neo4jClient neo4jClient) {
@@ -72,21 +132,27 @@ public class GraphLoader {
   }
 
   public List<GraphNodeRow> loadNodesValidAt(Instant validAt) {
-    return loadNodesValidAt(validAt, null);
+    return loadNodesValidAt(validAt, null, null);
   }
 
   /**
    * @param businessUnitId when non-blank, only applications linked via {@code HAS_APPLICATION}
    *     from that BU are returned.
+   * @param regionCode when non-blank, only applications with {@code IS_USED_IN} to that region
+   *     code are returned (case-insensitive match on {@code Region.code}).
    */
-  public List<GraphNodeRow> loadNodesValidAt(Instant validAt, String businessUnitId) {
-    String cypher =
-        businessUnitId != null && !businessUnitId.isBlank()
-            ? NODES_CYPHER_FOR_BUSINESS_UNIT
-            : NODES_CYPHER;
-    var query = neo4jClient.query(cypher).bind(Neo4jTemporalParameters.toNeo4j(validAt)).to("validAt");
-    if (businessUnitId != null && !businessUnitId.isBlank()) {
+  public List<GraphNodeRow> loadNodesValidAt(
+      Instant validAt, String businessUnitId, String regionCode) {
+    var query =
+        neo4jClient
+            .query(selectNodesCypher(businessUnitId, regionCode))
+            .bind(Neo4jTemporalParameters.toNeo4j(validAt))
+            .to("validAt");
+    if (isNonBlank(businessUnitId)) {
       query = query.bind(businessUnitId.trim()).to("businessUnitId");
+    }
+    if (isNonBlank(regionCode)) {
+      query = query.bind(regionCode.trim()).to("regionCode");
     }
     return query.fetch().all().stream()
         .map(Neo4jValueMapping::asMap)
@@ -104,17 +170,21 @@ public class GraphLoader {
   }
 
   public List<GraphEdgeProjection> loadEdges(Instant validAt) {
-    return loadEdges(validAt, null);
+    return loadEdges(validAt, null, null);
   }
 
-  public List<GraphEdgeProjection> loadEdges(Instant validAt, String businessUnitId) {
-    String cypher =
-        businessUnitId != null && !businessUnitId.isBlank()
-            ? EDGES_CYPHER_FOR_BUSINESS_UNIT
-            : EDGES_CYPHER;
-    var query = neo4jClient.query(cypher).bind(Neo4jTemporalParameters.toNeo4j(validAt)).to("validAt");
-    if (businessUnitId != null && !businessUnitId.isBlank()) {
+  public List<GraphEdgeProjection> loadEdges(
+      Instant validAt, String businessUnitId, String regionCode) {
+    var query =
+        neo4jClient
+            .query(selectEdgesCypher(businessUnitId, regionCode))
+            .bind(Neo4jTemporalParameters.toNeo4j(validAt))
+            .to("validAt");
+    if (isNonBlank(businessUnitId)) {
       query = query.bind(businessUnitId.trim()).to("businessUnitId");
+    }
+    if (isNonBlank(regionCode)) {
+      query = query.bind(regionCode.trim()).to("regionCode");
     }
     return query.fetch().all().stream()
         .map(Neo4jValueMapping::asMap)
@@ -125,6 +195,40 @@ public class GraphLoader {
                     Neo4jValueMapping.asString(map.get("targetId")),
                     Neo4jValueMapping.asString(map.get("relType"))))
         .toList();
+  }
+
+  private static String selectNodesCypher(String businessUnitId, String regionCode) {
+    boolean bu = isNonBlank(businessUnitId);
+    boolean region = isNonBlank(regionCode);
+    if (bu && region) {
+      return NODES_CYPHER_FOR_BUSINESS_UNIT_AND_REGION;
+    }
+    if (bu) {
+      return NODES_CYPHER_FOR_BUSINESS_UNIT;
+    }
+    if (region) {
+      return NODES_CYPHER_FOR_REGION;
+    }
+    return NODES_CYPHER;
+  }
+
+  private static String selectEdgesCypher(String businessUnitId, String regionCode) {
+    boolean bu = isNonBlank(businessUnitId);
+    boolean region = isNonBlank(regionCode);
+    if (bu && region) {
+      return EDGES_CYPHER_FOR_BUSINESS_UNIT_AND_REGION;
+    }
+    if (bu) {
+      return EDGES_CYPHER_FOR_BUSINESS_UNIT;
+    }
+    if (region) {
+      return EDGES_CYPHER_FOR_REGION;
+    }
+    return EDGES_CYPHER;
+  }
+
+  private static boolean isNonBlank(String value) {
+    return value != null && !value.isBlank();
   }
 
   public int linkCurrentNodesToSnapshot(String snapshotId, Instant now) {

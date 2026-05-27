@@ -6,9 +6,11 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.enterprise.itmapping.feature.applications.application.ApplicationRegionLinkService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
+import com.enterprise.itmapping.feature.businessunit.application.BusinessUnitApplicationLinkService;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +32,10 @@ class SuggestFromGithubConflictWebMvcTest {
   @MockBean ModuleGraphService moduleGraphService;
 
   @MockBean ModuleSuggestionService moduleSuggestionService;
+
+  @MockBean BusinessUnitApplicationLinkService businessUnitApplicationLinkService;
+
+  @MockBean ApplicationRegionLinkService applicationRegionLinkService;
 
   @Test
   void postSuggestFromGithubReturnsConflictWhenServiceSignals409() throws Exception {

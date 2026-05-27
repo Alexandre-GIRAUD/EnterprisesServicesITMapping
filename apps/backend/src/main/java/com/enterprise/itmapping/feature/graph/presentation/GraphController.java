@@ -34,23 +34,29 @@ public class GraphController {
    *     (:BusinessUnit)-[:HAS_APPLICATION]->(:Application)} for that id are returned, with {@code
    *     DEPENDS_ON} edges between those apps only. Unknown id yields an empty graph. The BU node is
    *     never part of the JSON payload.
+   * @param regionCode optional; when set, only applications with {@code
+   *     (:Application)-[:IS_USED_IN]->(:Region)} for that {@code Region.code} are returned (match
+   *     case-insensitive). Unknown code yields an empty graph. {@code Region} nodes are never part
+   *     of the JSON payload. When combined with {@code businessUnitId}, both filters apply (AND).
    */
   @GetMapping
   public ResponseEntity<GraphResponseDto> getGraph(
       @RequestParam(required = false) String validAt,
-      @RequestParam(required = false) String businessUnitId
+      @RequestParam(required = false) String businessUnitId,
+      @RequestParam(required = false) String regionCode
   ) {
     Instant pointInTime = validAt != null ? Instant.parse(validAt) : null;
-    return ResponseEntity.ok(graphService.getGraph(pointInTime, businessUnitId));
+    return ResponseEntity.ok(graphService.getGraph(pointInTime, businessUnitId, regionCode));
   }
 
   @GetMapping("/at-date")
   public ResponseEntity<GraphResponseDto> getGraphAtDate(
       @RequestParam String date,
-      @RequestParam(required = false) String businessUnitId
+      @RequestParam(required = false) String businessUnitId,
+      @RequestParam(required = false) String regionCode
   ) {
     java.util.Date d = java.util.Date.from(java.time.Instant.parse(date));
-    return ResponseEntity.ok(graphService.getGraphAtDate(d, businessUnitId));
+    return ResponseEntity.ok(graphService.getGraphAtDate(d, businessUnitId, regionCode));
   }
 
   @PostMapping("/snapshots")

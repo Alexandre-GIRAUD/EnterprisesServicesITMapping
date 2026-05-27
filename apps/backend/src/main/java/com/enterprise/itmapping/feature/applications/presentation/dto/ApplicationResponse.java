@@ -21,5 +21,11 @@ public record ApplicationResponse(
      * compact JSON).
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    List<ContributorSummaryDto> contributors
+    List<ContributorSummaryDto> contributors,
+    /**
+     * Regions linked via {@code IS_USED_IN} ({@code GET /applications/{id}} only when non-empty;
+     * list endpoint omits).
+     */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    List<RegionSummary> regions
 ) {}

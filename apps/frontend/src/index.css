@@ -1155,6 +1155,36 @@ body {
   color: #93c5fd;
 }
 
+.graph-drawer-fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.graph-details-region-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.graph-drawer-region-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.graph-drawer-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: #e2e8f0;
+}
+
+.graph-drawer-checkbox-row input {
+  margin-top: 0.2rem;
+}
+
 .graph-drawer-search-dropdown {
   position: absolute;
   top: calc(100% + 0.25rem);

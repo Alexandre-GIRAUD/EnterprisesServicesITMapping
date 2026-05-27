@@ -1,13 +1,20 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { ApplicationRequest, ApplicationResponse, BusinessUnitListItem } from '@/types/api';
+import type {
+  ApplicationRequest,
+  ApplicationResponse,
+  BusinessUnitListItem,
+  RegionSummary,
+} from '@/types/api';
 import {
   deleteApplicationById,
   fetchApplicationById,
   patchApplicationBusinessUnit,
+  patchApplicationRegions,
   suggestModulesFromGithub,
   updateApplicationById,
 } from '../api/applicationsApi';
+import { fetchRegions } from '../api/regionsApi';
 import { fetchBusinessUnits } from '../api/businessUnitsApi';
 import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 
@@ -51,8 +58,10 @@ export function ApplicationDetailsDrawer({
     validFrom: '',
     validTo: '',
     businessUnitId: '',
+    regionCodes: [] as string[],
   });
   const [businessUnitsCatalog, setBusinessUnitsCatalog] = useState<BusinessUnitListItem[]>([]);
+  const [regionsCatalog, setRegionsCatalog] = useState<RegionSummary[]>([]);
 
   useEffect(() => {
     if (!isOpen || !application?.id) return;
@@ -74,6 +83,7 @@ export function ApplicationDetailsDrawer({
           validFrom: isoToDateTimeLocal(data.validFrom),
           validTo: isoToDateTimeLocal(data.validTo),
           businessUnitId: data.businessUnit?.id ?? '',
+          regionCodes: regionCodesFromDetail(data),
         });
         setStatus('ready');
       })
@@ -97,6 +107,13 @@ export function ApplicationDetailsDrawer({
       })
       .catch(() => {
         if (!cancelled) setBusinessUnitsCatalog([]);
+      });
+    void fetchRegions()
+      .then((rows) => {
+        if (!cancelled) setRegionsCatalog(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setRegionsCatalog([]);
       });
     return () => {
       cancelled = true;
@@ -162,6 +179,7 @@ export function ApplicationDetailsDrawer({
       setSaveSuccessMessage(null);
       await updateApplicationById(application.id, payload);
       await patchApplicationBusinessUnit(application.id, businessUnitIdPatch);
+      await patchApplicationRegions(application.id, formState.regionCodes);
       const refreshed = await fetchApplicationById(application.id);
       setDetails(refreshed);
       setFormState({
@@ -170,6 +188,7 @@ export function ApplicationDetailsDrawer({
         validFrom: isoToDateTimeLocal(refreshed.validFrom),
         validTo: isoToDateTimeLocal(refreshed.validTo),
         businessUnitId: refreshed.businessUnit?.id ?? '',
+        regionCodes: regionCodesFromDetail(refreshed),
       });
       setSaveSuccessMessage('Application mise à jour.');
       setIsEditing(false);
@@ -193,6 +212,7 @@ export function ApplicationDetailsDrawer({
       validFrom: isoToDateTimeLocal(details.validFrom),
       validTo: isoToDateTimeLocal(details.validTo),
       businessUnitId: details.businessUnit?.id ?? '',
+      regionCodes: regionCodesFromDetail(details),
     });
     setFormErrorMessage(null);
     setSaveSuccessMessage(null);
@@ -296,6 +316,22 @@ export function ApplicationDetailsDrawer({
               </section>
 
               <section className="graph-details-section">
+                <h3 className="graph-details-section-title">Régions</h3>
+                {details?.regions && details.regions.length > 0 ? (
+                  <ul className="graph-details-region-list">
+                    {details.regions.map((r) => (
+                      <li key={r.id} className="graph-details-text">
+                        <strong>{r.code}</strong>
+                        {r.name ? ` — ${r.name}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="graph-details-text">Aucune région renseignée.</p>
+                )}
+              </section>
+
+              <section className="graph-details-section">
                 <h3 className="graph-details-section-title">Validité</h3>
                 <p className="graph-details-text">
                   <strong>Valid from:</strong> {validFromText}
@@ -351,6 +387,34 @@ export function ApplicationDetailsDrawer({
                   ))}
                 </select>
               </label>
+              <fieldset className="graph-drawer-field graph-drawer-fieldset">
+                <legend className="graph-drawer-field-label">Régions</legend>
+                {regionsCatalog.length === 0 ? (
+                  <p className="graph-details-text">Chargement du catalogue…</p>
+                ) : (
+                  <div className="graph-drawer-region-checkboxes">
+                    {regionsCatalog.map((r) => (
+                      <label key={r.id} className="graph-drawer-checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={formState.regionCodes.includes(r.code)}
+                          onChange={() =>
+                            setFormState((prev) => ({
+                              ...prev,
+                              regionCodes: toggleSortedCode(prev.regionCodes, r.code),
+                            }))
+                          }
+                          disabled={isSaving || isDeleting}
+                        />
+                        <span>
+                          {r.code}
+                          {r.name ? ` — ${r.name}` : ''}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </fieldset>
               <label className="graph-drawer-field">
                 <span className="graph-drawer-field-label">validFrom</span>
                 <input
@@ -552,6 +616,7 @@ export function ApplicationDetailsDrawer({
                 validFrom: isoToDateTimeLocal(details.validFrom),
                 validTo: isoToDateTimeLocal(details.validTo),
                 businessUnitId: details.businessUnit?.id ?? '',
+                regionCodes: regionCodesFromDetail(details),
               });
               setIsEditing(true);
             }}
@@ -580,4 +645,17 @@ function isoToDateTimeLocal(value?: string | null): string {
   if (Number.isNaN(date.getTime())) return '';
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 16);
+}
+
+function regionCodesFromDetail(data: ApplicationResponse): string[] {
+  if (!data.regions?.length) return [];
+  return [...data.regions.map((r) => r.code).filter(Boolean)].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: 'base' })
+  );
+}
+
+function toggleSortedCode(codes: string[], code: string): string[] {
+  const next = codes.includes(code) ? codes.filter((c) => c !== code) : [...codes, code];
+  next.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  return next;
 }

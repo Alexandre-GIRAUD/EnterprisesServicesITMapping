@@ -27,7 +27,7 @@ class GraphControllerWebMvcTest {
 
   @Test
   void getGraphForwardsBusinessUnitIdQueryParam() throws Exception {
-    when(graphService.getGraph(isNull(), eq("bu-abc")))
+    when(graphService.getGraph(isNull(), eq("bu-abc"), isNull()))
         .thenReturn(new GraphResponseDto(List.of(), List.of()));
 
     mockMvc
@@ -37,14 +37,27 @@ class GraphControllerWebMvcTest {
                 .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk());
 
-    verify(graphService).getGraph(isNull(), eq("bu-abc"));
+    verify(graphService).getGraph(isNull(), eq("bu-abc"), isNull());
+  }
+
+  @Test
+  void getGraphForwardsRegionCodeQueryParam() throws Exception {
+    when(graphService.getGraph(isNull(), isNull(), eq("EMEA")))
+        .thenReturn(new GraphResponseDto(List.of(), List.of()));
+
+    mockMvc
+        .perform(
+            get("/graph").param("regionCode", "EMEA").accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk());
+
+    verify(graphService).getGraph(isNull(), isNull(), eq("EMEA"));
   }
 
   @Test
   void getGraphAtDateForwardsBusinessUnitId() throws Exception {
     String date = "2024-02-15T12:00:00Z";
     java.util.Date d = java.util.Date.from(java.time.Instant.parse(date));
-    when(graphService.getGraphAtDate(eq(d), eq("bu-xyz")))
+    when(graphService.getGraphAtDate(eq(d), eq("bu-xyz"), isNull()))
         .thenReturn(new GraphResponseDto(List.of(), List.of()));
 
     mockMvc
@@ -55,6 +68,24 @@ class GraphControllerWebMvcTest {
                 .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk());
 
-    verify(graphService).getGraphAtDate(eq(d), eq("bu-xyz"));
+    verify(graphService).getGraphAtDate(eq(d), eq("bu-xyz"), isNull());
+  }
+
+  @Test
+  void getGraphAtDateForwardsRegionCode() throws Exception {
+    String date = "2024-02-15T12:00:00Z";
+    java.util.Date d = java.util.Date.from(java.time.Instant.parse(date));
+    when(graphService.getGraphAtDate(eq(d), isNull(), eq("APAC")))
+        .thenReturn(new GraphResponseDto(List.of(), List.of()));
+
+    mockMvc
+        .perform(
+            get("/graph/at-date")
+                .param("date", date)
+                .param("regionCode", "APAC")
+                .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk());
+
+    verify(graphService).getGraphAtDate(eq(d), isNull(), eq("APAC"));
   }
 }
