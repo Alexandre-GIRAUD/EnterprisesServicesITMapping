@@ -1,11 +1,13 @@
 package com.enterprise.itmapping.feature.applications.presentation;
 
+import com.enterprise.itmapping.feature.applications.application.ApplicationRegionLinkService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationBusinessUnitPatchRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
+import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRegionsPatchRequest;
 import com.enterprise.itmapping.feature.businessunit.application.BusinessUnitApplicationLinkService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
@@ -34,16 +36,19 @@ public class ApplicationController {
   private final ModuleGraphService moduleGraphService;
   private final ModuleSuggestionService moduleSuggestionService;
   private final BusinessUnitApplicationLinkService businessUnitApplicationLinkService;
+  private final ApplicationRegionLinkService applicationRegionLinkService;
 
   public ApplicationController(
       ApplicationService applicationService,
       ModuleGraphService moduleGraphService,
       ModuleSuggestionService moduleSuggestionService,
-      BusinessUnitApplicationLinkService businessUnitApplicationLinkService) {
+      BusinessUnitApplicationLinkService businessUnitApplicationLinkService,
+      ApplicationRegionLinkService applicationRegionLinkService) {
     this.applicationService = applicationService;
     this.moduleGraphService = moduleGraphService;
     this.moduleSuggestionService = moduleSuggestionService;
     this.businessUnitApplicationLinkService = businessUnitApplicationLinkService;
+    this.applicationRegionLinkService = applicationRegionLinkService;
   }
 
   @GetMapping
@@ -121,6 +126,26 @@ public class ApplicationController {
       @RequestBody(required = false) ApplicationBusinessUnitPatchRequest body) {
     String buId = body != null ? body.businessUnitId() : null;
     if (!businessUnitApplicationLinkService.setBusinessUnitForApplication(id, buId)) {
+      return ResponseEntity.notFound().build();
+    }
+    Instant now = Instant.now();
+    return applicationService
+        .findById(id, now)
+        .map(ResponseEntity::ok)
+        .orElse(ResponseEntity.notFound().build());
+  }
+
+  /**
+   * Replaces all {@code IS_USED_IN} links from this application to {@link
+   * com.enterprise.itmapping.domain.Region} nodes (full replacement). Omitting {@code regionCodes}
+   * or sending {@code []} clears all regions.
+   */
+  @PatchMapping("/{id}/regions")
+  public ResponseEntity<ApplicationResponse> patchRegions(
+      @PathVariable String id,
+      @RequestBody(required = false) ApplicationRegionsPatchRequest body) {
+    List<String> codes = body != null ? body.regionCodes() : null;
+    if (!applicationRegionLinkService.setRegionsForApplication(id, codes)) {
       return ResponseEntity.notFound().build();
     }
     Instant now = Instant.now();

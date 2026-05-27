@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.graph.application;
 import com.enterprise.itmapping.common.Neo4jTemporalParameters;
 import com.enterprise.itmapping.domain.VersionSnapshot;
 import com.enterprise.itmapping.feature.businessunit.infrastructure.persistence.BusinessUnitRepository;
+import com.enterprise.itmapping.feature.region.infrastructure.persistence.RegionRepository;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeRequestDto;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeResponseDto;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.GraphLoader;
@@ -34,17 +35,20 @@ public class GraphService {
   private final VersionSnapshotRepository versionSnapshotRepository;
   private final Neo4jClient neo4jClient;
   private final BusinessUnitRepository businessUnitRepository;
+  private final RegionRepository regionRepository;
 
   public GraphService(
       GraphLoader graphLoader,
       VersionSnapshotRepository versionSnapshotRepository,
       Neo4jClient neo4jClient,
-      BusinessUnitRepository businessUnitRepository
+      BusinessUnitRepository businessUnitRepository,
+      RegionRepository regionRepository
   ) {
     this.graphLoader = graphLoader;
     this.versionSnapshotRepository = versionSnapshotRepository;
     this.neo4jClient = neo4jClient;
     this.businessUnitRepository = businessUnitRepository;
+    this.regionRepository = regionRepository;
   }
 
   /**
@@ -74,24 +78,33 @@ public class GraphService {
    * Uses index-optimized temporal predicates for large graphs.
    */
   @Transactional(readOnly = true)
-  public GraphResponseDto getGraphAtDate(Date date, String businessUnitId) {
+  public GraphResponseDto getGraphAtDate(Date date, String businessUnitId, String regionCode) {
     Instant pointInTime = date != null ? date.toInstant() : Instant.now();
-    return getGraph(pointInTime, businessUnitId);
+    return getGraph(pointInTime, businessUnitId, regionCode);
   }
 
-  /** @param businessUnitId optional; when set, only applications under that BU are included. */
+  /**
+   * @param businessUnitId optional; when set, only applications under that BU are included.
+   * @param regionCode optional; when set, only applications with {@code IS_USED_IN} to that
+   *     region code are included (case-insensitive). Combined with BU, both filters apply (AND).
+   */
   @Transactional(readOnly = true)
-  public GraphResponseDto getGraph(Instant validAt, String businessUnitId) {
+  public GraphResponseDto getGraph(Instant validAt, String businessUnitId, String regionCode) {
     Instant pointInTime = validAt != null ? validAt : Instant.now();
     String bu = businessUnitId != null && !businessUnitId.isBlank() ? businessUnitId.trim() : null;
+    String region =
+        regionCode != null && !regionCode.isBlank() ? regionCode.trim() : null;
     if (bu != null && !businessUnitRepository.existsById(bu)) {
       return new GraphResponseDto(List.of(), List.of());
     }
+    if (region != null && !regionRepository.existsByCodeIgnoreCase(region)) {
+      return new GraphResponseDto(List.of(), List.of());
+    }
 
-    List<GraphEdgeProjection> edges = graphLoader.loadEdges(pointInTime, bu);
+    List<GraphEdgeProjection> edges = graphLoader.loadEdges(pointInTime, bu, region);
 
     List<GraphNodeDto> nodes =
-        graphLoader.loadNodesValidAt(pointInTime, bu).stream()
+        graphLoader.loadNodesValidAt(pointInTime, bu, region).stream()
             .map(
                 a ->
                     new GraphNodeDto(

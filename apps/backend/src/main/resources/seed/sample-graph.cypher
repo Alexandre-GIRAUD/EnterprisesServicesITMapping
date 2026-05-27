@@ -79,6 +79,30 @@ CREATE (bu_retail)-[:HAS_APPLICATION]->(gateway)
 CREATE (bu_retail)-[:HAS_APPLICATION]->(customers)
 CREATE (bu_platform)-[:HAS_APPLICATION]->(orders)
 CREATE (bu_platform)-[:HAS_APPLICATION]->(payments)
+CREATE (reg_emea:Region {
+  id: $regionEmeaId,
+  code: 'EMEA',
+  name: 'Europe, Middle East & Africa',
+  description: 'Région EMEA'
+})
+CREATE (reg_apac:Region {
+  id: $regionApacId,
+  code: 'APAC',
+  name: 'Asia-Pacific',
+  description: 'Région APAC'
+})
+CREATE (reg_americas:Region {
+  id: $regionAmericasId,
+  code: 'AMERICAS',
+  name: 'Americas',
+  description: 'Région Amériques'
+})
+CREATE (portal)-[:IS_USED_IN]->(reg_emea)
+CREATE (portal)-[:IS_USED_IN]->(reg_apac)
+CREATE (gateway)-[:IS_USED_IN]->(reg_emea)
+CREATE (orders)-[:IS_USED_IN]->(reg_apac)
+CREATE (customers)-[:IS_USED_IN]->(reg_emea)
+CREATE (payments)-[:IS_USED_IN]->(reg_americas)
 CREATE (alice:Contributor {
   id: $contribAliceId,
   firstName: 'Alice',

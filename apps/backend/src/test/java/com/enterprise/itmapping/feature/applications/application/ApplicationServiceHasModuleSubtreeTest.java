@@ -31,6 +31,8 @@ class ApplicationServiceHasModuleSubtreeTest {
 
   @Mock ApplicationContributorLookup applicationContributorLookup;
 
+  @Mock ApplicationRegionLookup applicationRegionLookup;
+
   @InjectMocks ApplicationService applicationService;
 
   ApplicationGraphNodeProjection projection;
@@ -42,6 +44,9 @@ class ApplicationServiceHasModuleSubtreeTest {
         .thenReturn(Optional.empty());
     lenient()
         .when(applicationContributorLookup.findForApplication(any()))
+        .thenReturn(Collections.emptyList());
+    lenient()
+        .when(applicationRegionLookup.findForApplication(any(), any()))
         .thenReturn(Collections.emptyList());
     projection =
         new ApplicationGraphNodeProjection() {

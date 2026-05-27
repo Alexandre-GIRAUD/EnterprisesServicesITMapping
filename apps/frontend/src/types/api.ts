@@ -61,6 +61,13 @@ export interface BusinessUnitSummary {
   description: string | null;
 }
 
+/** Region linked to an application via IS_USED_IN (detail GET / catalogue GET /regions). */
+export interface RegionSummary {
+  id: string;
+  code: string;
+  name: string;
+}
+
 /** Application CRUD – response body */
 export interface ApplicationResponse {
   id: string;
@@ -72,6 +79,8 @@ export interface ApplicationResponse {
   hasModuleSubtree?: boolean;
   /** Set on GET /applications/{id} when linked via HAS_APPLICATION from a BusinessUnit. */
   businessUnit?: BusinessUnitSummary | null;
+  /** Regions via IS_USED_IN (GET /applications/{id} when non-empty). */
+  regions?: RegionSummary[];
   /** Contributors with WORK_ON → this application (GET /applications/{id} when non-empty). */
   contributors?: ContributorSummary[];
 }
