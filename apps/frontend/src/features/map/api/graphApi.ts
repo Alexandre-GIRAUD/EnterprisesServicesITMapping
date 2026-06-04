@@ -43,14 +43,22 @@ async function fetchGraphJson(
 
 export async function fetchGraph(params?: {
   validAt?: string;
-  businessUnitId?: string;
+  applicationIds?: string[];
+  businessUnitIds?: string[];
+  regionCodes?: string[];
 }): Promise<GraphResponseDto> {
   const sp = new URLSearchParams();
   if (params?.validAt) {
     sp.set('validAt', params.validAt);
   }
-  if (params?.businessUnitId) {
-    sp.set('businessUnitId', params.businessUnitId);
+  for (const id of params?.applicationIds ?? []) {
+    if (id) sp.append('applicationIds', id);
+  }
+  for (const id of params?.businessUnitIds ?? []) {
+    if (id) sp.append('businessUnitIds', id);
+  }
+  for (const code of params?.regionCodes ?? []) {
+    if (code) sp.append('regionCodes', code);
   }
   const search = sp.toString() ? `?${sp.toString()}` : '';
   return fetchGraphJson(graphUrl(search), 'Graph API');

@@ -7,6 +7,8 @@ import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import com.enterprise.itmapping.feature.graph.application.dto.VersionSnapshotDto;
 import jakarta.validation.Valid;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,33 +32,48 @@ public class GraphController {
    * Application dependency graph for Cytoscape.
    *
    * @param validAt optional point-in-time (ISO instant)
-   * @param businessUnitId optional; when set, only applications linked via {@code
-   *     (:BusinessUnit)-[:HAS_APPLICATION]->(:Application)} for that id are returned, with {@code
-   *     DEPENDS_ON} edges between those apps only. Unknown id yields an empty graph. The BU node is
-   *     never part of the JSON payload.
-   * @param regionCode optional; when set, only applications with {@code
-   *     (:Application)-[:IS_USED_IN]->(:Region)} for that {@code Region.code} are returned (match
-   *     case-insensitive). Unknown code yields an empty graph. {@code Region} nodes are never part
-   *     of the JSON payload. When combined with {@code businessUnitId}, both filters apply (AND).
+   * @param applicationIds optional, repeatable; OR on application ids. Legacy {@code applicationId}
+   *     accepted.
+   * @param businessUnitIds optional, repeatable; OR on BU. Legacy {@code businessUnitId} accepted.
+   * @param regionCodes optional, repeatable; OR on region codes. Legacy {@code regionCode}
+   *     accepted. Active dimensions combine with AND.
    */
   @GetMapping
   public ResponseEntity<GraphResponseDto> getGraph(
       @RequestParam(required = false) String validAt,
+      @RequestParam(required = false) List<String> applicationIds,
+      @RequestParam(required = false) String applicationId,
+      @RequestParam(required = false) List<String> businessUnitIds,
       @RequestParam(required = false) String businessUnitId,
+      @RequestParam(required = false) List<String> regionCodes,
       @RequestParam(required = false) String regionCode
   ) {
     Instant pointInTime = validAt != null ? Instant.parse(validAt) : null;
-    return ResponseEntity.ok(graphService.getGraph(pointInTime, businessUnitId, regionCode));
+    return ResponseEntity.ok(
+        graphService.getGraph(
+            pointInTime,
+            mergeFilterParams(applicationIds, applicationId),
+            mergeFilterParams(businessUnitIds, businessUnitId),
+            mergeFilterParams(regionCodes, regionCode)));
   }
 
   @GetMapping("/at-date")
   public ResponseEntity<GraphResponseDto> getGraphAtDate(
       @RequestParam String date,
+      @RequestParam(required = false) List<String> applicationIds,
+      @RequestParam(required = false) String applicationId,
+      @RequestParam(required = false) List<String> businessUnitIds,
       @RequestParam(required = false) String businessUnitId,
+      @RequestParam(required = false) List<String> regionCodes,
       @RequestParam(required = false) String regionCode
   ) {
     java.util.Date d = java.util.Date.from(java.time.Instant.parse(date));
-    return ResponseEntity.ok(graphService.getGraphAtDate(d, businessUnitId, regionCode));
+    return ResponseEntity.ok(
+        graphService.getGraphAtDate(
+            d,
+            mergeFilterParams(applicationIds, applicationId),
+            mergeFilterParams(businessUnitIds, businessUnitId),
+            mergeFilterParams(regionCodes, regionCode)));
   }
 
   @PostMapping("/snapshots")
@@ -73,6 +90,22 @@ public class GraphController {
   ) {
     CreateGraphEdgeResponseDto created = graphService.createEdge(request);
     return ResponseEntity.status(HttpStatus.CREATED).body(created);
+  }
+
+  /** Merges repeatable list params with optional legacy single value. */
+  static List<String> mergeFilterParams(List<String> plural, String singular) {
+    List<String> merged = new ArrayList<>();
+    if (plural != null) {
+      for (String value : plural) {
+        if (value != null && !value.isBlank()) {
+          merged.add(value.trim());
+        }
+      }
+    }
+    if (singular != null && !singular.isBlank()) {
+      merged.add(singular.trim());
+    }
+    return merged.isEmpty() ? null : merged;
   }
 
   public record CreateSnapshotRequest(String versionName) {}

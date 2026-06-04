@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.graph.application;
 
 import com.enterprise.itmapping.common.Neo4jTemporalParameters;
 import com.enterprise.itmapping.domain.VersionSnapshot;
+import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.businessunit.infrastructure.persistence.BusinessUnitRepository;
 import com.enterprise.itmapping.feature.region.infrastructure.persistence.RegionRepository;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeRequestDto;
@@ -36,19 +37,22 @@ public class GraphService {
   private final Neo4jClient neo4jClient;
   private final BusinessUnitRepository businessUnitRepository;
   private final RegionRepository regionRepository;
+  private final ApplicationRepository applicationRepository;
 
   public GraphService(
       GraphLoader graphLoader,
       VersionSnapshotRepository versionSnapshotRepository,
       Neo4jClient neo4jClient,
       BusinessUnitRepository businessUnitRepository,
-      RegionRepository regionRepository
+      RegionRepository regionRepository,
+      ApplicationRepository applicationRepository
   ) {
     this.graphLoader = graphLoader;
     this.versionSnapshotRepository = versionSnapshotRepository;
     this.neo4jClient = neo4jClient;
     this.businessUnitRepository = businessUnitRepository;
     this.regionRepository = regionRepository;
+    this.applicationRepository = applicationRepository;
   }
 
   /**
@@ -78,33 +82,46 @@ public class GraphService {
    * Uses index-optimized temporal predicates for large graphs.
    */
   @Transactional(readOnly = true)
-  public GraphResponseDto getGraphAtDate(Date date, String businessUnitId, String regionCode) {
+  public GraphResponseDto getGraphAtDate(
+      Date date,
+      List<String> applicationIds,
+      List<String> businessUnitIds,
+      List<String> regionCodes) {
     Instant pointInTime = date != null ? date.toInstant() : Instant.now();
-    return getGraph(pointInTime, businessUnitId, regionCode);
+    return getGraph(pointInTime, applicationIds, businessUnitIds, regionCodes);
   }
 
   /**
-   * @param businessUnitId optional; when set, only applications under that BU are included.
-   * @param regionCode optional; when set, only applications with {@code IS_USED_IN} to that
-   *     region code are included (case-insensitive). Combined with BU, both filters apply (AND).
+   * @param applicationIds optional; when non-empty, only listed application ids (OR).
+   * @param businessUnitIds optional; when non-empty, applications under any listed BU (OR).
+   * @param regionCodes optional; when non-empty, applications used in any listed region (OR,
+   *     case-insensitive). Active dimensions combine with AND.
    */
   @Transactional(readOnly = true)
-  public GraphResponseDto getGraph(Instant validAt, String businessUnitId, String regionCode) {
+  public GraphResponseDto getGraph(
+      Instant validAt,
+      List<String> applicationIds,
+      List<String> businessUnitIds,
+      List<String> regionCodes) {
     Instant pointInTime = validAt != null ? validAt : Instant.now();
-    String bu = businessUnitId != null && !businessUnitId.isBlank() ? businessUnitId.trim() : null;
-    String region =
-        regionCode != null && !regionCode.isBlank() ? regionCode.trim() : null;
-    if (bu != null && !businessUnitRepository.existsById(bu)) {
+    List<String> appIds = resolveExistingApplicationIds(applicationIds);
+    List<String> buIds = resolveExistingBusinessUnitIds(businessUnitIds);
+    List<String> regions = resolveExistingRegionCodes(regionCodes);
+    if (appIds != null && appIds.isEmpty()) {
       return new GraphResponseDto(List.of(), List.of());
     }
-    if (region != null && !regionRepository.existsByCodeIgnoreCase(region)) {
+    if (buIds != null && buIds.isEmpty()) {
+      return new GraphResponseDto(List.of(), List.of());
+    }
+    if (regions != null && regions.isEmpty()) {
       return new GraphResponseDto(List.of(), List.of());
     }
 
-    List<GraphEdgeProjection> edges = graphLoader.loadEdges(pointInTime, bu, region);
+    List<GraphEdgeProjection> edges =
+        graphLoader.loadEdges(pointInTime, appIds, buIds, regions);
 
     List<GraphNodeDto> nodes =
-        graphLoader.loadNodesValidAt(pointInTime, bu, region).stream()
+        graphLoader.loadNodesValidAt(pointInTime, appIds, buIds, regions).stream()
             .map(
                 a ->
                     new GraphNodeDto(
@@ -127,6 +144,56 @@ public class GraphService {
     }
 
     return new GraphResponseDto(nodes, edgeDtos);
+  }
+
+  /** {@code null} = no filter; empty list after validation = empty graph. */
+  private List<String> resolveExistingApplicationIds(List<String> raw) {
+    List<String> ids = normalizeIds(raw);
+    if (ids == null) {
+      return null;
+    }
+    List<String> existing =
+        ids.stream().filter(applicationRepository::existsById).distinct().toList();
+    return existing.isEmpty() ? List.of() : existing;
+  }
+
+  /** {@code null} = no filter; empty list after validation = empty graph. */
+  private List<String> resolveExistingBusinessUnitIds(List<String> raw) {
+    List<String> ids = normalizeIds(raw);
+    if (ids == null) {
+      return null;
+    }
+    List<String> existing =
+        ids.stream().filter(businessUnitRepository::existsById).distinct().toList();
+    return existing.isEmpty() ? List.of() : existing;
+  }
+
+  /** {@code null} = no filter; codes uppercased for Cypher {@code IN}. */
+  private List<String> resolveExistingRegionCodes(List<String> raw) {
+    List<String> codes = normalizeIds(raw);
+    if (codes == null) {
+      return null;
+    }
+    List<String> existing =
+        codes.stream()
+            .filter(regionRepository::existsByCodeIgnoreCase)
+            .map(c -> c.toUpperCase())
+            .distinct()
+            .toList();
+    return existing.isEmpty() ? List.of() : existing;
+  }
+
+  private static List<String> normalizeIds(List<String> raw) {
+    if (raw == null || raw.isEmpty()) {
+      return null;
+    }
+    List<String> ids =
+        raw.stream()
+            .filter(s -> s != null && !s.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+    return ids.isEmpty() ? null : ids;
   }
 
   @Transactional
