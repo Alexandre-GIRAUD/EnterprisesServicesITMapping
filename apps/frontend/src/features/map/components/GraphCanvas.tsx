@@ -1,5 +1,23 @@
-import cytoscape, { type Core, type ElementDefinition } from 'cytoscape';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Background,
+  Controls,
+  Panel,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
+  type Edge,
+  type EdgeTypes,
+  type NodeTypes,
+  type ReactFlowInstance,
+} from '@xyflow/react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import type {
   ApplicationResponse,
@@ -16,19 +34,59 @@ import { WorkspaceDrawer } from './WorkspaceDrawer';
 import { FilterDrawer } from './FilterDrawer';
 import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
 import { ApplicationsTablePanel } from './ApplicationsTablePanel';
+import { layoutGraph } from './graphLayout';
+import { elkLayout } from './elkLayout';
+import { computeBridges } from './bridges';
+import { GraphLegend } from './GraphLegend';
+import { AppGraphNode, type AppGraphNodeType } from './AppGraphNode';
+import { OrientedEdge } from './OrientedEdge';
+import { buildOrientedEdge, attachRoute } from './orientedEdgeBuilders';
+import { computeFocus } from './graphFocus';
 
 type SelectedApplication = {
   id: string;
   label: string;
 };
 
+type AppNode = AppGraphNodeType;
+
+const NODE_WIDTH = 160;
+const NODE_HEIGHT = 48;
+const GRID = 16;
+
+function buildAppNode(node: GraphNodeDto): AppNode {
+  return {
+    id: node.id,
+    type: 'app',
+    position: { x: 0, y: 0 },
+    data: { label: node.label, nodeType: node.type },
+    className: 'graph-node',
+  };
+}
+
+function buildAppEdge(
+  edge: { id: string; sourceId: string; targetId: string; type: string },
+  typeById: Map<string, string>
+) {
+  return buildOrientedEdge({
+    id: edge.id,
+    sourceId: edge.sourceId,
+    targetId: edge.targetId,
+    relationType: edge.type,
+    sourceNodeType: typeById.get(edge.sourceId) ?? 'Application',
+    targetNodeType: typeById.get(edge.targetId) ?? 'Application',
+  });
+}
+
 /**
- * Graphe des applications et dépendances (Cytoscape.js), alimenté par GET /api/graph.
+ * Graphe des applications et dépendances (React Flow), alimenté par GET /api/graph.
  */
 export function GraphCanvas() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
-  const cyRef = useRef<Core | null>(null);
+  const rfRef = useRef<ReactFlowInstance<AppNode, Edge> | null>(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -44,11 +102,37 @@ export function GraphCanvas() {
   const [applicationIds, setApplicationIds] = useState<string[]>([]);
   const [businessUnitIds, setBusinessUnitIds] = useState<string[]>([]);
   const [regionCodes, setRegionCodes] = useState<string[]>([]);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
   const filtersActive =
     year != null ||
     applicationIds.length > 0 ||
     businessUnitIds.length > 0 ||
     regionCodes.length > 0;
+
+  const nodeTypes = useMemo<NodeTypes>(() => ({ app: AppGraphNode }), []);
+  const edgeTypes = useMemo<EdgeTypes>(() => ({ oriented: OrientedEdge }), []);
+
+  // Focus neighborhood for hover/selection dimming (null = nothing focused).
+  const focus = useMemo(
+    () => (focusedId ? computeFocus(edges, focusedId) : null),
+    [edges, focusedId]
+  );
+
+  const displayNodes = useMemo(() => {
+    if (!focus) return nodes;
+    return nodes.map((n) => ({
+      ...n,
+      className: `graph-node ${focus.nodeIds.has(n.id) ? 'is-focus' : 'is-faded'}`,
+    }));
+  }, [nodes, focus]);
+
+  const displayEdges = useMemo(() => {
+    if (!focus) return edges;
+    return edges.map((e) => ({
+      ...e,
+      className: focus.edgeIds.has(e.id) ? 'is-focus' : 'is-faded',
+    }));
+  }, [edges, focus]);
 
   const openApplicationDetails = useCallback((id: string, label: string) => {
     setSelectedApplication({ id, label });
@@ -102,113 +186,47 @@ export function GraphCanvas() {
           businessUnitIds: businessUnitIds.length > 0 ? businessUnitIds : undefined,
           regionCodes: regionCodes.length > 0 ? regionCodes : undefined,
         });
-        if (cancelled || !containerRef.current) return;
+        if (cancelled) return;
 
         setGraphNodes(data.nodes);
 
-        const elements: ElementDefinition[] = [
-          ...data.nodes.map((n) => ({
-            data: {
-              id: n.id,
-              label: n.label,
-              nodeType: n.type,
-            },
-          })),
-          ...data.edges.map((e) => ({
-            data: {
-              id: e.id,
-              source: e.sourceId,
-              target: e.targetId,
-              label: e.type,
-            },
-          })),
-        ];
+        const typeById = new Map(data.nodes.map((n) => [n.id, n.type]));
+        const baseNodes = data.nodes.map(buildAppNode);
+        const builtEdges = data.edges.map((e) => buildAppEdge(e, typeById));
 
-        cyRef.current?.destroy();
-        const cy = cytoscape({
-          container: containerRef.current,
-          elements,
-          style: [
-            {
-              selector: 'node',
-              style: {
-                shape: 'round-rectangle',
-                label: 'data(label)',
-                'text-valign': 'center',
-                'text-halign': 'center',
-                'font-size': '12px',
-                'font-weight': 600,
-                color: '#f8fafc',
-                'text-outline-width': 0,
-                'background-color': '#0a0a0a',
-                width: 'label',
-                height: 'label',
-                'min-width': '112px',
-                'min-height': '40px',
-                padding: '14px',
-                'text-wrap': 'wrap',
-                'text-max-width': '140px',
-                'border-width': '1.5px',
-                'border-color': '#3b82f6',
-                'border-opacity': 0.9,
-                opacity: 1,
-              },
-            },
-            {
-              selector: 'node:active',
-              style: {
-                'border-color': '#60a5fa',
-                'border-width': '2.5px',
-              },
-            },
-            {
-              selector: 'edge',
-              style: {
-                width: '1.5px',
-                'line-color': '#94a3b8',
-                'line-opacity': 0.9,
-                'target-arrow-color': '#94a3b8',
-                'target-arrow-shape': 'triangle',
-                'curve-style': 'bezier',
-                'arrow-scale': 1.1,
-                label: 'data(label)',
-                'font-size': '9px',
-                color: '#64748b',
-              },
-            },
-          ],
-          layout: {
-            name: 'breadthfirst',
-            directed: true,
-            spacingFactor: 1.35,
-            padding: 40,
-          },
-          wheelSensitivity: 0.35,
-          minZoom: 0.25,
-          maxZoom: 2.5,
+        try {
+          // Preferred: ELK layered layout with node-avoiding orthogonal routing.
+          const { nodes: laidOut, routes } = await elkLayout(baseNodes, builtEdges, {
+            nodeWidth: NODE_WIDTH,
+            nodeHeight: NODE_HEIGHT,
+            nodeSeparation: 70,
+            layerSeparation: 100,
+          });
+          if (cancelled) return;
+          const jumps = computeBridges(routes);
+          setNodes(laidOut);
+          setEdges(builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id))));
+        } catch {
+          // Fallback: dagre layout + smoothstep edges if ELK fails.
+          if (cancelled) return;
+          const rect = containerRef.current?.getBoundingClientRect();
+          const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
+          setNodes(
+            layoutGraph(baseNodes, builtEdges, {
+              nodeWidth: NODE_WIDTH,
+              nodeHeight: NODE_HEIGHT,
+              nodeSeparation: 70,
+              rankSeparation: 100,
+              snapGrid: GRID,
+              aspectRatio,
+            })
+          );
+          setEdges(builtEdges);
+        }
+
+        requestAnimationFrame(() => {
+          rfRef.current?.fitView({ padding: 0.1 });
         });
-        cyRef.current = cy;
-
-        const openDetailsForNode = (evt: cytoscape.EventObject) => {
-          const n = evt.target;
-          if (n.nonempty() && n.data('nodeType') === 'Application') {
-            openApplicationDetails(
-              n.id(),
-              (n.data('label') as string | undefined) ?? n.id()
-            );
-          }
-        };
-
-        const navigateToModuleMap = (evt: cytoscape.EventObject) => {
-          const n = evt.target;
-          if (n.nonempty() && n.data('nodeType') === 'Application') {
-            navigate(`/map/apps/${encodeURIComponent(n.id())}`);
-          }
-        };
-
-        cy.on('tap', 'node', openDetailsForNode);
-        cy.on('dbltap', 'node', navigateToModuleMap);
-        cy.on('dblclick', 'node', navigateToModuleMap);
 
         setStatus('ready');
         const emptyHint =
@@ -221,6 +239,8 @@ export function GraphCanvas() {
       } catch (e) {
         if (!cancelled) {
           setGraphNodes([]);
+          setNodes([]);
+          setEdges([]);
           setStatus('error');
           let msg = e instanceof Error ? e.message : 'Impossible de charger le graphe';
           if (msg === 'Failed to fetch') {
@@ -241,36 +261,69 @@ export function GraphCanvas() {
 
     return () => {
       cancelled = true;
-      cyRef.current?.destroy();
-      cyRef.current = null;
       window.removeEventListener('keydown', onEscape);
     };
-  }, [navigate, year, applicationIds, businessUnitIds, regionCodes, filtersActive, openApplicationDetails]);
+  }, [
+    year,
+    applicationIds,
+    businessUnitIds,
+    regionCodes,
+    filtersActive,
+    setNodes,
+    setEdges,
+  ]);
 
-  /** Keep Cytoscape sized to its flex container (viewport / drawer / responsive). */
-  useEffect(() => {
-    if (status !== 'ready') return;
-    const cy = cyRef.current;
-    const el = containerRef.current;
-    if (!cy || !el) return;
+  const handleNodeClick = useCallback(
+    (_: ReactMouseEvent, node: AppNode) => {
+      if (node.data.nodeType === 'Application') {
+        openApplicationDetails(node.id, node.data.label ?? node.id);
+      }
+    },
+    [openApplicationDetails]
+  );
 
-    const resize = () => {
-      cy.resize();
-    };
-    resize();
-    const ro = new ResizeObserver(() => resize());
-    ro.observe(el);
-    window.addEventListener('resize', resize);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', resize);
-    };
-  }, [status]);
+  const handleNodeDoubleClick = useCallback(
+    (_: ReactMouseEvent, node: AppNode) => {
+      if (node.data.nodeType === 'Application') {
+        navigate(`/map/apps/${encodeURIComponent(node.id)}`);
+      }
+    },
+    [navigate]
+  );
+
+  const handleNodeMouseEnter = useCallback(
+    (_: ReactMouseEvent, node: AppNode) => setFocusedId(node.id),
+    []
+  );
+  const handleNodeMouseLeave = useCallback(() => setFocusedId(null), []);
 
   function handleNodeCreated(created: ApplicationResponse) {
-    const cy = cyRef.current;
-    if (!cy) return;
-    if (cy.getElementById(created.id).nonempty()) return;
+    setNodes((prev) => {
+      if (prev.some((n) => n.id === created.id)) return prev;
+
+      let position = { x: Math.random() * 200, y: Math.random() * 200 };
+      const instance = rfRef.current;
+      const el = containerRef.current;
+      if (instance && el) {
+        const rect = el.getBoundingClientRect();
+        const center = instance.screenToFlowPosition({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        });
+        position = {
+          x: center.x + (Math.random() * 24 - 12),
+          y: center.y + (Math.random() * 24 - 12),
+        };
+      }
+
+      return [
+        ...prev,
+        {
+          ...buildAppNode({ id: created.id, label: created.name, type: 'Application' }),
+          position,
+        },
+      ];
+    });
 
     setGraphNodes((prev) => {
       if (prev.some((n) => n.id === created.id)) return prev;
@@ -285,53 +338,30 @@ export function GraphCanvas() {
         },
       ];
     });
-
-    const viewport = cy.extent();
-    const centerX = (viewport.x1 + viewport.x2) / 2;
-    const centerY = (viewport.y1 + viewport.y2) / 2;
-    const jitterX = Math.random() * 24 - 12;
-    const jitterY = Math.random() * 24 - 12;
-
-    cy.add({
-      data: {
-        id: created.id,
-        label: created.name,
-        nodeType: 'Application',
-      },
-      position: {
-        x: centerX + jitterX,
-        y: centerY + jitterY,
-      },
-    });
   }
 
   function handleEdgeCreated(created: GraphEdgeCreateResponse): string | null {
-    const cy = cyRef.current;
-    if (!cy) return 'Graphe non initialisé.';
-    if (cy.getElementById(created.id).nonempty()) return null;
-    if (cy.getElementById(created.sourceId).empty() || cy.getElementById(created.targetId).empty()) {
+    if (edges.some((e) => e.id === created.id)) return null;
+    const hasSource = nodes.some((n) => n.id === created.sourceId);
+    const hasTarget = nodes.some((n) => n.id === created.targetId);
+    if (!hasSource || !hasTarget) {
       return 'Edge créé mais source/target absent du graphe affiché.';
     }
 
-    cy.add({
-      data: {
-        id: created.id,
-        source: created.sourceId,
-        target: created.targetId,
-        label: created.type,
-      },
+    const typeById = new Map(nodes.map((n) => [n.id, n.data.nodeType]));
+    setEdges((prev) => {
+      if (prev.some((e) => e.id === created.id)) return prev;
+      return [...prev, buildAppEdge(created, typeById)];
     });
     return null;
   }
 
-  /** Remove application node + incident edges from Cytoscape after successful API delete */
+  /** Remove application node + incident edges from React Flow after successful API delete */
   function handleApplicationDeleted(applicationId: string) {
-    const cy = cyRef.current;
-    if (!cy) return;
-    const node = cy.getElementById(applicationId);
-    if (node.nonempty() && node.isNode()) {
-      cy.remove(node);
-    }
+    setNodes((prev) => prev.filter((n) => n.id !== applicationId));
+    setEdges((prev) =>
+      prev.filter((e) => e.source !== applicationId && e.target !== applicationId)
+    );
     setGraphNodes((prev) => prev.filter((n) => n.id !== applicationId));
     setSelectedApplication(null);
     setIsDetailsDrawerOpen(false);
@@ -408,7 +438,39 @@ export function GraphCanvas() {
             className="graph-canvas"
             role="img"
             aria-label="Graphe des dépendances entre applications"
-          />
+          >
+            <ReactFlow<AppNode, Edge>
+              nodes={displayNodes}
+              edges={displayEdges}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onInit={(instance) => {
+                rfRef.current = instance;
+              }}
+              onNodeClick={handleNodeClick}
+              onNodeDoubleClick={handleNodeDoubleClick}
+              onNodeMouseEnter={handleNodeMouseEnter}
+              onNodeMouseLeave={handleNodeMouseLeave}
+              nodesDraggable
+              nodesConnectable={false}
+              elementsSelectable
+              snapToGrid
+              snapGrid={[GRID, GRID]}
+              minZoom={0.25}
+              maxZoom={2.5}
+              fitView
+              fitViewOptions={{ padding: 0.1 }}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background color="#1e293b" gap={GRID} />
+              <Controls showInteractive={false} />
+              <Panel position="top-left">
+                <GraphLegend nodeTypes={['Application']} edgeTypes={['DEPENDS_ON']} />
+              </Panel>
+            </ReactFlow>
+          </div>
 
           <button
             type="button"

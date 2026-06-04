@@ -1,26 +1,92 @@
-import cytoscape, { type Core, type ElementDefinition } from 'cytoscape';
-import nodeHtmlLabel from 'cytoscape-node-html-label';
-import { useEffect, useRef, useState } from 'react';
+import {
+  Background,
+  Controls,
+  Panel,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
+  type Edge,
+  type EdgeTypes,
+  type NodeTypes,
+  type ReactFlowInstance,
+} from '@xyflow/react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import { fetchModuleGraph } from '../api/graphApi';
-import { buildModuleNodeCardHtml, buildNodeHoverHint } from './moduleNodeCardHtml';
+import { buildNodeHoverHint } from './moduleNodeCardHtml';
+import { ModuleGraphNode, type ModuleNode, type ModuleNodeData } from './ModuleGraphNode';
+import { layoutGraph } from './graphLayout';
+import {
+  EDGE_TYPE_STYLES,
+  NODE_TYPE_STYLES,
+  type EdgeTypeKey,
+  type NodeTypeKey,
+} from './graphTheme';
+import { elkLayout } from './elkLayout';
+import { computeBridges } from './bridges';
+import { GraphLegend } from './GraphLegend';
+import { OrientedEdge } from './OrientedEdge';
+import { buildOrientedEdge, attachRoute } from './orientedEdgeBuilders';
+import { computeFocus } from './graphFocus';
 
-nodeHtmlLabel(cytoscape);
+const KNOWN_NODE_TYPES = Object.keys(NODE_TYPE_STYLES) as NodeTypeKey[];
+const KNOWN_EDGE_TYPES = Object.keys(EDGE_TYPE_STYLES) as EdgeTypeKey[];
 
 type Props = {
   applicationId: string;
 };
 
+const APP_NODE_WIDTH = 184;
+const MODULE_NODE_WIDTH = 172;
+const SHORT_NODE_HEIGHT = 56;
+const TALL_NODE_HEIGHT = 96;
+const GRID = 16;
+
 /**
- * Module tree graph (GET …/module-graph).
- * Card UI uses cytoscape-node-html-label: native Cytoscape labels cannot render
- * separate title weight, hr divider, and smaller description text on one node.
+ * Module tree graph (GET …/module-graph) rendered with React Flow.
+ * Cards are drawn by the {@link ModuleGraphNode} custom node component.
  */
 export function ApplicationModuleGraph({ applicationId }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const cyRef = useRef<Core | null>(null);
+  const rfRef = useRef<ReactFlowInstance<ModuleNode, Edge> | null>(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState<ModuleNode>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [hoverHint, setHoverHint] = useState<string | null>(null);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [legendNodeTypes, setLegendNodeTypes] = useState<NodeTypeKey[]>([]);
+  const [legendEdgeTypes, setLegendEdgeTypes] = useState<EdgeTypeKey[]>([]);
+
+  const nodeTypes = useMemo<NodeTypes>(() => ({ module: ModuleGraphNode }), []);
+  const edgeTypes = useMemo<EdgeTypes>(() => ({ oriented: OrientedEdge }), []);
+
+  const focus = useMemo(
+    () => (focusedId ? computeFocus(edges, focusedId) : null),
+    [edges, focusedId]
+  );
+
+  const displayNodes = useMemo(() => {
+    if (!focus) return nodes;
+    return nodes.map((n) => ({
+      ...n,
+      className: focus.nodeIds.has(n.id) ? 'is-focus' : 'is-faded',
+    }));
+  }, [nodes, focus]);
+
+  const displayEdges = useMemo(() => {
+    if (!focus) return edges;
+    return edges.map((e) => ({
+      ...e,
+      className: focus.edgeIds.has(e.id) ? 'is-focus' : 'is-faded',
+    }));
+  }, [edges, focus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,134 +97,73 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
       setHoverHint(null);
       try {
         const data = await fetchModuleGraph(applicationId);
-        if (cancelled || !containerRef.current) return;
+        if (cancelled) return;
 
-        const elements: ElementDefinition[] = [
-          ...data.nodes.map((n) => {
-            const name = n.label?.trim() || n.id;
-            const description = n.description?.trim() ?? '';
-            const hasDescription = description.length > 0;
-            return {
-              data: {
-                id: n.id,
-                name,
-                description,
-                nodeType: n.type,
-                cardSize: hasDescription ? 'tall' : 'short',
-              },
-            };
-          }),
-          ...data.edges.map((e) => ({
-            data: {
-              id: e.id,
-              source: e.sourceId,
-              target: e.targetId,
-              label: e.type,
-            },
-          })),
-        ];
-
-        cyRef.current?.destroy();
-        const cy = cytoscape({
-          container: containerRef.current,
-          elements,
-          style: [
-            {
-              selector: 'node',
-              style: {
-                shape: 'round-rectangle',
-                label: '',
-                'background-opacity': 0,
-                'border-opacity': 0,
-                width: 172,
-                height: 56,
-                padding: '0px',
-              },
-            },
-            {
-              selector: 'node[cardSize = "tall"]',
-              style: {
-                height: 96,
-              },
-            },
-            {
-              selector: 'node[nodeType = "Application"]',
-              style: {
-                width: 184,
-              },
-            },
-            {
-              selector: 'edge',
-              style: {
-                width: '1.5px',
-                'line-color': '#94a3b8',
-                'line-opacity': 0.9,
-                'target-arrow-color': '#94a3b8',
-                'target-arrow-shape': 'triangle',
-                'curve-style': 'bezier',
-                'arrow-scale': 1.1,
-                label: 'data(label)',
-                'font-size': '9px',
-                color: '#64748b',
-              },
-            },
-          ],
-          layout: {
-            name: 'breadthfirst',
-            directed: true,
-            spacingFactor: 1.5,
-            padding: 48,
-          },
-          wheelSensitivity: 0.35,
-          minZoom: 0.25,
-          maxZoom: 2.5,
+        const rfNodes: ModuleNode[] = data.nodes.map((n) => {
+          const name = n.label?.trim() || n.id;
+          const description = n.description?.trim() ?? '';
+          const hasDescription = description.length > 0;
+          const isApp = n.type === 'Application';
+          return {
+            id: n.id,
+            type: 'module',
+            position: { x: 0, y: 0 },
+            data: { name, description, nodeType: n.type } satisfies ModuleNodeData,
+            width: isApp ? APP_NODE_WIDTH : MODULE_NODE_WIDTH,
+            height: hasDescription ? TALL_NODE_HEIGHT : SHORT_NODE_HEIGHT,
+          };
         });
 
-        type CyWithHtmlLabel = Core & {
-          nodeHtmlLabel: (
-            configs: Array<{
-              query: string;
-              tpl: (data: Record<string, unknown>) => string;
-              cssClass?: string;
-              valign?: string;
-              halign?: string;
-            }>,
-            options?: { enablePointerEvents?: boolean }
-          ) => void;
-        };
-        (cy as unknown as CyWithHtmlLabel).nodeHtmlLabel(
-          [
-            {
-              query: 'node',
-              cssClass: 'module-node-html-label',
-              valign: 'center',
-              halign: 'center',
-              tpl: (nodeData: Record<string, unknown>) =>
-                buildModuleNodeCardHtml({
-                  name: String(nodeData.name ?? ''),
-                  description: String(nodeData.description ?? ''),
-                  nodeType: String(nodeData.nodeType ?? 'Module'),
-                }),
-            },
-          ],
-          { enablePointerEvents: true }
+        const typeById = new Map(data.nodes.map((n) => [n.id, n.type]));
+        const rfEdges = data.edges.map((e) =>
+          buildOrientedEdge({
+            id: e.id,
+            sourceId: e.sourceId,
+            targetId: e.targetId,
+            relationType: e.type,
+            sourceNodeType: typeById.get(e.sourceId) ?? 'Module',
+            targetNodeType: typeById.get(e.targetId) ?? 'Module',
+          })
         );
 
-        cy.on('layoutstop', () => {
-          cy.fit(undefined, 48);
-        });
+        const presentNodeTypes = new Set(data.nodes.map((n) => n.type));
+        const presentEdgeTypes = new Set(data.edges.map((e) => e.type));
+        setLegendNodeTypes(KNOWN_NODE_TYPES.filter((t) => presentNodeTypes.has(t)));
+        setLegendEdgeTypes(KNOWN_EDGE_TYPES.filter((t) => presentEdgeTypes.has(t)));
 
-        cy.on('mouseover', 'node', (evt: cytoscape.EventObject) => {
-          const name = String(evt.target.data('name') ?? '');
-          const desc = String(evt.target.data('description') ?? '');
-          setHoverHint(buildNodeHoverHint(name, desc));
-        });
+        try {
+          // Preferred: ELK layered layout with node-avoiding orthogonal routing.
+          const { nodes: laidOut, routes } = await elkLayout(rfNodes, rfEdges, {
+            nodeWidth: MODULE_NODE_WIDTH,
+            nodeHeight: SHORT_NODE_HEIGHT,
+            nodeSeparation: 80,
+            layerSeparation: 110,
+          });
+          if (cancelled) return;
+          const jumps = computeBridges(routes);
+          setNodes(laidOut);
+          setEdges(rfEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id))));
+        } catch {
+          // Fallback: dagre layout + smoothstep edges if ELK fails.
+          if (cancelled) return;
+          const rect = containerRef.current?.getBoundingClientRect();
+          const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
+          setNodes(
+            layoutGraph(rfNodes, rfEdges, {
+              nodeWidth: MODULE_NODE_WIDTH,
+              nodeHeight: SHORT_NODE_HEIGHT,
+              nodeSeparation: 80,
+              rankSeparation: 110,
+              snapGrid: GRID,
+              aspectRatio,
+            })
+          );
+          setEdges(rfEdges);
+        }
 
-        cy.on('mouseout', 'node', () => {
-          setHoverHint(null);
+        requestAnimationFrame(() => {
+          rfRef.current?.fitView({ padding: 0.1 });
         });
-
-        cyRef.current = cy;
 
         setStatus('ready');
         setMessage(
@@ -168,6 +173,10 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
         );
       } catch (e) {
         if (!cancelled) {
+          setNodes([]);
+          setEdges([]);
+          setLegendNodeTypes([]);
+          setLegendEdgeTypes([]);
           setStatus('error');
           let msg = e instanceof Error ? e.message : 'Impossible de charger le graphe modules';
           if (msg.includes('404')) {
@@ -185,29 +194,18 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
 
     return () => {
       cancelled = true;
-      cyRef.current?.destroy();
-      cyRef.current = null;
     };
-  }, [applicationId]);
+  }, [applicationId, setNodes, setEdges]);
 
-  useEffect(() => {
-    if (status !== 'ready') return;
-    const cy = cyRef.current;
-    const el = containerRef.current;
-    if (!cy || !el) return;
+  const handleNodeMouseEnter = useCallback((_: ReactMouseEvent, node: ModuleNode) => {
+    setHoverHint(buildNodeHoverHint(node.data.name ?? '', node.data.description ?? ''));
+    setFocusedId(node.id);
+  }, []);
 
-    const resize = () => {
-      cy.resize();
-    };
-    resize();
-    const ro = new ResizeObserver(() => resize());
-    ro.observe(el);
-    window.addEventListener('resize', resize);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', resize);
-    };
-  }, [status]);
+  const handleNodeMouseLeave = useCallback(() => {
+    setHoverHint(null);
+    setFocusedId(null);
+  }, []);
 
   const hintText = hoverHint ?? (status === 'ready' ? message : null);
 
@@ -233,7 +231,38 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
         className="graph-canvas module-graph-canvas"
         role="img"
         aria-label="Graphe des modules de l’application"
-      />
+      >
+        <ReactFlow<ModuleNode, Edge>
+          nodes={displayNodes}
+          edges={displayEdges}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onInit={(instance) => {
+            rfRef.current = instance;
+          }}
+          onNodeMouseEnter={handleNodeMouseEnter}
+          onNodeMouseLeave={handleNodeMouseLeave}
+          nodesDraggable
+          nodesConnectable={false}
+          snapToGrid
+          snapGrid={[GRID, GRID]}
+          minZoom={0.25}
+          maxZoom={2.5}
+          fitView
+          fitViewOptions={{ padding: 0.1 }}
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background color="#1e293b" gap={GRID} />
+          <Controls showInteractive={false} />
+          {(legendNodeTypes.length > 0 || legendEdgeTypes.length > 0) && (
+            <Panel position="top-left">
+              <GraphLegend nodeTypes={legendNodeTypes} edgeTypes={legendEdgeTypes} />
+            </Panel>
+          )}
+        </ReactFlow>
+      </div>
     </div>
   );
 }

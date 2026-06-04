@@ -1,5 +1,5 @@
 /**
- * Graph API client. Fetches graph data for Cytoscape.js (nodes + edges).
+ * Graph API client. Fetches graph data for React Flow (nodes + edges).
  * Supports filtering by year via query param year (integer).
  *
  * - Relative `/api/...` : same origin (Vite proxy en dev, nginx en prod Docker).

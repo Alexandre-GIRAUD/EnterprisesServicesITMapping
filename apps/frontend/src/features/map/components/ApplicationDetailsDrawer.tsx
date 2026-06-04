@@ -28,7 +28,7 @@ type ApplicationDetailsDrawerProps = {
   application: ApplicationDetails | null;
   onClose: () => void;
   onOpenModuleGraph: (applicationId: string) => void;
-  /** Invoked after backend delete succeeds; parent should remove the node from Cytoscape and close UI. */
+  /** Invoked after backend delete succeeds; parent should remove the node from the graph and close UI. */
   onApplicationDeleted: (applicationId: string) => void;
 };
 
