@@ -131,6 +131,9 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
         setLegendNodeTypes(KNOWN_NODE_TYPES.filter((t) => presentNodeTypes.has(t)));
         setLegendEdgeTypes(KNOWN_EDGE_TYPES.filter((t) => presentEdgeTypes.has(t)));
 
+        const rect = containerRef.current?.getBoundingClientRect();
+        const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
+
         try {
           // Preferred: ELK layered layout with node-avoiding orthogonal routing.
           const { nodes: laidOut, routes } = await elkLayout(rfNodes, rfEdges, {
@@ -138,6 +141,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
             nodeHeight: SHORT_NODE_HEIGHT,
             nodeSeparation: 80,
             layerSeparation: 110,
+            aspectRatio,
           });
           if (cancelled) return;
           const jumps = computeBridges(routes);
@@ -146,8 +150,6 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
         } catch {
           // Fallback: dagre layout + smoothstep edges if ELK fails.
           if (cancelled) return;
-          const rect = containerRef.current?.getBoundingClientRect();
-          const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
           setNodes(
             layoutGraph(rfNodes, rfEdges, {
               nodeWidth: MODULE_NODE_WIDTH,

@@ -193,6 +193,8 @@ export function GraphCanvas() {
         const typeById = new Map(data.nodes.map((n) => [n.id, n.type]));
         const baseNodes = data.nodes.map(buildAppNode);
         const builtEdges = data.edges.map((e) => buildAppEdge(e, typeById));
+        const rect = containerRef.current?.getBoundingClientRect();
+        const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
 
         try {
           // Preferred: ELK layered layout with node-avoiding orthogonal routing.
@@ -201,6 +203,7 @@ export function GraphCanvas() {
             nodeHeight: NODE_HEIGHT,
             nodeSeparation: 70,
             layerSeparation: 100,
+            aspectRatio,
           });
           if (cancelled) return;
           const jumps = computeBridges(routes);
@@ -209,8 +212,6 @@ export function GraphCanvas() {
         } catch {
           // Fallback: dagre layout + smoothstep edges if ELK fails.
           if (cancelled) return;
-          const rect = containerRef.current?.getBoundingClientRect();
-          const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
           setNodes(
             layoutGraph(baseNodes, builtEdges, {
               nodeWidth: NODE_WIDTH,

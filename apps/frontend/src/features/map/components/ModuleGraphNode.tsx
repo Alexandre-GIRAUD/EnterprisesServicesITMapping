@@ -30,7 +30,11 @@ export function ModuleGraphNode({ data }: NodeProps<ModuleNode>) {
 
   return (
     <div className={cardClass} title={titleAttr}>
-      <Handle type="target" position={Position.Top} className="module-node-handle" />
+      {/* All 4 handles so ELK-routed edges anchor on the correct side. */}
+      <Handle type="target" position={Position.Top}    className="module-node-handle" isConnectable={false} />
+      <Handle type="source" position={Position.Bottom} className="module-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Left}   className="module-node-handle" isConnectable={false} />
+      <Handle type="source" position={Position.Right}  className="module-node-handle" isConnectable={false} />
       <div className={`module-node-card__title${titleVisible ? '' : ' is-hidden'}`}>
         {rawName}
       </div>
@@ -42,7 +46,6 @@ export function ModuleGraphNode({ data }: NodeProps<ModuleNode>) {
           </p>
         </>
       )}
-      <Handle type="source" position={Position.Bottom} className="module-node-handle" />
     </div>
   );
 }

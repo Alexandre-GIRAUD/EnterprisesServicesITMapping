@@ -21,14 +21,18 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
 
   return (
     <div className="graph-node-card" style={{ borderColor: color }}>
-      <Handle type="target" position={Position.Top} className="graph-node-handle" />
+      {/* All 4 center-edge handles so ELK-routed edges visually anchor on whichever
+          side the engine chose. isConnectable=false since the graph is read-only. */}
+      <Handle type="target" position={Position.Top}    className="graph-node-handle" isConnectable={false} />
+      <Handle type="source" position={Position.Bottom} className="graph-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Left}   className="graph-node-handle" isConnectable={false} />
+      <Handle type="source" position={Position.Right}  className="graph-node-handle" isConnectable={false} />
       <span
         className={`graph-node-card__label${labelVisible ? '' : ' is-hidden'}`}
         title={data.label}
       >
         {data.label}
       </span>
-      <Handle type="source" position={Position.Bottom} className="graph-node-handle" />
     </div>
   );
 }

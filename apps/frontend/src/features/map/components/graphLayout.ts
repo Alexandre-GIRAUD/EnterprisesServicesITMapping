@@ -42,8 +42,8 @@ export function layoutGraph<N extends Node>(
   const {
     nodeWidth = 140,
     nodeHeight = 48,
-    nodeSeparation = 70,
-    rankSeparation = 100,
+    nodeSeparation = 90,
+    rankSeparation = 120,
     snapGrid = 0,
     aspectRatio,
   } = options;
@@ -52,10 +52,12 @@ export function layoutGraph<N extends Node>(
   g.setGraph({
     rankdir: 'TB',
     ranker: 'network-simplex',
+    align: 'UL',
     nodesep: nodeSeparation,
     ranksep: rankSeparation,
-    marginx: 20,
-    marginy: 20,
+    edgesep: 16,
+    marginx: 28,
+    marginy: 28,
   });
 
   for (const node of nodes) {
