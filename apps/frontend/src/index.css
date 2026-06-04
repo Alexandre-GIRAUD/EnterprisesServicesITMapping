@@ -710,6 +710,129 @@ body {
   width: 100%;
 }
 
+.graph-table-section {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.graph-table-toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgb(148 163 184 / 20%);
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  background: rgb(2 6 23 / 82%);
+  color: #f8fafc;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.graph-table-toggle:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgb(96 165 250 / 45%);
+  background: rgb(15 23 42 / 88%);
+}
+
+.graph-table-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.graph-table-toggle:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.graph-table-toggle-icon {
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.graph-table-toggle-count {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgb(30 41 59 / 80%);
+}
+
+.graph-table-panel {
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgb(15 23 42 / 95%), rgb(10 10 10 / 98%));
+  padding: 0.65rem 0.75rem;
+}
+
+.graph-table-scroll {
+  max-height: 280px;
+  overflow: auto;
+}
+
+.graph-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  color: #e2e8f0;
+}
+
+.graph-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: #0f172a;
+  border-bottom: 1px solid #334155;
+  white-space: nowrap;
+}
+
+.graph-table tbody td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid rgb(30 41 59 / 60%);
+  vertical-align: top;
+  max-width: 14rem;
+}
+
+.graph-table-row {
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.graph-table-row:hover,
+.graph-table-row:focus-visible {
+  background: rgb(30 41 59 / 55%);
+  outline: none;
+}
+
+.graph-table-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  color: #64748b;
+  word-break: break-all;
+}
+
+.graph-table-message {
+  margin: 0.35rem 0.25rem;
+  font-size: 0.88rem;
+  color: #94a3b8;
+}
+
+.graph-table-message-error {
+  color: #fca5a5;
+}
+
 .graph-workspace {
   position: relative;
   display: flex;

@@ -5,6 +5,7 @@ import type {
   ApplicationResponse,
   BusinessUnitListItem,
   GraphEdgeCreateResponse,
+  GraphNodeDto,
   RegionSummary,
 } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
@@ -14,6 +15,7 @@ import { fetchGraph } from '../api/graphApi';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
 import { FilterDrawer } from './FilterDrawer';
 import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
+import { ApplicationsTablePanel } from './ApplicationsTablePanel';
 
 type SelectedApplication = {
   id: string;
@@ -31,6 +33,8 @@ export function GraphCanvas() {
   const [message, setMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [isTableOpen, setIsTableOpen] = useState(false);
+  const [graphNodes, setGraphNodes] = useState<GraphNodeDto[]>([]);
   const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
@@ -41,6 +45,12 @@ export function GraphCanvas() {
   const [regionCodes, setRegionCodes] = useState<string[]>([]);
   const filtersActive =
     applicationIds.length > 0 || businessUnitIds.length > 0 || regionCodes.length > 0;
+
+  const openApplicationDetails = useCallback((id: string, label: string) => {
+    setSelectedApplication({ id, label });
+    setIsDetailsDrawerOpen(true);
+    setIsDrawerOpen(false);
+  }, []);
 
   const refreshApplications = useCallback(async () => {
     try {
@@ -88,6 +98,8 @@ export function GraphCanvas() {
           regionCodes: regionCodes.length > 0 ? regionCodes : undefined,
         });
         if (cancelled || !containerRef.current) return;
+
+        setGraphNodes(data.nodes);
 
         const elements: ElementDefinition[] = [
           ...data.nodes.map((n) => ({
@@ -175,12 +187,10 @@ export function GraphCanvas() {
         const openDetailsForNode = (evt: cytoscape.EventObject) => {
           const n = evt.target;
           if (n.nonempty() && n.data('nodeType') === 'Application') {
-            setSelectedApplication({
-              id: n.id(),
-              label: (n.data('label') as string | undefined) ?? n.id(),
-            });
-            setIsDetailsDrawerOpen(true);
-            setIsDrawerOpen(false);
+            openApplicationDetails(
+              n.id(),
+              (n.data('label') as string | undefined) ?? n.id()
+            );
           }
         };
 
@@ -205,6 +215,7 @@ export function GraphCanvas() {
         setMessage(emptyHint);
       } catch (e) {
         if (!cancelled) {
+          setGraphNodes([]);
           setStatus('error');
           let msg = e instanceof Error ? e.message : 'Impossible de charger le graphe';
           if (msg === 'Failed to fetch') {
@@ -229,7 +240,7 @@ export function GraphCanvas() {
       cyRef.current = null;
       window.removeEventListener('keydown', onEscape);
     };
-  }, [navigate, applicationIds, businessUnitIds, regionCodes]);
+  }, [navigate, applicationIds, businessUnitIds, regionCodes, openApplicationDetails]);
 
   /** Keep Cytoscape sized to its flex container (viewport / drawer / responsive). */
   useEffect(() => {
@@ -255,6 +266,23 @@ export function GraphCanvas() {
     const cy = cyRef.current;
     if (!cy) return;
     if (cy.getElementById(created.id).nonempty()) return;
+
+    setGraphNodes((prev) => {
+      if (prev.some((n) => n.id === created.id)) return prev;
+      return [
+        ...prev,
+        {
+          id: created.id,
+          label: created.name,
+          type: 'Application',
+          temporal: {
+            validFrom: created.validFrom,
+            validTo: created.validTo,
+          },
+          description: created.description ?? null,
+        },
+      ];
+    });
 
     const viewport = cy.extent();
     const centerX = (viewport.x1 + viewport.x2) / 2;
@@ -302,6 +330,7 @@ export function GraphCanvas() {
     if (node.nonempty() && node.isNode()) {
       cy.remove(node);
     }
+    setGraphNodes((prev) => prev.filter((n) => n.id !== applicationId));
     setSelectedApplication(null);
     setIsDetailsDrawerOpen(false);
   }
@@ -406,6 +435,33 @@ export function GraphCanvas() {
           onNodeCreated={handleNodeCreated}
           onEdgeCreated={handleEdgeCreated}
           onBusinessUnitsChanged={refreshBusinessUnits}
+        />
+      </div>
+
+      <div className="graph-table-section">
+        <button
+          type="button"
+          className="graph-table-toggle"
+          disabled={status === 'loading'}
+          onClick={() => setIsTableOpen((open) => !open)}
+          aria-expanded={isTableOpen}
+          aria-controls="graph-applications-table-panel"
+        >
+          <span className="graph-table-toggle-icon" aria-hidden="true">
+            ⊞
+          </span>
+          <span>Table</span>
+          <span className="graph-table-toggle-count" aria-hidden="true">
+            {graphNodes.filter((n) => n.type === 'Application').length}
+          </span>
+        </button>
+        <ApplicationsTablePanel
+          isOpen={isTableOpen}
+          status={status}
+          nodes={graphNodes}
+          applicationsCatalog={applications}
+          errorMessage={status === 'error' ? message : null}
+          onRowClick={openApplicationDetails}
         />
       </div>
     </div>
