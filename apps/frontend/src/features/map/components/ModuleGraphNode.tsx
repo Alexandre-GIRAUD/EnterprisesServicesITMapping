@@ -1,4 +1,4 @@
-import { Handle, Position, useStore, type NodeProps, type Node } from '@xyflow/react';
+﻿import { Handle, Position, useStore, type NodeProps, type Node } from '@xyflow/react';
 import { isTitleClamped } from './moduleNodeCardHtml';
 import { ZOOM_THRESHOLDS } from './graphTheme';
 
@@ -10,11 +10,6 @@ export type ModuleNodeData = {
 
 export type ModuleNode = Node<ModuleNodeData, 'module'>;
 
-/**
- * Custom React Flow node rendering the module card (title + optional divider +
- * description). Replaces the previous cytoscape-node-html-label template while
- * reusing the same `.module-node-card` CSS classes and title-clamp heuristic.
- */
 export function ModuleGraphNode({ data }: NodeProps<ModuleNode>) {
   const zoom = useStore((s) => s.transform[2]);
   const rawName = data.name.trim() || '—';
@@ -30,11 +25,15 @@ export function ModuleGraphNode({ data }: NodeProps<ModuleNode>) {
 
   return (
     <div className={cardClass} title={titleAttr}>
-      {/* All 4 handles so ELK-routed edges anchor on the correct side. */}
-      <Handle type="target" position={Position.Top}    className="module-node-handle" isConnectable={false} />
-      <Handle type="source" position={Position.Bottom} className="module-node-handle" isConnectable={false} />
-      <Handle type="target" position={Position.Left}   className="module-node-handle" isConnectable={false} />
-      <Handle type="source" position={Position.Right}  className="module-node-handle" isConnectable={false} />
+      {/* 4-side handle pairs so any side can serve as source or target. */}
+      <Handle type="source" position={Position.Top}    id="top-s"    className="module-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Top}    id="top-t"    className="module-node-handle" isConnectable={false} />
+      <Handle type="source" position={Position.Bottom} id="bottom-s" className="module-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Bottom} id="bottom-t" className="module-node-handle" isConnectable={false} />
+      <Handle type="source" position={Position.Left}   id="left-s"   className="module-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Left}   id="left-t"   className="module-node-handle" isConnectable={false} />
+      <Handle type="source" position={Position.Right}  id="right-s"  className="module-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Right}  id="right-t"  className="module-node-handle" isConnectable={false} />
       <div className={`module-node-card__title${titleVisible ? '' : ' is-hidden'}`}>
         {rawName}
       </div>

@@ -1,4 +1,4 @@
-import { Handle, Position, useStore, type Node, type NodeProps } from '@xyflow/react';
+﻿import { Handle, Position, useStore, type Node, type NodeProps } from '@xyflow/react';
 import { ZOOM_THRESHOLDS, nodeColorForType } from './graphTheme';
 
 export type AppGraphNodeData = {
@@ -8,12 +8,6 @@ export type AppGraphNodeData = {
 
 export type AppGraphNodeType = Node<AppGraphNodeData, 'app'>;
 
-/**
- * Application graph node: fixed-width card with center-edge handles (top =
- * target, bottom = source) so orthogonal edges anchor at bounding-box edge
- * centers. The label fades out below the primary semantic-zoom threshold to
- * keep a screen-filling overview readable.
- */
 export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
   const zoom = useStore((s) => s.transform[2]);
   const color = nodeColorForType(data.nodeType);
@@ -21,12 +15,17 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
 
   return (
     <div className="graph-node-card" style={{ borderColor: color }}>
-      {/* All 4 center-edge handles so ELK-routed edges visually anchor on whichever
-          side the engine chose. isConnectable=false since the graph is read-only. */}
-      <Handle type="target" position={Position.Top}    className="graph-node-handle" isConnectable={false} />
-      <Handle type="source" position={Position.Bottom} className="graph-node-handle" isConnectable={false} />
-      <Handle type="target" position={Position.Left}   className="graph-node-handle" isConnectable={false} />
-      <Handle type="source" position={Position.Right}  className="graph-node-handle" isConnectable={false} />
+      {/* 4-side handle pairs: both source and target at every position so React
+          Flow can correctly resolve handle coords regardless of which side ELK
+          or bestSides() chose for a given edge. isConnectable=false: read-only. */}
+      <Handle type="source" position={Position.Top}    id="top-s"    className="graph-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Top}    id="top-t"    className="graph-node-handle" isConnectable={false} />
+      <Handle type="source" position={Position.Bottom} id="bottom-s" className="graph-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Bottom} id="bottom-t" className="graph-node-handle" isConnectable={false} />
+      <Handle type="source" position={Position.Left}   id="left-s"   className="graph-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Left}   id="left-t"   className="graph-node-handle" isConnectable={false} />
+      <Handle type="source" position={Position.Right}  id="right-s"  className="graph-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Right}  id="right-t"  className="graph-node-handle" isConnectable={false} />
       <span
         className={`graph-node-card__label${labelVisible ? '' : ' is-hidden'}`}
         title={data.label}

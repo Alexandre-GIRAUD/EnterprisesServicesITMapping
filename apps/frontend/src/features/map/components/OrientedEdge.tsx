@@ -1,6 +1,7 @@
-import {
+﻿import {
   BaseEdge,
   EdgeLabelRenderer,
+  Position,
   getSmoothStepPath,
   useInternalNode,
   useStore,
@@ -14,20 +15,13 @@ import type { Point } from './elkLayout';
 import { buildOrthogonalPath } from './orthogonalPath';
 
 export type OrientedEdgeData = {
-  /** Source-node identity color (gradient start). */
   sourceColor: string;
-  /** Target-node identity color (gradient end + arrowhead). */
   targetColor: string;
-  /** Dashed stroke for composition-style relations. */
   dashed?: boolean;
-  /** Relation label (e.g. DEPENDS_ON). */
   relation?: string;
-  /** ELK interior bend points (flow coords) for orthogonal routing. */
   bendPoints?: Point[];
-  /** ELK routed endpoints, used to detect drag drift and fall back. */
   routeStart?: Point;
   routeEnd?: Point;
-  /** Line-jump crossings on this edge's horizontal runs. */
   jumps?: Point[];
 };
 
@@ -35,10 +29,10 @@ export type OrientedEdgeType = Edge<OrientedEdgeData, 'oriented'>;
 
 const CORNER_RADIUS = 8;
 const HOP_RADIUS = 5;
-/** How far a routed endpoint may sit from a node's border before we re-route. */
 const BORDER_TOLERANCE = 14;
+const LABEL_HALF_W = 44;
+const LABEL_HALF_H = 10;
 
-/** Axis-aligned rect (flow coords) for a node, or null if not measured yet. */
 function rectOf(node: InternalNode<Node> | undefined) {
   if (!node) return null;
   const { x, y } = node.internals.positionAbsolute;
@@ -48,32 +42,96 @@ function rectOf(node: InternalNode<Node> | undefined) {
   return { x, y, width, height };
 }
 
-/** Distance from a point to a rect (0 when on/inside the border). */
 function pointRectDistance(p: Point, r: { x: number; y: number; width: number; height: number }) {
   const dx = Math.max(r.x - p.x, 0, p.x - (r.x + r.width));
   const dy = Math.max(r.y - p.y, 0, p.y - (r.y + r.height));
   return Math.hypot(dx, dy);
 }
 
-/** A routed endpoint is valid while it still lies on its node's border. */
 function endpointValid(point: Point | undefined, node: InternalNode<Node> | undefined): boolean {
   if (!point) return false;
   const rect = rectOf(node);
-  if (!rect) return true; // dimensions unknown on first paint: trust the route
+  if (!rect) return true;
   return pointRectDistance(point, rect) <= BORDER_TOLERANCE;
 }
 
 /**
- * Orthogonal (Manhattan) edge with rounded bends, line-jump bridges and a
- * directional color gradient (source color → target color).
- *
- * When ELK supplies a routed poly-line, the path is drawn through its
- * node-avoiding bends with {@link buildOrthogonalPath}, anchored at the exact
- * border points ELK chose — so links can leave/enter via any of the 4 sides and
- * the arrowhead lands precisely on that boundary. If either endpoint's node is
- * dragged off its routed border, the edge gracefully falls back to
- * {@link getSmoothStepPath} so it keeps tracking the node live.
+ * Pick the handle side that faces the other node directly. Guarantees at most
+ * one 90-degree bend in the fallback path and prevents the line from cutting
+ * across any node face.
  */
+function bestSides(
+  sourceRect: { x: number; y: number; width: number; height: number },
+  targetRect: { x: number; y: number; width: number; height: number }
+): { sourcePos: Position; targetPos: Position } {
+  const srcCx = sourceRect.x + sourceRect.width / 2;
+  const srcCy = sourceRect.y + sourceRect.height / 2;
+  const tgtCx = targetRect.x + targetRect.width / 2;
+  const tgtCy = targetRect.y + targetRect.height / 2;
+  const dx = tgtCx - srcCx;
+  const dy = tgtCy - srcCy;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0
+      ? { sourcePos: Position.Right, targetPos: Position.Left }
+      : { sourcePos: Position.Left, targetPos: Position.Right };
+  }
+  return dy >= 0
+    ? { sourcePos: Position.Bottom, targetPos: Position.Top }
+    : { sourcePos: Position.Top, targetPos: Position.Bottom };
+}
+
+/**
+ * Find a label position that does not overlap any node bounding box. Tries
+ * segment midpoints sorted by length (longest first = most open space).
+ */
+function safeLabelPos(
+  points: Point[],
+  nodeLookup: Map<string, InternalNode<Node>>,
+  skipIds: [string, string],
+  initialX: number,
+  initialY: number
+): { x: number; y: number } {
+  const skip = new Set<string>(skipIds);
+
+  function overlapsNode(x: number, y: number): boolean {
+    for (const [id, node] of nodeLookup) {
+      if (skip.has(id)) continue;
+      const pos = node.internals?.positionAbsolute;
+      if (!pos) continue;
+      const w = node.measured?.width ?? node.width ?? 0;
+      const h = node.measured?.height ?? node.height ?? 0;
+      if (!w || !h) continue;
+      if (
+        x + LABEL_HALF_W > pos.x &&
+        x - LABEL_HALF_W < pos.x + w &&
+        y + LABEL_HALF_H > pos.y &&
+        y - LABEL_HALF_H < pos.y + h
+      ) return true;
+    }
+    return false;
+  }
+
+  if (!overlapsNode(initialX, initialY)) return { x: initialX, y: initialY };
+  if (points.length < 2) return { x: initialX, y: initialY };
+
+  const candidates = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    candidates.push({
+      x: (p1.x + p2.x) / 2,
+      y: (p1.y + p2.y) / 2,
+      len: Math.hypot(p2.x - p1.x, p2.y - p1.y),
+    });
+  }
+  candidates.sort((a, b) => b.len - a.len);
+
+  for (const c of candidates) {
+    if (!overlapsNode(c.x, c.y)) return { x: c.x, y: c.y };
+  }
+  return { x: initialX, y: initialY };
+}
+
 export function OrientedEdge({
   id,
   source,
@@ -89,39 +147,80 @@ export function OrientedEdge({
   label,
 }: EdgeProps<OrientedEdgeType>) {
   const zoom = useStore((s) => s.transform[2]);
+  const nodeLookup = useStore((s) => s.nodeLookup) as Map<string, InternalNode<Node>>;
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
-
-  const [fallbackPath, fbLabelX, fbLabelY] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-    borderRadius: CORNER_RADIUS,
-  });
 
   const routeUsable =
     Boolean(data?.bendPoints) &&
     endpointValid(data?.routeStart, sourceNode) &&
     endpointValid(data?.routeEnd, targetNode);
 
+  const srcRect = rectOf(sourceNode);
+  const tgtRect = rectOf(targetNode);
+  const liveSides =
+    !routeUsable && srcRect && tgtRect ? bestSides(srcRect, tgtRect) : null;
+
+  const liveSourcePos = liveSides?.sourcePos ?? sourcePosition;
+  const liveTargetPos = liveSides?.targetPos ?? targetPosition;
+
+  let liveSourceX = sourceX;
+  let liveSourceY = sourceY;
+  let liveTargetX = targetX;
+  let liveTargetY = targetY;
+
+  if (liveSides && srcRect && tgtRect) {
+    const srcMidX = srcRect.x + srcRect.width / 2;
+    const srcMidY = srcRect.y + srcRect.height / 2;
+    const tgtMidX = tgtRect.x + tgtRect.width / 2;
+    const tgtMidY = tgtRect.y + tgtRect.height / 2;
+    switch (liveSides.sourcePos) {
+      case Position.Right:  liveSourceX = srcRect.x + srcRect.width; liveSourceY = srcMidY; break;
+      case Position.Left:   liveSourceX = srcRect.x;                 liveSourceY = srcMidY; break;
+      case Position.Bottom: liveSourceX = srcMidX; liveSourceY = srcRect.y + srcRect.height; break;
+      case Position.Top:    liveSourceX = srcMidX; liveSourceY = srcRect.y; break;
+    }
+    switch (liveSides.targetPos) {
+      case Position.Left:   liveTargetX = tgtRect.x;                 liveTargetY = tgtMidY; break;
+      case Position.Right:  liveTargetX = tgtRect.x + tgtRect.width; liveTargetY = tgtMidY; break;
+      case Position.Top:    liveTargetX = tgtMidX; liveTargetY = tgtRect.y; break;
+      case Position.Bottom: liveTargetX = tgtMidX; liveTargetY = tgtRect.y + tgtRect.height; break;
+    }
+  }
+
+  const [fallbackPath, fbLabelX, fbLabelY] = getSmoothStepPath({
+    sourceX: liveSourceX,
+    sourceY: liveSourceY,
+    sourcePosition: liveSourcePos,
+    targetX: liveTargetX,
+    targetY: liveTargetY,
+    targetPosition: liveTargetPos,
+    borderRadius: CORNER_RADIUS,
+  });
+
   let edgePath = fallbackPath;
-  let gradientFrom = { x: sourceX, y: sourceY };
-  let gradientTo = { x: targetX, y: targetY };
+  let gradientFrom = { x: liveSourceX, y: liveSourceY };
+  let gradientTo = { x: liveTargetX, y: liveTargetY };
   let labelX = fbLabelX;
   let labelY = fbLabelY;
+  let pathPoints: Point[] = [
+    { x: liveSourceX, y: liveSourceY },
+    { x: liveTargetX, y: liveTargetY },
+  ];
 
   if (routeUsable && data?.routeStart && data?.routeEnd) {
-    const points = [data.routeStart, ...(data.bendPoints ?? []), data.routeEnd];
-    edgePath = buildOrthogonalPath(points, CORNER_RADIUS, data.jumps ?? [], HOP_RADIUS);
+    pathPoints = [data.routeStart, ...(data.bendPoints ?? []), data.routeEnd];
+    edgePath = buildOrthogonalPath(pathPoints, CORNER_RADIUS, data.jumps ?? [], HOP_RADIUS);
     gradientFrom = data.routeStart;
     gradientTo = data.routeEnd;
-    const mid = points[Math.floor(points.length / 2)];
+    const mid = pathPoints[Math.floor(pathPoints.length / 2)];
     labelX = mid.x;
     labelY = mid.y;
   }
+
+  const safeLabel = safeLabelPos(pathPoints, nodeLookup, [source, target], labelX, labelY);
+  labelX = safeLabel.x;
+  labelY = safeLabel.y;
 
   const sourceColor = data?.sourceColor ?? '#64748b';
   const targetColor = data?.targetColor ?? '#94a3b8';
@@ -131,7 +230,6 @@ export function OrientedEdge({
   return (
     <>
       <defs>
-        {/* userSpaceOnUse: gradient axis runs along the real source→target vector. */}
         <linearGradient
           id={gradientId}
           gradientUnits="userSpaceOnUse"

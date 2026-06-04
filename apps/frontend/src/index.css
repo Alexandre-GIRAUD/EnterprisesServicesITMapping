@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   font-family: system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -1141,9 +1141,10 @@ body {
 
 .oriented-edge-label {
   position: absolute;
-  padding: 0 0.25rem;
+  padding: 1px 5px;
   border-radius: 4px;
-  background: rgb(2 6 23 / 70%);
+  background: rgb(2 6 23 / 80%);
+  backdrop-filter: blur(4px);
   color: #cbd5e1;
   font-size: 9px;
   line-height: 1.4;
@@ -2222,3 +2223,4 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
