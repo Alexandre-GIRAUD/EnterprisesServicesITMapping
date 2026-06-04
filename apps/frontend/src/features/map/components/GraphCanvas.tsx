@@ -1,10 +1,18 @@
 import cytoscape, { type Core, type ElementDefinition } from 'cytoscape';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ApplicationResponse, BusinessUnitListItem, GraphEdgeCreateResponse } from '@/types/api';
+import type {
+  ApplicationResponse,
+  BusinessUnitListItem,
+  GraphEdgeCreateResponse,
+  RegionSummary,
+} from '@/types/api';
+import { fetchApplications } from '../api/applicationsApi';
 import { fetchBusinessUnits } from '../api/businessUnitsApi';
+import { fetchRegions } from '../api/regionsApi';
 import { fetchGraph } from '../api/graphApi';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
+import { FilterDrawer } from './FilterDrawer';
 import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
 
 type SelectedApplication = {
@@ -22,10 +30,26 @@ export function GraphCanvas() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
+  const [applications, setApplications] = useState<ApplicationResponse[]>([]);
   const [businessUnits, setBusinessUnits] = useState<BusinessUnitListItem[]>([]);
-  const [businessUnitId, setBusinessUnitId] = useState<string>('');
+  const [regions, setRegions] = useState<RegionSummary[]>([]);
+  const [applicationIds, setApplicationIds] = useState<string[]>([]);
+  const [businessUnitIds, setBusinessUnitIds] = useState<string[]>([]);
+  const [regionCodes, setRegionCodes] = useState<string[]>([]);
+  const filtersActive =
+    applicationIds.length > 0 || businessUnitIds.length > 0 || regionCodes.length > 0;
+
+  const refreshApplications = useCallback(async () => {
+    try {
+      const rows = await fetchApplications();
+      setApplications(rows);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const refreshBusinessUnits = useCallback(async () => {
     try {
@@ -36,9 +60,20 @@ export function GraphCanvas() {
     }
   }, []);
 
+  const refreshRegions = useCallback(async () => {
+    try {
+      const rows = await fetchRegions();
+      setRegions(rows);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
+    void refreshApplications();
     void refreshBusinessUnits();
-  }, [refreshBusinessUnits]);
+    void refreshRegions();
+  }, [refreshApplications, refreshBusinessUnits, refreshRegions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +83,9 @@ export function GraphCanvas() {
         setStatus('loading');
         setMessage(null);
         const data = await fetchGraph({
-          businessUnitId: businessUnitId || undefined,
+          applicationIds: applicationIds.length > 0 ? applicationIds : undefined,
+          businessUnitIds: businessUnitIds.length > 0 ? businessUnitIds : undefined,
+          regionCodes: regionCodes.length > 0 ? regionCodes : undefined,
         });
         if (cancelled || !containerRef.current) return;
 
@@ -161,8 +198,8 @@ export function GraphCanvas() {
         setStatus('ready');
         const emptyHint =
           data.nodes.length === 0
-            ? businessUnitId
-              ? 'Aucune application dans cette business unit (ou identifiant inconnu). Essayez « Toutes » ou une autre unité.'
+            ? filtersActive
+              ? 'Aucune application pour ces filtres (business unit / location). Décochez tout ou changez de critères.'
               : 'Aucun nœud pour cette date. Démarrez le backend avec Neo4j pour charger les données de démo.'
             : 'Astuce : cliquez sur une application pour ouvrir le graphe de ses modules.';
         setMessage(emptyHint);
@@ -192,7 +229,7 @@ export function GraphCanvas() {
       cyRef.current = null;
       window.removeEventListener('keydown', onEscape);
     };
-  }, [navigate, businessUnitId]);
+  }, [navigate, applicationIds, businessUnitIds, regionCodes]);
 
   /** Keep Cytoscape sized to its flex container (viewport / drawer / responsive). */
   useEffect(() => {
@@ -286,25 +323,6 @@ export function GraphCanvas() {
       )}
       <div className={`graph-workspace${isDrawerOpen ? ' is-drawer-open' : ''}`}>
         <div className="graph-stage">
-          <div className="graph-bu-filter">
-            <label className="graph-bu-filter-label" htmlFor="graph-bu-select">
-              Business unit
-            </label>
-            <select
-              id="graph-bu-select"
-              className="graph-bu-filter-select"
-              value={businessUnitId}
-              onChange={(e) => setBusinessUnitId(e.target.value)}
-              aria-label="Filtrer le graphe par business unit"
-            >
-              <option value="">Toutes</option>
-              {businessUnits.map((bu) => (
-                <option key={bu.id} value={bu.id}>
-                  {bu.name}
-                </option>
-              ))}
-            </select>
-          </div>
           <button
             type="button"
             className="graph-drawer-toggle"
@@ -317,6 +335,40 @@ export function GraphCanvas() {
               {isDrawerOpen ? 'Close' : 'Open'}
             </span>
           </button>
+          <button
+            type="button"
+            className="graph-filter-toggle"
+            onClick={() => setIsFilterDrawerOpen((open) => !open)}
+            aria-expanded={isFilterDrawerOpen}
+            aria-controls="graph-filter-drawer"
+          >
+            <span className="graph-drawer-toggle-label">Filtres</span>
+            <span className="graph-drawer-toggle-icon" aria-hidden="true">
+              {filtersActive ? 'On' : 'Off'}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className={`graph-details-overlay${isFilterDrawerOpen ? ' is-visible' : ''}`}
+            aria-label="Fermer les filtres"
+            onClick={() => setIsFilterDrawerOpen(false)}
+          />
+          <FilterDrawer
+            isOpen={isFilterDrawerOpen}
+            onClose={() => setIsFilterDrawerOpen(false)}
+            applications={applications}
+            businessUnits={businessUnits}
+            regions={regions}
+            initialApplicationIds={applicationIds}
+            initialBusinessUnitIds={businessUnitIds}
+            initialRegionCodes={regionCodes}
+            onApply={({ applicationIds: appIds, businessUnitIds: buIds, regionCodes: codes }) => {
+              setApplicationIds(appIds);
+              setBusinessUnitIds(buIds);
+              setRegionCodes(codes);
+            }}
+          />
 
           <div
             ref={containerRef}

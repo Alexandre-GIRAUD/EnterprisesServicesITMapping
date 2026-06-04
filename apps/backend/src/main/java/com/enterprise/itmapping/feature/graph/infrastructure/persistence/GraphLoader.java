@@ -17,102 +17,36 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class GraphLoader {
 
-  private static final String NODES_CYPHER = """
+  private static final String NODES_CYPHER_FILTERED = """
       MATCH (a:Application)
       WHERE (a.validFrom IS NULL OR a.validFrom <= $validAt)
         AND (a.validTo IS NULL OR a.validTo > $validAt)
-      WITH a ORDER BY a.name
+        AND ($filterApplicationIds = false OR a.id IN $applicationIds)
+        AND ($filterBusinessUnitIds = false OR EXISTS {
+          MATCH (bu:BusinessUnit)-[:HAS_APPLICATION]->(a)
+          WHERE bu.id IN $businessUnitIds
+        })
+        AND ($filterRegionCodes = false OR EXISTS {
+          MATCH (a)-[:IS_USED_IN]->(reg:Region)
+          WHERE toUpper(reg.code) IN $regionCodes
+        })
+      WITH DISTINCT a ORDER BY a.name
       RETURN a.id AS id, a.name AS name, a.description AS description, a.validFrom AS validFrom, a.validTo AS validTo
       """;
 
-  /**
-   * Applications linked to a BU at validAt; used to filter the Cytoscape dependency graph without
-   * emitting {@code BusinessUnit} nodes in the API payload.
-   */
-  private static final String NODES_CYPHER_FOR_BUSINESS_UNIT = """
-      MATCH (bu:BusinessUnit {id: $businessUnitId})-[:HAS_APPLICATION]->(a:Application)
+  private static final String EDGES_CYPHER_FILTERED = """
+      MATCH (a:Application)
       WHERE (a.validFrom IS NULL OR a.validFrom <= $validAt)
         AND (a.validTo IS NULL OR a.validTo > $validAt)
-      WITH a ORDER BY a.name
-      RETURN a.id AS id, a.name AS name, a.description AS description, a.validFrom AS validFrom, a.validTo AS validTo
-      """;
-
-  /**
-   * Applications used in a region ({@code IS_USED_IN}); {@code Region} nodes are not returned in
-   * the API payload.
-   */
-  private static final String NODES_CYPHER_FOR_REGION = """
-      MATCH (a:Application)-[:IS_USED_IN]->(reg:Region)
-      WHERE toUpper(reg.code) = toUpper($regionCode)
-        AND (a.validFrom IS NULL OR a.validFrom <= $validAt)
-        AND (a.validTo IS NULL OR a.validTo > $validAt)
-      WITH a ORDER BY a.name
-      RETURN a.id AS id, a.name AS name, a.description AS description, a.validFrom AS validFrom, a.validTo AS validTo
-      """;
-
-  /** Intersection: application in BU and used in region. */
-  private static final String NODES_CYPHER_FOR_BUSINESS_UNIT_AND_REGION = """
-      MATCH (bu:BusinessUnit {id: $businessUnitId})-[:HAS_APPLICATION]->(a:Application)
-      MATCH (a)-[:IS_USED_IN]->(reg:Region)
-      WHERE toUpper(reg.code) = toUpper($regionCode)
-        AND (a.validFrom IS NULL OR a.validFrom <= $validAt)
-        AND (a.validTo IS NULL OR a.validTo > $validAt)
-      WITH a ORDER BY a.name
-      RETURN a.id AS id, a.name AS name, a.description AS description, a.validFrom AS validFrom, a.validTo AS validTo
-      """;
-
-  private static final String EDGES_CYPHER = """
-      MATCH (a:Application)-[r:DEPENDS_ON]->(b:Application)
-      WHERE (a.validFrom IS NULL OR a.validFrom <= $validAt)
-        AND (a.validTo IS NULL OR a.validTo > $validAt)
-        AND (b.validFrom IS NULL OR b.validFrom <= $validAt)
-        AND (b.validTo IS NULL OR b.validTo > $validAt)
-        AND (r.validFrom IS NULL OR r.validFrom <= $validAt)
-        AND (r.validTo IS NULL OR r.validTo > $validAt)
-      RETURN a.id AS sourceId, b.id AS targetId, type(r) AS relType
-      """;
-
-  /** {@code DEPENDS_ON} only when both endpoints belong to the BU's application set. */
-  private static final String EDGES_CYPHER_FOR_BUSINESS_UNIT = """
-      MATCH (bu:BusinessUnit {id: $businessUnitId})-[:HAS_APPLICATION]->(a:Application)
-      WHERE (a.validFrom IS NULL OR a.validFrom <= $validAt)
-        AND (a.validTo IS NULL OR a.validTo > $validAt)
-      WITH collect(DISTINCT a.id) AS appIds
-      MATCH (x:Application)-[r:DEPENDS_ON]->(y:Application)
-      WHERE x.id IN appIds AND y.id IN appIds
-        AND (x.validFrom IS NULL OR x.validFrom <= $validAt)
-        AND (x.validTo IS NULL OR x.validTo > $validAt)
-        AND (y.validFrom IS NULL OR y.validFrom <= $validAt)
-        AND (y.validTo IS NULL OR y.validTo > $validAt)
-        AND (r.validFrom IS NULL OR r.validFrom <= $validAt)
-        AND (r.validTo IS NULL OR r.validTo > $validAt)
-      RETURN x.id AS sourceId, y.id AS targetId, type(r) AS relType
-      """;
-
-  /** {@code DEPENDS_ON} only when both endpoints are used in the given region. */
-  private static final String EDGES_CYPHER_FOR_REGION = """
-      MATCH (a:Application)-[:IS_USED_IN]->(reg:Region)
-      WHERE toUpper(reg.code) = toUpper($regionCode)
-        AND (a.validFrom IS NULL OR a.validFrom <= $validAt)
-        AND (a.validTo IS NULL OR a.validTo > $validAt)
-      WITH collect(DISTINCT a.id) AS appIds
-      MATCH (x:Application)-[r:DEPENDS_ON]->(y:Application)
-      WHERE x.id IN appIds AND y.id IN appIds
-        AND (x.validFrom IS NULL OR x.validFrom <= $validAt)
-        AND (x.validTo IS NULL OR x.validTo > $validAt)
-        AND (y.validFrom IS NULL OR y.validFrom <= $validAt)
-        AND (y.validTo IS NULL OR y.validTo > $validAt)
-        AND (r.validFrom IS NULL OR r.validFrom <= $validAt)
-        AND (r.validTo IS NULL OR r.validTo > $validAt)
-      RETURN x.id AS sourceId, y.id AS targetId, type(r) AS relType
-      """;
-
-  private static final String EDGES_CYPHER_FOR_BUSINESS_UNIT_AND_REGION = """
-      MATCH (bu:BusinessUnit {id: $businessUnitId})-[:HAS_APPLICATION]->(a:Application)
-      MATCH (a)-[:IS_USED_IN]->(reg:Region)
-      WHERE toUpper(reg.code) = toUpper($regionCode)
-        AND (a.validFrom IS NULL OR a.validFrom <= $validAt)
-        AND (a.validTo IS NULL OR a.validTo > $validAt)
+        AND ($filterApplicationIds = false OR a.id IN $applicationIds)
+        AND ($filterBusinessUnitIds = false OR EXISTS {
+          MATCH (bu:BusinessUnit)-[:HAS_APPLICATION]->(a)
+          WHERE bu.id IN $businessUnitIds
+        })
+        AND ($filterRegionCodes = false OR EXISTS {
+          MATCH (a)-[:IS_USED_IN]->(reg:Region)
+          WHERE toUpper(reg.code) IN $regionCodes
+        })
       WITH collect(DISTINCT a.id) AS appIds
       MATCH (x:Application)-[r:DEPENDS_ON]->(y:Application)
       WHERE x.id IN appIds AND y.id IN appIds
@@ -132,29 +66,39 @@ public class GraphLoader {
   }
 
   public List<GraphNodeRow> loadNodesValidAt(Instant validAt) {
-    return loadNodesValidAt(validAt, null, null);
+    return loadNodesValidAt(validAt, null, null, null);
   }
 
   /**
-   * @param businessUnitId when non-blank, only applications linked via {@code HAS_APPLICATION}
-   *     from that BU are returned.
-   * @param regionCode when non-blank, only applications with {@code IS_USED_IN} to that region
-   *     code are returned (case-insensitive match on {@code Region.code}).
+   * @param applicationIds when non-empty, only these application ids (OR).
+   * @param businessUnitIds when non-empty, apps linked to any listed BU (OR).
+   * @param regionCodes when non-empty, apps used in any listed region code (OR). Codes uppercased.
+   *     Dimensions combine with AND when multiple are active.
    */
   public List<GraphNodeRow> loadNodesValidAt(
-      Instant validAt, String businessUnitId, String regionCode) {
-    var query =
-        neo4jClient
-            .query(selectNodesCypher(businessUnitId, regionCode))
-            .bind(Neo4jTemporalParameters.toNeo4j(validAt))
-            .to("validAt");
-    if (isNonBlank(businessUnitId)) {
-      query = query.bind(businessUnitId.trim()).to("businessUnitId");
-    }
-    if (isNonBlank(regionCode)) {
-      query = query.bind(regionCode.trim()).to("regionCode");
-    }
-    return query.fetch().all().stream()
+      Instant validAt,
+      List<String> applicationIds,
+      List<String> businessUnitIds,
+      List<String> regionCodes) {
+    return neo4jClient
+        .query(NODES_CYPHER_FILTERED)
+        .bind(Neo4jTemporalParameters.toNeo4j(validAt))
+        .to("validAt")
+        .bind(hasFilter(applicationIds))
+        .to("filterApplicationIds")
+        .bind(hasFilter(businessUnitIds))
+        .to("filterBusinessUnitIds")
+        .bind(hasFilter(regionCodes))
+        .to("filterRegionCodes")
+        .bind(hasFilter(applicationIds) ? applicationIds : List.of("__none__"))
+        .to("applicationIds")
+        .bind(hasFilter(businessUnitIds) ? businessUnitIds : List.of("__none__"))
+        .to("businessUnitIds")
+        .bind(hasFilter(regionCodes) ? regionCodes : List.of("__none__"))
+        .to("regionCodes")
+        .fetch()
+        .all()
+        .stream()
         .map(Neo4jValueMapping::asMap)
         .map(GraphLoader::mapNodeRow)
         .toList();
@@ -170,23 +114,33 @@ public class GraphLoader {
   }
 
   public List<GraphEdgeProjection> loadEdges(Instant validAt) {
-    return loadEdges(validAt, null, null);
+    return loadEdges(validAt, null, null, null);
   }
 
   public List<GraphEdgeProjection> loadEdges(
-      Instant validAt, String businessUnitId, String regionCode) {
-    var query =
-        neo4jClient
-            .query(selectEdgesCypher(businessUnitId, regionCode))
-            .bind(Neo4jTemporalParameters.toNeo4j(validAt))
-            .to("validAt");
-    if (isNonBlank(businessUnitId)) {
-      query = query.bind(businessUnitId.trim()).to("businessUnitId");
-    }
-    if (isNonBlank(regionCode)) {
-      query = query.bind(regionCode.trim()).to("regionCode");
-    }
-    return query.fetch().all().stream()
+      Instant validAt,
+      List<String> applicationIds,
+      List<String> businessUnitIds,
+      List<String> regionCodes) {
+    return neo4jClient
+        .query(EDGES_CYPHER_FILTERED)
+        .bind(Neo4jTemporalParameters.toNeo4j(validAt))
+        .to("validAt")
+        .bind(hasFilter(applicationIds))
+        .to("filterApplicationIds")
+        .bind(hasFilter(businessUnitIds))
+        .to("filterBusinessUnitIds")
+        .bind(hasFilter(regionCodes))
+        .to("filterRegionCodes")
+        .bind(hasFilter(applicationIds) ? applicationIds : List.of("__none__"))
+        .to("applicationIds")
+        .bind(hasFilter(businessUnitIds) ? businessUnitIds : List.of("__none__"))
+        .to("businessUnitIds")
+        .bind(hasFilter(regionCodes) ? regionCodes : List.of("__none__"))
+        .to("regionCodes")
+        .fetch()
+        .all()
+        .stream()
         .map(Neo4jValueMapping::asMap)
         .map(
             map ->
@@ -197,38 +151,8 @@ public class GraphLoader {
         .toList();
   }
 
-  private static String selectNodesCypher(String businessUnitId, String regionCode) {
-    boolean bu = isNonBlank(businessUnitId);
-    boolean region = isNonBlank(regionCode);
-    if (bu && region) {
-      return NODES_CYPHER_FOR_BUSINESS_UNIT_AND_REGION;
-    }
-    if (bu) {
-      return NODES_CYPHER_FOR_BUSINESS_UNIT;
-    }
-    if (region) {
-      return NODES_CYPHER_FOR_REGION;
-    }
-    return NODES_CYPHER;
-  }
-
-  private static String selectEdgesCypher(String businessUnitId, String regionCode) {
-    boolean bu = isNonBlank(businessUnitId);
-    boolean region = isNonBlank(regionCode);
-    if (bu && region) {
-      return EDGES_CYPHER_FOR_BUSINESS_UNIT_AND_REGION;
-    }
-    if (bu) {
-      return EDGES_CYPHER_FOR_BUSINESS_UNIT;
-    }
-    if (region) {
-      return EDGES_CYPHER_FOR_REGION;
-    }
-    return EDGES_CYPHER;
-  }
-
-  private static boolean isNonBlank(String value) {
-    return value != null && !value.isBlank();
+  private static boolean hasFilter(List<String> values) {
+    return values != null && !values.isEmpty();
   }
 
   public int linkCurrentNodesToSnapshot(String snapshotId, Instant now) {

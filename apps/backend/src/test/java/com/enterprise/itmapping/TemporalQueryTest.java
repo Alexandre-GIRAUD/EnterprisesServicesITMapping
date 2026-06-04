@@ -131,14 +131,14 @@ class TemporalQueryTest {
       applicationRepository.save(current);
 
       Date queryDate = Date.from(Instant.parse("2024-02-15T00:00:00Z"));
-      GraphResponseDto graph = graphService.getGraphAtDate(queryDate, null, null);
+      GraphResponseDto graph = graphService.getGraphAtDate(queryDate, null, null, null);
 
       assertThat(graph.nodes()).hasSize(2);
       assertThat(graph.nodes().stream().map(n -> n.label()).toList())
           .containsExactlyInAnyOrder("PastApp", "CurrentApp");
 
       Date afterPastEnd = Date.from(Instant.parse("2024-04-01T00:00:00Z"));
-      GraphResponseDto graphLater = graphService.getGraphAtDate(afterPastEnd, null, null);
+      GraphResponseDto graphLater = graphService.getGraphAtDate(afterPastEnd, null, null, null);
       assertThat(graphLater.nodes()).hasSize(1);
       assertThat(graphLater.nodes().getFirst().label()).isEqualTo("CurrentApp");
     }
@@ -153,7 +153,7 @@ class TemporalQueryTest {
       applicationRepository.save(app);
 
       Date queryDate = Date.from(Instant.parse("2020-01-01T00:00:00Z"));
-      GraphResponseDto graph = graphService.getGraphAtDate(queryDate, null, null);
+      GraphResponseDto graph = graphService.getGraphAtDate(queryDate, null, null, null);
 
       assertThat(graph.nodes()).isEmpty();
       assertThat(graph.edges()).isEmpty();
@@ -236,11 +236,11 @@ class TemporalQueryTest {
           .bindAll(bind)
           .run();
 
-      GraphResponseDto all = graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, null);
+      GraphResponseDto all = graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, null, null);
       assertThat(all.nodes()).hasSize(3);
 
       GraphResponseDto filtered =
-          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), buId, null);
+          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, List.of(buId), null);
       assertThat(filtered.nodes()).hasSize(2);
       assertThat(filtered.nodes().stream().map(n -> n.id()).toList())
           .containsExactlyInAnyOrder(appA, appB);
@@ -253,7 +253,7 @@ class TemporalQueryTest {
     @DisplayName("unknown business unit id yields empty graph")
     void unknownBuReturnsEmpty() {
       GraphResponseDto graph =
-          graphService.getGraph(Instant.now(), UUID.randomUUID().toString(), null);
+          graphService.getGraph(Instant.now(), null, List.of(UUID.randomUUID().toString()), null);
       assertThat(graph.nodes()).isEmpty();
       assertThat(graph.edges()).isEmpty();
     }
@@ -337,11 +337,11 @@ class TemporalQueryTest {
           .run();
 
       GraphResponseDto all =
-          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, null);
+          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, null, null);
       assertThat(all.nodes()).hasSize(3);
 
       GraphResponseDto filtered =
-          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, "EMEA");
+          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, null, List.of("EMEA"));
       assertThat(filtered.nodes()).hasSize(2);
       assertThat(filtered.nodes().stream().map(n -> n.id()).toList())
           .containsExactlyInAnyOrder(appA, appB);
@@ -354,7 +354,7 @@ class TemporalQueryTest {
     @DisplayName("unknown region code yields empty graph")
     void unknownRegionReturnsEmpty() {
       GraphResponseDto graph =
-          graphService.getGraph(Instant.now(), null, "NO_SUCH_REGION");
+          graphService.getGraph(Instant.now(), null, null, List.of("NO_SUCH_REGION"));
       assertThat(graph.nodes()).isEmpty();
       assertThat(graph.edges()).isEmpty();
     }
@@ -391,7 +391,7 @@ class TemporalQueryTest {
           .run();
 
       GraphResponseDto filtered =
-          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), buId, "APAC");
+          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, List.of(buId), List.of("APAC"));
       assertThat(filtered.nodes()).hasSize(2);
       assertThat(filtered.nodes().stream().map(n -> n.id()).toList())
           .containsExactlyInAnyOrder(appA, appB);
