@@ -179,24 +179,35 @@ function distributedAnchor(
   allEdges: Edge[],
   nodeLookup: Map<string, InternalNode<Node>>
 ): Point {
+  // Sort peers by the center coordinate of their opposite node along the side's
+  // axis so each slot is assigned to the edge whose destination is spatially
+  // aligned with it — minimises total arrow length and prevents crossings.
+  const horizontalSide = side === Position.Left || side === Position.Right;
   const peers = allEdges
     .filter((e) => sideOfEdgeAtNode(e, nodeId, nodeLookup) === side)
-    .map((e) => e.id)
-    .sort();
+    .sort((a, b) => {
+      const coordOf = (e: Edge): number => {
+        const otherId = e.source === nodeId ? e.target : e.source;
+        const otherNode = nodeLookup.get(otherId);
+        const r = otherNode ? rectOf(otherNode) : null;
+        if (!r) return 0;
+        return horizontalSide ? r.y + r.height / 2 : r.x + r.width / 2;
+      };
+      return coordOf(a) - coordOf(b);
+    })
+    .map((e) => e.id);
   const count = peers.length || 1;
   const index = Math.max(0, peers.indexOf(edgeId));
+  // Equidistant along the full side: gap == end margin == sideLength / (N+1).
   const frac = (index + 1) / (count + 1);
-  const horizontalSide = side === Position.Left || side === Position.Right;
-  const span = horizontalSide ? rect.height : rect.width;
-  const margin = Math.min(14, span / 2 - 1);
   if (horizontalSide) {
     return {
       x: side === Position.Left ? rect.x : rect.x + rect.width,
-      y: rect.y + margin + frac * (rect.height - 2 * margin),
+      y: rect.y + frac * rect.height,
     };
   }
   return {
-    x: rect.x + margin + frac * (rect.width - 2 * margin),
+    x: rect.x + frac * rect.width,
     y: side === Position.Top ? rect.y : rect.y + rect.height,
   };
 }

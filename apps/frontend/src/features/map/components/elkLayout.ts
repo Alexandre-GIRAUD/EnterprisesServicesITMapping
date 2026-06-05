@@ -109,19 +109,6 @@ function routeIsClear(
   return true;
 }
 
-/** Which border of `rect` the point lies on (nearest side). */
-function pointSide(p: Point, rect: Rect): Position {
-  const dTop    = Math.abs(p.y - rect.y);
-  const dBottom = Math.abs(p.y - (rect.y + rect.height));
-  const dLeft   = Math.abs(p.x - rect.x);
-  const dRight  = Math.abs(p.x - (rect.x + rect.width));
-  const min = Math.min(dTop, dBottom, dLeft, dRight);
-  if (min === dTop) return Position.Top;
-  if (min === dBottom) return Position.Bottom;
-  if (min === dLeft) return Position.Left;
-  return Position.Right;
-}
-
 /** A point on `side` of `rect` whose along-side coordinate equals `offset`. */
 function anchorAtOffset(rect: Rect, side: Position, offset: number): Point {
   switch (side) {
@@ -131,56 +118,6 @@ function anchorAtOffset(rect: Rect, side: Position, offset: number): Point {
     case Position.Right:  return { x: rect.x + rect.width, y: offset };
     default:              return sideAnchor(rect, side);
   }
-}
-
-/** Usable [start, end] range of along-side coordinates (corners trimmed). */
-function sideOffsetRange(rect: Rect, side: Position): [number, number] {
-  const horizontalSide = isHorizontalSide(side);
-  const span = horizontalSide ? rect.height : rect.width;
-  const margin = Math.min(14, span / 2 - 1);
-  if (horizontalSide) return [rect.y + margin, rect.y + rect.height - margin];
-  return [rect.x + margin, rect.x + rect.width - margin];
-}
-
-/** The along-side coordinate of a point for the given side. */
-function alongOffset(side: Position, p: Point): number {
-  return isHorizontalSide(side) ? p.y : p.x;
-}
-
-/**
- * Spread `count` endpoints across [start, end] so none coincide with each other
- * or with an already-`occupied` coordinate (kept ≥ `minGap` apart).
- */
-function distributeOffsets(
-  start: number,
-  end: number,
-  count: number,
-  occupied: number[],
-  minGap: number
-): number[] {
-  if (count <= 0) return [];
-  const used = [...occupied];
-  const base: number[] = [];
-  if (count === 1) base.push((start + end) / 2);
-  else for (let i = 0; i < count; i++) base.push(start + ((i + 1) / (count + 1)) * (end - start));
-
-  const result: number[] = [];
-  for (const b of base) {
-    let chosen = Math.max(start, Math.min(end, b));
-    for (let k = 0; k < 24; k++) {
-      const candidates = [b + k * minGap, b - k * minGap];
-      const free = candidates.find(
-        (c) => c >= start && c <= end && !used.some((u) => Math.abs(u - c) < minGap)
-      );
-      if (free !== undefined) {
-        chosen = free;
-        break;
-      }
-    }
-    used.push(chosen);
-    result.push(chosen);
-  }
-  return result;
 }
 
 /** Push a border anchor outward along its side by `d` px. */
@@ -296,7 +233,6 @@ export function buildLiveRoutes(
   edges: { id: string; source: string; target: string }[],
   rectById: Map<string, Rect>
 ): Map<string, Point[]> {
-  const ENDPOINT_GAP = 12;
   type Plan = { id: string; source: string; target: string; srcSide: Position; tgtSide: Position };
   type Slot = { id: string; role: 'src' | 'tgt'; nodeId: string; side: Position };
 
@@ -320,17 +256,43 @@ export function buildLiveRoutes(
     addSlot({ id: plan.id, role: 'src', nodeId: plan.source, side: plan.srcSide });
     addSlot({ id: plan.id, role: 'tgt', nodeId: plan.target, side: plan.tgtSide });
   }
+  // Quick edge lookup for the sort below.
+  const edgeById = new Map(edges.map((e) => [e.id, e]));
+
+  // Equidistant placement along the full side: N endpoints sit at fractions
+  // (i+1)/(N+1) of the side length, so the gap between consecutive endpoints
+  // and the margin at each end are all equal to sideLength / (N+1).
+  //
+  // Slots are ordered by the center coordinate of the *opposite* node along
+  // the side's axis (Y for left/right sides, X for top/bottom sides). This
+  // assigns the slot closest to the opposite node's position, which minimises
+  // total arrow length and avoids crossings between parallel edges.
   const slotOffset = new Map<string, number>();
   for (const slots of groups.values()) {
     const { nodeId, side } = slots[0];
     const rect = rectById.get(nodeId);
     if (!rect) continue;
-    const [start, end] = sideOffsetRange(rect, side);
-    const ordered = [...slots].sort((a, b) =>
-      a.id === b.id ? a.role.localeCompare(b.role) : a.id.localeCompare(b.id)
+    const horizontalSide = isHorizontalSide(side);
+    const spanStart = horizontalSide ? rect.y : rect.x;
+    const spanLen = horizontalSide ? rect.height : rect.width;
+
+    const ordered = [...slots].sort((a, b) => {
+      const coordOf = (slot: Slot): number => {
+        const edge = edgeById.get(slot.id);
+        if (!edge) return 0;
+        const otherId = slot.role === 'src' ? edge.target : edge.source;
+        const other = rectById.get(otherId);
+        if (!other) return 0;
+        return horizontalSide
+          ? other.y + other.height / 2
+          : other.x + other.width / 2;
+      };
+      return coordOf(a) - coordOf(b);
+    });
+    const count = ordered.length;
+    ordered.forEach((slot, i) =>
+      slotOffset.set(`${slot.id}|${slot.role}`, spanStart + ((i + 1) / (count + 1)) * spanLen)
     );
-    const offsets = distributeOffsets(start, end, ordered.length, [], ENDPOINT_GAP);
-    ordered.forEach((slot, i) => slotOffset.set(`${slot.id}|${slot.role}`, offsets[i]));
   }
 
   const routes = new Map<string, Point[]>();
@@ -450,11 +412,10 @@ export async function elkLayout<N extends Node>(
     routes.set(edge.id, points);
   }
 
-  // Re-anchor each link to the node sides (incl. left/right) that minimize its
-  // length, but only when the resulting clean orthogonal route is shorter than
-  // ELK's AND does not cross any other node (so ELK's node-avoidance is kept).
-  // Endpoints landing on the same node side are spread apart so that no link
-  // start ever shares the exact point where another link ends.
+  // Re-route every link with the shared node-avoiding router so that endpoints
+  // sharing a node side are spread equidistantly (margin = inter-point gap).
+  // The ELK section route is kept only as a fallback when the clean route would
+  // cross another node (preserving ELK's node-avoidance in dense cases).
   const rectById = new Map<string, Rect>();
   for (const node of nodes) {
     const p = positionById.get(node.id);
@@ -467,86 +428,17 @@ export async function elkLayout<N extends Node>(
     });
   }
 
-  const ENDPOINT_GAP = 12;
-  type Plan = { id: string; source: string; target: string; srcSide: Position; tgtSide: Position };
-  type Slot = { id: string; role: 'src' | 'tgt'; nodeId: string; side: Position };
-
-  const plans: Plan[] = [];
-  // Along-side coordinates already taken by ELK-kept routes, per `nodeId|side`.
-  const occupied = new Map<string, number[]>();
-  const addOccupied = (nodeId: string, side: Position, off: number) => {
-    const key = `${nodeId}|${side}`;
-    const list = occupied.get(key);
-    if (list) list.push(off);
-    else occupied.set(key, [off]);
-  };
-
-  // Pass 1: decide which edges to re-anchor; register kept endpoints as occupied.
+  const liveRoutes = buildLiveRoutes(
+    edges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
+    rectById
+  );
   for (const edge of edges) {
-    const srcRect = rectById.get(edge.source);
-    const tgtRect = rectById.get(edge.target);
-    if (!srcRect || !tgtRect) continue;
-    const { srcSide, tgtSide } = minLengthSides(srcRect, tgtRect);
-    const candidate = orthogonalRoute(
-      sideAnchor(srcRect, srcSide),
-      srcSide,
-      sideAnchor(tgtRect, tgtSide),
-      tgtSide
-    );
+    const live = liveRoutes.get(edge.id);
+    if (!live || live.length < 2) continue;
     const elkRoute = routes.get(edge.id);
-    const keepElk =
-      (elkRoute && polylineLength(elkRoute) <= polylineLength(candidate)) ||
-      !routeIsClear(candidate, rectById, edge.source, edge.target);
-    if (keepElk) {
-      if (elkRoute && elkRoute.length >= 2) {
-        const start = elkRoute[0];
-        const end = elkRoute[elkRoute.length - 1];
-        const sSide = pointSide(start, srcRect);
-        const tSide = pointSide(end, tgtRect);
-        addOccupied(edge.source, sSide, alongOffset(sSide, start));
-        addOccupied(edge.target, tSide, alongOffset(tSide, end));
-      }
-      continue;
+    if (routeIsClear(live, rectById, edge.source, edge.target) || !elkRoute) {
+      routes.set(edge.id, live);
     }
-    plans.push({ id: edge.id, source: edge.source, target: edge.target, srcSide, tgtSide });
-  }
-
-  // Pass 2: group re-anchored endpoints per node side and spread them out.
-  const groups = new Map<string, Slot[]>();
-  const addSlot = (slot: Slot) => {
-    const key = `${slot.nodeId}|${slot.side}`;
-    const list = groups.get(key);
-    if (list) list.push(slot);
-    else groups.set(key, [slot]);
-  };
-  for (const plan of plans) {
-    addSlot({ id: plan.id, role: 'src', nodeId: plan.source, side: plan.srcSide });
-    addSlot({ id: plan.id, role: 'tgt', nodeId: plan.target, side: plan.tgtSide });
-  }
-  const slotOffset = new Map<string, number>();
-  for (const slots of groups.values()) {
-    const { nodeId, side } = slots[0];
-    const rect = rectById.get(nodeId);
-    if (!rect) continue;
-    const [start, end] = sideOffsetRange(rect, side);
-    const fixed = occupied.get(`${nodeId}|${side}`) ?? [];
-    const offsets = distributeOffsets(start, end, slots.length, fixed, ENDPOINT_GAP);
-    slots.forEach((slot, i) => slotOffset.set(`${slot.id}|${slot.role}`, offsets[i]));
-  }
-
-  // Pass 3: build the final orthogonal route from the distributed anchors.
-  for (const plan of plans) {
-    const srcRect = rectById.get(plan.source);
-    const tgtRect = rectById.get(plan.target);
-    if (!srcRect || !tgtRect) continue;
-    const sOff = slotOffset.get(`${plan.id}|src`);
-    const tOff = slotOffset.get(`${plan.id}|tgt`);
-    if (sOff === undefined || tOff === undefined) continue;
-    const sa = anchorAtOffset(srcRect, plan.srcSide, sOff);
-    const ta = anchorAtOffset(tgtRect, plan.tgtSide, tOff);
-    const route = orthogonalRoute(sa, plan.srcSide, ta, plan.tgtSide);
-    if (!routeIsClear(route, rectById, plan.source, plan.target)) continue;
-    routes.set(plan.id, route);
   }
 
   // Build per-node edge lists to derive actual anchor directions.
