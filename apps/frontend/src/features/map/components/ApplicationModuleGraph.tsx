@@ -29,6 +29,7 @@ import {
   type NodeTypeKey,
 } from './graphTheme';
 import { elkLayout } from './elkLayout';
+import { snapDraggedNodeForStraighterEdges } from './alignNodes';
 import { computeBridges } from './bridges';
 import { GraphLegend } from './GraphLegend';
 import { OrientedEdge } from './OrientedEdge';
@@ -219,6 +220,22 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
 
   const handlePaneClick = useCallback(() => setPinnedId(null), []);
 
+  const handleNodeDragStop = useCallback(
+    (_event: MouseEvent | TouchEvent, _node: ModuleNode) => {
+      setNodes((prev) => {
+        const dragged = prev.find((n) => n.id === _node.id);
+        if (!dragged) return prev;
+        const snapped = snapDraggedNodeForStraighterEdges(dragged.id, prev, edges, {
+          nodeWidth: MODULE_NODE_WIDTH,
+          nodeHeight: SHORT_NODE_HEIGHT,
+        });
+        if (!snapped) return prev;
+        return prev.map((n) => (n.id === dragged.id ? { ...n, position: snapped } : n));
+      });
+    },
+    [edges, setNodes]
+  );
+
   const hintText = hoverHint ?? (status === 'ready' ? message : null);
 
   return (
@@ -257,6 +274,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
           onNodeClick={handleNodeClick}
           onNodeMouseEnter={handleNodeMouseEnter}
           onNodeMouseLeave={handleNodeMouseLeave}
+          onNodeDragStop={handleNodeDragStop}
           onPaneClick={handlePaneClick}
           nodesDraggable
           nodesConnectable={false}

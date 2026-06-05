@@ -1,5 +1,6 @@
 ﻿import Dagre from '@dagrejs/dagre';
 import { type Edge, type Node } from '@xyflow/react';
+import { alignPositionsForStraighterEdges } from './alignNodes';
 
 export type LayoutOptions = {
   nodeWidth?: number;
@@ -90,19 +91,27 @@ export function layoutGraph<N extends Node>(
     }
   }
 
-  return nodes.map((node) => {
+  const positionById = new Map<string, { x: number; y: number }>();
+  for (const node of nodes) {
     const positioned = g.node(node.id);
     const { width, height } = sizeOf(node);
     const centerX = minCx + (positioned.x - minCx) * scaleX;
     const centerY = minCy + (positioned.y - minCy) * scaleY;
-    return {
-      ...node,
-      position: {
-        x: snap(centerX - width / 2, snapGrid),
-        y: snap(centerY - height / 2, snapGrid),
-      },
-      // sourcePosition / targetPosition omitted: OrientedEdge derives the best
-      // side live via bestSides() on every fallback render.
-    };
+    positionById.set(node.id, {
+      x: snap(centerX - width / 2, snapGrid),
+      y: snap(centerY - height / 2, snapGrid),
+    });
+  }
+
+  const aligned = alignPositionsForStraighterEdges(positionById, nodes, edges, {
+    nodeWidth,
+    nodeHeight,
   });
+
+  return nodes.map((node) => ({
+    ...node,
+    position: aligned.get(node.id) ?? positionById.get(node.id) ?? { x: 0, y: 0 },
+    // sourcePosition / targetPosition omitted: OrientedEdge derives the best
+    // side live via bestSides() on every fallback render.
+  }));
 }

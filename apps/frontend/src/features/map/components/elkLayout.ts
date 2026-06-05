@@ -1,5 +1,6 @@
 ﻿import type { ELK as ElkInstance, ElkNode } from 'elkjs/lib/elk-api';
 import { Position, type Edge, type Node } from '@xyflow/react';
+import { alignPositionsForStraighterEdges } from './alignNodes';
 
 export type Point = { x: number; y: number };
 
@@ -256,8 +257,38 @@ export function buildLiveRoutes(
     addSlot({ id: plan.id, role: 'src', nodeId: plan.source, side: plan.srcSide });
     addSlot({ id: plan.id, role: 'tgt', nodeId: plan.target, side: plan.tgtSide });
   }
-  // Quick edge lookup for the sort below.
+  // Quick edge lookup for the sort and alignment detection below.
   const edgeById = new Map(edges.map((e) => [e.id, e]));
+
+  // Alignment detection: when two nodes share the same center X (vertical
+  // alignment) or center Y (horizontal alignment) within ALIGN_TOL pixels,
+  // the edge between them must exit/enter at the shared coordinate so the path
+  // is a perfectly straight line with no bends.
+  const ALIGN_TOL = 6;
+  const forcedOffset = new Map<string, number>(); // key: `edgeId|role`
+  for (const plan of plans) {
+    const srcRect = rectById.get(plan.source);
+    const tgtRect = rectById.get(plan.target);
+    if (!srcRect || !tgtRect) continue;
+    const srcCx = srcRect.x + srcRect.width  / 2;
+    const srcCy = srcRect.y + srcRect.height / 2;
+    const tgtCx = tgtRect.x + tgtRect.width  / 2;
+    const tgtCy = tgtRect.y + tgtRect.height / 2;
+    const sharedX = (srcCx + tgtCx) / 2;
+    const sharedY = (srcCy + tgtCy) / 2;
+    // Vertical alignment → Top/Bottom sides → offset is the X coordinate.
+    if (!isHorizontalSide(plan.srcSide) && !isHorizontalSide(plan.tgtSide) &&
+        Math.abs(srcCx - tgtCx) < ALIGN_TOL) {
+      forcedOffset.set(`${plan.id}|src`, sharedX);
+      forcedOffset.set(`${plan.id}|tgt`, sharedX);
+    }
+    // Horizontal alignment → Left/Right sides → offset is the Y coordinate.
+    else if (isHorizontalSide(plan.srcSide) && isHorizontalSide(plan.tgtSide) &&
+             Math.abs(srcCy - tgtCy) < ALIGN_TOL) {
+      forcedOffset.set(`${plan.id}|src`, sharedY);
+      forcedOffset.set(`${plan.id}|tgt`, sharedY);
+    }
+  }
 
   // Equidistant placement along the full side: N endpoints sit at fractions
   // (i+1)/(N+1) of the side length, so the gap between consecutive endpoints
@@ -267,6 +298,9 @@ export function buildLiveRoutes(
   // the side's axis (Y for left/right sides, X for top/bottom sides). This
   // assigns the slot closest to the opposite node's position, which minimises
   // total arrow length and avoids crossings between parallel edges.
+  //
+  // Exception: aligned-node edges get their forced straight-line offset and
+  // are excluded from the equidistant distribution of regular slots.
   const slotOffset = new Map<string, number>();
   for (const slots of groups.values()) {
     const { nodeId, side } = slots[0];
@@ -276,7 +310,15 @@ export function buildLiveRoutes(
     const spanStart = horizontalSide ? rect.y : rect.x;
     const spanLen = horizontalSide ? rect.height : rect.width;
 
-    const ordered = [...slots].sort((a, b) => {
+    // Apply forced (straight-line) offsets immediately.
+    for (const slot of slots) {
+      const forced = forcedOffset.get(`${slot.id}|${slot.role}`);
+      if (forced !== undefined) slotOffset.set(`${slot.id}|${slot.role}`, forced);
+    }
+
+    // Distribute the remaining regular slots equidistantly.
+    const regular = slots.filter((s) => !forcedOffset.has(`${s.id}|${s.role}`));
+    const ordered = [...regular].sort((a, b) => {
       const coordOf = (slot: Slot): number => {
         const edge = edgeById.get(slot.id);
         if (!edge) return 0;
@@ -398,6 +440,15 @@ export async function elkLayout<N extends Node>(
   const positionById = new Map<string, { x: number; y: number }>();
   for (const child of laidOut.children ?? []) {
     positionById.set(child.id, { x: child.x ?? 0, y: child.y ?? 0 });
+  }
+
+  // Snap centers onto neighbor axes when it reduces bends on adjacent edges.
+  const aligned = alignPositionsForStraighterEdges(positionById, nodes, edges, {
+    nodeWidth,
+    nodeHeight,
+  });
+  for (const [id, pos] of aligned) {
+    positionById.set(id, pos);
   }
 
   const routes = new Map<string, Point[]>();

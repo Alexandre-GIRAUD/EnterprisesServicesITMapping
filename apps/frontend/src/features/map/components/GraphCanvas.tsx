@@ -36,6 +36,7 @@ import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
 import { ApplicationsTablePanel } from './ApplicationsTablePanel';
 import { layoutGraph } from './graphLayout';
 import { elkLayout } from './elkLayout';
+import { snapDraggedNodeForStraighterEdges } from './alignNodes';
 import { computeBridges } from './bridges';
 import { GraphLegend } from './GraphLegend';
 import { AppGraphNode, type AppGraphNodeType } from './AppGraphNode';
@@ -305,6 +306,22 @@ export function GraphCanvas() {
   );
   const handleNodeMouseLeave = useCallback(() => setHoveredId(null), []);
 
+  const handleNodeDragStop = useCallback(
+    (_event: MouseEvent | TouchEvent, _node: AppNode) => {
+      setNodes((prev) => {
+        const dragged = prev.find((n) => n.id === _node.id);
+        if (!dragged) return prev;
+        const snapped = snapDraggedNodeForStraighterEdges(dragged.id, prev, edges, {
+          nodeWidth: NODE_WIDTH,
+          nodeHeight: NODE_HEIGHT,
+        });
+        if (!snapped) return prev;
+        return prev.map((n) => (n.id === dragged.id ? { ...n, position: snapped } : n));
+      });
+    },
+    [edges, setNodes]
+  );
+
   function handleNodeCreated(created: ApplicationResponse) {
     setNodes((prev) => {
       if (prev.some((n) => n.id === created.id)) return prev;
@@ -461,6 +478,7 @@ export function GraphCanvas() {
               onNodeDoubleClick={handleNodeDoubleClick}
               onNodeMouseEnter={handleNodeMouseEnter}
               onNodeMouseLeave={handleNodeMouseLeave}
+              onNodeDragStop={handleNodeDragStop}
               onPaneClick={handlePaneClick}
               nodesDraggable
               nodesConnectable={false}

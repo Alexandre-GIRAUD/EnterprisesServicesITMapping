@@ -179,10 +179,44 @@ function distributedAnchor(
   allEdges: Edge[],
   nodeLookup: Map<string, InternalNode<Node>>
 ): Point {
+  const horizontalSide = side === Position.Left || side === Position.Right;
+
+  // Fast path: if this edge connects two nodes that are aligned (same X center
+  // for L/R sides, same Y center for T/B sides), return the straight anchor
+  // immediately — no distribution needed, the path must have zero bends.
+  const ALIGN_TOL = 6;
+  const currentEdge = allEdges.find((e) => e.id === edgeId);
+  if (currentEdge) {
+    const otherId = currentEdge.source === nodeId ? currentEdge.target : currentEdge.source;
+    const otherNode = nodeLookup.get(otherId);
+    const otherRect = otherNode ? rectOf(otherNode) : null;
+    if (otherRect) {
+      const myCx  = rect.x + rect.width  / 2;
+      const myCy  = rect.y + rect.height / 2;
+      const otCx  = otherRect.x + otherRect.width  / 2;
+      const otCy  = otherRect.y + otherRect.height / 2;
+      if (!horizontalSide && Math.abs(myCx - otCx) < ALIGN_TOL) {
+        // Vertically aligned → anchor at shared X center on Top/Bottom side.
+        const sharedX = (myCx + otCx) / 2;
+        return {
+          x: sharedX,
+          y: side === Position.Top ? rect.y : rect.y + rect.height,
+        };
+      }
+      if (horizontalSide && Math.abs(myCy - otCy) < ALIGN_TOL) {
+        // Horizontally aligned → anchor at shared Y center on Left/Right side.
+        const sharedY = (myCy + otCy) / 2;
+        return {
+          x: side === Position.Left ? rect.x : rect.x + rect.width,
+          y: sharedY,
+        };
+      }
+    }
+  }
+
   // Sort peers by the center coordinate of their opposite node along the side's
   // axis so each slot is assigned to the edge whose destination is spatially
   // aligned with it — minimises total arrow length and prevents crossings.
-  const horizontalSide = side === Position.Left || side === Position.Right;
   const peers = allEdges
     .filter((e) => sideOfEdgeAtNode(e, nodeId, nodeLookup) === side)
     .sort((a, b) => {
