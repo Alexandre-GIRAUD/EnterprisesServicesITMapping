@@ -152,6 +152,56 @@ function bestSides(
   return best;
 }
 
+/** Which side `edge` attaches to at `nodeId`, per the live bestSides choice. */
+function sideOfEdgeAtNode(
+  edge: Edge,
+  nodeId: string,
+  nodeLookup: Map<string, InternalNode<Node>>
+): Position | null {
+  const sourceRect = rectOf(nodeLookup.get(edge.source));
+  const targetRect = rectOf(nodeLookup.get(edge.target));
+  if (!sourceRect || !targetRect) return null;
+  const { sourcePos, targetPos } = bestSides(sourceRect, targetRect);
+  if (edge.source === nodeId) return sourcePos;
+  if (edge.target === nodeId) return targetPos;
+  return null;
+}
+
+/**
+ * Distributed anchor point for `edgeId` on a node side. All edges attaching to
+ * the same side of the same node are ordered by id and spread evenly along the
+ * side so no two endpoints share the same point — even while dragging.
+ */
+function distributedAnchor(
+  rect: Rect,
+  side: Position,
+  edgeId: string,
+  nodeId: string,
+  allEdges: Edge[],
+  nodeLookup: Map<string, InternalNode<Node>>
+): Point {
+  const peers = allEdges
+    .filter((e) => sideOfEdgeAtNode(e, nodeId, nodeLookup) === side)
+    .map((e) => e.id)
+    .sort();
+  const count = peers.length || 1;
+  const index = Math.max(0, peers.indexOf(edgeId));
+  const frac = (index + 1) / (count + 1);
+  const horizontalSide = side === Position.Left || side === Position.Right;
+  const span = horizontalSide ? rect.height : rect.width;
+  const margin = Math.min(14, span / 2 - 1);
+  if (horizontalSide) {
+    return {
+      x: side === Position.Left ? rect.x : rect.x + rect.width,
+      y: rect.y + margin + frac * (rect.height - 2 * margin),
+    };
+  }
+  return {
+    x: rect.x + margin + frac * (rect.width - 2 * margin),
+    y: side === Position.Top ? rect.y : rect.y + rect.height,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Label placement: node-overlap avoidance
 // ---------------------------------------------------------------------------
@@ -291,6 +341,7 @@ export function OrientedEdge({
     return hash;
   });
   const nodeLookup = useStore((s) => s.nodeLookup) as Map<string, InternalNode<Node>>;
+  const allEdges = useStore((s) => s.edges) as Edge[];
 
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
@@ -314,22 +365,12 @@ export function OrientedEdge({
   let liveTargetY = targetY;
 
   if (liveSides && srcRect && tgtRect) {
-    const srcMidX = srcRect.x + srcRect.width  / 2;
-    const srcMidY = srcRect.y + srcRect.height / 2;
-    const tgtMidX = tgtRect.x + tgtRect.width  / 2;
-    const tgtMidY = tgtRect.y + tgtRect.height / 2;
-    switch (liveSides.sourcePos) {
-      case Position.Right:  liveSourceX = srcRect.x + srcRect.width; liveSourceY = srcMidY; break;
-      case Position.Left:   liveSourceX = srcRect.x;                 liveSourceY = srcMidY; break;
-      case Position.Bottom: liveSourceX = srcMidX; liveSourceY = srcRect.y + srcRect.height; break;
-      case Position.Top:    liveSourceX = srcMidX; liveSourceY = srcRect.y; break;
-    }
-    switch (liveSides.targetPos) {
-      case Position.Left:   liveTargetX = tgtRect.x;                 liveTargetY = tgtMidY; break;
-      case Position.Right:  liveTargetX = tgtRect.x + tgtRect.width; liveTargetY = tgtMidY; break;
-      case Position.Top:    liveTargetX = tgtMidX; liveTargetY = tgtRect.y; break;
-      case Position.Bottom: liveTargetX = tgtMidX; liveTargetY = tgtRect.y + tgtRect.height; break;
-    }
+    const sa = distributedAnchor(srcRect, liveSides.sourcePos, id, source, allEdges, nodeLookup);
+    const ta = distributedAnchor(tgtRect, liveSides.targetPos, id, target, allEdges, nodeLookup);
+    liveSourceX = sa.x;
+    liveSourceY = sa.y;
+    liveTargetX = ta.x;
+    liveTargetY = ta.y;
   }
 
   const [fallbackPath] = getSmoothStepPath({
