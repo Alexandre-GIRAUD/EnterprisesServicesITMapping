@@ -105,28 +105,51 @@ function arcMidpoint(points: Point[]): Point {
 // Side selection for the getSmoothStepPath fallback during drag
 // ---------------------------------------------------------------------------
 
+type Rect = { x: number; y: number; width: number; height: number };
+
+const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left] as const;
+
+/** Anchor point at the middle of the given side of a node rect. */
+function anchorOf(rect: Rect, side: Position): Point {
+  const cx = rect.x + rect.width  / 2;
+  const cy = rect.y + rect.height / 2;
+  switch (side) {
+    case Position.Top:    return { x: cx,                   y: rect.y };
+    case Position.Bottom: return { x: cx,                   y: rect.y + rect.height };
+    case Position.Left:   return { x: rect.x,               y: cy };
+    case Position.Right:  return { x: rect.x + rect.width,  y: cy };
+    default:              return { x: cx,                   y: cy };
+  }
+}
+
 /**
- * Pick the handle side that faces the other node directly so the fallback path
- * exits from the correct face with at most one 90-degree bend.
+ * Choose the source/target sides whose border anchor points are closest to each
+ * other, i.e. the pair that minimizes the arrow length. Evaluates all 16
+ * side combinations (4 source × 4 target) and keeps the shortest. Picking the
+ * nearest faces naturally makes the arrow exit toward the other node, so the
+ * orthogonal path stays short with at most one bend.
  */
 function bestSides(
-  sourceRect: { x: number; y: number; width: number; height: number },
-  targetRect: { x: number; y: number; width: number; height: number }
+  sourceRect: Rect,
+  targetRect: Rect
 ): { sourcePos: Position; targetPos: Position } {
-  const srcCx = sourceRect.x + sourceRect.width  / 2;
-  const srcCy = sourceRect.y + sourceRect.height / 2;
-  const tgtCx = targetRect.x + targetRect.width  / 2;
-  const tgtCy = targetRect.y + targetRect.height / 2;
-  const dx = tgtCx - srcCx;
-  const dy = tgtCy - srcCy;
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    return dx >= 0
-      ? { sourcePos: Position.Right, targetPos: Position.Left }
-      : { sourcePos: Position.Left,  targetPos: Position.Right };
+  let best: { sourcePos: Position; targetPos: Position } = {
+    sourcePos: Position.Bottom,
+    targetPos: Position.Top,
+  };
+  let bestDist = Infinity;
+  for (const s of SIDES) {
+    const sa = anchorOf(sourceRect, s);
+    for (const t of SIDES) {
+      const ta = anchorOf(targetRect, t);
+      const dist = Math.hypot(ta.x - sa.x, ta.y - sa.y);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { sourcePos: s, targetPos: t };
+      }
+    }
   }
-  return dy >= 0
-    ? { sourcePos: Position.Bottom, targetPos: Position.Top }
-    : { sourcePos: Position.Top,    targetPos: Position.Bottom };
+  return best;
 }
 
 // ---------------------------------------------------------------------------
