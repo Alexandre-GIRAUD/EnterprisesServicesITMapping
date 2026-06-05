@@ -8,6 +8,107 @@ export type ElkLayoutResult<N extends Node> = {
   routes: Map<string, Point[]>;
 };
 
+type Rect = { x: number; y: number; width: number; height: number };
+
+const ALL_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left] as const;
+
+function isHorizontalSide(side: Position): boolean {
+  return side === Position.Left || side === Position.Right;
+}
+
+/** Anchor point at the middle of the given side of a node rect. */
+function sideAnchor(rect: Rect, side: Position): Point {
+  const cx = rect.x + rect.width / 2;
+  const cy = rect.y + rect.height / 2;
+  switch (side) {
+    case Position.Top:    return { x: cx,                  y: rect.y };
+    case Position.Bottom: return { x: cx,                  y: rect.y + rect.height };
+    case Position.Left:   return { x: rect.x,              y: cy };
+    case Position.Right:  return { x: rect.x + rect.width, y: cy };
+    default:              return { x: cx,                  y: cy };
+  }
+}
+
+/**
+ * Pick the source/target side pair whose border anchors are closest, i.e. the
+ * pair that minimizes the link length. Evaluates all 16 side combinations.
+ */
+function minLengthSides(src: Rect, tgt: Rect): { srcSide: Position; tgtSide: Position } {
+  let best = { srcSide: Position.Bottom, tgtSide: Position.Top };
+  let bestDist = Infinity;
+  for (const s of ALL_SIDES) {
+    const sa = sideAnchor(src, s);
+    for (const t of ALL_SIDES) {
+      const ta = sideAnchor(tgt, t);
+      const dist = Math.hypot(ta.x - sa.x, ta.y - sa.y);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { srcSide: s, tgtSide: t };
+      }
+    }
+  }
+  return best;
+}
+
+/** Build a minimal orthogonal polyline between two border anchors. */
+function orthogonalRoute(sa: Point, srcSide: Position, ta: Point, tgtSide: Position): Point[] {
+  const sHoriz = isHorizontalSide(srcSide);
+  const tHoriz = isHorizontalSide(tgtSide);
+  if (sHoriz && tHoriz) {
+    if (Math.abs(sa.y - ta.y) < 0.5) return [sa, ta];
+    const midX = (sa.x + ta.x) / 2;
+    return [sa, { x: midX, y: sa.y }, { x: midX, y: ta.y }, ta];
+  }
+  if (!sHoriz && !tHoriz) {
+    if (Math.abs(sa.x - ta.x) < 0.5) return [sa, ta];
+    const midY = (sa.y + ta.y) / 2;
+    return [sa, { x: sa.x, y: midY }, { x: ta.x, y: midY }, ta];
+  }
+  // Mixed orientation: single right-angle corner (leaves along the source side).
+  return sHoriz ? [sa, { x: ta.x, y: sa.y }, ta] : [sa, { x: sa.x, y: ta.y }, ta];
+}
+
+function polylineLength(points: Point[]): number {
+  let len = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    len += Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y);
+  }
+  return len;
+}
+
+/** Axis-aligned segment vs rect overlap test (rect expanded by `margin`). */
+function segmentHitsRect(a: Point, b: Point, r: Rect, margin: number): boolean {
+  const x0 = r.x - margin;
+  const y0 = r.y - margin;
+  const x1 = r.x + r.width + margin;
+  const y1 = r.y + r.height + margin;
+  if (Math.abs(a.y - b.y) < 0.5) {
+    if (a.y < y0 || a.y > y1) return false;
+    return Math.max(a.x, b.x) >= x0 && Math.min(a.x, b.x) <= x1;
+  }
+  if (Math.abs(a.x - b.x) < 0.5) {
+    if (a.x < x0 || a.x > x1) return false;
+    return Math.max(a.y, b.y) >= y0 && Math.min(a.y, b.y) <= y1;
+  }
+  return false;
+}
+
+/** True if no segment of `points` crosses a node other than the two endpoints. */
+function routeIsClear(
+  points: Point[],
+  rects: Map<string, Rect>,
+  skipSource: string,
+  skipTarget: string
+): boolean {
+  for (let i = 0; i < points.length - 1; i++) {
+    for (const [id, r] of rects) {
+      if (id === skipSource || id === skipTarget) continue;
+      if (segmentHitsRect(points[i], points[i + 1], r, 4)) return false;
+    }
+  }
+  return true;
+}
+
 export type ElkLayoutOptions = {
   nodeWidth?: number;
   nodeHeight?: number;
@@ -107,6 +208,37 @@ export async function elkLayout<N extends Node>(
       section.endPoint,
     ].map((p) => ({ x: p.x, y: p.y }));
     routes.set(edge.id, points);
+  }
+
+  // Re-anchor each link to the node sides (incl. left/right) that minimize its
+  // length, but only when the resulting clean orthogonal route is shorter than
+  // ELK's AND does not cross any other node (so ELK's node-avoidance is kept).
+  const rectById = new Map<string, Rect>();
+  for (const node of nodes) {
+    const p = positionById.get(node.id);
+    if (!p) continue;
+    rectById.set(node.id, {
+      x: p.x,
+      y: p.y,
+      width: node.width ?? nodeWidth,
+      height: node.height ?? nodeHeight,
+    });
+  }
+  for (const edge of edges) {
+    const srcRect = rectById.get(edge.source);
+    const tgtRect = rectById.get(edge.target);
+    if (!srcRect || !tgtRect) continue;
+    const { srcSide, tgtSide } = minLengthSides(srcRect, tgtRect);
+    const candidate = orthogonalRoute(
+      sideAnchor(srcRect, srcSide),
+      srcSide,
+      sideAnchor(tgtRect, tgtSide),
+      tgtSide
+    );
+    const elkRoute = routes.get(edge.id);
+    if (elkRoute && polylineLength(elkRoute) <= polylineLength(candidate)) continue;
+    if (!routeIsClear(candidate, rectById, edge.source, edge.target)) continue;
+    routes.set(edge.id, candidate);
   }
 
   // Build per-node edge lists to derive actual anchor directions.
