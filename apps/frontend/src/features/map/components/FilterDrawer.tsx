@@ -98,34 +98,30 @@ export function FilterDrawer({
   const buMode = dimensionMode(selectedBusinessUnitIds, buCatalog);
   const regionMode = dimensionMode(selectedRegionCodes, regionCatalog);
 
-  const appRootRef = useRef<HTMLInputElement | null>(null);
-  const buRootRef = useRef<HTMLInputElement | null>(null);
-  const regionRootRef = useRef<HTMLInputElement | null>(null);
   const detailSelectAllRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setView('root');
-      setSelectedApplicationIds(initialApplicationIds);
-      setSelectedBusinessUnitIds(initialBusinessUnitIds);
-      setSelectedRegionCodes(initialRegionCodes);
+      setSelectedApplicationIds(
+        initialApplicationIds.length > 0 ? initialApplicationIds : selectAllCatalog(appCatalog)
+      );
+      setSelectedBusinessUnitIds(
+        initialBusinessUnitIds.length > 0 ? initialBusinessUnitIds : selectAllCatalog(buCatalog)
+      );
+      setSelectedRegionCodes(
+        initialRegionCodes.length > 0 ? initialRegionCodes : selectAllCatalog(regionCatalog)
+      );
     }
-  }, [isOpen, initialApplicationIds, initialBusinessUnitIds, initialRegionCodes]);
-
-  useEffect(() => {
-    const el = appRootRef.current;
-    if (el) el.indeterminate = rootCheckboxState(appMode) === 'indeterminate';
-  }, [appMode]);
-
-  useEffect(() => {
-    const el = buRootRef.current;
-    if (el) el.indeterminate = rootCheckboxState(buMode) === 'indeterminate';
-  }, [buMode]);
-
-  useEffect(() => {
-    const el = regionRootRef.current;
-    if (el) el.indeterminate = rootCheckboxState(regionMode) === 'indeterminate';
-  }, [regionMode]);
+  }, [
+    isOpen,
+    initialApplicationIds,
+    initialBusinessUnitIds,
+    initialRegionCodes,
+    appCatalog,
+    buCatalog,
+    regionCatalog,
+  ]);
 
   const detailMode =
     view === 'applications' ? appMode : view === 'businessUnits' ? buMode : view === 'regions' ? regionMode : 'none';
@@ -148,9 +144,9 @@ export function FilterDrawer({
   }
 
   function onReset() {
-    setSelectedApplicationIds([]);
-    setSelectedBusinessUnitIds([]);
-    setSelectedRegionCodes([]);
+    setSelectedApplicationIds(selectAllCatalog(appCatalog));
+    setSelectedBusinessUnitIds(selectAllCatalog(buCatalog));
+    setSelectedRegionCodes(selectAllCatalog(regionCatalog));
     setView('root');
   }
 
@@ -178,10 +174,7 @@ export function FilterDrawer({
                   setSelectedApplicationIds((prev) => toggleSortedValue(prev, app.id))
                 }
               />
-              <span>
-                {app.name ?? app.id}
-                <span className="graph-filter-item-id">{app.id}</span>
-              </span>
+              <span>{app.name ?? app.id}</span>
             </label>
           ))}
         </div>
@@ -294,8 +287,10 @@ export function FilterDrawer({
             <div className="graph-filter-root-row">
               <label className="graph-filter-root-label">
                 <input
-                  ref={appRootRef}
                   type="checkbox"
+                  ref={(el) => {
+                    if (el) el.indeterminate = appMode === 'some';
+                  }}
                   checked={rootCheckboxState(appMode) === 'checked'}
                   onChange={() =>
                     setSelectedApplicationIds(
@@ -304,6 +299,7 @@ export function FilterDrawer({
                   }
                 />
                 <span>{DIMENSION_META.applications.rootLabel}</span>
+                {appMode === 'all' && <span className="graph-filter-all-badge">all</span>}
               </label>
               <button
                 type="button"
@@ -317,8 +313,10 @@ export function FilterDrawer({
             <div className="graph-filter-root-row">
               <label className="graph-filter-root-label">
                 <input
-                  ref={buRootRef}
                   type="checkbox"
+                  ref={(el) => {
+                    if (el) el.indeterminate = buMode === 'some';
+                  }}
                   checked={rootCheckboxState(buMode) === 'checked'}
                   onChange={() =>
                     setSelectedBusinessUnitIds(
@@ -327,6 +325,7 @@ export function FilterDrawer({
                   }
                 />
                 <span>{DIMENSION_META.businessUnits.rootLabel}</span>
+                {buMode === 'all' && <span className="graph-filter-all-badge">all</span>}
               </label>
               <button
                 type="button"
@@ -340,14 +339,17 @@ export function FilterDrawer({
             <div className="graph-filter-root-row">
               <label className="graph-filter-root-label">
                 <input
-                  ref={regionRootRef}
                   type="checkbox"
+                  ref={(el) => {
+                    if (el) el.indeterminate = regionMode === 'some';
+                  }}
                   checked={rootCheckboxState(regionMode) === 'checked'}
                   onChange={() =>
                     setSelectedRegionCodes(applyRootToggle(regionCatalog, selectedRegionCodes))
                   }
                 />
                 <span>{DIMENSION_META.regions.rootLabel}</span>
+                {regionMode === 'all' && <span className="graph-filter-all-badge">all</span>}
               </label>
               <button
                 type="button"

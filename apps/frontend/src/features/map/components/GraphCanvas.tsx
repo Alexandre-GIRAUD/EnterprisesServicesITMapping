@@ -240,7 +240,7 @@ export function GraphCanvas() {
       cyRef.current = null;
       window.removeEventListener('keydown', onEscape);
     };
-  }, [navigate, applicationIds, businessUnitIds, regionCodes, openApplicationDetails]);
+  }, [navigate, applicationIds, businessUnitIds, regionCodes, filtersActive, openApplicationDetails]);
 
   /** Keep Cytoscape sized to its flex container (viewport / drawer / responsive). */
   useEffect(() => {
