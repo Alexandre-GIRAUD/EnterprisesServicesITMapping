@@ -6,41 +6,26 @@ export type FocusSets = {
 };
 
 /**
- * Compute the focus neighborhood for a node: itself, all transitive ancestors
- * (following edges backward) and descendants (following edges forward), plus
- * every edge lying on those connecting paths.
+ * Compute the direct focus neighborhood for a node: itself plus every node
+ * reachable in exactly one hop (incoming or outgoing edge), and all those
+ * adjacent edges.
  *
- * Directed BFS in both orientations over an adjacency list built from `edges`.
- * Complexity O(V + E); each edge is visited at most once per direction.
+ * Only 1-hop neighbors are included so that the rest of the diagram dims
+ * while the immediate context of the focused node stays visible.
  */
 export function computeFocus(edges: Edge[], focusId: string): FocusSets {
-  const outgoing = new Map<string, Edge[]>();
-  const incoming = new Map<string, Edge[]>();
-  for (const edge of edges) {
-    (outgoing.get(edge.source) ?? outgoing.set(edge.source, []).get(edge.source)!).push(edge);
-    (incoming.get(edge.target) ?? incoming.set(edge.target, []).get(edge.target)!).push(edge);
-  }
-
   const nodeIds = new Set<string>([focusId]);
   const edgeIds = new Set<string>();
 
-  const walk = (adjacency: Map<string, Edge[]>, next: (e: Edge) => string) => {
-    const queue = [focusId];
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      for (const edge of adjacency.get(current) ?? []) {
-        edgeIds.add(edge.id);
-        const neighbor = next(edge);
-        if (!nodeIds.has(neighbor)) {
-          nodeIds.add(neighbor);
-          queue.push(neighbor);
-        }
-      }
+  for (const edge of edges) {
+    if (edge.source === focusId) {
+      edgeIds.add(edge.id);
+      nodeIds.add(edge.target);
+    } else if (edge.target === focusId) {
+      edgeIds.add(edge.id);
+      nodeIds.add(edge.source);
     }
-  };
-
-  walk(outgoing, (e) => e.target);
-  walk(incoming, (e) => e.source);
+  }
 
   return { nodeIds, edgeIds };
 }

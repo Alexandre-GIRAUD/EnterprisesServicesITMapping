@@ -1071,12 +1071,24 @@ body {
   background-color: #0a0a0a;
   border: 1.5px solid #3b82f6;
   box-shadow: none;
+  transition: box-shadow 180ms ease, border-color 180ms ease, transform 150ms ease;
+}
+
+.graph-canvas .react-flow__node:hover .graph-node-card {
+  transform: scale(1.08);
 }
 
 .react-flow__node.selected .graph-node-card {
   border-color: #60a5fa;
   border-width: 2.5px;
   box-shadow: 0 0 0 1px rgb(96 165 250 / 35%);
+}
+
+.graph-canvas .react-flow__node.is-focus .graph-node-card {
+  border-color: #93c5fd;
+  border-width: 2px;
+  background-color: #0f172a;
+  box-shadow: 0 0 0 3px rgb(96 165 250 / 55%), 0 0 24px rgb(96 165 250 / 35%);
 }
 
 .graph-node-card__label {
@@ -1120,23 +1132,32 @@ body {
   opacity: 1;
 }
 
-.graph-canvas .react-flow__edge {
+.graph-canvas .react-flow__node {
   transition: opacity 180ms ease;
 }
 
-/* Focus mode: dim everything unrelated, spotlight the connected paths. */
-.graph-canvas .react-flow__node.is-faded,
-.graph-canvas .react-flow__edge.is-faded {
-  opacity: 0.12;
+.graph-canvas .react-flow__edge {
+  transition: opacity 180ms ease, filter 180ms ease;
 }
 
-.graph-canvas .react-flow__node.is-focus,
+/* Focus mode: dim unrelated elements; spotlight node and its direct neighbors. */
+.graph-canvas .react-flow__node.is-faded,
+.graph-canvas .react-flow__edge.is-faded {
+  opacity: 0.2;
+}
+
+.graph-canvas .react-flow__node.is-focus {
+  opacity: 1;
+  z-index: 10 !important;
+}
+
 .graph-canvas .react-flow__edge.is-focus {
   opacity: 1;
 }
 
 .graph-canvas .react-flow__edge.is-focus .react-flow__edge-path {
   stroke-width: 2.5;
+  filter: drop-shadow(0 0 5px rgb(96 165 250 / 55%));
 }
 
 .oriented-edge-label {
@@ -1954,12 +1975,23 @@ body {
   background-color: #111827;
   border: 1.5px solid #52525b;
   text-align: left;
+  transition: box-shadow 180ms ease, border-color 180ms ease, transform 150ms ease;
+}
+
+.graph-canvas .react-flow__node:hover .module-node-card {
+  transform: scale(1.08);
 }
 
 .module-node-card--application {
   border-color: #38bdf8;
   border-width: 2px;
   background-color: #0a0a0a;
+}
+
+.graph-canvas .react-flow__node.is-focus .module-node-card {
+  border-color: #60a5fa;
+  background-color: #0f172a;
+  box-shadow: 0 0 0 3px rgb(96 165 250 / 55%), 0 0 24px rgb(96 165 250 / 35%);
 }
 
 /* 2 lines max: keeps node width fixed (no per-title resize). */

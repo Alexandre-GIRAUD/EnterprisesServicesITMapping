@@ -60,7 +60,9 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [hoverHint, setHoverHint] = useState<string | null>(null);
-  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [pinnedId, setPinnedId] = useState<string | null>(null);
+  const focusedId = hoveredId ?? pinnedId;
   const [legendNodeTypes, setLegendNodeTypes] = useState<NodeTypeKey[]>([]);
   const [legendEdgeTypes, setLegendEdgeTypes] = useState<EdgeTypeKey[]>([]);
 
@@ -201,13 +203,21 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
 
   const handleNodeMouseEnter = useCallback((_: ReactMouseEvent, node: ModuleNode) => {
     setHoverHint(buildNodeHoverHint(node.data.name ?? '', node.data.description ?? ''));
-    setFocusedId(node.id);
+    setHoveredId(node.id);
   }, []);
 
   const handleNodeMouseLeave = useCallback(() => {
     setHoverHint(null);
-    setFocusedId(null);
+    setHoveredId(null);
   }, []);
+
+  const handleNodeClick = useCallback(
+    (_: ReactMouseEvent, node: ModuleNode) =>
+      setPinnedId((prev) => (prev === node.id ? null : node.id)),
+    []
+  );
+
+  const handlePaneClick = useCallback(() => setPinnedId(null), []);
 
   const hintText = hoverHint ?? (status === 'ready' ? message : null);
 
@@ -244,8 +254,10 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
           onInit={(instance) => {
             rfRef.current = instance;
           }}
+          onNodeClick={handleNodeClick}
           onNodeMouseEnter={handleNodeMouseEnter}
           onNodeMouseLeave={handleNodeMouseLeave}
+          onPaneClick={handlePaneClick}
           nodesDraggable
           nodesConnectable={false}
           snapToGrid

@@ -102,7 +102,10 @@ export function GraphCanvas() {
   const [applicationIds, setApplicationIds] = useState<string[]>([]);
   const [businessUnitIds, setBusinessUnitIds] = useState<string[]>([]);
   const [regionCodes, setRegionCodes] = useState<string[]>([]);
-  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [pinnedId, setPinnedId] = useState<string | null>(null);
+  // Hover takes priority; if no hover, the pinned node keeps the highlight.
+  const focusedId = hoveredId ?? pinnedId;
   const filtersActive =
     year != null ||
     applicationIds.length > 0 ||
@@ -276,12 +279,16 @@ export function GraphCanvas() {
 
   const handleNodeClick = useCallback(
     (_: ReactMouseEvent, node: AppNode) => {
+      // Toggle pin: clicking the same node again releases the highlight lock.
+      setPinnedId((prev) => (prev === node.id ? null : node.id));
       if (node.data.nodeType === 'Application') {
         openApplicationDetails(node.id, node.data.label ?? node.id);
       }
     },
     [openApplicationDetails]
   );
+
+  const handlePaneClick = useCallback(() => setPinnedId(null), []);
 
   const handleNodeDoubleClick = useCallback(
     (_: ReactMouseEvent, node: AppNode) => {
@@ -293,10 +300,10 @@ export function GraphCanvas() {
   );
 
   const handleNodeMouseEnter = useCallback(
-    (_: ReactMouseEvent, node: AppNode) => setFocusedId(node.id),
+    (_: ReactMouseEvent, node: AppNode) => setHoveredId(node.id),
     []
   );
-  const handleNodeMouseLeave = useCallback(() => setFocusedId(null), []);
+  const handleNodeMouseLeave = useCallback(() => setHoveredId(null), []);
 
   function handleNodeCreated(created: ApplicationResponse) {
     setNodes((prev) => {
@@ -454,6 +461,7 @@ export function GraphCanvas() {
               onNodeDoubleClick={handleNodeDoubleClick}
               onNodeMouseEnter={handleNodeMouseEnter}
               onNodeMouseLeave={handleNodeMouseLeave}
+              onPaneClick={handlePaneClick}
               nodesDraggable
               nodesConnectable={false}
               elementsSelectable
