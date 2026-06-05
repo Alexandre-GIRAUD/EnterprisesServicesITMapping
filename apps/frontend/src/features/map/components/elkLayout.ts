@@ -8,7 +8,7 @@ export type ElkLayoutResult<N extends Node> = {
   routes: Map<string, Point[]>;
 };
 
-type Rect = { x: number; y: number; width: number; height: number };
+export type Rect = { x: number; y: number; width: number; height: number };
 
 const ALL_SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left] as const;
 
@@ -181,6 +181,172 @@ function distributeOffsets(
     result.push(chosen);
   }
   return result;
+}
+
+/** Push a border anchor outward along its side by `d` px. */
+function outwardStub(p: Point, side: Position, d: number): Point {
+  switch (side) {
+    case Position.Top:    return { x: p.x,     y: p.y - d };
+    case Position.Bottom: return { x: p.x,     y: p.y + d };
+    case Position.Left:   return { x: p.x - d, y: p.y };
+    case Position.Right:  return { x: p.x + d, y: p.y };
+    default:              return p;
+  }
+}
+
+/** Drop consecutive duplicate and collinear points from an orthogonal polyline. */
+function simplifyRoute(points: Point[]): Point[] {
+  const dedup: Point[] = [];
+  for (const p of points) {
+    const last = dedup[dedup.length - 1];
+    if (!last || Math.abs(last.x - p.x) > 0.5 || Math.abs(last.y - p.y) > 0.5) dedup.push(p);
+  }
+  const out: Point[] = [];
+  for (let i = 0; i < dedup.length; i++) {
+    if (i > 0 && i < dedup.length - 1) {
+      const a = dedup[i - 1];
+      const b = dedup[i];
+      const c = dedup[i + 1];
+      const collinear =
+        (Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - c.x) < 0.5) ||
+        (Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - c.y) < 0.5);
+      if (collinear) continue;
+    }
+    out.push(dedup[i]);
+  }
+  return out;
+}
+
+/**
+ * Orthogonal route between two border anchors that avoids every node except the
+ * two endpoints. Tries the direct route first, then stubbed L-routes, then
+ * detours around the bounding box of the blocking nodes. Best-effort: returns
+ * the shortest clear candidate, or the direct route if none is clear.
+ */
+function routeAvoidingNodes(
+  sa: Point,
+  srcSide: Position,
+  ta: Point,
+  tgtSide: Position,
+  rects: Map<string, Rect>,
+  skipSource: string,
+  skipTarget: string
+): Point[] {
+  const direct = orthogonalRoute(sa, srcSide, ta, tgtSide);
+  if (routeIsClear(direct, rects, skipSource, skipTarget)) return direct;
+
+  const STUB = 18;
+  const ps = outwardStub(sa, srcSide, STUB);
+  const pt = outwardStub(ta, tgtSide, STUB);
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let hasBlocker = false;
+  for (const [id, r] of rects) {
+    if (id === skipSource || id === skipTarget) continue;
+    for (let i = 0; i < direct.length - 1; i++) {
+      if (segmentHitsRect(direct[i], direct[i + 1], r, 4)) {
+        hasBlocker = true;
+        minX = Math.min(minX, r.x);
+        minY = Math.min(minY, r.y);
+        maxX = Math.max(maxX, r.x + r.width);
+        maxY = Math.max(maxY, r.y + r.height);
+        break;
+      }
+    }
+  }
+
+  const candidates: Point[][] = [
+    [sa, ps, { x: pt.x, y: ps.y }, pt, ta],
+    [sa, ps, { x: ps.x, y: pt.y }, pt, ta],
+  ];
+  if (hasBlocker) {
+    const M = 24;
+    const left = minX - M;
+    const right = maxX + M;
+    const top = minY - M;
+    const bottom = maxY + M;
+    candidates.push([sa, ps, { x: left, y: ps.y }, { x: left, y: pt.y }, pt, ta]);
+    candidates.push([sa, ps, { x: right, y: ps.y }, { x: right, y: pt.y }, pt, ta]);
+    candidates.push([sa, ps, { x: ps.x, y: top }, { x: pt.x, y: top }, pt, ta]);
+    candidates.push([sa, ps, { x: ps.x, y: bottom }, { x: pt.x, y: bottom }, pt, ta]);
+  }
+
+  let best: Point[] | null = null;
+  let bestLen = Infinity;
+  for (const candidate of candidates) {
+    if (!routeIsClear(candidate, rects, skipSource, skipTarget)) continue;
+    const len = polylineLength(candidate);
+    if (len < bestLen) {
+      bestLen = len;
+      best = candidate;
+    }
+  }
+  return best ?? direct;
+}
+
+/**
+ * Recompute node-avoiding orthogonal routes for every edge from the current
+ * node rectangles. Anchors are distributed along node sides so no two endpoints
+ * coincide. Used live while a node is dragged (the ELK route is then stale).
+ */
+export function buildLiveRoutes(
+  edges: { id: string; source: string; target: string }[],
+  rectById: Map<string, Rect>
+): Map<string, Point[]> {
+  const ENDPOINT_GAP = 12;
+  type Plan = { id: string; source: string; target: string; srcSide: Position; tgtSide: Position };
+  type Slot = { id: string; role: 'src' | 'tgt'; nodeId: string; side: Position };
+
+  const plans: Plan[] = [];
+  for (const e of edges) {
+    const srcRect = rectById.get(e.source);
+    const tgtRect = rectById.get(e.target);
+    if (!srcRect || !tgtRect) continue;
+    const { srcSide, tgtSide } = minLengthSides(srcRect, tgtRect);
+    plans.push({ id: e.id, source: e.source, target: e.target, srcSide, tgtSide });
+  }
+
+  const groups = new Map<string, Slot[]>();
+  const addSlot = (slot: Slot) => {
+    const key = `${slot.nodeId}|${slot.side}`;
+    const list = groups.get(key);
+    if (list) list.push(slot);
+    else groups.set(key, [slot]);
+  };
+  for (const plan of plans) {
+    addSlot({ id: plan.id, role: 'src', nodeId: plan.source, side: plan.srcSide });
+    addSlot({ id: plan.id, role: 'tgt', nodeId: plan.target, side: plan.tgtSide });
+  }
+  const slotOffset = new Map<string, number>();
+  for (const slots of groups.values()) {
+    const { nodeId, side } = slots[0];
+    const rect = rectById.get(nodeId);
+    if (!rect) continue;
+    const [start, end] = sideOffsetRange(rect, side);
+    const ordered = [...slots].sort((a, b) =>
+      a.id === b.id ? a.role.localeCompare(b.role) : a.id.localeCompare(b.id)
+    );
+    const offsets = distributeOffsets(start, end, ordered.length, [], ENDPOINT_GAP);
+    ordered.forEach((slot, i) => slotOffset.set(`${slot.id}|${slot.role}`, offsets[i]));
+  }
+
+  const routes = new Map<string, Point[]>();
+  for (const plan of plans) {
+    const srcRect = rectById.get(plan.source);
+    const tgtRect = rectById.get(plan.target);
+    if (!srcRect || !tgtRect) continue;
+    const sOff = slotOffset.get(`${plan.id}|src`);
+    const tOff = slotOffset.get(`${plan.id}|tgt`);
+    if (sOff === undefined || tOff === undefined) continue;
+    const sa = anchorAtOffset(srcRect, plan.srcSide, sOff);
+    const ta = anchorAtOffset(tgtRect, plan.tgtSide, tOff);
+    const route = routeAvoidingNodes(sa, plan.srcSide, ta, plan.tgtSide, rectById, plan.source, plan.target);
+    routes.set(plan.id, simplifyRoute(route));
+  }
+  return routes;
 }
 
 export type ElkLayoutOptions = {

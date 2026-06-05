@@ -11,8 +11,9 @@
   type Node,
 } from '@xyflow/react';
 import { ZOOM_THRESHOLDS } from './graphTheme';
-import type { Point } from './elkLayout';
+import { buildLiveRoutes, type Point, type Rect } from './elkLayout';
 import { buildOrthogonalPath } from './orthogonalPath';
+import { computeBridges } from './bridges';
 
 export type OrientedEdgeData = {
   sourceColor: string;
@@ -104,8 +105,6 @@ function arcMidpoint(points: Point[]): Point {
 // ---------------------------------------------------------------------------
 // Side selection for the getSmoothStepPath fallback during drag
 // ---------------------------------------------------------------------------
-
-type Rect = { x: number; y: number; width: number; height: number };
 
 const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left] as const;
 
@@ -308,6 +307,68 @@ function safeLabelPos(
 }
 
 // ---------------------------------------------------------------------------
+// Live (drag-time) routing: node-avoiding routes + line-jump bridges
+// ---------------------------------------------------------------------------
+
+/** Current node rectangles keyed by id, from the live React Flow store. */
+function buildRectById(nodeLookup: Map<string, InternalNode<Node>>): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const [id, node] of nodeLookup) {
+    const rect = rectOf(node);
+    if (rect) rects.set(id, rect);
+  }
+  return rects;
+}
+
+/** True once any edge's stored ELK route no longer matches current positions. */
+function anyRouteStale(allEdges: Edge[], rectById: Map<string, Rect>): boolean {
+  for (const edge of allEdges) {
+    const data = edge.data as OrientedEdgeData | undefined;
+    if (!data?.routeStart || !data?.routeEnd) continue;
+    const srcRect = rectById.get(edge.source);
+    const tgtRect = rectById.get(edge.target);
+    if (!srcRect || !tgtRect) continue;
+    if (
+      pointRectDistance(data.routeStart, srcRect) > BORDER_TOLERANCE ||
+      pointRectDistance(data.routeEnd, tgtRect) > BORDER_TOLERANCE
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+type LiveBundle = { routes: Map<string, Point[]>; jumps: Map<string, Point[]> };
+let liveCache: { key: string; bundle: LiveBundle } | null = null;
+
+/** Deterministic key over edge ids + node geometry so all edges share one compute. */
+function liveKey(allEdges: Edge[], rectById: Map<string, Rect>): string {
+  const edgePart = allEdges
+    .map((e) => `${e.id}:${e.source}>${e.target}`)
+    .sort()
+    .join(',');
+  const nodePart = [...rectById.entries()]
+    .map(([id, r]) => `${id}:${Math.round(r.x)},${Math.round(r.y)},${r.width},${r.height}`)
+    .sort()
+    .join(',');
+  return `${edgePart}|${nodePart}`;
+}
+
+/** Memoized live routes + bridges, recomputed only when geometry changes. */
+function getLiveBundle(allEdges: Edge[], rectById: Map<string, Rect>): LiveBundle {
+  const key = liveKey(allEdges, rectById);
+  if (liveCache && liveCache.key === key) return liveCache.bundle;
+  const routes = buildLiveRoutes(
+    allEdges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
+    rectById
+  );
+  const jumps = computeBridges(routes);
+  const bundle: LiveBundle = { routes, jumps };
+  liveCache = { key, bundle };
+  return bundle;
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -346,7 +407,16 @@ export function OrientedEdge({
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
 
+  // While any node is being dragged the stored ELK routes are stale: recompute
+  // node-avoiding routes + bridges for the whole graph so arrows never cross
+  // over nodes and hop over each other at crossings.
+  const rectById = buildRectById(nodeLookup);
+  const liveActive = anyRouteStale(allEdges, rectById);
+  const liveBundle = liveActive ? getLiveBundle(allEdges, rectById) : null;
+  const liveRoute = liveBundle?.routes.get(id);
+
   const routeUsable =
+    !liveActive &&
     Boolean(data?.bendPoints) &&
     endpointValid(data?.routeStart, sourceNode) &&
     endpointValid(data?.routeEnd, targetNode);
@@ -394,7 +464,12 @@ export function OrientedEdge({
     { x: liveTargetX, y: liveTargetY },
   ];
 
-  if (routeUsable && data?.routeStart && data?.routeEnd) {
+  if (liveActive && liveRoute && liveRoute.length >= 2) {
+    pathPoints   = liveRoute;
+    edgePath     = buildOrthogonalPath(pathPoints, CORNER_RADIUS, liveBundle?.jumps.get(id) ?? [], HOP_RADIUS);
+    gradientFrom = liveRoute[0];
+    gradientTo   = liveRoute[liveRoute.length - 1];
+  } else if (routeUsable && data?.routeStart && data?.routeEnd) {
     pathPoints  = [data.routeStart, ...(data.bendPoints ?? []), data.routeEnd];
     edgePath    = buildOrthogonalPath(pathPoints, CORNER_RADIUS, data.jumps ?? [], HOP_RADIUS);
     gradientFrom = data.routeStart;
