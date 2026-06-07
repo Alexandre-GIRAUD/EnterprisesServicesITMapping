@@ -10,6 +10,7 @@ import {
 } from './filterDimensionUtils';
 
 export type GraphFilters = {
+  year: number | null;
   applicationIds: string[];
   businessUnitIds: string[];
   regionCodes: string[];
@@ -21,6 +22,7 @@ type FilterDrawerProps = {
   applications: ApplicationResponse[];
   businessUnits: BusinessUnitListItem[];
   regions: RegionSummary[];
+  initialYear: number | null;
   initialApplicationIds: string[];
   initialBusinessUnitIds: string[];
   initialRegionCodes: string[];
@@ -62,12 +64,14 @@ export function FilterDrawer({
   applications,
   businessUnits,
   regions,
+  initialYear,
   initialApplicationIds,
   initialBusinessUnitIds,
   initialRegionCodes,
   onApply,
 }: FilterDrawerProps) {
   const [view, setView] = useState<FilterView>('root');
+  const [year, setYear] = useState<number | null>(initialYear);
   const [selectedApplicationIds, setSelectedApplicationIds] = useState(initialApplicationIds);
   const [selectedBusinessUnitIds, setSelectedBusinessUnitIds] = useState(initialBusinessUnitIds);
   const [selectedRegionCodes, setSelectedRegionCodes] = useState(initialRegionCodes);
@@ -103,6 +107,7 @@ export function FilterDrawer({
   useEffect(() => {
     if (isOpen) {
       setView('root');
+      setYear(initialYear);
       setSelectedApplicationIds(
         initialApplicationIds.length > 0 ? initialApplicationIds : selectAllCatalog(appCatalog)
       );
@@ -115,6 +120,7 @@ export function FilterDrawer({
     }
   }, [
     isOpen,
+    initialYear,
     initialApplicationIds,
     initialBusinessUnitIds,
     initialRegionCodes,
@@ -136,6 +142,7 @@ export function FilterDrawer({
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     onApply({
+      year,
       applicationIds: toApiFilterList(selectedApplicationIds, appCatalog) ?? [],
       businessUnitIds: toApiFilterList(selectedBusinessUnitIds, buCatalog) ?? [],
       regionCodes: toApiFilterList(selectedRegionCodes, regionCatalog) ?? [],
@@ -144,6 +151,7 @@ export function FilterDrawer({
   }
 
   function onReset() {
+    setYear(null);
     setSelectedApplicationIds(selectAllCatalog(appCatalog));
     setSelectedBusinessUnitIds(selectAllCatalog(buCatalog));
     setSelectedRegionCodes(selectAllCatalog(regionCatalog));
@@ -284,6 +292,22 @@ export function FilterDrawer({
       <form className="graph-drawer-form graph-filter-form" onSubmit={onSubmit}>
         {view === 'root' ? (
           <div className="graph-filter-root-list" role="group" aria-label="Types de filtres">
+            <label className="graph-drawer-field graph-filter-year-field">
+              <span className="graph-drawer-field-label">Year</span>
+              <input
+                className="graph-drawer-input"
+                type="number"
+                inputMode="numeric"
+                placeholder="Toutes les années"
+                value={year ?? ''}
+                min={1970}
+                max={2100}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  setYear(v === '' ? null : Number(v));
+                }}
+              />
+            </label>
             <div className="graph-filter-root-row">
               <label className="graph-filter-root-label">
                 <input

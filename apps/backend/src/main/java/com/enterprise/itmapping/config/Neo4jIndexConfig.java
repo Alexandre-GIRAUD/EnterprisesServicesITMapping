@@ -8,8 +8,8 @@ import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Component;
 
 /**
- * Creates indexes for temporal queries. Run once at startup (idempotent with IF NOT EXISTS).
- * Optimizes getGraphAtDate and other validAt filters for large graphs.
+ * Creates indexes for graph queries. Run once at startup (idempotent with IF NOT EXISTS).
+ * Optimizes id lookups and {@code year} filters for large graphs.
  */
 @Component
 public class Neo4jIndexConfig implements ApplicationRunner {
@@ -17,14 +17,10 @@ public class Neo4jIndexConfig implements ApplicationRunner {
   private static final Logger log = LoggerFactory.getLogger(Neo4jIndexConfig.class);
 
   private static final String[] INDEX_STATEMENTS = {
-      "CREATE RANGE INDEX application_valid_from IF NOT EXISTS FOR (n:Application) ON (n.validFrom)",
-      "CREATE RANGE INDEX application_valid_to IF NOT EXISTS FOR (n:Application) ON (n.validTo)",
       "CREATE RANGE INDEX application_id IF NOT EXISTS FOR (n:Application) ON (n.id)",
-      "CREATE RANGE INDEX version_snapshot_valid_from IF NOT EXISTS FOR (n:VersionSnapshot) ON (n.validFrom)",
-      "CREATE RANGE INDEX version_snapshot_valid_to IF NOT EXISTS FOR (n:VersionSnapshot) ON (n.validTo)",
+      "CREATE RANGE INDEX application_year IF NOT EXISTS FOR (n:Application) ON (n.year)",
       "CREATE RANGE INDEX module_id IF NOT EXISTS FOR (n:Module) ON (n.id)",
-      "CREATE RANGE INDEX module_valid_from IF NOT EXISTS FOR (n:Module) ON (n.validFrom)",
-      "CREATE RANGE INDEX module_valid_to IF NOT EXISTS FOR (n:Module) ON (n.validTo)",
+      "CREATE RANGE INDEX module_year IF NOT EXISTS FOR (n:Module) ON (n.year)",
   };
 
   private final Neo4jClient neo4jClient;

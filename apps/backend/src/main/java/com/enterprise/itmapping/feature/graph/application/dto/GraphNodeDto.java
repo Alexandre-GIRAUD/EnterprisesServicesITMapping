@@ -7,9 +7,8 @@ public record GraphNodeDto(
     String id,
     String label,
     String type,
-    TemporalDto temporal,
+    /** Reference year of the node (Application/Module); omitted when null. */
+    Integer year,
     /** Neo4j node property; populated on module-graph only (omitted when null). */
     String description
-) {
-  public record TemporalDto(String validFrom, String validTo) {}
-}
+) {}

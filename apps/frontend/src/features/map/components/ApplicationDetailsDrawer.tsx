@@ -55,8 +55,7 @@ export function ApplicationDetailsDrawer({
   const [formState, setFormState] = useState({
     name: '',
     description: '',
-    validFrom: '',
-    validTo: '',
+    year: '',
     businessUnitId: '',
     regionCodes: [] as string[],
   });
@@ -80,8 +79,7 @@ export function ApplicationDetailsDrawer({
         setFormState({
           name: data.name ?? '',
           description: data.description ?? '',
-          validFrom: isoToDateTimeLocal(data.validFrom),
-          validTo: isoToDateTimeLocal(data.validTo),
+          year: data.year != null ? String(data.year) : '',
           businessUnitId: data.businessUnit?.id ?? '',
           regionCodes: regionCodesFromDetail(data),
         });
@@ -140,10 +138,9 @@ export function ApplicationDetailsDrawer({
       ? details.description
       : 'Description non renseignée.';
 
-  const validFromText = useMemo(() => formatIsoDate(details?.validFrom), [details?.validFrom]);
-  const validToText = useMemo(
-    () => (details?.validTo ? formatIsoDate(details.validTo) : 'Toujours actif'),
-    [details?.validTo]
+  const yearText = useMemo(
+    () => (details?.year != null ? String(details.year) : 'Non renseigné'),
+    [details?.year]
   );
 
   async function onSave(event: FormEvent<HTMLFormElement>) {
@@ -156,18 +153,21 @@ export function ApplicationDetailsDrawer({
       return;
     }
 
-    const validFromDate = formState.validFrom ? new Date(formState.validFrom) : null;
-    const validToDate = formState.validTo ? new Date(formState.validTo) : null;
-    if (validFromDate && validToDate && validToDate.getTime() < validFromDate.getTime()) {
-      setFormErrorMessage('Valid to doit être supérieur ou égal à validFrom.');
-      return;
+    const yearTrimmed = formState.year.trim();
+    let yearValue: number | undefined;
+    if (yearTrimmed) {
+      const parsed = Number(yearTrimmed);
+      if (!Number.isInteger(parsed) || parsed < 1970 || parsed > 2100) {
+        setFormErrorMessage('Year doit être un entier valide (1970–2100).');
+        return;
+      }
+      yearValue = parsed;
     }
 
     const payload: ApplicationRequest = {
       name,
       description: formState.description.trim() || '',
-      validFrom: formState.validFrom ? new Date(formState.validFrom).toISOString() : undefined,
-      validTo: formState.validTo ? new Date(formState.validTo).toISOString() : null,
+      year: yearValue,
     };
 
     const buIdTrimmed = formState.businessUnitId.trim();
@@ -185,8 +185,7 @@ export function ApplicationDetailsDrawer({
       setFormState({
         name: refreshed.name ?? '',
         description: refreshed.description ?? '',
-        validFrom: isoToDateTimeLocal(refreshed.validFrom),
-        validTo: isoToDateTimeLocal(refreshed.validTo),
+        year: refreshed.year != null ? String(refreshed.year) : '',
         businessUnitId: refreshed.businessUnit?.id ?? '',
         regionCodes: regionCodesFromDetail(refreshed),
       });
@@ -209,8 +208,7 @@ export function ApplicationDetailsDrawer({
     setFormState({
       name: details.name ?? '',
       description: details.description ?? '',
-      validFrom: isoToDateTimeLocal(details.validFrom),
-      validTo: isoToDateTimeLocal(details.validTo),
+      year: details.year != null ? String(details.year) : '',
       businessUnitId: details.businessUnit?.id ?? '',
       regionCodes: regionCodesFromDetail(details),
     });
@@ -332,13 +330,8 @@ export function ApplicationDetailsDrawer({
               </section>
 
               <section className="graph-details-section">
-                <h3 className="graph-details-section-title">Validité</h3>
-                <p className="graph-details-text">
-                  <strong>Valid from:</strong> {validFromText}
-                </p>
-                <p className="graph-details-text">
-                  <strong>Valid to:</strong> {validToText}
-                </p>
+                <h3 className="graph-details-section-title">Year</h3>
+                <p className="graph-details-text">{yearText}</p>
               </section>
             </>
           ) : (
@@ -416,25 +409,17 @@ export function ApplicationDetailsDrawer({
                 )}
               </fieldset>
               <label className="graph-drawer-field">
-                <span className="graph-drawer-field-label">validFrom</span>
+                <span className="graph-drawer-field-label">Year</span>
                 <input
                   className="graph-drawer-input"
-                  type="datetime-local"
-                  value={formState.validFrom}
+                  type="number"
+                  inputMode="numeric"
+                  min={1970}
+                  max={2100}
+                  placeholder="Ex: 2025"
+                  value={formState.year}
                   onChange={(e) =>
-                    setFormState((prev) => ({ ...prev, validFrom: e.target.value }))
-                  }
-                  disabled={isSaving || isDeleting}
-                />
-              </label>
-              <label className="graph-drawer-field">
-                <span className="graph-drawer-field-label">validTo</span>
-                <input
-                  className="graph-drawer-input"
-                  type="datetime-local"
-                  value={formState.validTo}
-                  onChange={(e) =>
-                    setFormState((prev) => ({ ...prev, validTo: e.target.value }))
+                    setFormState((prev) => ({ ...prev, year: e.target.value }))
                   }
                   disabled={isSaving || isDeleting}
                 />
@@ -613,8 +598,7 @@ export function ApplicationDetailsDrawer({
               setFormState({
                 name: details.name ?? '',
                 description: details.description ?? '',
-                validFrom: isoToDateTimeLocal(details.validFrom),
-                validTo: isoToDateTimeLocal(details.validTo),
+                year: details.year != null ? String(details.year) : '',
                 businessUnitId: details.businessUnit?.id ?? '',
                 regionCodes: regionCodesFromDetail(details),
               });
@@ -627,24 +611,6 @@ export function ApplicationDetailsDrawer({
       </div>
     </aside>
   );
-}
-
-function formatIsoDate(value?: string | null): string {
-  if (!value) return 'Non renseigné';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('fr-FR', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
-}
-
-function isoToDateTimeLocal(value?: string | null): string {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
 }
 
 function regionCodesFromDetail(data: ApplicationResponse): string[] {

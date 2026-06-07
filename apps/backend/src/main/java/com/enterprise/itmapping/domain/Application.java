@@ -1,6 +1,5 @@
 package com.enterprise.itmapping.domain;
 
-import java.time.Instant;
 import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
@@ -15,8 +14,7 @@ public class Application {
 
   private String name;
   private String description;
-  private Instant validFrom;
-  private Instant validTo;
+  private Integer year;
 
   public String getId() {
     return id;
@@ -42,19 +40,11 @@ public class Application {
     this.description = description;
   }
 
-  public Instant getValidFrom() {
-    return validFrom;
+  public Integer getYear() {
+    return year;
   }
 
-  public void setValidFrom(Instant validFrom) {
-    this.validFrom = validFrom;
-  }
-
-  public Instant getValidTo() {
-    return validTo;
-  }
-
-  public void setValidTo(Instant validTo) {
-    this.validTo = validTo;
+  public void setYear(Integer year) {
+    this.year = year;
   }
 }

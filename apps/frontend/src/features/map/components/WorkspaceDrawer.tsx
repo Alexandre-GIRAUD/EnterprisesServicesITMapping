@@ -23,31 +23,25 @@ type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-bu-form';
 type AddNodeFormState = {
   name: string;
   description: string;
-  validFrom: string;
-  validTo: string;
+  year: string;
 };
 
 const DEFAULT_FORM_STATE: AddNodeFormState = {
   name: '',
   description: '',
-  validFrom: '',
-  validTo: '',
+  year: '',
 };
 
 type AddEdgeFormState = {
   sourceQuery: string;
   targetQuery: string;
   type: string;
-  validFrom: string;
-  validTo: string;
 };
 
 const DEFAULT_EDGE_FORM_STATE: AddEdgeFormState = {
   sourceQuery: '',
   targetQuery: '',
   type: 'DEPENDS_ON',
-  validFrom: '',
-  validTo: '',
 };
 
 type AddBuFormState = {
@@ -314,11 +308,21 @@ export function WorkspaceDrawer({
       return;
     }
 
+    const yearTrimmed = nodeFormState.year.trim();
+    let yearValue: number | undefined;
+    if (yearTrimmed) {
+      const parsed = Number(yearTrimmed);
+      if (!Number.isInteger(parsed) || parsed < 1970 || parsed > 2100) {
+        setLocalError('Year doit être un entier valide (1970–2100).');
+        return;
+      }
+      yearValue = parsed;
+    }
+
     const created = await createNode({
       name: normalizedName,
       description: nodeFormState.description.trim() || undefined,
-      validFrom: nodeFormState.validFrom,
-      validTo: nodeFormState.validTo,
+      year: yearValue,
     });
 
     if (!created) return;
@@ -349,8 +353,6 @@ export function WorkspaceDrawer({
       sourceId,
       targetId,
       type,
-      validFrom: edgeFormState.validFrom,
-      validTo: edgeFormState.validTo,
     });
     if (!created) return;
 
@@ -395,7 +397,7 @@ export function WorkspaceDrawer({
               {view === 'menu'
                 ? 'Préparez vos prochaines opérations depuis un panneau latéral sobre et moderne.'
                 : view === 'add-node-form'
-                  ? 'Créez un nœud Application avec les attributs temporels attendus.'
+                  ? 'Créez un nœud Application (nom, description, année).'
                   : view === 'add-edge-form'
                     ? 'Créez une relation typée entre deux nœuds déjà visibles dans le graphe.'
                     : 'Créez une business unit (regroupement au-dessus des applications).'}
@@ -473,22 +475,16 @@ export function WorkspaceDrawer({
           </label>
 
           <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">validFrom</span>
+            <span className="graph-drawer-field-label">Year</span>
             <input
               className="graph-drawer-input"
-              type="datetime-local"
-              value={nodeFormState.validFrom}
-              onChange={(e) => updateNodeField('validFrom', e.target.value)}
-            />
-          </label>
-
-          <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">validTo</span>
-            <input
-              className="graph-drawer-input"
-              type="datetime-local"
-              value={nodeFormState.validTo}
-              onChange={(e) => updateNodeField('validTo', e.target.value)}
+              type="number"
+              inputMode="numeric"
+              min={1970}
+              max={2100}
+              placeholder="Ex: 2025"
+              value={nodeFormState.year}
+              onChange={(e) => updateNodeField('year', e.target.value)}
             />
           </label>
 
@@ -686,26 +682,6 @@ export function WorkspaceDrawer({
               onChange={(e) => updateEdgeField('type', e.target.value)}
               required
               placeholder="DEPENDS_ON"
-            />
-          </label>
-
-          <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">validFrom</span>
-            <input
-              className="graph-drawer-input"
-              type="datetime-local"
-              value={edgeFormState.validFrom}
-              onChange={(e) => updateEdgeField('validFrom', e.target.value)}
-            />
-          </label>
-
-          <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">validTo</span>
-            <input
-              className="graph-drawer-input"
-              type="datetime-local"
-              value={edgeFormState.validTo}
-              onChange={(e) => updateEdgeField('validTo', e.target.value)}
             />
           </label>
 

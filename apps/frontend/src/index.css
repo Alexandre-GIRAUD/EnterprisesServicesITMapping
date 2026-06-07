@@ -1014,6 +1014,12 @@ body {
   margin-left: 0.4rem;
 }
 
+.graph-filter-year-field {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+
 .graph-canvas {
   width: 100%;
   /* fill the viewport below header (~56px) + toolbar (~60px) + layout padding (~48px) */

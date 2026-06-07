@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ModuleGraphLoader;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeProjection;
-import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,19 +23,18 @@ class ModuleGraphServiceTest {
 
   @Test
   void getModuleGraphIncludesDescriptionOnApplicationAndModuleNodes() {
-    Instant vf = Instant.parse("2025-01-01T00:00:00Z");
-    when(moduleGraphLoader.applicationExistsValidAt(eq("app-1"), any())).thenReturn(true);
-    when(moduleGraphLoader.loadNodes(eq("app-1"), any()))
+    when(moduleGraphLoader.applicationExists(eq("app-1"))).thenReturn(true);
+    when(moduleGraphLoader.loadNodes(eq("app-1")))
         .thenReturn(
             List.of(
                 new ModuleGraphNodeRow(
-                    "app-1", "Portail", "Interface web B2B", vf, null, "Application"),
+                    "app-1", "Portail", "Interface web B2B", 2025, "Application"),
                 new ModuleGraphNodeRow(
-                    "mod-1", "UI SPA", "Interface utilisateur", vf, null, "Module")));
-    when(moduleGraphLoader.loadEdges(eq("app-1"), any()))
+                    "mod-1", "UI SPA", "Interface utilisateur", 2025, "Module")));
+    when(moduleGraphLoader.loadEdges(eq("app-1")))
         .thenReturn(List.of(new GraphEdgeProjection("app-1", "mod-1", "CONTAINS")));
 
-    var graph = moduleGraphService.getModuleGraph("app-1", null).orElseThrow();
+    var graph = moduleGraphService.getModuleGraph("app-1").orElseThrow();
 
     assertThat(graph.nodes()).hasSize(2);
     var app =
@@ -49,15 +47,15 @@ class ModuleGraphServiceTest {
 
   @Test
   void getModuleGraphOmitsBlankDescription() {
-    when(moduleGraphLoader.applicationExistsValidAt(any(), any())).thenReturn(true);
-    when(moduleGraphLoader.loadNodes(any(), any()))
+    when(moduleGraphLoader.applicationExists(any())).thenReturn(true);
+    when(moduleGraphLoader.loadNodes(any()))
         .thenReturn(
             List.of(
-                new ModuleGraphNodeRow("m1", "M", "  ", Instant.now(), null, "Module")));
-    when(moduleGraphLoader.loadEdges(any(), any())).thenReturn(List.of());
+                new ModuleGraphNodeRow("m1", "M", "  ", 2025, "Module")));
+    when(moduleGraphLoader.loadEdges(any())).thenReturn(List.of());
 
     var mod =
-        moduleGraphService.getModuleGraph("app-1", null).orElseThrow().nodes().getFirst();
+        moduleGraphService.getModuleGraph("app-1").orElseThrow().nodes().getFirst();
     assertThat(mod.description()).isNull();
   }
 }

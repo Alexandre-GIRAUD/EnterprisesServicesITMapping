@@ -1,6 +1,5 @@
 package com.enterprise.itmapping.feature.applications.application;
 
-import com.enterprise.itmapping.common.Neo4jTemporalParameters;
 import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload;
 import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload.AiModuleEntry;
 import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload.AiRelationshipEntry;
@@ -17,7 +16,6 @@ import com.enterprise.itmapping.feature.integrations.github.GithubTreePathFilter
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -233,8 +231,7 @@ public class ModuleSuggestionService {
     }
 
     Map<String, String> slugToNeoId = new LinkedHashMap<>();
-    Instant now = Instant.now();
-    var vf = Neo4jTemporalParameters.toNeo4j(now);
+    Integer moduleYear = appRow.getYear();
 
     for (Map.Entry<String, AiModuleEntry> e : acceptedBySlug.entrySet()) {
       String neoId = UUID.randomUUID().toString();
@@ -244,19 +241,17 @@ public class ModuleSuggestionService {
         desc = "Module suggere (IA) — " + e.getKey();
       }
 
+      Map<String, Object> params = new HashMap<>();
+      params.put("id", neoId);
+      params.put("name", e.getValue().getBusinessName());
+      params.put("desc", desc);
+      params.put("year", moduleYear);
       neo4jClient
           .query(
               """
-              CREATE (m:Module {id: $id, name: $name, description: $desc, validFrom: $vf, validTo: null})
+              CREATE (m:Module {id: $id, name: $name, description: $desc, year: $year})
               """)
-          .bind(neoId)
-          .to("id")
-          .bind(e.getValue().getBusinessName())
-          .to("name")
-          .bind(desc)
-          .to("desc")
-          .bind(vf)
-          .to("vf")
+          .bindAll(params)
           .run();
 
       created.add(new CreatedItem(neoId, e.getKey(), e.getValue().getBusinessName()));
@@ -264,48 +259,44 @@ public class ModuleSuggestionService {
 
     for (String slug : acceptedBySlug.keySet()) {
       if (!children.contains(slug)) {
-        linkApplicationContains(applicationId, slugToNeoId.get(slug), vf);
+        linkApplicationContains(applicationId, slugToNeoId.get(slug));
       }
     }
 
     for (Rel rel : relsAccepted) {
-      linkModuleContains(slugToNeoId.get(rel.parent()), slugToNeoId.get(rel.child()), vf);
+      linkModuleContains(slugToNeoId.get(rel.parent()), slugToNeoId.get(rel.child()));
     }
 
     return new SuggestModulesFromGithubResponse(List.copyOf(created), List.copyOf(skipped));
   }
 
-  private void linkApplicationContains(String applicationId, String moduleNeoId, java.time.ZonedDateTime vf) {
+  private void linkApplicationContains(String applicationId, String moduleNeoId) {
     neo4jClient
         .query(
             """
             MATCH (a:Application {id: $appId})
             MATCH (m:Module {id: $mid})
-            CREATE (a)-[:CONTAINS {validFrom: $vf, validTo: null}]->(m)
+            CREATE (a)-[:CONTAINS]->(m)
             """)
         .bind(applicationId)
         .to("appId")
         .bind(moduleNeoId)
         .to("mid")
-        .bind(vf)
-        .to("vf")
         .run();
   }
 
-  private void linkModuleContains(String parentNeoId, String childNeoId, java.time.ZonedDateTime vf) {
+  private void linkModuleContains(String parentNeoId, String childNeoId) {
     neo4jClient
         .query(
             """
             MATCH (p:Module {id: $pid})
             MATCH (c:Module {id: $cid})
-            CREATE (p)-[:CONTAINS {validFrom: $vf, validTo: null}]->(c)
+            CREATE (p)-[:CONTAINS]->(c)
             """)
         .bind(parentNeoId)
         .to("pid")
         .bind(childNeoId)
         .to("cid")
-        .bind(vf)
-        .to("vf")
         .run();
   }
 

@@ -2,66 +2,58 @@ CREATE (portal:Application {
   id: $portalId,
   name: 'Portail client',
   description: 'Interface web B2B',
-  validFrom: $vf,
-  validTo: null
+  year: 2025
 })
 CREATE (gateway:Application {
   id: $gatewayId,
   name: 'API Gateway',
   description: "Point d'entrée HTTP",
-  validFrom: $vf,
-  validTo: null
+  year: 2024
 })
 CREATE (orders:Application {
   id: $ordersId,
   name: 'Service commandes',
   description: 'Orchestration des commandes',
-  validFrom: $vf,
-  validTo: null
+  year: 2025
 })
 CREATE (customers:Application {
   id: $customersId,
   name: 'Base clients',
   description: 'Référentiel clients et comptes',
-  validFrom: $vf,
-  validTo: null
+  year: 2023
 })
 CREATE (payments:Application {
   id: $paymentsId,
   name: 'Paiements',
   description: 'Traitement des paiements',
-  validFrom: $vf,
-  validTo: null
+  year: 2024
 })
-CREATE (portal)-[:DEPENDS_ON { validFrom: $vf, validTo: null }]->(gateway)
-CREATE (gateway)-[:DEPENDS_ON { validFrom: $vf, validTo: null }]->(orders)
-CREATE (orders)-[:DEPENDS_ON { validFrom: $vf, validTo: null }]->(customers)
-CREATE (gateway)-[:DEPENDS_ON { validFrom: $vf, validTo: null }]->(payments)
-CREATE (portal)-[:DEPENDS_ON { validFrom: $vf, validTo: null }]->(customers)
+CREATE (portal)-[:DEPENDS_ON]->(gateway)
+CREATE (gateway)-[:DEPENDS_ON]->(orders)
+CREATE (orders)-[:DEPENDS_ON]->(customers)
+CREATE (gateway)-[:DEPENDS_ON]->(payments)
+CREATE (portal)-[:DEPENDS_ON]->(customers)
 CREATE (m_ui:Module {
   id: $modUiId,
   name: 'UI SPA',
   description: 'Interface utilisateur',
-  validFrom: $vf,
-  validTo: null
+  year: 2025
 })
 CREATE (m_api:Module {
   id: $modApiId,
   name: 'Couche API',
   description: 'Contrôleurs REST',
-  validFrom: $vf,
-  validTo: null
+  year: 2025
 })
 CREATE (m_pkg:Module {
   id: $modPkgId,
   name: 'Paquet domaine',
   description: 'Logique métier partagée',
-  validFrom: $vf,
-  validTo: null
+  year: 2025
 })
-CREATE (portal)-[:CONTAINS { validFrom: $vf, validTo: null }]->(m_ui)
-CREATE (portal)-[:CONTAINS { validFrom: $vf, validTo: null }]->(m_api)
-CREATE (m_ui)-[:CONTAINS { validFrom: $vf, validTo: null }]->(m_pkg)
+CREATE (portal)-[:CONTAINS]->(m_ui)
+CREATE (portal)-[:CONTAINS]->(m_api)
+CREATE (m_ui)-[:CONTAINS]->(m_pkg)
 CREATE (bu_retail:BusinessUnit {
   id: $buRetailId,
   name: 'Retail & expérience client',

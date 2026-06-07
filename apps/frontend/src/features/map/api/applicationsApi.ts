@@ -14,12 +14,9 @@ function resolveUrl(pathWithQuery: string): string {
   return origin ? `${origin}${pathWithQuery}` : pathWithQuery;
 }
 
-/** Fetch all applications (optionally at point-in-time) for search/autocomplete. */
-export async function fetchApplications(params?: {
-  validAt?: string;
-}): Promise<ApplicationResponse[]> {
-  const search = params?.validAt ? `?validAt=${encodeURIComponent(params.validAt)}` : '';
-  const url = resolveUrl(`/api/applications${search}`);
+/** Fetch all applications for search/autocomplete. */
+export async function fetchApplications(): Promise<ApplicationResponse[]> {
+  const url = resolveUrl('/api/applications');
   const res = await authenticatedFetch(url, {
     headers: { Accept: 'application/json' },
   });
