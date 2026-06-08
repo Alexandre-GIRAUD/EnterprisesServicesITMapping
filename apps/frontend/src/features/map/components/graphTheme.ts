@@ -50,8 +50,8 @@ export const ZOOM_THRESHOLDS = {
 } as const;
 
 export const EDGE_TYPE_STYLES: Record<EdgeTypeKey, EdgeTypeStyle> = {
-  DEPENDS_ON: { legendLabel: 'Dépendance', color: '#94a3b8' },
-  CONTAINS: { legendLabel: 'Composition', color: '#38bdf8', dashed: true },
+  DEPENDS_ON: { legendLabel: 'Dépendance', color: '#64748b' },
+  CONTAINS: { legendLabel: 'Composition', color: '#0284c7', dashed: true },
 };
 
 function edgeStyleEntry(type: string): EdgeTypeStyle | undefined {
@@ -81,7 +81,7 @@ export function edgeStyleForType(type: string): Pick<
       opacity: 0.9,
       ...(entry?.dashed ? { strokeDasharray: '6 4' } : {}),
     },
-    labelStyle: { fill: '#cbd5e1', fontSize: 9 },
+    labelStyle: { fill: '#475569', fontSize: 9 },
     labelBgStyle: { fill: 'transparent' },
     markerEnd: { type: MarkerType.ArrowClosed, color },
   };

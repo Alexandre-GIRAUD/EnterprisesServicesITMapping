@@ -529,7 +529,7 @@ export function OrientedEdge({
   const labelY = safeLabel.y;
 
   const sourceColor = data?.sourceColor ?? '#64748b';
-  const targetColor = data?.targetColor ?? '#94a3b8';
+  const targetColor = data?.targetColor ?? '#64748b';
   const gradientId  = `oriented-edge-gradient-${id}`;
   const showLabel   = Boolean(label) && zoom >= ZOOM_THRESHOLDS.secondaryDetail;
 

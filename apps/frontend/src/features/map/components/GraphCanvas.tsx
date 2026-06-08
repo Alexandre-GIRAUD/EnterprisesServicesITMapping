@@ -495,7 +495,7 @@ export function GraphCanvas() {
               maxZoom={2.5}
               proOptions={{ hideAttribution: true }}
             >
-              <Background color="#1e293b" gap={GRID} />
+              <Background color="#e2e8f0" gap={GRID} />
               <Controls showInteractive={false} />
               <Panel position="top-left">
                 <GraphLegend nodeTypes={['Application']} edgeTypes={['DEPENDS_ON']} />

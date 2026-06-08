@@ -1026,11 +1026,11 @@ body {
   height: calc(100vh - 300px);
   min-height: 420px;
   background:
-    radial-gradient(circle at top, rgb(59 130 246 / 10%), transparent 38%),
-    linear-gradient(180deg, #020617 0%, #0f172a 100%);
-  border: 1px solid #1e293b;
+    radial-gradient(circle at top, rgb(59 130 246 / 6%), transparent 38%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
   border-radius: 24px;
-  box-shadow: 0 24px 60px rgb(15 23 42 / 20%);
+  box-shadow: 0 24px 60px rgb(15 23 42 / 8%);
   overflow: hidden;
 }
 
@@ -1068,9 +1068,9 @@ body {
   justify-content: center;
   padding: 0.75rem 0.875rem;
   border-radius: 10px;
-  background-color: #0a0a0a;
+  background-color: #ffffff;
   border: 1.5px solid #3b82f6;
-  box-shadow: none;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
   transition: box-shadow 180ms ease, border-color 180ms ease, transform 150ms ease;
 }
 
@@ -1085,14 +1085,14 @@ body {
 }
 
 .graph-canvas .react-flow__node.is-focus .graph-node-card {
-  border-color: #93c5fd;
+  border-color: #2563eb;
   border-width: 2px;
-  background-color: #0f172a;
-  box-shadow: 0 0 0 3px rgb(96 165 250 / 55%), 0 0 24px rgb(96 165 250 / 35%);
+  background-color: #eff6ff;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 25%), 0 4px 16px rgb(37 99 235 / 18%);
 }
 
 .graph-node-card__label {
-  color: #f8fafc;
+  color: #0f172a;
   font-size: 12px;
   font-weight: 600;
   line-height: 1.3;
@@ -1119,7 +1119,7 @@ body {
   min-width: 0;
   min-height: 0;
   border: 1.5px solid currentColor;
-  background: #0a0a0a;
+  background: #ffffff;
   border-radius: 50%;
   opacity: 0;
   transition: opacity 150ms ease;
@@ -1157,16 +1157,16 @@ body {
 
 .graph-canvas .react-flow__edge.is-focus .react-flow__edge-path {
   stroke-width: 2.5;
-  filter: drop-shadow(0 0 5px rgb(96 165 250 / 55%));
+  filter: drop-shadow(0 0 4px rgb(37 99 235 / 35%));
 }
 
 .oriented-edge-label {
   position: absolute;
   padding: 1px 5px;
   border-radius: 4px;
-  background: rgb(2 6 23 / 80%);
+  background: rgb(255 255 255 / 92%);
   backdrop-filter: blur(4px);
-  color: #cbd5e1;
+  color: #475569;
   font-size: 9px;
   line-height: 1.4;
   pointer-events: none;
@@ -1176,22 +1176,23 @@ body {
 .graph-canvas .react-flow__controls {
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 10px 24px rgb(2 6 23 / 45%);
+  box-shadow: 0 4px 12px rgb(15 23 42 / 12%);
+  border: 1px solid #e2e8f0;
 }
 
 .graph-canvas .react-flow__controls-button {
-  background: rgb(15 23 42 / 92%);
-  border-bottom: 1px solid rgb(148 163 184 / 18%);
-  color: #e2e8f0;
-  fill: #e2e8f0;
+  background: rgb(255 255 255 / 96%);
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+  fill: #334155;
 }
 
 .graph-canvas .react-flow__controls-button:hover {
-  background: rgb(30 41 59 / 95%);
+  background: #f8fafc;
 }
 
 .graph-canvas .react-flow__controls-button svg {
-  fill: #e2e8f0;
+  fill: #334155;
 }
 
 /* ===== Graph legend ===== */
@@ -1200,11 +1201,11 @@ body {
   flex-direction: column;
   gap: 0.55rem;
   padding: 0.6rem 0.7rem;
-  border: 1px solid rgb(148 163 184 / 22%);
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-  background: rgb(2 6 23 / 78%);
+  background: rgb(255 255 255 / 94%);
   backdrop-filter: blur(10px);
-  box-shadow: 0 10px 24px rgb(2 6 23 / 35%);
+  box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
   pointer-events: none;
   user-select: none;
 }
@@ -1221,7 +1222,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .graph-legend__list {
@@ -1241,7 +1242,7 @@ body {
 
 .graph-legend__label {
   font-size: 0.72rem;
-  color: #e2e8f0;
+  color: #334155;
 }
 
 .graph-legend__swatch {
@@ -1254,7 +1255,7 @@ body {
   height: 12px;
   border-radius: 3px;
   border: 2px solid currentColor;
-  background: #0a0a0a;
+  background: #ffffff;
 }
 
 .graph-legend__swatch--edge {
@@ -1952,7 +1953,7 @@ body {
   min-width: 0;
   min-height: 0;
   border: 1.5px solid #52525b;
-  background: #111827;
+  background: #ffffff;
   border-radius: 50%;
   opacity: 0;
   transition: opacity 150ms ease;
@@ -1972,8 +1973,9 @@ body {
   max-width: 11.25rem;
   padding: 0.625rem 0.75rem;
   border-radius: 0.5rem;
-  background-color: #111827;
+  background-color: #ffffff;
   border: 1.5px solid #52525b;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
   text-align: left;
   transition: box-shadow 180ms ease, border-color 180ms ease, transform 150ms ease;
 }
@@ -1983,15 +1985,15 @@ body {
 }
 
 .module-node-card--application {
-  border-color: #38bdf8;
+  border-color: #0284c7;
   border-width: 2px;
-  background-color: #0a0a0a;
+  background-color: #f0f9ff;
 }
 
 .graph-canvas .react-flow__node.is-focus .module-node-card {
-  border-color: #60a5fa;
-  background-color: #0f172a;
-  box-shadow: 0 0 0 3px rgb(96 165 250 / 55%), 0 0 24px rgb(96 165 250 / 35%);
+  border-color: #2563eb;
+  background-color: #eff6ff;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 25%), 0 4px 16px rgb(37 99 235 / 18%);
 }
 
 /* 2 lines max: keeps node width fixed (no per-title resize). */
@@ -2000,7 +2002,7 @@ body {
   font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.3;
-  color: #f8fafc;
+  color: #0f172a;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -2013,7 +2015,7 @@ body {
   width: 80%;
   margin: 0.375rem 0;
   border: none;
-  border-top: 1px solid #334155;
+  border-top: 1px solid #e2e8f0;
 }
 
 .module-node-card__description {

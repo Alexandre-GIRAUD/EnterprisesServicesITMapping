@@ -289,7 +289,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
           maxZoom={2.5}
           proOptions={{ hideAttribution: true }}
         >
-          <Background color="#1e293b" gap={GRID} />
+          <Background color="#e2e8f0" gap={GRID} />
           <Controls showInteractive={false} />
           {(legendNodeTypes.length > 0 || legendEdgeTypes.length > 0) && (
             <Panel position="top-left">
