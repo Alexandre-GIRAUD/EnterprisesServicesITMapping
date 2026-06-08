@@ -10,19 +10,8 @@ type ApplicationsTablePanelProps = {
   onRowClick: (id: string, label: string) => void;
 };
 
-function formatInstant(value: string | null | undefined): string {
-  if (!value) return '—';
-  try {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return value;
-    return d.toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return value;
-  }
+function formatYear(value: number | null | undefined): string {
+  return value != null ? String(value) : '—';
 }
 
 function dash(value: string | null | undefined): string {
@@ -57,8 +46,7 @@ export function ApplicationsTablePanel({
           id: n.id,
           name: n.label || n.id,
           description: n.description ?? detail?.description,
-          validFrom: n.temporal?.validFrom ?? detail?.validFrom,
-          validTo: n.temporal?.validTo ?? detail?.validTo,
+          year: n.year ?? detail?.year,
           businessUnit: detail?.businessUnit?.name ?? detail?.businessUnit?.code,
           regions,
         };
@@ -93,8 +81,7 @@ export function ApplicationsTablePanel({
                 <th scope="col">Description</th>
                 <th scope="col">Business unit</th>
                 <th scope="col">Régions</th>
-                <th scope="col">Valid from</th>
-                <th scope="col">Valid to</th>
+                <th scope="col">Year</th>
               </tr>
             </thead>
             <tbody>
@@ -118,8 +105,7 @@ export function ApplicationsTablePanel({
                   <td>{dash(row.description)}</td>
                   <td>{dash(row.businessUnit)}</td>
                   <td>{dash(row.regions)}</td>
-                  <td>{formatInstant(row.validFrom)}</td>
-                  <td>{formatInstant(row.validTo)}</td>
+                  <td>{formatYear(row.year)}</td>
                 </tr>
               ))}
             </tbody>

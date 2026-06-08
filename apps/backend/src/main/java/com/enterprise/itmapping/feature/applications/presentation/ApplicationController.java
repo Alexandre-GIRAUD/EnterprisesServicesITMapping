@@ -13,7 +13,6 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestMod
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import jakarta.validation.Valid;
-import java.time.Instant;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,20 +51,13 @@ public class ApplicationController {
   }
 
   @GetMapping
-  public List<ApplicationResponse> list(
-      @RequestParam(required = false) String validAt
-  ) {
-    Instant pointInTime = validAt != null ? Instant.parse(validAt) : null;
-    return applicationService.findAll(pointInTime);
+  public List<ApplicationResponse> list() {
+    return applicationService.findAll();
   }
 
   @GetMapping("/{id}")
-  public ResponseEntity<ApplicationResponse> get(
-      @PathVariable String id,
-      @RequestParam(required = false) String validAt
-  ) {
-    Instant pointInTime = validAt != null ? Instant.parse(validAt) : null;
-    return applicationService.findById(id, pointInTime)
+  public ResponseEntity<ApplicationResponse> get(@PathVariable String id) {
+    return applicationService.findById(id)
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.notFound().build());
   }
@@ -87,15 +79,12 @@ public class ApplicationController {
 
   /**
    * Module composition tree for one application (same JSON shape as {@code GET /graph} for
-   * Cytoscape). 404 when the application id is not valid at {@code validAt}; 200 with root only
-   * when there are no modules.
+   * Cytoscape). 404 when the application id is unknown; 200 with root only when there are no modules.
    */
   @GetMapping("/{id}/module-graph")
-  public ResponseEntity<GraphResponseDto> getModuleGraph(
-      @PathVariable String id, @RequestParam(required = false) String validAt) {
-    Instant pointInTime = validAt != null ? Instant.parse(validAt) : null;
+  public ResponseEntity<GraphResponseDto> getModuleGraph(@PathVariable String id) {
     return moduleGraphService
-        .getModuleGraph(id, pointInTime)
+        .getModuleGraph(id)
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.notFound().build());
   }
@@ -128,9 +117,8 @@ public class ApplicationController {
     if (!businessUnitApplicationLinkService.setBusinessUnitForApplication(id, buId)) {
       return ResponseEntity.notFound().build();
     }
-    Instant now = Instant.now();
     return applicationService
-        .findById(id, now)
+        .findById(id)
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.notFound().build());
   }
@@ -148,19 +136,8 @@ public class ApplicationController {
     if (!applicationRegionLinkService.setRegionsForApplication(id, codes)) {
       return ResponseEntity.notFound().build();
     }
-    Instant now = Instant.now();
     return applicationService
-        .findById(id, now)
-        .map(ResponseEntity::ok)
-        .orElse(ResponseEntity.notFound().build());
-  }
-
-  @PatchMapping("/{id}/soft")
-  public ResponseEntity<ApplicationResponse> softUpdate(
-      @PathVariable String id,
-      @Valid @RequestBody ApplicationRequest request
-  ) {
-    return applicationService.softUpdate(id, request)
+        .findById(id)
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.notFound().build());
   }

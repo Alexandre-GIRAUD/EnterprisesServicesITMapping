@@ -1,14 +1,13 @@
 package com.enterprise.itmapping.feature.applications.application;
 
-import com.enterprise.itmapping.common.Neo4jTemporalParameters;
 import com.enterprise.itmapping.domain.Application;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationGraphNodeProjection;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
 import com.enterprise.itmapping.feature.contributors.presentation.dto.ContributorSummaryDto;
-import java.time.Instant;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,10 +42,8 @@ public class ApplicationService {
   }
 
   @Transactional(readOnly = true)
-  public List<ApplicationResponse> findAll(Instant validAt) {
-    Instant pointInTime = validAt != null ? validAt : Instant.now();
-    List<ApplicationGraphNodeProjection> rows =
-        applicationRepository.findAllValidAtForGraph(pointInTime);
+  public List<ApplicationResponse> findAll() {
+    List<ApplicationGraphNodeProjection> rows = applicationRepository.findAllForGraph();
     var flags =
         moduleSubtreeQuery.hasAnyModuleViaContainsBatch(
             rows.stream().map(ApplicationGraphNodeProjection::getId).collect(Collectors.toList()));
@@ -56,11 +53,8 @@ public class ApplicationService {
   }
 
   @Transactional(readOnly = true)
-  public Optional<ApplicationResponse> findById(String id, Instant validAt) {
-    Instant pointInTime = validAt != null ? validAt : Instant.now();
-    return applicationRepository
-        .findByIdValidAtForGraph(id, pointInTime)
-        .map(p -> toResponseWithBusinessUnit(p, pointInTime));
+  public Optional<ApplicationResponse> findById(String id) {
+    return applicationRepository.findByIdForGraph(id).map(this::toResponseWithBusinessUnit);
   }
 
   @Transactional
@@ -68,76 +62,31 @@ public class ApplicationService {
     Application entity = new Application();
     entity.setName(request.name());
     entity.setDescription(request.description());
-    entity.setValidFrom(request.validFrom());
-    entity.setValidTo(request.validTo());
+    entity.setYear(request.year());
     Application saved = applicationRepository.save(entity);
     return toResponse(saved);
   }
 
-  /** In-place update (overwrites). Prefer {@link #softUpdate} for temporal history. */
+  /** In-place update of {@code name}, {@code description}, {@code year}. */
   @Transactional
   public Optional<ApplicationResponse> update(String id, ApplicationRequest request) {
     if (applicationRepository.findProjectionById(id).isEmpty()) {
       return Optional.empty();
     }
+    Map<String, Object> params = new HashMap<>();
+    params.put("id", id);
+    params.put("name", request.name());
+    params.put("desc", request.description() != null ? request.description() : "");
+    params.put("year", request.year());
     neo4jClient
         .query(
             """
             MATCH (a:Application {id: $id})
-            SET a.name = $name, a.description = $desc
+            SET a.name = $name, a.description = $desc, a.year = $year
             """)
-        .bindAll(
-            Map.of(
-                "id", id,
-                "name", request.name(),
-                "desc", request.description() != null ? request.description() : ""))
+        .bindAll(params)
         .run();
-    if (request.validFrom() != null) {
-      neo4jClient
-          .query("MATCH (a:Application {id: $id}) SET a.validFrom = $vf")
-          .bind(id).to("id")
-          .bind(Neo4jTemporalParameters.toNeo4j(request.validFrom())).to("vf")
-          .run();
-    }
-    if (request.validTo() != null) {
-      neo4jClient
-          .query("MATCH (a:Application {id: $id}) SET a.validTo = $vt")
-          .bind(id).to("id")
-          .bind(Neo4jTemporalParameters.toNeo4j(request.validTo())).to("vt")
-          .run();
-    }
-    return applicationRepository.findByIdValidAtForGraph(id, Instant.now()).map(p -> toResponseWithBusinessUnit(p, Instant.now()));
-  }
-
-  /**
-   * Soft-update: closes the current version (sets validTo = now) and creates a new version
-   * with validFrom = now and the updated data. Returns the new version.
-   */
-  @Transactional
-  public Optional<ApplicationResponse> softUpdate(String id, ApplicationRequest request) {
-    if (applicationRepository.findCurrentProjectionById(id).isEmpty()) {
-      return Optional.empty();
-    }
-
-    Instant now = Instant.now();
-    neo4jClient
-        .query(
-            """
-            MATCH (a:Application {id: $id})
-            WHERE a.validTo IS NULL
-            SET a.validTo = $now
-            """)
-        .bind(id).to("id")
-        .bind(Neo4jTemporalParameters.toNeo4j(now)).to("now")
-        .run();
-
-    Application newVersion = new Application();
-    newVersion.setName(request.name());
-    newVersion.setDescription(request.description());
-    newVersion.setValidFrom(now);
-    newVersion.setValidTo(null);
-    Application saved = applicationRepository.save(newVersion);
-    return Optional.of(toResponse(saved));
+    return applicationRepository.findByIdForGraph(id).map(this::toResponseWithBusinessUnit);
   }
 
   /**
@@ -145,11 +94,8 @@ public class ApplicationService {
    * with:
    * <ul>
    *   <li>all descendant {@code Module} nodes reachable via outbound {@code CONTAINS*} (bounded 1–50 hops);
-   *   <li>all relationships touching that application ({@code DEPENDS_ON}, {@code CONTAINS}, {@code VALID_DURING}, etc.) via {@code DETACH DELETE}.
+   *   <li>all relationships touching that application ({@code DEPENDS_ON}, {@code CONTAINS}, etc.) via {@code DETACH DELETE}.
    * </ul>
-   * <p>If your data model uses temporal <em>duplicate</em> Application nodes over time ({@link
-   * #softUpdate}), {@code id} refers to <strong>a single node's id</strong> — deleting does not remove
-   * other versions that may share the same name.
    *
    * @return {@code false} when no Application exists with {@code id}
    */
@@ -184,35 +130,31 @@ public class ApplicationService {
   }
 
   private ApplicationResponse toResponse(Application a) {
-    Instant validAt = a.getValidFrom() != null ? a.getValidFrom() : Instant.now();
     List<ContributorSummaryDto> contributors =
         applicationContributorLookup.findForApplication(a.getId());
     return new ApplicationResponse(
         a.getId(),
         a.getName(),
         a.getDescription(),
-        a.getValidFrom(),
-        a.getValidTo(),
+        a.getYear(),
         moduleSubtreeQuery.hasAnyModuleViaContains(a.getId()),
-        applicationBusinessUnitLookup.findForApplication(a.getId(), validAt).orElse(null),
+        applicationBusinessUnitLookup.findForApplication(a.getId()).orElse(null),
         contributors,
-        applicationRegionLookup.findForApplication(a.getId(), validAt));
+        applicationRegionLookup.findForApplication(a.getId()));
   }
 
-  private ApplicationResponse toResponseWithBusinessUnit(
-      ApplicationGraphNodeProjection p, Instant validAt) {
+  private ApplicationResponse toResponseWithBusinessUnit(ApplicationGraphNodeProjection p) {
     List<ContributorSummaryDto> contributors =
         applicationContributorLookup.findForApplication(p.getId());
     return new ApplicationResponse(
         p.getId(),
         p.getName(),
         p.getDescription(),
-        p.getValidFrom(),
-        p.getValidTo(),
+        p.getYear(),
         moduleSubtreeQuery.hasAnyModuleViaContains(p.getId()),
-        applicationBusinessUnitLookup.findForApplication(p.getId(), validAt).orElse(null),
+        applicationBusinessUnitLookup.findForApplication(p.getId()).orElse(null),
         contributors,
-        applicationRegionLookup.findForApplication(p.getId(), validAt));
+        applicationRegionLookup.findForApplication(p.getId()));
   }
 
   private ApplicationResponse graphProjectionToResponse(
@@ -221,8 +163,7 @@ public class ApplicationService {
         p.getId(),
         p.getName(),
         p.getDescription(),
-        p.getValidFrom(),
-        p.getValidTo(),
+        p.getYear(),
         hasModuleSubtree,
         null,
         Collections.emptyList(),

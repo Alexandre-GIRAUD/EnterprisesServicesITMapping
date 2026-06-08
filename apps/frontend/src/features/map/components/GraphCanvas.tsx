@@ -40,11 +40,15 @@ export function GraphCanvas() {
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
   const [businessUnits, setBusinessUnits] = useState<BusinessUnitListItem[]>([]);
   const [regions, setRegions] = useState<RegionSummary[]>([]);
+  const [year, setYear] = useState<number | null>(null);
   const [applicationIds, setApplicationIds] = useState<string[]>([]);
   const [businessUnitIds, setBusinessUnitIds] = useState<string[]>([]);
   const [regionCodes, setRegionCodes] = useState<string[]>([]);
   const filtersActive =
-    applicationIds.length > 0 || businessUnitIds.length > 0 || regionCodes.length > 0;
+    year != null ||
+    applicationIds.length > 0 ||
+    businessUnitIds.length > 0 ||
+    regionCodes.length > 0;
 
   const openApplicationDetails = useCallback((id: string, label: string) => {
     setSelectedApplication({ id, label });
@@ -93,6 +97,7 @@ export function GraphCanvas() {
         setStatus('loading');
         setMessage(null);
         const data = await fetchGraph({
+          year: year ?? undefined,
           applicationIds: applicationIds.length > 0 ? applicationIds : undefined,
           businessUnitIds: businessUnitIds.length > 0 ? businessUnitIds : undefined,
           regionCodes: regionCodes.length > 0 ? regionCodes : undefined,
@@ -209,8 +214,8 @@ export function GraphCanvas() {
         const emptyHint =
           data.nodes.length === 0
             ? filtersActive
-              ? 'Aucune application pour ces filtres (business unit / location). Décochez tout ou changez de critères.'
-              : 'Aucun nœud pour cette date. Démarrez le backend avec Neo4j pour charger les données de démo.'
+              ? 'Aucune application pour ces filtres (année / business unit / location). Changez de critères ou réinitialisez.'
+              : 'Aucun nœud. Démarrez le backend avec Neo4j pour charger les données de démo.'
             : 'Astuce : cliquez sur une application pour ouvrir le graphe de ses modules.';
         setMessage(emptyHint);
       } catch (e) {
@@ -240,7 +245,7 @@ export function GraphCanvas() {
       cyRef.current = null;
       window.removeEventListener('keydown', onEscape);
     };
-  }, [navigate, applicationIds, businessUnitIds, regionCodes, openApplicationDetails]);
+  }, [navigate, year, applicationIds, businessUnitIds, regionCodes, filtersActive, openApplicationDetails]);
 
   /** Keep Cytoscape sized to its flex container (viewport / drawer / responsive). */
   useEffect(() => {
@@ -275,10 +280,7 @@ export function GraphCanvas() {
           id: created.id,
           label: created.name,
           type: 'Application',
-          temporal: {
-            validFrom: created.validFrom,
-            validTo: created.validTo,
-          },
+          year: created.year ?? undefined,
           description: created.description ?? null,
         },
       ];
@@ -389,10 +391,12 @@ export function GraphCanvas() {
             applications={applications}
             businessUnits={businessUnits}
             regions={regions}
+            initialYear={year}
             initialApplicationIds={applicationIds}
             initialBusinessUnitIds={businessUnitIds}
             initialRegionCodes={regionCodes}
-            onApply={({ applicationIds: appIds, businessUnitIds: buIds, regionCodes: codes }) => {
+            onApply={({ year: y, applicationIds: appIds, businessUnitIds: buIds, regionCodes: codes }) => {
+              setYear(y);
               setApplicationIds(appIds);
               setBusinessUnitIds(buIds);
               setRegionCodes(codes);

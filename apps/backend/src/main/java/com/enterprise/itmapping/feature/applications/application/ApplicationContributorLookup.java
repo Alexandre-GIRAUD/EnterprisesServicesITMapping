@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Contributors linked to an application via {@code (:Contributor)-[:WORK_ON]->(:Application)}.
- * Not filtered by application temporal validity (v1): matches the application node id from the API.
+ * Matches the application node id from the API.
  */
 @Component
 public class ApplicationContributorLookup {

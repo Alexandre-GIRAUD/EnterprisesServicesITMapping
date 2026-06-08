@@ -1,9 +1,7 @@
 package com.enterprise.itmapping.feature.graph.infrastructure.persistence;
 
-import com.enterprise.itmapping.common.Neo4jTemporalParameters;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeProjection;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeRow;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.springframework.data.neo4j.core.Neo4jClient;
@@ -11,16 +9,16 @@ import org.springframework.stereotype.Repository;
 
 /**
  * Loads graph structure via Neo4jClient (no Spring Data entity hydration).
- * Temporal values are mapped defensively (Neo4j driver may return {@link org.neo4j.driver.Value},
- * {@link java.time.ZonedDateTime}, etc.).
+ *
+ * <p>Filtering is applied per dimension (year / application ids / business unit ids / region codes);
+ * active dimensions combine with AND. {@code null}/empty dimension = no filter on that axis.
  */
 @Repository
 public class GraphLoader {
 
   private static final String NODES_CYPHER_FILTERED = """
       MATCH (a:Application)
-      WHERE (a.validFrom IS NULL OR a.validFrom <= $validAt)
-        AND (a.validTo IS NULL OR a.validTo > $validAt)
+      WHERE ($filterYear = false OR a.year = $year)
         AND ($filterApplicationIds = false OR a.id IN $applicationIds)
         AND ($filterBusinessUnitIds = false OR EXISTS {
           MATCH (bu:BusinessUnit)-[:HAS_APPLICATION]->(a)
@@ -31,13 +29,12 @@ public class GraphLoader {
           WHERE toUpper(reg.code) IN $regionCodes
         })
       WITH DISTINCT a ORDER BY a.name
-      RETURN a.id AS id, a.name AS name, a.description AS description, a.validFrom AS validFrom, a.validTo AS validTo
+      RETURN a.id AS id, a.name AS name, a.description AS description, a.year AS year
       """;
 
   private static final String EDGES_CYPHER_FILTERED = """
       MATCH (a:Application)
-      WHERE (a.validFrom IS NULL OR a.validFrom <= $validAt)
-        AND (a.validTo IS NULL OR a.validTo > $validAt)
+      WHERE ($filterYear = false OR a.year = $year)
         AND ($filterApplicationIds = false OR a.id IN $applicationIds)
         AND ($filterBusinessUnitIds = false OR EXISTS {
           MATCH (bu:BusinessUnit)-[:HAS_APPLICATION]->(a)
@@ -50,12 +47,6 @@ public class GraphLoader {
       WITH collect(DISTINCT a.id) AS appIds
       MATCH (x:Application)-[r:DEPENDS_ON]->(y:Application)
       WHERE x.id IN appIds AND y.id IN appIds
-        AND (x.validFrom IS NULL OR x.validFrom <= $validAt)
-        AND (x.validTo IS NULL OR x.validTo > $validAt)
-        AND (y.validFrom IS NULL OR y.validFrom <= $validAt)
-        AND (y.validTo IS NULL OR y.validTo > $validAt)
-        AND (r.validFrom IS NULL OR r.validFrom <= $validAt)
-        AND (r.validTo IS NULL OR r.validTo > $validAt)
       RETURN x.id AS sourceId, y.id AS targetId, type(r) AS relType
       """;
 
@@ -65,25 +56,28 @@ public class GraphLoader {
     this.neo4jClient = neo4jClient;
   }
 
-  public List<GraphNodeRow> loadNodesValidAt(Instant validAt) {
-    return loadNodesValidAt(validAt, null, null, null);
+  public List<GraphNodeRow> loadNodes(Integer year) {
+    return loadNodes(year, null, null, null);
   }
 
   /**
+   * @param year when non-null, only applications with {@code a.year = year}.
    * @param applicationIds when non-empty, only these application ids (OR).
    * @param businessUnitIds when non-empty, apps linked to any listed BU (OR).
    * @param regionCodes when non-empty, apps used in any listed region code (OR). Codes uppercased.
    *     Dimensions combine with AND when multiple are active.
    */
-  public List<GraphNodeRow> loadNodesValidAt(
-      Instant validAt,
+  public List<GraphNodeRow> loadNodes(
+      Integer year,
       List<String> applicationIds,
       List<String> businessUnitIds,
       List<String> regionCodes) {
     return neo4jClient
         .query(NODES_CYPHER_FILTERED)
-        .bind(Neo4jTemporalParameters.toNeo4j(validAt))
-        .to("validAt")
+        .bind(year != null)
+        .to("filterYear")
+        .bind(year != null ? year : -1)
+        .to("year")
         .bind(hasFilter(applicationIds))
         .to("filterApplicationIds")
         .bind(hasFilter(businessUnitIds))
@@ -109,23 +103,24 @@ public class GraphLoader {
         Neo4jValueMapping.asString(map.get("id")),
         Neo4jValueMapping.asString(map.get("name")),
         Neo4jValueMapping.asString(map.get("description")),
-        Neo4jValueMapping.asInstant(map.get("validFrom")),
-        Neo4jValueMapping.asInstant(map.get("validTo")));
+        Neo4jValueMapping.asInteger(map.get("year")));
   }
 
-  public List<GraphEdgeProjection> loadEdges(Instant validAt) {
-    return loadEdges(validAt, null, null, null);
+  public List<GraphEdgeProjection> loadEdges(Integer year) {
+    return loadEdges(year, null, null, null);
   }
 
   public List<GraphEdgeProjection> loadEdges(
-      Instant validAt,
+      Integer year,
       List<String> applicationIds,
       List<String> businessUnitIds,
       List<String> regionCodes) {
     return neo4jClient
         .query(EDGES_CYPHER_FILTERED)
-        .bind(Neo4jTemporalParameters.toNeo4j(validAt))
-        .to("validAt")
+        .bind(year != null)
+        .to("filterYear")
+        .bind(year != null ? year : -1)
+        .to("year")
         .bind(hasFilter(applicationIds))
         .to("filterApplicationIds")
         .bind(hasFilter(businessUnitIds))
@@ -153,32 +148,5 @@ public class GraphLoader {
 
   private static boolean hasFilter(List<String> values) {
     return values != null && !values.isEmpty();
-  }
-
-  public int linkCurrentNodesToSnapshot(String snapshotId, Instant now) {
-    String linkCypher = """
-        MATCH (s:VersionSnapshot {id: $snapshotId})
-        MATCH (n:Application)
-        WHERE n.validTo IS NULL AND n.validFrom <= $now
-        CREATE (s)-[r:VALID_DURING]->(n)
-        SET r.validFrom = $now
-        WITH count(r) AS cnt
-        RETURN cnt
-        """;
-    return neo4jClient.query(linkCypher)
-        .bind(snapshotId).to("snapshotId")
-        .bind(Neo4jTemporalParameters.toNeo4j(now)).to("now")
-        .fetch()
-        .first()
-        .map(
-            row -> {
-              Map<String, Object> map = Neo4jValueMapping.asMap(row);
-              Object value = map.get("cnt");
-              if (value instanceof Number number) {
-                return number.intValue();
-              }
-              return 0;
-            })
-        .orElse(0);
   }
 }

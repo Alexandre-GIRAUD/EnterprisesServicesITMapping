@@ -1,7 +1,6 @@
 package com.enterprise.itmapping.feature.applications.presentation;
 
 import static org.hamcrest.Matchers.nullValue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -16,7 +15,6 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.Applicatio
 import com.enterprise.itmapping.feature.applications.presentation.dto.BusinessUnitSummary;
 import com.enterprise.itmapping.feature.applications.presentation.dto.RegionSummary;
 import com.enterprise.itmapping.feature.businessunit.application.BusinessUnitApplicationLinkService;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -52,13 +50,12 @@ class ApplicationControllerBusinessUnitWebMvcTest {
             "app-1",
             "App",
             "",
-            Instant.parse("2024-01-01T00:00:00Z"),
-            null,
+            2024,
             false,
             new BusinessUnitSummary("bu-1", "BU One", "B1", null),
             List.of(),
             List.<RegionSummary>of());
-    when(applicationService.findById(eq("app-1"), any())).thenReturn(Optional.of(body));
+    when(applicationService.findById(eq("app-1"))).thenReturn(Optional.of(body));
 
     mockMvc
         .perform(
@@ -80,13 +77,12 @@ class ApplicationControllerBusinessUnitWebMvcTest {
             "app-1",
             "App",
             "",
-            Instant.parse("2024-01-01T00:00:00Z"),
-            null,
+            2024,
             false,
             null,
             List.of(),
             List.<RegionSummary>of());
-    when(applicationService.findById(eq("app-1"), any())).thenReturn(Optional.of(body));
+    when(applicationService.findById(eq("app-1"))).thenReturn(Optional.of(body));
 
     mockMvc
         .perform(

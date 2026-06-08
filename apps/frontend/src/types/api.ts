@@ -2,18 +2,13 @@
  * API request/response DTOs aligned with backend.
  */
 
-/** Temporal in API responses (ISO instant strings) */
-export interface TemporalDto {
-  validFrom: string | null;
-  validTo: string | null;
-}
-
 /** Graph node as returned by /api/graph and module-graph */
 export interface GraphNodeDto {
   id: string;
   label: string;
   type: string;
-  temporal?: TemporalDto;
+  /** Reference year of the node (Application/Module); omitted when null. */
+  year?: number;
   /** Present on GET …/module-graph when non-empty (Neo4j description). */
   description?: string | null;
 }
@@ -30,8 +25,6 @@ export interface GraphEdgeCreateRequest {
   sourceId: string;
   targetId: string;
   type: string;
-  validFrom?: string;
-  validTo?: string | null;
 }
 
 export interface GraphEdgeCreateResponse {
@@ -50,8 +43,7 @@ export interface GraphResponseDto {
 export interface ApplicationRequest {
   name: string;
   description?: string;
-  validFrom?: string;
-  validTo?: string | null;
+  year?: number;
 }
 
 export interface BusinessUnitSummary {
@@ -73,8 +65,8 @@ export interface ApplicationResponse {
   id: string;
   name: string;
   description?: string;
-  validFrom: string;
-  validTo: string | null;
+  /** Reference year (e.g. 2025); null when not set. */
+  year: number | null;
   /** True when the app already has modules (CONTAINS); IA suggestion is blocked server-side. */
   hasModuleSubtree?: boolean;
   /** Set on GET /applications/{id} when linked via HAS_APPLICATION from a BusinessUnit. */

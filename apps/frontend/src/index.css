@@ -966,6 +966,10 @@ body {
   cursor: pointer;
 }
 
+.graph-filter-root-label input[type='checkbox'] {
+  accent-color: #2563eb;
+}
+
 .graph-filter-drill-btn {
   flex-shrink: 0;
   width: 2rem;
@@ -1004,11 +1008,16 @@ body {
   font-weight: 500;
 }
 
-.graph-filter-item-id {
-  display: block;
-  font-size: 0.72rem;
-  color: #64748b;
-  margin-top: 0.1rem;
+.graph-filter-all-badge {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  margin-left: 0.4rem;
+}
+
+.graph-filter-year-field {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
 }
 
 .graph-canvas {

@@ -14,8 +14,7 @@ import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
  * <p><strong>Manager (v1)</strong>: optional {@code (:Contributor)-[:REPORTS_TO]->(:Contributor)} —
  * not using free-text manager fields.
  *
- * <p><strong>{@code WORK_ON}</strong>: simple relationship without temporal properties in v1 (no
- * {@code validFrom}/{@code validTo} on the edge).
+ * <p><strong>{@code WORK_ON}</strong>: simple relationship in v1.
  */
 @Node("Contributor")
 public class Contributor {

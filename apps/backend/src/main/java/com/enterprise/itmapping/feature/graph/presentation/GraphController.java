@@ -4,9 +4,7 @@ import com.enterprise.itmapping.feature.graph.application.GraphService;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeRequestDto;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeResponseDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
-import com.enterprise.itmapping.feature.graph.application.dto.VersionSnapshotDto;
 import jakarta.validation.Valid;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -31,7 +29,7 @@ public class GraphController {
   /**
    * Application dependency graph for Cytoscape.
    *
-   * @param validAt optional point-in-time (ISO instant)
+   * @param year optional; when set, only applications with {@code year == value}.
    * @param applicationIds optional, repeatable; OR on application ids. Legacy {@code applicationId}
    *     accepted.
    * @param businessUnitIds optional, repeatable; OR on BU. Legacy {@code businessUnitId} accepted.
@@ -40,7 +38,7 @@ public class GraphController {
    */
   @GetMapping
   public ResponseEntity<GraphResponseDto> getGraph(
-      @RequestParam(required = false) String validAt,
+      @RequestParam(required = false) Integer year,
       @RequestParam(required = false) List<String> applicationIds,
       @RequestParam(required = false) String applicationId,
       @RequestParam(required = false) List<String> businessUnitIds,
@@ -48,40 +46,12 @@ public class GraphController {
       @RequestParam(required = false) List<String> regionCodes,
       @RequestParam(required = false) String regionCode
   ) {
-    Instant pointInTime = validAt != null ? Instant.parse(validAt) : null;
     return ResponseEntity.ok(
         graphService.getGraph(
-            pointInTime,
+            year,
             mergeFilterParams(applicationIds, applicationId),
             mergeFilterParams(businessUnitIds, businessUnitId),
             mergeFilterParams(regionCodes, regionCode)));
-  }
-
-  @GetMapping("/at-date")
-  public ResponseEntity<GraphResponseDto> getGraphAtDate(
-      @RequestParam String date,
-      @RequestParam(required = false) List<String> applicationIds,
-      @RequestParam(required = false) String applicationId,
-      @RequestParam(required = false) List<String> businessUnitIds,
-      @RequestParam(required = false) String businessUnitId,
-      @RequestParam(required = false) List<String> regionCodes,
-      @RequestParam(required = false) String regionCode
-  ) {
-    java.util.Date d = java.util.Date.from(java.time.Instant.parse(date));
-    return ResponseEntity.ok(
-        graphService.getGraphAtDate(
-            d,
-            mergeFilterParams(applicationIds, applicationId),
-            mergeFilterParams(businessUnitIds, businessUnitId),
-            mergeFilterParams(regionCodes, regionCode)));
-  }
-
-  @PostMapping("/snapshots")
-  public ResponseEntity<VersionSnapshotDto> createSnapshot(
-      @RequestBody CreateSnapshotRequest request
-  ) {
-    VersionSnapshotDto created = graphService.createNewSnapshot(request.versionName());
-    return ResponseEntity.status(HttpStatus.CREATED).body(created);
   }
 
   @PostMapping("/edges")
@@ -107,6 +77,4 @@ public class GraphController {
     }
     return merged.isEmpty() ? null : merged;
   }
-
-  public record CreateSnapshotRequest(String versionName) {}
 }

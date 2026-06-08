@@ -1,6 +1,6 @@
 /**
  * Graph API client. Fetches graph data for Cytoscape.js (nodes + edges).
- * Supports temporal versioning via query param validAt (ISO instant).
+ * Supports filtering by year via query param year (integer).
  *
  * - Relative `/api/...` : same origin (Vite proxy en dev, nginx en prod Docker).
  * - VITE_API_BASE_URL=http://127.0.0.1:8081 : appel direct (CORS activé côté backend).
@@ -42,14 +42,14 @@ async function fetchGraphJson(
 }
 
 export async function fetchGraph(params?: {
-  validAt?: string;
+  year?: number;
   applicationIds?: string[];
   businessUnitIds?: string[];
   regionCodes?: string[];
 }): Promise<GraphResponseDto> {
   const sp = new URLSearchParams();
-  if (params?.validAt) {
-    sp.set('validAt', params.validAt);
+  if (params?.year != null) {
+    sp.set('year', String(params.year));
   }
   for (const id of params?.applicationIds ?? []) {
     if (id) sp.append('applicationIds', id);
@@ -69,11 +69,9 @@ export async function fetchGraph(params?: {
  * Backend: GET /api/applications/{id}/module-graph
  */
 export async function fetchModuleGraph(
-  applicationId: string,
-  params?: { validAt?: string }
+  applicationId: string
 ): Promise<GraphResponseDto> {
-  const search = params?.validAt ? `?validAt=${encodeURIComponent(params.validAt)}` : '';
-  const path = `/api/applications/${encodeURIComponent(applicationId)}/module-graph${search}`;
+  const path = `/api/applications/${encodeURIComponent(applicationId)}/module-graph`;
   return fetchGraphJson(resolveUrl(path), 'Module graph API');
 }
 

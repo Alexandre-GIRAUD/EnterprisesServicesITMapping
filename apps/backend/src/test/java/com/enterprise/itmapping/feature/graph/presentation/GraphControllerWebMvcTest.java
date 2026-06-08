@@ -111,38 +111,14 @@ class GraphControllerWebMvcTest {
   }
 
   @Test
-  void getGraphAtDateForwardsBusinessUnitIds() throws Exception {
-    String date = "2024-02-15T12:00:00Z";
-    java.util.Date d = java.util.Date.from(java.time.Instant.parse(date));
-    when(graphService.getGraphAtDate(eq(d), isNull(), eq(List.of("bu-xyz")), isNull()))
+  void getGraphForwardsYear() throws Exception {
+    when(graphService.getGraph(eq(2025), isNull(), isNull(), isNull()))
         .thenReturn(new GraphResponseDto(List.of(), List.of()));
 
     mockMvc
-        .perform(
-            get("/graph/at-date")
-                .param("date", date)
-                .param("businessUnitIds", "bu-xyz")
-                .accept(MediaType.APPLICATION_JSON))
+        .perform(get("/graph").param("year", "2025").accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk());
 
-    verify(graphService).getGraphAtDate(eq(d), isNull(), eq(List.of("bu-xyz")), isNull());
-  }
-
-  @Test
-  void getGraphAtDateForwardsRegionCodes() throws Exception {
-    String date = "2024-02-15T12:00:00Z";
-    java.util.Date d = java.util.Date.from(java.time.Instant.parse(date));
-    when(graphService.getGraphAtDate(eq(d), isNull(), isNull(), eq(List.of("APAC"))))
-        .thenReturn(new GraphResponseDto(List.of(), List.of()));
-
-    mockMvc
-        .perform(
-            get("/graph/at-date")
-                .param("date", date)
-                .param("regionCodes", "APAC")
-                .accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk());
-
-    verify(graphService).getGraphAtDate(eq(d), isNull(), isNull(), eq(List.of("APAC")));
+    verify(graphService).getGraph(eq(2025), isNull(), isNull(), isNull());
   }
 }

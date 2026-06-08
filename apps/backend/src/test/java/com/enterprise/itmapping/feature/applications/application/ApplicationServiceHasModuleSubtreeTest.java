@@ -9,7 +9,6 @@ import static org.mockito.Mockito.when;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationGraphNodeProjection;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -40,13 +39,13 @@ class ApplicationServiceHasModuleSubtreeTest {
   @BeforeEach
   void setUp() {
     lenient()
-        .when(applicationBusinessUnitLookup.findForApplication(any(), any()))
+        .when(applicationBusinessUnitLookup.findForApplication(any()))
         .thenReturn(Optional.empty());
     lenient()
         .when(applicationContributorLookup.findForApplication(any()))
         .thenReturn(Collections.emptyList());
     lenient()
-        .when(applicationRegionLookup.findForApplication(any(), any()))
+        .when(applicationRegionLookup.findForApplication(any()))
         .thenReturn(Collections.emptyList());
     projection =
         new ApplicationGraphNodeProjection() {
@@ -66,35 +65,30 @@ class ApplicationServiceHasModuleSubtreeTest {
           }
 
           @Override
-          public Instant getValidFrom() {
-            return Instant.parse("2025-01-01T00:00:00Z");
-          }
-
-          @Override
-          public Instant getValidTo() {
-            return null;
+          public Integer getYear() {
+            return 2025;
           }
         };
   }
 
   @Test
   void findByIdIncludesHasModuleSubtreeFromQuery() {
-    when(applicationRepository.findByIdValidAtForGraph(eq("app-1"), any()))
+    when(applicationRepository.findByIdForGraph(eq("app-1")))
         .thenReturn(Optional.of(projection));
     when(moduleSubtreeQuery.hasAnyModuleViaContains("app-1")).thenReturn(true);
 
-    var res = applicationService.findById("app-1", null).orElseThrow();
+    var res = applicationService.findById("app-1").orElseThrow();
     assertThat(res.hasModuleSubtree()).isTrue();
   }
 
   @Test
   void findAllPassesBatchFlagsIntoResponse() {
-    when(applicationRepository.findAllValidAtForGraph(any()))
+    when(applicationRepository.findAllForGraph())
         .thenReturn(List.of(projection));
     when(moduleSubtreeQuery.hasAnyModuleViaContainsBatch(any()))
         .thenReturn(java.util.Map.of("app-1", true));
 
-    List<ApplicationResponse> rows = applicationService.findAll(null);
+    List<ApplicationResponse> rows = applicationService.findAll();
     assertThat(rows).singleElement().satisfies(r -> assertThat(r.hasModuleSubtree()).isTrue());
   }
 }

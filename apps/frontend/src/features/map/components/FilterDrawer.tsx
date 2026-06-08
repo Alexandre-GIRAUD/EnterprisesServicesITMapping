@@ -10,6 +10,7 @@ import {
 } from './filterDimensionUtils';
 
 export type GraphFilters = {
+  year: number | null;
   applicationIds: string[];
   businessUnitIds: string[];
   regionCodes: string[];
@@ -21,6 +22,7 @@ type FilterDrawerProps = {
   applications: ApplicationResponse[];
   businessUnits: BusinessUnitListItem[];
   regions: RegionSummary[];
+  initialYear: number | null;
   initialApplicationIds: string[];
   initialBusinessUnitIds: string[];
   initialRegionCodes: string[];
@@ -62,12 +64,14 @@ export function FilterDrawer({
   applications,
   businessUnits,
   regions,
+  initialYear,
   initialApplicationIds,
   initialBusinessUnitIds,
   initialRegionCodes,
   onApply,
 }: FilterDrawerProps) {
   const [view, setView] = useState<FilterView>('root');
+  const [year, setYear] = useState<number | null>(initialYear);
   const [selectedApplicationIds, setSelectedApplicationIds] = useState(initialApplicationIds);
   const [selectedBusinessUnitIds, setSelectedBusinessUnitIds] = useState(initialBusinessUnitIds);
   const [selectedRegionCodes, setSelectedRegionCodes] = useState(initialRegionCodes);
@@ -98,34 +102,32 @@ export function FilterDrawer({
   const buMode = dimensionMode(selectedBusinessUnitIds, buCatalog);
   const regionMode = dimensionMode(selectedRegionCodes, regionCatalog);
 
-  const appRootRef = useRef<HTMLInputElement | null>(null);
-  const buRootRef = useRef<HTMLInputElement | null>(null);
-  const regionRootRef = useRef<HTMLInputElement | null>(null);
   const detailSelectAllRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setView('root');
-      setSelectedApplicationIds(initialApplicationIds);
-      setSelectedBusinessUnitIds(initialBusinessUnitIds);
-      setSelectedRegionCodes(initialRegionCodes);
+      setYear(initialYear);
+      setSelectedApplicationIds(
+        initialApplicationIds.length > 0 ? initialApplicationIds : selectAllCatalog(appCatalog)
+      );
+      setSelectedBusinessUnitIds(
+        initialBusinessUnitIds.length > 0 ? initialBusinessUnitIds : selectAllCatalog(buCatalog)
+      );
+      setSelectedRegionCodes(
+        initialRegionCodes.length > 0 ? initialRegionCodes : selectAllCatalog(regionCatalog)
+      );
     }
-  }, [isOpen, initialApplicationIds, initialBusinessUnitIds, initialRegionCodes]);
-
-  useEffect(() => {
-    const el = appRootRef.current;
-    if (el) el.indeterminate = rootCheckboxState(appMode) === 'indeterminate';
-  }, [appMode]);
-
-  useEffect(() => {
-    const el = buRootRef.current;
-    if (el) el.indeterminate = rootCheckboxState(buMode) === 'indeterminate';
-  }, [buMode]);
-
-  useEffect(() => {
-    const el = regionRootRef.current;
-    if (el) el.indeterminate = rootCheckboxState(regionMode) === 'indeterminate';
-  }, [regionMode]);
+  }, [
+    isOpen,
+    initialYear,
+    initialApplicationIds,
+    initialBusinessUnitIds,
+    initialRegionCodes,
+    appCatalog,
+    buCatalog,
+    regionCatalog,
+  ]);
 
   const detailMode =
     view === 'applications' ? appMode : view === 'businessUnits' ? buMode : view === 'regions' ? regionMode : 'none';
@@ -140,6 +142,7 @@ export function FilterDrawer({
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     onApply({
+      year,
       applicationIds: toApiFilterList(selectedApplicationIds, appCatalog) ?? [],
       businessUnitIds: toApiFilterList(selectedBusinessUnitIds, buCatalog) ?? [],
       regionCodes: toApiFilterList(selectedRegionCodes, regionCatalog) ?? [],
@@ -148,9 +151,10 @@ export function FilterDrawer({
   }
 
   function onReset() {
-    setSelectedApplicationIds([]);
-    setSelectedBusinessUnitIds([]);
-    setSelectedRegionCodes([]);
+    setYear(null);
+    setSelectedApplicationIds(selectAllCatalog(appCatalog));
+    setSelectedBusinessUnitIds(selectAllCatalog(buCatalog));
+    setSelectedRegionCodes(selectAllCatalog(regionCatalog));
     setView('root');
   }
 
@@ -178,10 +182,7 @@ export function FilterDrawer({
                   setSelectedApplicationIds((prev) => toggleSortedValue(prev, app.id))
                 }
               />
-              <span>
-                {app.name ?? app.id}
-                <span className="graph-filter-item-id">{app.id}</span>
-              </span>
+              <span>{app.name ?? app.id}</span>
             </label>
           ))}
         </div>
@@ -291,11 +292,29 @@ export function FilterDrawer({
       <form className="graph-drawer-form graph-filter-form" onSubmit={onSubmit}>
         {view === 'root' ? (
           <div className="graph-filter-root-list" role="group" aria-label="Types de filtres">
+            <label className="graph-drawer-field graph-filter-year-field">
+              <span className="graph-drawer-field-label">Year</span>
+              <input
+                className="graph-drawer-input"
+                type="number"
+                inputMode="numeric"
+                placeholder="Toutes les années"
+                value={year ?? ''}
+                min={1970}
+                max={2100}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  setYear(v === '' ? null : Number(v));
+                }}
+              />
+            </label>
             <div className="graph-filter-root-row">
               <label className="graph-filter-root-label">
                 <input
-                  ref={appRootRef}
                   type="checkbox"
+                  ref={(el) => {
+                    if (el) el.indeterminate = appMode === 'some';
+                  }}
                   checked={rootCheckboxState(appMode) === 'checked'}
                   onChange={() =>
                     setSelectedApplicationIds(
@@ -304,6 +323,7 @@ export function FilterDrawer({
                   }
                 />
                 <span>{DIMENSION_META.applications.rootLabel}</span>
+                {appMode === 'all' && <span className="graph-filter-all-badge">all</span>}
               </label>
               <button
                 type="button"
@@ -317,8 +337,10 @@ export function FilterDrawer({
             <div className="graph-filter-root-row">
               <label className="graph-filter-root-label">
                 <input
-                  ref={buRootRef}
                   type="checkbox"
+                  ref={(el) => {
+                    if (el) el.indeterminate = buMode === 'some';
+                  }}
                   checked={rootCheckboxState(buMode) === 'checked'}
                   onChange={() =>
                     setSelectedBusinessUnitIds(
@@ -327,6 +349,7 @@ export function FilterDrawer({
                   }
                 />
                 <span>{DIMENSION_META.businessUnits.rootLabel}</span>
+                {buMode === 'all' && <span className="graph-filter-all-badge">all</span>}
               </label>
               <button
                 type="button"
@@ -340,14 +363,17 @@ export function FilterDrawer({
             <div className="graph-filter-root-row">
               <label className="graph-filter-root-label">
                 <input
-                  ref={regionRootRef}
                   type="checkbox"
+                  ref={(el) => {
+                    if (el) el.indeterminate = regionMode === 'some';
+                  }}
                   checked={rootCheckboxState(regionMode) === 'checked'}
                   onChange={() =>
                     setSelectedRegionCodes(applyRootToggle(regionCatalog, selectedRegionCodes))
                   }
                 />
                 <span>{DIMENSION_META.regions.rootLabel}</span>
+                {regionMode === 'all' && <span className="graph-filter-all-badge">all</span>}
               </label>
               <button
                 type="button"

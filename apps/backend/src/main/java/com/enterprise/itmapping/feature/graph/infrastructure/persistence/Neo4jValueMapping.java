@@ -37,6 +37,30 @@ public final class Neo4jValueMapping {
     return value.toString();
   }
 
+  public static Integer asInteger(Object value) {
+    if (value == null) {
+      return null;
+    }
+    if (value instanceof Number n) {
+      return n.intValue();
+    }
+    if (value instanceof Value v) {
+      if (v.isNull()) {
+        return null;
+      }
+      try {
+        return v.asInt();
+      } catch (Exception ignored) {
+        return null;
+      }
+    }
+    try {
+      return Integer.valueOf(value.toString());
+    } catch (NumberFormatException ignored) {
+      return null;
+    }
+  }
+
   public static Instant asInstant(Object value) {
     if (value == null) {
       return null;

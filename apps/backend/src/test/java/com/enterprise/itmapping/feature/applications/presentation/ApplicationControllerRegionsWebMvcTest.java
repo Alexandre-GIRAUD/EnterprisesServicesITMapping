@@ -14,7 +14,6 @@ import com.enterprise.itmapping.feature.applications.application.ModuleSuggestio
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.RegionSummary;
 import com.enterprise.itmapping.feature.businessunit.application.BusinessUnitApplicationLinkService;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -50,13 +49,12 @@ class ApplicationControllerRegionsWebMvcTest {
             "app-1",
             "App",
             "",
-            Instant.parse("2024-01-01T00:00:00Z"),
-            null,
+            2024,
             false,
             null,
             List.of(),
             List.of(new RegionSummary("rid", "EMEA", "EU")));
-    when(applicationService.findById(eq("app-1"), any())).thenReturn(Optional.of(body));
+    when(applicationService.findById(eq("app-1"))).thenReturn(Optional.of(body));
 
     mockMvc
         .perform(

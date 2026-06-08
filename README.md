@@ -1,6 +1,6 @@
 # Enterprise IT Mapping Platform
 
-Production-ready SaaS monorepo for mapping enterprise applications, their dependencies, and internal structure, with temporal versioning and scalability to thousands of nodes.
+Production-ready SaaS monorepo for mapping enterprise applications, their dependencies, and internal structure, with year-based filtering and scalability to thousands of nodes.
 
 ## Tech Stack
 
@@ -36,7 +36,7 @@ Production-ready SaaS monorepo for mapping enterprise applications, their depend
 │       │   │   ├── map/         # Graph canvas (Cytoscape), map page
 │       │   │   ├── applications/
 │       │   │   └── auth/
-│       │   └── types/           # Shared TS types (e.g. temporal)
+│       │   └── types/           # Shared TS types
 │       └── vite.config.ts
 ├── packages/             # Optional shared packages (e.g. API contracts)
 ├── docker-compose.yml
@@ -69,15 +69,13 @@ Dependencies point inward: presentation → application → domain; infrastructu
 
 - Applications and dependencies map naturally to nodes and relationships.
 - Cypher supports complex traversals and aggregations for drill-down and “subgraph” views.
-- Temporal versioning (e.g. `valid_from` / `valid_to`) can be modeled as node/relationship properties and used in queries for point-in-time and history.
+- A single integer `year` property on `Application` and `Module` nodes enables simple year-based filtering.
 
-### Temporal Versioning (valid_from / valid_to)
+### Year filtering (`year`)
 
-- All mutable entities (applications, dependencies) are designed to support:
-  - `valid_from`: start of validity (e.g. ISO date).
-  - `valid_to`: end of validity (`null` = current).
-- Queries accept a point-in-time (e.g. `validAt`) to return the graph or entities as of that date.
-- Enables historical views and audit without duplicating the whole graph.
+- `Application` and `Module` nodes carry an optional integer `year` (e.g. `2025`).
+- `GET /api/graph?year=2025` returns only the applications whose `year == 2025` (and the edges between them); omitting `year` returns the full graph.
+- The `year` filter combines (AND) with the existing `applicationIds` / `businessUnitIds` / `regionCodes` filters.
 
 ### Scalability (Thousands of Nodes)
 
@@ -153,7 +151,7 @@ docker-compose up -d
 ### Module graph (drill-down)
 
 - On the main map, **click an Application node** to open `/map/apps/{applicationId}`: Cytoscape shows the **Module** tree (`CONTAINS` edges) for that app.
-- API: `GET /api/applications/{id}/module-graph` with optional `validAt` (ISO instant). Same JSON shape as `GET /api/graph` (`GraphResponseDto`). **404** if the application is not valid at `validAt`; **200** with the application root only if there are no modules.
+- API: `GET /api/applications/{id}/module-graph`. Same JSON shape as `GET /api/graph` (`GraphResponseDto`). **404** if the application is unknown; **200** with the application root only if there are no modules.
 - Optional env (backend): **`APP_MODULE_GRAPH_MAX_DEPTH`** (default **10**) — max `CONTAINS` hops in Cypher (hard-capped at 50 in code).
 
 ### Regions (application detail)

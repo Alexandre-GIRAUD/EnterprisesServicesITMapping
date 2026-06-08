@@ -1,16 +1,9 @@
 package com.enterprise.itmapping;
 
-import com.enterprise.itmapping.common.Neo4jTemporalParameters;
-import com.enterprise.itmapping.domain.Application;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
-import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
-import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRequest;
 import com.enterprise.itmapping.feature.graph.application.GraphService;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
-import com.enterprise.itmapping.feature.graph.application.dto.VersionSnapshotDto;
-import java.time.Instant;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +23,7 @@ import org.testcontainers.utility.DockerImageName;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/** Integration tests for the {@code year} filter and module-graph (replaces the temporal feature). */
 @SpringBootTest
 @Testcontainers(disabledWithoutDocker = true)
 class TemporalQueryTest {
@@ -45,9 +39,6 @@ class TemporalQueryTest {
     registry.add("spring.neo4j.authentication.password", neo4j::getAdminPassword);
     registry.add("app.sample-data.seed", () -> "false");
   }
-
-  @Autowired
-  ApplicationRepository applicationRepository;
 
   @Autowired
   ApplicationService applicationService;
@@ -71,28 +62,23 @@ class TemporalQueryTest {
       String appId = UUID.randomUUID().toString();
       String m1 = UUID.randomUUID().toString();
       String m2 = UUID.randomUUID().toString();
-      Instant vf = Instant.parse("2024-01-01T00:00:00Z");
       Map<String, Object> bind = new HashMap<>();
       bind.put("appId", appId);
       bind.put("m1", m1);
       bind.put("m2", m2);
-      bind.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
       neo4jClient
           .query(
               """
-              CREATE (a:Application {id: $appId, name: 'ModParent', description: '', validFrom: $vf, validTo: null})
-              CREATE (x:Module {id: $m1, name: 'M1', description: '', validFrom: $vf, validTo: null})
-              CREATE (y:Module {id: $m2, name: 'M2', description: '', validFrom: $vf, validTo: null})
-              CREATE (a)-[:CONTAINS {validFrom: $vf, validTo: null}]->(x)
-              CREATE (x)-[:CONTAINS {validFrom: $vf, validTo: null}]->(y)
+              CREATE (a:Application {id: $appId, name: 'ModParent', description: '', year: 2025})
+              CREATE (x:Module {id: $m1, name: 'M1', description: '', year: 2025})
+              CREATE (y:Module {id: $m2, name: 'M2', description: '', year: 2025})
+              CREATE (a)-[:CONTAINS]->(x)
+              CREATE (x)-[:CONTAINS]->(y)
               """)
           .bindAll(bind)
           .run();
 
-      var graph =
-          moduleGraphService
-              .getModuleGraph(appId, Instant.parse("2024-06-01T00:00:00Z"))
-              .orElseThrow();
+      var graph = moduleGraphService.getModuleGraph(appId).orElseThrow();
 
       assertThat(graph.nodes()).hasSize(3);
       assertThat(graph.nodes().stream().map(n -> n.type()).distinct())
@@ -102,104 +88,55 @@ class TemporalQueryTest {
     }
 
     @Test
-    @DisplayName("returns empty when application id is unknown at validAt")
+    @DisplayName("returns empty when application id is unknown")
     void returnsEmptyForUnknownApp() {
-      assertThat(moduleGraphService.getModuleGraph("no-such-app-id-xyz", Instant.now())).isEmpty();
+      assertThat(moduleGraphService.getModuleGraph("no-such-app-id-xyz")).isEmpty();
     }
   }
 
   @Nested
-  @DisplayName("getGraphAtDate")
-  class GetGraphAtDate {
+  @DisplayName("graph filtered by year")
+  class GraphFilteredByYear {
 
     @Test
-    @DisplayName("returns only nodes and relationships valid at the given date")
-    void returnsOnlyValidAtDate() {
-      Instant past = Instant.parse("2024-01-01T00:00:00Z");
-      Instant future = Instant.parse("2024-06-01T00:00:00Z");
+    @DisplayName("returns only applications with the given year; null year returns all")
+    void filtersByYear() {
+      String appA = UUID.randomUUID().toString();
+      String appB = UUID.randomUUID().toString();
+      String appC = UUID.randomUUID().toString();
+      Map<String, Object> bind = new HashMap<>();
+      bind.put("appA", appA);
+      bind.put("appB", appB);
+      bind.put("appC", appC);
+      neo4jClient
+          .query(
+              """
+              CREATE (a:Application {id: $appA, name: 'A', description: '', year: 2025})
+              CREATE (b:Application {id: $appB, name: 'B', description: '', year: 2025})
+              CREATE (c:Application {id: $appC, name: 'C', description: '', year: 2023})
+              CREATE (a)-[:DEPENDS_ON]->(b)
+              CREATE (a)-[:DEPENDS_ON]->(c)
+              """)
+          .bindAll(bind)
+          .run();
 
-      Application onlyInPast = new Application();
-      onlyInPast.setName("PastApp");
-      onlyInPast.setValidFrom(past);
-      onlyInPast.setValidTo(Instant.parse("2024-03-01T00:00:00Z"));
-      applicationRepository.save(onlyInPast);
+      GraphResponseDto all = graphService.getGraph(null, null, null, null);
+      assertThat(all.nodes()).hasSize(3);
 
-      Application current = new Application();
-      current.setName("CurrentApp");
-      current.setValidFrom(past);
-      current.setValidTo(null);
-      applicationRepository.save(current);
-
-      Date queryDate = Date.from(Instant.parse("2024-02-15T00:00:00Z"));
-      GraphResponseDto graph = graphService.getGraphAtDate(queryDate, null, null, null);
-
-      assertThat(graph.nodes()).hasSize(2);
-      assertThat(graph.nodes().stream().map(n -> n.label()).toList())
-          .containsExactlyInAnyOrder("PastApp", "CurrentApp");
-
-      Date afterPastEnd = Date.from(Instant.parse("2024-04-01T00:00:00Z"));
-      GraphResponseDto graphLater = graphService.getGraphAtDate(afterPastEnd, null, null, null);
-      assertThat(graphLater.nodes()).hasSize(1);
-      assertThat(graphLater.nodes().getFirst().label()).isEqualTo("CurrentApp");
+      GraphResponseDto only2025 = graphService.getGraph(2025, null, null, null);
+      assertThat(only2025.nodes().stream().map(n -> n.id()).toList())
+          .containsExactlyInAnyOrder(appA, appB);
+      assertThat(only2025.edges()).hasSize(1);
+      assertThat(only2025.edges().getFirst().sourceId()).isEqualTo(appA);
+      assertThat(only2025.edges().getFirst().targetId()).isEqualTo(appB);
     }
 
     @Test
-    @DisplayName("returns empty graph when no nodes valid at date")
-    void returnsEmptyWhenNoneValid() {
-      Application app = new Application();
-      app.setName("FutureApp");
-      app.setValidFrom(Instant.parse("2030-01-01T00:00:00Z"));
-      app.setValidTo(null);
-      applicationRepository.save(app);
-
-      Date queryDate = Date.from(Instant.parse("2020-01-01T00:00:00Z"));
-      GraphResponseDto graph = graphService.getGraphAtDate(queryDate, null, null, null);
-
+    @DisplayName("unknown year yields empty graph")
+    void unknownYearReturnsEmpty() {
+      GraphResponseDto graph = graphService.getGraph(1900, null, null, null);
       assertThat(graph.nodes()).isEmpty();
       assertThat(graph.edges()).isEmpty();
-    }
-  }
-
-  @Nested
-  @DisplayName("createNewSnapshot")
-  class CreateNewSnapshot {
-
-    @Test
-    @DisplayName("creates VersionSnapshot and links all current valid nodes")
-    void createsSnapshotAndLinksCurrentNodes() {
-      Application app = new Application();
-      app.setName("SnapshotTestApp");
-      app.setValidFrom(Instant.now().minusSeconds(3600));
-      app.setValidTo(null);
-      applicationRepository.save(app);
-
-      VersionSnapshotDto snapshot = graphService.createNewSnapshot("v1.0");
-
-      assertThat(snapshot.id()).isNotBlank();
-      assertThat(snapshot.versionTag()).isEqualTo("v1.0");
-      assertThat(snapshot.validFrom()).isNotNull();
-      assertThat(snapshot.validTo()).isNull();
-      assertThat(snapshot.linkedNodeCount()).isGreaterThanOrEqualTo(1);
-    }
-
-    @Test
-    @DisplayName("links only nodes with validTo IS NULL")
-    void linksOnlyCurrentNodes() {
-      Application current = new Application();
-      current.setName("Current");
-      current.setValidFrom(Instant.now().minusSeconds(3600));
-      current.setValidTo(null);
-      applicationRepository.save(current);
-
-      Application closed = new Application();
-      closed.setName("Closed");
-      closed.setValidFrom(Instant.now().minusSeconds(7200));
-      closed.setValidTo(Instant.now().minusSeconds(1800));
-      applicationRepository.save(closed);
-
-      VersionSnapshotDto snapshot = graphService.createNewSnapshot("v2");
-
-      assertThat(snapshot.linkedNodeCount()).isEqualTo(1);
     }
   }
 
@@ -210,13 +147,11 @@ class TemporalQueryTest {
     @Test
     @DisplayName("returns only applications linked to the BU and edges inside that set")
     void filtersNodesAndEdges() {
-      Instant vf = Instant.parse("2024-01-01T00:00:00Z");
       String buId = UUID.randomUUID().toString();
       String appA = UUID.randomUUID().toString();
       String appB = UUID.randomUUID().toString();
       String appC = UUID.randomUUID().toString();
       Map<String, Object> bind = new HashMap<>();
-      bind.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
       bind.put("buId", buId);
       bind.put("appA", appA);
       bind.put("appB", appB);
@@ -225,22 +160,21 @@ class TemporalQueryTest {
           .query(
               """
               CREATE (bu:BusinessUnit {id: $buId, name: 'BU1', code: 'B1', description: ''})
-              CREATE (a:Application {id: $appA, name: 'A', description: '', validFrom: $vf, validTo: null})
-              CREATE (b:Application {id: $appB, name: 'B', description: '', validFrom: $vf, validTo: null})
-              CREATE (c:Application {id: $appC, name: 'C', description: '', validFrom: $vf, validTo: null})
+              CREATE (a:Application {id: $appA, name: 'A', description: '', year: 2025})
+              CREATE (b:Application {id: $appB, name: 'B', description: '', year: 2025})
+              CREATE (c:Application {id: $appC, name: 'C', description: '', year: 2025})
               CREATE (bu)-[:HAS_APPLICATION]->(a)
               CREATE (bu)-[:HAS_APPLICATION]->(b)
-              CREATE (a)-[:DEPENDS_ON {validFrom: $vf, validTo: null}]->(b)
-              CREATE (a)-[:DEPENDS_ON {validFrom: $vf, validTo: null}]->(c)
+              CREATE (a)-[:DEPENDS_ON]->(b)
+              CREATE (a)-[:DEPENDS_ON]->(c)
               """)
           .bindAll(bind)
           .run();
 
-      GraphResponseDto all = graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, null, null);
+      GraphResponseDto all = graphService.getGraph(null, null, null, null);
       assertThat(all.nodes()).hasSize(3);
 
-      GraphResponseDto filtered =
-          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, List.of(buId), null);
+      GraphResponseDto filtered = graphService.getGraph(null, null, List.of(buId), null);
       assertThat(filtered.nodes()).hasSize(2);
       assertThat(filtered.nodes().stream().map(n -> n.id()).toList())
           .containsExactlyInAnyOrder(appA, appB);
@@ -253,7 +187,7 @@ class TemporalQueryTest {
     @DisplayName("unknown business unit id yields empty graph")
     void unknownBuReturnsEmpty() {
       GraphResponseDto graph =
-          graphService.getGraph(Instant.now(), null, List.of(UUID.randomUUID().toString()), null);
+          graphService.getGraph(null, null, List.of(UUID.randomUUID().toString()), null);
       assertThat(graph.nodes()).isEmpty();
       assertThat(graph.edges()).isEmpty();
     }
@@ -261,46 +195,42 @@ class TemporalQueryTest {
     @Test
     @DisplayName("application detail includes business unit when linked")
     void findByIdIncludesBusinessUnit() {
-      Instant vf = Instant.parse("2024-01-01T00:00:00Z");
       String buId = UUID.randomUUID().toString();
       String appId = UUID.randomUUID().toString();
       Map<String, Object> bind = new HashMap<>();
-      bind.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
       bind.put("buId", buId);
       bind.put("appId", appId);
       neo4jClient
           .query(
               """
               CREATE (bu:BusinessUnit {id: $buId, name: 'BU X', code: 'BX', description: 'd'})
-              CREATE (a:Application {id: $appId, name: 'AppX', description: '', validFrom: $vf, validTo: null})
+              CREATE (a:Application {id: $appId, name: 'AppX', description: '', year: 2025})
               CREATE (bu)-[:HAS_APPLICATION]->(a)
               """)
           .bindAll(bind)
           .run();
 
-      var res = applicationService.findById(appId, Instant.parse("2024-06-01T00:00:00Z")).orElseThrow();
+      var res = applicationService.findById(appId).orElseThrow();
       assertThat(res.businessUnit()).isNotNull();
       assertThat(res.businessUnit().id()).isEqualTo(buId);
       assertThat(res.businessUnit().name()).isEqualTo("BU X");
+      assertThat(res.year()).isEqualTo(2025);
     }
 
     @Test
     @DisplayName("application detail has null business unit when not linked")
     void findByIdWithoutBusinessUnit() {
-      Instant vf = Instant.parse("2024-01-01T00:00:00Z");
       String appId = UUID.randomUUID().toString();
       neo4jClient
           .query(
               """
-              CREATE (a:Application {id: $appId, name: 'Solo', description: '', validFrom: $vf, validTo: null})
+              CREATE (a:Application {id: $appId, name: 'Solo', description: '', year: 2024})
               """)
           .bind(appId)
           .to("appId")
-          .bind(Neo4jTemporalParameters.toNeo4j(vf))
-          .to("vf")
           .run();
 
-      var res = applicationService.findById(appId, Instant.parse("2024-06-01T00:00:00Z")).orElseThrow();
+      var res = applicationService.findById(appId).orElseThrow();
       assertThat(res.businessUnit()).isNull();
     }
   }
@@ -312,12 +242,10 @@ class TemporalQueryTest {
     @Test
     @DisplayName("returns only applications used in the region and edges inside that set")
     void filtersNodesAndEdges() {
-      Instant vf = Instant.parse("2024-01-01T00:00:00Z");
       String appA = UUID.randomUUID().toString();
       String appB = UUID.randomUUID().toString();
       String appC = UUID.randomUUID().toString();
       Map<String, Object> bind = new HashMap<>();
-      bind.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
       bind.put("appA", appA);
       bind.put("appB", appB);
       bind.put("appC", appC);
@@ -325,23 +253,18 @@ class TemporalQueryTest {
           .query(
               """
               CREATE (reg:Region {id: randomUUID(), code: 'EMEA', name: 'EMEA', description: ''})
-              CREATE (a:Application {id: $appA, name: 'A', description: '', validFrom: $vf, validTo: null})
-              CREATE (b:Application {id: $appB, name: 'B', description: '', validFrom: $vf, validTo: null})
-              CREATE (c:Application {id: $appC, name: 'C', description: '', validFrom: $vf, validTo: null})
+              CREATE (a:Application {id: $appA, name: 'A', description: '', year: 2025})
+              CREATE (b:Application {id: $appB, name: 'B', description: '', year: 2025})
+              CREATE (c:Application {id: $appC, name: 'C', description: '', year: 2025})
               CREATE (a)-[:IS_USED_IN]->(reg)
               CREATE (b)-[:IS_USED_IN]->(reg)
-              CREATE (a)-[:DEPENDS_ON {validFrom: $vf, validTo: null}]->(b)
-              CREATE (a)-[:DEPENDS_ON {validFrom: $vf, validTo: null}]->(c)
+              CREATE (a)-[:DEPENDS_ON]->(b)
+              CREATE (a)-[:DEPENDS_ON]->(c)
               """)
           .bindAll(bind)
           .run();
 
-      GraphResponseDto all =
-          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, null, null);
-      assertThat(all.nodes()).hasSize(3);
-
-      GraphResponseDto filtered =
-          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, null, List.of("EMEA"));
+      GraphResponseDto filtered = graphService.getGraph(null, null, null, List.of("EMEA"));
       assertThat(filtered.nodes()).hasSize(2);
       assertThat(filtered.nodes().stream().map(n -> n.id()).toList())
           .containsExactlyInAnyOrder(appA, appB);
@@ -353,22 +276,19 @@ class TemporalQueryTest {
     @Test
     @DisplayName("unknown region code yields empty graph")
     void unknownRegionReturnsEmpty() {
-      GraphResponseDto graph =
-          graphService.getGraph(Instant.now(), null, null, List.of("NO_SUCH_REGION"));
+      GraphResponseDto graph = graphService.getGraph(null, null, null, List.of("NO_SUCH_REGION"));
       assertThat(graph.nodes()).isEmpty();
       assertThat(graph.edges()).isEmpty();
     }
 
     @Test
-    @DisplayName("business unit and region filters intersect")
-    void buAndRegionIntersect() {
-      Instant vf = Instant.parse("2024-01-01T00:00:00Z");
+    @DisplayName("year, business unit and region filters intersect")
+    void yearBuAndRegionIntersect() {
       String buId = UUID.randomUUID().toString();
       String appA = UUID.randomUUID().toString();
       String appB = UUID.randomUUID().toString();
       String appC = UUID.randomUUID().toString();
       Map<String, Object> bind = new HashMap<>();
-      bind.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
       bind.put("buId", buId);
       bind.put("appA", appA);
       bind.put("appB", appB);
@@ -378,9 +298,9 @@ class TemporalQueryTest {
               """
               CREATE (bu:BusinessUnit {id: $buId, name: 'BU1', code: 'B1', description: ''})
               CREATE (reg:Region {id: randomUUID(), code: 'APAC', name: 'APAC', description: ''})
-              CREATE (a:Application {id: $appA, name: 'A', description: '', validFrom: $vf, validTo: null})
-              CREATE (b:Application {id: $appB, name: 'B', description: '', validFrom: $vf, validTo: null})
-              CREATE (c:Application {id: $appC, name: 'C', description: '', validFrom: $vf, validTo: null})
+              CREATE (a:Application {id: $appA, name: 'A', description: '', year: 2025})
+              CREATE (b:Application {id: $appB, name: 'B', description: '', year: 2023})
+              CREATE (c:Application {id: $appC, name: 'C', description: '', year: 2025})
               CREATE (bu)-[:HAS_APPLICATION]->(a)
               CREATE (bu)-[:HAS_APPLICATION]->(b)
               CREATE (a)-[:IS_USED_IN]->(reg)
@@ -391,52 +311,9 @@ class TemporalQueryTest {
           .run();
 
       GraphResponseDto filtered =
-          graphService.getGraph(Instant.parse("2024-06-01T00:00:00Z"), null, List.of(buId), List.of("APAC"));
-      assertThat(filtered.nodes()).hasSize(2);
-      assertThat(filtered.nodes().stream().map(n -> n.id()).toList())
-          .containsExactlyInAnyOrder(appA, appB);
-    }
-  }
-
-  @Nested
-  @DisplayName("soft-update")
-  class SoftUpdate {
-
-    @Test
-    @DisplayName("sets previous validTo and creates new version with validFrom")
-    void closesCurrentAndCreatesNewVersion() {
-      ApplicationRequest create = new ApplicationRequest("Original", null, null, null);
-      com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse created =
-          applicationService.create(create);
-      String originalId = created.id();
-
-      ApplicationRequest update = new ApplicationRequest("Updated", "desc", null, null);
-      var updated = applicationService.softUpdate(originalId, update);
-
-      assertThat(updated).isPresent();
-      assertThat(updated.get().id()).isNotEqualTo(originalId);
-      assertThat(updated.get().name()).isEqualTo("Updated");
-      assertThat(updated.get().validTo()).isNull();
-
-      com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse oldVersion =
-          applicationService.findById(originalId, null).orElseThrow();
-      assertThat(oldVersion.validTo()).isNotNull();
-      assertThat(oldVersion.name()).isEqualTo("Original");
-    }
-
-    @Test
-    @DisplayName("returns empty when no current version exists for id")
-    void returnsEmptyWhenNotCurrent() {
-      Application app = new Application();
-      app.setName("Closed");
-      app.setValidFrom(Instant.now().minusSeconds(3600));
-      app.setValidTo(Instant.now().minusSeconds(1800));
-      applicationRepository.save(app);
-
-      ApplicationRequest update = new ApplicationRequest("Try", null, null, null);
-      var result = applicationService.softUpdate(app.getId(), update);
-
-      assertThat(result).isEmpty();
+          graphService.getGraph(2025, null, List.of(buId), List.of("APAC"));
+      assertThat(filtered.nodes()).hasSize(1);
+      assertThat(filtered.nodes().getFirst().id()).isEqualTo(appA);
     }
   }
 }

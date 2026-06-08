@@ -106,8 +106,7 @@ export function GitHubImportPage() {
           const created = await createApplication({
             name: repo.fullName,
             description: repo.description?.trim() || `GitHub: ${repo.htmlUrl}`,
-            validFrom: new Date().toISOString(),
-            validTo: null,
+            year: new Date().getFullYear(),
           });
           setApplications((prev) => [...prev, created]);
           createdNames.push(normalizeName(repo.fullName));

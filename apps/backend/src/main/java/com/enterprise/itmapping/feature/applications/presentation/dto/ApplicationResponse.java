@@ -2,15 +2,14 @@ package com.enterprise.itmapping.feature.applications.presentation.dto;
 
 import com.enterprise.itmapping.feature.contributors.presentation.dto.ContributorSummaryDto;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import java.time.Instant;
 import java.util.List;
 
 public record ApplicationResponse(
     String id,
     String name,
     String description,
-    Instant validFrom,
-    Instant validTo,
+    /** Reference year for the application node (e.g. 2025); null when not set. */
+    Integer year,
     /** True when IA module suggestion must be disabled ({@code CONTAINS*} to at least one {@code Module}). */
     boolean hasModuleSubtree,
     /** Present on {@code GET /applications/{id}} when the app is linked to a BU; otherwise null. */

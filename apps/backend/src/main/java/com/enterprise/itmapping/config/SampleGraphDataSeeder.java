@@ -1,10 +1,8 @@
 package com.enterprise.itmapping.config;
 
-import com.enterprise.itmapping.common.Neo4jTemporalParameters;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -100,7 +98,6 @@ public class SampleGraphDataSeeder implements ApplicationRunner {
   }
 
   private void insertSampleGraph() {
-    Instant vf = Instant.now().minusSeconds(86400 * 30);
     String p = UUID.randomUUID().toString();
     String g = UUID.randomUUID().toString();
     String o = UUID.randomUUID().toString();
@@ -140,7 +137,6 @@ public class SampleGraphDataSeeder implements ApplicationRunner {
     params.put("regionEmeaId", regionEmea);
     params.put("regionApacId", regionApac);
     params.put("regionAmericasId", regionAmericas);
-    params.put("vf", Neo4jTemporalParameters.toNeo4j(vf));
     neo4jClient.query(createApps).bindAll(params).run();
   }
 }

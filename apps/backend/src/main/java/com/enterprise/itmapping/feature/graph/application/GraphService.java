@@ -1,21 +1,15 @@
 package com.enterprise.itmapping.feature.graph.application;
 
-import com.enterprise.itmapping.common.Neo4jTemporalParameters;
-import com.enterprise.itmapping.domain.VersionSnapshot;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.businessunit.infrastructure.persistence.BusinessUnitRepository;
 import com.enterprise.itmapping.feature.region.infrastructure.persistence.RegionRepository;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeRequestDto;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeResponseDto;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.GraphLoader;
-import com.enterprise.itmapping.feature.graph.infrastructure.persistence.VersionSnapshotRepository;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphEdgeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
-import com.enterprise.itmapping.feature.graph.application.dto.VersionSnapshotDto;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -33,7 +27,6 @@ public class GraphService {
   private static final Set<String> ALLOWED_EDGE_TYPES = Set.of("DEPENDS_ON", "CONTAINS");
 
   private final GraphLoader graphLoader;
-  private final VersionSnapshotRepository versionSnapshotRepository;
   private final Neo4jClient neo4jClient;
   private final BusinessUnitRepository businessUnitRepository;
   private final RegionRepository regionRepository;
@@ -41,14 +34,12 @@ public class GraphService {
 
   public GraphService(
       GraphLoader graphLoader,
-      VersionSnapshotRepository versionSnapshotRepository,
       Neo4jClient neo4jClient,
       BusinessUnitRepository businessUnitRepository,
       RegionRepository regionRepository,
       ApplicationRepository applicationRepository
   ) {
     this.graphLoader = graphLoader;
-    this.versionSnapshotRepository = versionSnapshotRepository;
     this.neo4jClient = neo4jClient;
     this.businessUnitRepository = businessUnitRepository;
     this.regionRepository = regionRepository;
@@ -56,42 +47,7 @@ public class GraphService {
   }
 
   /**
-   * Creates a VersionSnapshot node and links it to all nodes currently valid (validTo IS NULL).
-   */
-  @Transactional
-  public VersionSnapshotDto createNewSnapshot(String versionName) {
-    Instant now = Instant.now();
-    VersionSnapshot snapshot = new VersionSnapshot();
-    snapshot.setVersionTag(versionName);
-    snapshot.setValidFrom(now);
-    snapshot.setValidTo(null);
-    VersionSnapshot saved = versionSnapshotRepository.save(snapshot);
-    int linked = graphLoader.linkCurrentNodesToSnapshot(saved.getId(), now);
-    return new VersionSnapshotDto(
-        saved.getId(),
-        saved.getVersionTag(),
-        saved.getDescription(),
-        saved.getValidFrom(),
-        saved.getValidTo(),
-        linked
-    );
-  }
-
-  /**
-   * Returns only nodes and relationships valid at the given date.
-   * Uses index-optimized temporal predicates for large graphs.
-   */
-  @Transactional(readOnly = true)
-  public GraphResponseDto getGraphAtDate(
-      Date date,
-      List<String> applicationIds,
-      List<String> businessUnitIds,
-      List<String> regionCodes) {
-    Instant pointInTime = date != null ? date.toInstant() : Instant.now();
-    return getGraph(pointInTime, applicationIds, businessUnitIds, regionCodes);
-  }
-
-  /**
+   * @param year optional; when non-null, only applications with {@code year == value}.
    * @param applicationIds optional; when non-empty, only listed application ids (OR).
    * @param businessUnitIds optional; when non-empty, applications under any listed BU (OR).
    * @param regionCodes optional; when non-empty, applications used in any listed region (OR,
@@ -99,11 +55,10 @@ public class GraphService {
    */
   @Transactional(readOnly = true)
   public GraphResponseDto getGraph(
-      Instant validAt,
+      Integer year,
       List<String> applicationIds,
       List<String> businessUnitIds,
       List<String> regionCodes) {
-    Instant pointInTime = validAt != null ? validAt : Instant.now();
     List<String> appIds = resolveExistingApplicationIds(applicationIds);
     List<String> buIds = resolveExistingBusinessUnitIds(businessUnitIds);
     List<String> regions = resolveExistingRegionCodes(regionCodes);
@@ -118,17 +73,17 @@ public class GraphService {
     }
 
     List<GraphEdgeProjection> edges =
-        graphLoader.loadEdges(pointInTime, appIds, buIds, regions);
+        graphLoader.loadEdges(year, appIds, buIds, regions);
 
     List<GraphNodeDto> nodes =
-        graphLoader.loadNodesValidAt(pointInTime, appIds, buIds, regions).stream()
+        graphLoader.loadNodes(year, appIds, buIds, regions).stream()
             .map(
                 a ->
                     new GraphNodeDto(
                         a.id(),
                         a.name() != null ? a.name() : a.id(),
                         "Application",
-                        toTemporalDto(a.validFrom(), a.validTo()),
+                        a.year(),
                         null))
             .collect(Collectors.toList());
 
@@ -215,9 +170,6 @@ public class GraphService {
           HttpStatus.BAD_REQUEST, "Type de relation non autorise: " + type);
     }
 
-    Instant validFrom = request.validFrom() != null ? request.validFrom() : Instant.now();
-    Instant validTo = request.validTo();
-
     boolean sourceExists =
         neo4jClient
             .query("MATCH (a:Application {id: $id}) RETURN count(a) AS cnt")
@@ -249,7 +201,6 @@ public class GraphService {
     String duplicateCypher =
         """
         MATCH (s:Application {id: $sourceId})-[r:%s]->(t:Application {id: $targetId})
-        WHERE r.validTo IS NULL
         RETURN count(r) AS cnt
         """
             .formatted(type);
@@ -267,7 +218,7 @@ public class GraphService {
             .orElse(false);
     if (duplicateExists) {
       throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "Une relation active identique existe deja.");
+          HttpStatus.CONFLICT, "Une relation identique existe deja.");
     }
 
     String edgeId = UUID.randomUUID().toString();
@@ -276,7 +227,7 @@ public class GraphService {
         MATCH (s:Application {id: $sourceId})
         MATCH (t:Application {id: $targetId})
         CREATE (s)-[r:%s]->(t)
-        SET r.id = $edgeId, r.validFrom = $validFrom, r.validTo = $validTo
+        SET r.id = $edgeId
         RETURN r.id AS id, s.id AS sourceId, t.id AS targetId, type(r) AS type
         """
             .formatted(type);
@@ -289,10 +240,6 @@ public class GraphService {
         .to("targetId")
         .bind(edgeId)
         .to("edgeId")
-        .bind(Neo4jTemporalParameters.toNeo4j(validFrom))
-        .to("validFrom")
-        .bind(Neo4jTemporalParameters.toNeo4j(validTo))
-        .to("validTo")
         .fetch()
         .first()
         .map(this::mapCreateEdgeResponse)
@@ -313,12 +260,5 @@ public class GraphService {
         row.get("sourceId") != null ? row.get("sourceId").toString() : null,
         row.get("targetId") != null ? row.get("targetId").toString() : null,
         row.get("type") != null ? row.get("type").toString() : null);
-  }
-
-  private static GraphNodeDto.TemporalDto toTemporalDto(java.time.Instant from, java.time.Instant to) {
-    return new GraphNodeDto.TemporalDto(
-        from != null ? from.toString() : null,
-        to != null ? to.toString() : null
-    );
   }
 }
