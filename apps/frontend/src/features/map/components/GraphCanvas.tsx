@@ -43,6 +43,7 @@ import { AppGraphNode, type AppGraphNodeType } from './AppGraphNode';
 import { OrientedEdge } from './OrientedEdge';
 import { buildOrientedEdge, attachRoute } from './orientedEdgeBuilders';
 import { computeFocus } from './graphFocus';
+import { fitGraphView } from './fitGraphView';
 
 type SelectedApplication = {
   id: string;
@@ -107,6 +108,7 @@ export function GraphCanvas() {
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   // Hover takes priority; if no hover, the pinned node keeps the highlight.
   const focusedId = hoveredId ?? pinnedId;
+  const [layoutRevision, setLayoutRevision] = useState(0);
   const filtersActive =
     year != null ||
     applicationIds.length > 0 ||
@@ -177,6 +179,12 @@ export function GraphCanvas() {
     void refreshRegions();
   }, [refreshApplications, refreshBusinessUnits, refreshRegions]);
 
+  // Fit the full diagram once nodes are rendered (double rAF inside fitGraphView).
+  useEffect(() => {
+    if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
+    fitGraphView(rfRef.current);
+  }, [status, nodes.length, layoutRevision]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -229,9 +237,7 @@ export function GraphCanvas() {
           setEdges(builtEdges);
         }
 
-        requestAnimationFrame(() => {
-          rfRef.current?.fitView({ padding: 0.1 });
-        });
+        if (!cancelled) setLayoutRevision((v) => v + 1);
 
         setStatus('ready');
         const emptyHint =
@@ -485,10 +491,8 @@ export function GraphCanvas() {
               elementsSelectable
               snapToGrid
               snapGrid={[GRID, GRID]}
-              minZoom={0.25}
+              minZoom={0.05}
               maxZoom={2.5}
-              fitView
-              fitViewOptions={{ padding: 0.1 }}
               proOptions={{ hideAttribution: true }}
             >
               <Background color="#1e293b" gap={GRID} />

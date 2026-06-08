@@ -1,6 +1,13 @@
 ﻿import type { ELK as ElkInstance, ElkNode } from 'elkjs/lib/elk-api';
 import { Position, type Edge, type Node } from '@xyflow/react';
 import { alignPositionsForStraighterEdges } from './alignNodes';
+import {
+  COMPONENT_GAP,
+  findConnectedComponents,
+  normalizeComponentLayout,
+  packComponentOffsets,
+  translateComponentLayout,
+} from './graphComponents';
 
 export type Point = { x: number; y: number };
 
@@ -409,6 +416,86 @@ function getElk(): Promise<ElkInstance> {
 }
 
 export async function elkLayout<N extends Node>(
+  nodes: N[],
+  edges: Edge[],
+  options: ElkLayoutOptions = {}
+): Promise<ElkLayoutResult<N>> {
+  const nodeIds = nodes.map((n) => n.id);
+  const components = findConnectedComponents(
+    nodeIds,
+    edges.map((e) => ({ source: e.source, target: e.target }))
+  );
+
+  if (components.length <= 1) {
+    return layoutSingleComponent(nodes, edges, options);
+  }
+
+  const {
+    nodeWidth = 160,
+    nodeHeight = 48,
+    aspectRatio,
+  } = options;
+
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const mergedPositions = new Map<string, { x: number; y: number }>();
+  const mergedRoutes = new Map<string, Point[]>();
+  const mergedNodes: N[] = [];
+  const bounds: { width: number; height: number }[] = [];
+  const componentMeta: {
+    nodeIds: string[];
+    edgeIds: string[];
+    positions: Map<string, { x: number; y: number }>;
+    routes: Map<string, Point[]>;
+    nodes: N[];
+  }[] = [];
+
+  for (const componentIds of components) {
+    const idSet = new Set(componentIds);
+    const compNodes = componentIds
+      .map((id) => nodeById.get(id))
+      .filter((n): n is N => n !== undefined);
+    const compEdges = edges.filter((e) => idSet.has(e.source) && idSet.has(e.target));
+
+    const result = await layoutSingleComponent(compNodes, compEdges, options);
+    const positions = new Map(result.nodes.map((n) => [n.id, { ...n.position }]));
+    const routes = new Map(result.routes);
+
+    const size = normalizeComponentLayout(
+      componentIds,
+      positions,
+      routes,
+      compNodes,
+      nodeWidth,
+      nodeHeight
+    );
+    bounds.push(size);
+    componentMeta.push({
+      nodeIds: componentIds,
+      edgeIds: compEdges.map((e) => e.id),
+      positions,
+      routes,
+      nodes: result.nodes,
+    });
+  }
+
+  const offsets = packComponentOffsets(bounds, COMPONENT_GAP, aspectRatio);
+  for (let i = 0; i < componentMeta.length; i++) {
+    const meta = componentMeta[i];
+    const offset = offsets[i] ?? { x: 0, y: 0 };
+    translateComponentLayout(meta.nodeIds, meta.positions, meta.routes, meta.edgeIds, offset);
+
+    for (const [id, pos] of meta.positions) mergedPositions.set(id, pos);
+    for (const [id, route] of meta.routes) mergedRoutes.set(id, route);
+    for (const node of meta.nodes) {
+      const pos = meta.positions.get(node.id);
+      mergedNodes.push({ ...node, position: pos ?? node.position });
+    }
+  }
+
+  return { nodes: mergedNodes, routes: mergedRoutes };
+}
+
+async function layoutSingleComponent<N extends Node>(
   nodes: N[],
   edges: Edge[],
   options: ElkLayoutOptions = {}

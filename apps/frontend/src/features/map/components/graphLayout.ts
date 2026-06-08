@@ -1,6 +1,13 @@
 ﻿import Dagre from '@dagrejs/dagre';
 import { type Edge, type Node } from '@xyflow/react';
 import { alignPositionsForStraighterEdges } from './alignNodes';
+import {
+  COMPONENT_GAP,
+  findConnectedComponents,
+  normalizeComponentLayout,
+  packComponentOffsets,
+  translateComponentLayout,
+} from './graphComponents';
 
 export type LayoutOptions = {
   nodeWidth?: number;
@@ -15,7 +22,7 @@ function snap(value: number, grid: number): number {
   return grid > 0 ? Math.round(value / grid) * grid : value;
 }
 
-export function layoutGraph<N extends Node>(
+function layoutSingleComponent<N extends Node>(
   nodes: N[],
   edges: Edge[],
   options: LayoutOptions = {}
@@ -114,4 +121,68 @@ export function layoutGraph<N extends Node>(
     // sourcePosition / targetPosition omitted: OrientedEdge derives the best
     // side live via bestSides() on every fallback render.
   }));
+}
+
+export function layoutGraph<N extends Node>(
+  nodes: N[],
+  edges: Edge[],
+  options: LayoutOptions = {}
+): N[] {
+  const {
+    nodeWidth = 140,
+    nodeHeight = 48,
+    aspectRatio,
+  } = options;
+
+  const components = findConnectedComponents(
+    nodes.map((n) => n.id),
+    edges.map((e) => ({ source: e.source, target: e.target }))
+  );
+
+  if (components.length <= 1) {
+    return layoutSingleComponent(nodes, edges, options);
+  }
+
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const merged: N[] = [];
+  const bounds: { width: number; height: number }[] = [];
+  const componentMeta: {
+    nodeIds: string[];
+    positions: Map<string, { x: number; y: number }>;
+    nodes: N[];
+  }[] = [];
+
+  for (const componentIds of components) {
+    const idSet = new Set(componentIds);
+    const compNodes = componentIds
+      .map((id) => nodeById.get(id))
+      .filter((n): n is N => n !== undefined);
+    const compEdges = edges.filter((e) => idSet.has(e.source) && idSet.has(e.target));
+    const laidOut = layoutSingleComponent(compNodes, compEdges, options);
+
+    const positions = new Map(laidOut.map((n) => [n.id, { ...n.position }]));
+    const size = normalizeComponentLayout(
+      componentIds,
+      positions,
+      new Map(),
+      compNodes,
+      nodeWidth,
+      nodeHeight
+    );
+    bounds.push(size);
+    componentMeta.push({ nodeIds: componentIds, positions, nodes: laidOut });
+  }
+
+  const offsets = packComponentOffsets(bounds, COMPONENT_GAP, aspectRatio);
+  for (let i = 0; i < componentMeta.length; i++) {
+    const meta = componentMeta[i];
+    const offset = offsets[i] ?? { x: 0, y: 0 };
+    translateComponentLayout(meta.nodeIds, meta.positions, new Map(), [], offset);
+    for (const node of meta.nodes) {
+      const pos = meta.positions.get(node.id);
+      merged.push({ ...node, position: pos ?? node.position });
+    }
+  }
+
+  return merged;
 }

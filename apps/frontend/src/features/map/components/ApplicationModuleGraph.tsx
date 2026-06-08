@@ -35,6 +35,7 @@ import { GraphLegend } from './GraphLegend';
 import { OrientedEdge } from './OrientedEdge';
 import { buildOrientedEdge, attachRoute } from './orientedEdgeBuilders';
 import { computeFocus } from './graphFocus';
+import { fitGraphView } from './fitGraphView';
 
 const KNOWN_NODE_TYPES = Object.keys(NODE_TYPE_STYLES) as NodeTypeKey[];
 const KNOWN_EDGE_TYPES = Object.keys(EDGE_TYPE_STYLES) as EdgeTypeKey[];
@@ -66,6 +67,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
   const focusedId = hoveredId ?? pinnedId;
   const [legendNodeTypes, setLegendNodeTypes] = useState<NodeTypeKey[]>([]);
   const [legendEdgeTypes, setLegendEdgeTypes] = useState<EdgeTypeKey[]>([]);
+  const [layoutRevision, setLayoutRevision] = useState(0);
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ module: ModuleGraphNode }), []);
   const edgeTypes = useMemo<EdgeTypes>(() => ({ oriented: OrientedEdge }), []);
@@ -90,6 +92,11 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
       className: focus.edgeIds.has(e.id) ? 'is-focus' : 'is-faded',
     }));
   }, [edges, focus]);
+
+  useEffect(() => {
+    if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
+    fitGraphView(rfRef.current);
+  }, [status, nodes.length, layoutRevision]);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,9 +173,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
           setEdges(rfEdges);
         }
 
-        requestAnimationFrame(() => {
-          rfRef.current?.fitView({ padding: 0.1 });
-        });
+        if (!cancelled) setLayoutRevision((v) => v + 1);
 
         setStatus('ready');
         setMessage(
@@ -280,10 +285,8 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
           nodesConnectable={false}
           snapToGrid
           snapGrid={[GRID, GRID]}
-          minZoom={0.25}
+          minZoom={0.05}
           maxZoom={2.5}
-          fitView
-          fitViewOptions={{ padding: 0.1 }}
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#1e293b" gap={GRID} />
