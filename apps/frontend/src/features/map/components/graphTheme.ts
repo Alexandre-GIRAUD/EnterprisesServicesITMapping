@@ -16,7 +16,7 @@ export type NodeTypeStyle = {
 };
 
 export type EdgeTypeStyle = {
-  /** French label shown in the legend. */
+  /** Label shown in the legend. */
   legendLabel: string;
   /** Stroke (and arrowhead) color. */
   color: string;
@@ -31,6 +31,17 @@ export const NODE_TYPE_STYLES: Record<NodeTypeKey, NodeTypeStyle> = {
 
 const NEUTRAL_NODE_COLOR = '#52525b';
 const NEUTRAL_EDGE_COLOR = '#64748b';
+
+/** Colors keyed by Neo4j `r.data` on DEPENDS_ON links (seed-app-db.cypher). */
+export const DATA_TYPE_STYLES: Record<string, EdgeTypeStyle> = {
+  'referential data': { legendLabel: 'Referential data', color: '#2563eb' },
+  'cash flows': { legendLabel: 'Cash flows', color: '#059669' },
+  'clearing data': { legendLabel: 'Clearing data', color: '#d97706' },
+  PV: { legendLabel: 'PV', color: '#7c3aed' },
+  'trade economics': { legendLabel: 'Trade economics', color: '#db2777' },
+};
+
+export const KNOWN_DATA_TYPE_KEYS = Object.keys(DATA_TYPE_STYLES);
 
 /** Border/identity color for a node relation type (neutral fallback). */
 export function nodeColorForType(type: string): string {
@@ -50,12 +61,64 @@ export const ZOOM_THRESHOLDS = {
 } as const;
 
 export const EDGE_TYPE_STYLES: Record<EdgeTypeKey, EdgeTypeStyle> = {
-  DEPENDS_ON: { legendLabel: 'Dépendance', color: '#64748b' },
+  DEPENDS_ON: { legendLabel: 'Dependency', color: '#64748b' },
   CONTAINS: { legendLabel: 'Composition', color: '#0284c7', dashed: true },
 };
 
 function edgeStyleEntry(type: string): EdgeTypeStyle | undefined {
   return (EDGE_TYPE_STYLES as Record<string, EdgeTypeStyle | undefined>)[type];
+}
+
+function hashColor(text: string): string {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) {
+    h = (Math.imul(31, h) + text.charCodeAt(i)) >>> 0;
+  }
+  return `hsl(${h % 360} 52% 42%)`;
+}
+
+/** Resolve stroke color from a property value, else relation type. */
+export function edgeColorForProperty(
+  value: string | null | undefined,
+  relationType: string,
+  propertyKey: string
+): string {
+  if (propertyKey === '__relation__') {
+    return edgeColorForType(value?.trim() || relationType);
+  }
+  const key = value?.trim();
+  if (!key) {
+    return edgeColorForType(relationType);
+  }
+  if (propertyKey === 'data' && DATA_TYPE_STYLES[key]) {
+    return DATA_TYPE_STYLES[key].color;
+  }
+  return hashColor(`${propertyKey}:${key}`);
+}
+
+/** @deprecated Use {@link edgeColorForProperty} with property key `data`. */
+export function edgeColorForData(
+  dataLabel: string | null | undefined,
+  relationType: string
+): string {
+  return edgeColorForProperty(dataLabel, relationType, 'data');
+}
+
+/** Legend label for a data type key (falls back to the raw key). */
+export function legendLabelForData(dataKey: string): string {
+  return DATA_TYPE_STYLES[dataKey]?.legendLabel ?? dataKey;
+}
+
+/** Stable display order: known palette first, then any other values alphabetically. */
+export function sortDataTypesForLegend(types: Iterable<string>): string[] {
+  const present = new Set([...types].map((t) => t.trim()).filter(Boolean));
+  const known = KNOWN_DATA_TYPE_KEYS.filter((k) => present.has(k));
+  const unknown = [...present].filter((k) => !KNOWN_DATA_TYPE_KEYS.includes(k)).sort();
+  return [...known, ...unknown];
+}
+
+export function edgeDashedForRelation(relationType: string): boolean {
+  return Boolean(edgeStyleEntry(relationType)?.dashed);
 }
 
 /** Resolve the stroke color for an edge relation type (neutral fallback). */

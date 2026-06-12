@@ -20,6 +20,16 @@ export type OrientedEdgeData = {
   targetColor: string;
   dashed?: boolean;
   relation?: string;
+  /** Label shown on the link (data type when available). */
+  dataLabel?: string;
+  /** Raw Neo4j `r.data` key used for edge labels. */
+  dataKey?: string | null;
+  /** Edge property key currently driving stroke color. */
+  colorPropertyKey?: string;
+  /** Resolved value for {@link colorPropertyKey}. */
+  colorValue?: string | null;
+  /** Colorable relationship properties from the API. */
+  properties?: Record<string, string>;
   bendPoints?: Point[];
   routeStart?: Point;
   routeEnd?: Point;
@@ -565,6 +575,8 @@ export function OrientedEdge({
             className="oriented-edge-label nodrag nopan"
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              color: sourceColor,
+              borderColor: `${sourceColor}55`,
             }}
           >
             {label}

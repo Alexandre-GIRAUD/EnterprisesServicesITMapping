@@ -131,6 +131,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
             sourceId: e.sourceId,
             targetId: e.targetId,
             relationType: e.type,
+            dataLabel: e.data,
             sourceNodeType: typeById.get(e.sourceId) ?? 'Module',
             targetNodeType: typeById.get(e.targetId) ?? 'Module',
           })
@@ -293,7 +294,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
           <Controls showInteractive={false} />
           {(legendNodeTypes.length > 0 || legendEdgeTypes.length > 0) && (
             <Panel position="top-left">
-              <GraphLegend nodeTypes={legendNodeTypes} edgeTypes={legendEdgeTypes} />
+              <GraphLegend nodeTypes={legendNodeTypes} relationTypes={legendEdgeTypes} />
             </Panel>
           )}
         </ReactFlow>

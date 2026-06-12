@@ -23,6 +23,7 @@ import type {
   ApplicationResponse,
   BusinessUnitListItem,
   GraphEdgeCreateResponse,
+  GraphEdgeDto,
   GraphNodeDto,
   RegionSummary,
 } from '@/types/api';
@@ -39,9 +40,16 @@ import { elkLayout } from './elkLayout';
 import { snapDraggedNodeForStraighterEdges } from './alignNodes';
 import { computeBridges } from './bridges';
 import { GraphLegend } from './GraphLegend';
+import {
+  collectLegendColorValues,
+  colorPropertyOptions,
+  loadStoredColorPropertyKey,
+  resolveColorPropertyKey,
+  storeColorPropertyKey,
+} from './edgeColorProperty';
 import { AppGraphNode, type AppGraphNodeType } from './AppGraphNode';
-import { OrientedEdge } from './OrientedEdge';
-import { buildOrientedEdge, attachRoute } from './orientedEdgeBuilders';
+import { OrientedEdge, type OrientedEdgeType } from './OrientedEdge';
+import { buildOrientedEdge, attachRoute, restyleEdgeColorProperty } from './orientedEdgeBuilders';
 import { computeFocus } from './graphFocus';
 import { fitGraphView } from './fitGraphView';
 
@@ -67,14 +75,18 @@ function buildAppNode(node: GraphNodeDto): AppNode {
 }
 
 function buildAppEdge(
-  edge: { id: string; sourceId: string; targetId: string; type: string },
-  typeById: Map<string, string>
+  edge: GraphEdgeDto,
+  typeById: Map<string, string>,
+  colorPropertyKey: string
 ) {
   return buildOrientedEdge({
     id: edge.id,
     sourceId: edge.sourceId,
     targetId: edge.targetId,
     relationType: edge.type,
+    dataLabel: edge.data,
+    colorPropertyKey,
+    properties: edge.properties,
     sourceNodeType: typeById.get(edge.sourceId) ?? 'Application',
     targetNodeType: typeById.get(edge.targetId) ?? 'Application',
   });
@@ -109,11 +121,40 @@ export function GraphCanvas() {
   // Hover takes priority; if no hover, the pinned node keeps the highlight.
   const focusedId = hoveredId ?? pinnedId;
   const [layoutRevision, setLayoutRevision] = useState(0);
+  const [graphEdges, setGraphEdges] = useState<GraphEdgeDto[]>([]);
+  const graphEdgesRef = useRef(graphEdges);
+  graphEdgesRef.current = graphEdges;
+  const [colorPropertyKey, setColorPropertyKey] = useState(loadStoredColorPropertyKey);
   const filtersActive =
     year != null ||
     applicationIds.length > 0 ||
     businessUnitIds.length > 0 ||
     regionCodes.length > 0;
+  const legendColorPropertyOptions = useMemo(
+    () => colorPropertyOptions(graphEdges),
+    [graphEdges]
+  );
+  const legendColorValues = useMemo(
+    () => collectLegendColorValues(graphEdges, colorPropertyKey),
+    [graphEdges, colorPropertyKey]
+  );
+
+  const handleColorPropertyChange = useCallback((key: string) => {
+    setColorPropertyKey(key);
+    storeColorPropertyKey(key);
+  }, []);
+
+  // Re-stroke edges when the user picks another color property (keep ELK routes).
+  useEffect(() => {
+    if (status !== 'ready') return;
+    setEdges((prev) => {
+      if (prev.length === 0) return prev;
+      const byId = new Map(graphEdgesRef.current.map((edge) => [edge.id, edge]));
+      return prev.map((edge) =>
+        restyleEdgeColorProperty(edge as OrientedEdgeType, colorPropertyKey, byId.get(edge.id))
+      );
+    });
+  }, [colorPropertyKey, status, setEdges]);
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ app: AppGraphNode }), []);
   const edgeTypes = useMemo<EdgeTypes>(() => ({ oriented: OrientedEdge }), []);
@@ -201,10 +242,16 @@ export function GraphCanvas() {
         if (cancelled) return;
 
         setGraphNodes(data.nodes);
+        setGraphEdges(data.edges);
+        const effectiveColorKey = resolveColorPropertyKey(colorPropertyKey, data.edges);
+        if (effectiveColorKey !== colorPropertyKey) {
+          setColorPropertyKey(effectiveColorKey);
+          storeColorPropertyKey(effectiveColorKey);
+        }
 
         const typeById = new Map(data.nodes.map((n) => [n.id, n.type]));
         const baseNodes = data.nodes.map(buildAppNode);
-        const builtEdges = data.edges.map((e) => buildAppEdge(e, typeById));
+        const builtEdges = data.edges.map((e) => buildAppEdge(e, typeById, effectiveColorKey));
         const rect = containerRef.current?.getBoundingClientRect();
         const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
 
@@ -250,6 +297,7 @@ export function GraphCanvas() {
       } catch (e) {
         if (!cancelled) {
           setGraphNodes([]);
+          setGraphEdges([]);
           setNodes([]);
           setEdges([]);
           setStatus('error');
@@ -380,9 +428,18 @@ export function GraphCanvas() {
     }
 
     const typeById = new Map(nodes.map((n) => [n.id, n.data.nodeType]));
+    const createdEdge: GraphEdgeDto = {
+      id: created.id,
+      sourceId: created.sourceId,
+      targetId: created.targetId,
+      type: created.type,
+      data: null,
+      properties: {},
+    };
+    setGraphEdges((prev) => (prev.some((e) => e.id === created.id) ? prev : [...prev, createdEdge]));
     setEdges((prev) => {
       if (prev.some((e) => e.id === created.id)) return prev;
-      return [...prev, buildAppEdge(created, typeById)];
+      return [...prev, buildAppEdge(createdEdge, typeById, colorPropertyKey)];
     });
     return null;
   }
@@ -394,6 +451,9 @@ export function GraphCanvas() {
       prev.filter((e) => e.source !== applicationId && e.target !== applicationId)
     );
     setGraphNodes((prev) => prev.filter((n) => n.id !== applicationId));
+    setGraphEdges((prev) =>
+      prev.filter((e) => e.sourceId !== applicationId && e.targetId !== applicationId)
+    );
     setSelectedApplication(null);
     setIsDetailsDrawerOpen(false);
   }
@@ -498,7 +558,13 @@ export function GraphCanvas() {
               <Background color="#e2e8f0" gap={GRID} />
               <Controls showInteractive={false} />
               <Panel position="top-left">
-                <GraphLegend nodeTypes={['Application']} edgeTypes={['DEPENDS_ON']} />
+                <GraphLegend
+                  nodeTypes={['Application']}
+                  colorPropertyKey={colorPropertyKey}
+                  colorPropertyOptions={legendColorPropertyOptions}
+                  onColorPropertyChange={handleColorPropertyChange}
+                  colorValues={legendColorValues}
+                />
               </Panel>
             </ReactFlow>
           </div>

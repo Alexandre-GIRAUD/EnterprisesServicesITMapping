@@ -90,12 +90,13 @@ public class GraphService {
     List<GraphEdgeDto> edgeDtos = new ArrayList<>();
     int i = 0;
     for (GraphEdgeProjection e : edges) {
-      edgeDtos.add(new GraphEdgeDto(
-          "e" + i++,
-          e.sourceId(),
-          e.targetId(),
-          e.type()
-      ));
+      String id =
+          e.relationshipId() != null && !e.relationshipId().isBlank()
+              ? e.relationshipId()
+              : "e" + (i++);
+      edgeDtos.add(
+          new GraphEdgeDto(
+              id, e.sourceId(), e.targetId(), e.type(), e.data(), e.properties()));
     }
 
     return new GraphResponseDto(nodes, edgeDtos);
