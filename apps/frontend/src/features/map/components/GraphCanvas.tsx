@@ -170,6 +170,7 @@ export function GraphCanvas() {
     setGraphMode('sandbox');
     setSandboxDirty(false);
     setMessage('Mode Sandbox — les modifications ne sont pas sauvegardées.');
+    setIsDrawerOpen(true);
   }
 
   function switchToNormalMode() {
@@ -181,6 +182,7 @@ export function GraphCanvas() {
     }
     setGraphMode('normal');
     setSandboxDirty(false);
+    setIsDrawerOpen(false);
     setGraphReloadNonce((n) => n + 1);
   }
 
