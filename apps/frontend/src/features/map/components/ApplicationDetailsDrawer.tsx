@@ -17,16 +17,27 @@ import {
 import { fetchRegions } from '../api/regionsApi';
 import { fetchBusinessUnits } from '../api/businessUnitsApi';
 import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
+import { isSandboxId } from '../utils/sandboxGraph';
 
 type ApplicationDetails = {
   id: string;
   label: string;
 };
 
+export type ApplicationUpdatePatch = {
+  name: string;
+  description?: string;
+  year?: number | null;
+};
+
 type ApplicationDetailsDrawerProps = {
   isOpen: boolean;
   application: ApplicationDetails | null;
   onClose: () => void;
+  sandboxMode?: boolean;
+  /** Resolve sandbox-only application details from the local graph. */
+  resolveSandboxApplication?: (id: string) => ApplicationResponse | null;
+  onApplicationUpdated?: (applicationId: string, patch: ApplicationUpdatePatch) => void;
   onOpenModuleGraph: (applicationId: string) => void;
   /** Invoked after backend delete succeeds; parent should remove the node from the graph and close UI. */
   onApplicationDeleted: (applicationId: string) => void;
@@ -36,6 +47,9 @@ export function ApplicationDetailsDrawer({
   isOpen,
   application,
   onClose,
+  sandboxMode = false,
+  resolveSandboxApplication,
+  onApplicationUpdated,
   onOpenModuleGraph,
   onApplicationDeleted,
 }: ApplicationDetailsDrawerProps) {
@@ -72,6 +86,25 @@ export function ApplicationDetailsDrawer({
     setSuggestErrorMessage(null);
     setSuggestSuccessMessage(null);
 
+    if (sandboxMode && isSandboxId(application.id)) {
+      const local = resolveSandboxApplication?.(application.id);
+      if (!local) {
+        setStatus('error');
+        setErrorMessage('Application sandbox introuvable sur le graphe.');
+        return;
+      }
+      setDetails(local);
+      setFormState({
+        name: local.name ?? '',
+        description: local.description ?? '',
+        year: local.year != null ? String(local.year) : '',
+        businessUnitId: '',
+        regionCodes: [],
+      });
+      setStatus('ready');
+      return;
+    }
+
     void fetchApplicationById(application.id)
       .then((data) => {
         if (cancelled) return;
@@ -94,10 +127,10 @@ export function ApplicationDetailsDrawer({
     return () => {
       cancelled = true;
     };
-  }, [application?.id, isOpen]);
+  }, [application?.id, isOpen, resolveSandboxApplication, sandboxMode]);
 
   useEffect(() => {
-    if (!isEditing || !isOpen) return;
+    if (!isEditing || !isOpen || sandboxMode) return;
     let cancelled = false;
     void fetchBusinessUnits()
       .then((rows) => {
@@ -116,7 +149,7 @@ export function ApplicationDetailsDrawer({
     return () => {
       cancelled = true;
     };
-  }, [isEditing, isOpen]);
+  }, [isEditing, isOpen, sandboxMode]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -169,6 +202,43 @@ export function ApplicationDetailsDrawer({
       description: formState.description.trim() || '',
       year: yearValue,
     };
+
+    if (sandboxMode) {
+      try {
+        setIsSaving(true);
+        setFormErrorMessage(null);
+        setSaveSuccessMessage(null);
+        const updated: ApplicationResponse = {
+          ...(details ?? {
+            id: application.id,
+            name,
+            year: yearValue ?? null,
+          }),
+          id: application.id,
+          name,
+          description: payload.description,
+          year: yearValue ?? null,
+        };
+        setDetails(updated);
+        setFormState({
+          name: updated.name ?? '',
+          description: updated.description ?? '',
+          year: updated.year != null ? String(updated.year) : '',
+          businessUnitId: formState.businessUnitId,
+          regionCodes: formState.regionCodes,
+        });
+        onApplicationUpdated?.(application.id, {
+          name,
+          description: payload.description,
+          year: yearValue ?? null,
+        });
+        setSaveSuccessMessage('Application mise à jour (sandbox, non sauvegardé).');
+        setIsEditing(false);
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
 
     const buIdTrimmed = formState.businessUnitId.trim();
     const businessUnitIdPatch: string | null = buIdTrimmed.length > 0 ? buIdTrimmed : null;
@@ -246,7 +316,9 @@ export function ApplicationDetailsDrawer({
     try {
       setIsDeleting(true);
       setDeleteErrorMessage(null);
-      await deleteApplicationById(id);
+      if (!sandboxMode) {
+        await deleteApplicationById(id);
+      }
       onApplicationDeleted(id);
       setShowDeleteConfirm(false);
     } catch (e) {
@@ -369,7 +441,7 @@ export function ApplicationDetailsDrawer({
                   onChange={(e) =>
                     setFormState((prev) => ({ ...prev, businessUnitId: e.target.value }))
                   }
-                  disabled={isSaving || isDeleting}
+                  disabled={isSaving || isDeleting || sandboxMode}
                   aria-label="Business unit de l'application"
                 >
                   <option value="">Aucune / non rattachée</option>
@@ -379,10 +451,15 @@ export function ApplicationDetailsDrawer({
                     </option>
                   ))}
                 </select>
+                {sandboxMode && (
+                  <span className="graph-drawer-field-hint">Non modifiable en sandbox.</span>
+                )}
               </label>
-              <fieldset className="graph-drawer-field graph-drawer-fieldset">
+              <fieldset className="graph-drawer-field graph-drawer-fieldset" disabled={sandboxMode}>
                 <legend className="graph-drawer-field-label">Régions</legend>
-                {regionsCatalog.length === 0 ? (
+                {sandboxMode ? (
+                  <p className="graph-details-text">Non modifiable en sandbox.</p>
+                ) : regionsCatalog.length === 0 ? (
                   <p className="graph-details-text">Chargement du catalogue…</p>
                 ) : (
                   <div className="graph-drawer-region-checkboxes">
@@ -460,7 +537,7 @@ export function ApplicationDetailsDrawer({
                 >
                   <span className="graph-drawer-action-title">Delete application</span>
                   <span className="graph-drawer-action-meta" aria-hidden="true">
-                    Neo4j
+                    {sandboxMode ? 'Local' : 'Neo4j'}
                   </span>
                 </button>
               ) : (
@@ -471,8 +548,9 @@ export function ApplicationDetailsDrawer({
                   aria-labelledby="graph-delete-confirm-title"
                 >
                   <p id="graph-delete-confirm-title" className="graph-details-delete-confirm-title">
-                    Supprimer cette application ? Les modules reliés via CONTAINS et les arêtes attachées
-                    seront supprimés définitivement.
+                    {sandboxMode
+                      ? 'Retirer cette application du graphe sandbox ? Aucune donnée en base ne sera modifiée.'
+                      : 'Supprimer cette application ? Les modules reliés via CONTAINS et les arêtes attachées seront supprimés définitivement.'}
                   </p>
                   <div className="graph-details-delete-confirm-actions">
                     <button
@@ -552,6 +630,7 @@ export function ApplicationDetailsDrawer({
           status === 'ready' &&
           !isEditing &&
           details &&
+          !sandboxMode &&
           isGitHubLinkedApplication(details) && (
             <button
               type="button"
@@ -580,6 +659,8 @@ export function ApplicationDetailsDrawer({
           <button
             type="button"
             className="graph-drawer-action graph-drawer-action-primary"
+            disabled={sandboxMode}
+            title={sandboxMode ? 'Indisponible en sandbox' : undefined}
             onClick={() => onOpenModuleGraph(application.id)}
           >
             <span className="graph-drawer-action-title">Open module graph</span>

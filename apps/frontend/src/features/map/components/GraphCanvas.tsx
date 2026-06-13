@@ -52,6 +52,9 @@ import { OrientedEdge, type OrientedEdgeType } from './OrientedEdge';
 import { buildOrientedEdge, attachRoute, restyleEdgeColorProperty } from './orientedEdgeBuilders';
 import { computeFocus } from './graphFocus';
 import { fitGraphView } from './fitGraphView';
+import { applicationResponseFromGraphNode } from '../utils/sandboxGraph';
+import type { ApplicationUpdatePatch } from './ApplicationDetailsDrawer';
+import { GraphModeTabs, type GraphMode } from './GraphModeTabs';
 
 type SelectedApplication = {
   id: string;
@@ -125,6 +128,13 @@ export function GraphCanvas() {
   const graphEdgesRef = useRef(graphEdges);
   graphEdgesRef.current = graphEdges;
   const [colorPropertyKey, setColorPropertyKey] = useState(loadStoredColorPropertyKey);
+  const [graphMode, setGraphMode] = useState<GraphMode>('normal');
+  const [sandboxDirty, setSandboxDirty] = useState(false);
+  const [graphReloadNonce, setGraphReloadNonce] = useState(0);
+  const [pendingSandboxFilterHint, setPendingSandboxFilterHint] = useState(false);
+  const isSandbox = graphMode === 'sandbox';
+  const graphModeRef = useRef(graphMode);
+  graphModeRef.current = graphMode;
   const filtersActive =
     year != null ||
     applicationIds.length > 0 ||
@@ -138,6 +148,41 @@ export function GraphCanvas() {
     () => collectLegendColorValues(graphEdges, colorPropertyKey),
     [graphEdges, colorPropertyKey]
   );
+
+  const graphAppsForDrawer = useMemo(
+    () =>
+      graphNodes
+        .filter((n) => n.type === 'Application')
+        .map((n) => applicationResponseFromGraphNode(n)),
+    [graphNodes]
+  );
+
+  const resolveSandboxApplication = useCallback(
+    (id: string) => {
+      const node = graphNodes.find((n) => n.id === id);
+      if (!node) return null;
+      return applicationResponseFromGraphNode(node);
+    },
+    [graphNodes]
+  );
+
+  function switchToSandboxMode() {
+    setGraphMode('sandbox');
+    setSandboxDirty(false);
+    setMessage('Mode Sandbox — les modifications ne sont pas sauvegardées.');
+  }
+
+  function switchToNormalMode() {
+    if (
+      sandboxDirty &&
+      !window.confirm('Quitter le sandbox ? Les modifications locales seront perdues.')
+    ) {
+      return;
+    }
+    setGraphMode('normal');
+    setSandboxDirty(false);
+    setGraphReloadNonce((n) => n + 1);
+  }
 
   const handleColorPropertyChange = useCallback((key: string) => {
     setColorPropertyKey(key);
@@ -287,13 +332,20 @@ export function GraphCanvas() {
         if (!cancelled) setLayoutRevision((v) => v + 1);
 
         setStatus('ready');
-        const emptyHint =
-          data.nodes.length === 0
-            ? filtersActive
-              ? 'Aucune application pour ces filtres (année / business unit / location). Changez de critères ou réinitialisez.'
-              : 'Aucun nœud. Démarrez le backend avec Neo4j pour charger les données de démo.'
-            : 'Astuce : cliquez sur une application pour ouvrir le graphe de ses modules.';
-        setMessage(emptyHint);
+        if (pendingSandboxFilterHint) {
+          setMessage('Filtres appliqués — brouillon sandbox réinitialisé.');
+          setPendingSandboxFilterHint(false);
+        } else {
+          const emptyHint =
+            data.nodes.length === 0
+              ? filtersActive
+                ? 'Aucune application pour ces filtres (année / business unit / location). Changez de critères ou réinitialisez.'
+                : 'Aucun nœud. Démarrez le backend avec Neo4j pour charger les données de démo.'
+              : graphModeRef.current === 'sandbox'
+                ? 'Mode Sandbox — les modifications ne sont pas sauvegardées.'
+                : 'Astuce : cliquez sur une application pour ouvrir le graphe de ses modules.';
+          setMessage(emptyHint);
+        }
       } catch (e) {
         if (!cancelled) {
           setGraphNodes([]);
@@ -328,6 +380,7 @@ export function GraphCanvas() {
     businessUnitIds,
     regionCodes,
     filtersActive,
+    graphReloadNonce,
     setNodes,
     setEdges,
   ]);
@@ -347,11 +400,12 @@ export function GraphCanvas() {
 
   const handleNodeDoubleClick = useCallback(
     (_: ReactMouseEvent, node: AppNode) => {
+      if (isSandbox) return;
       if (node.data.nodeType === 'Application') {
         navigate(`/map/apps/${encodeURIComponent(node.id)}`);
       }
     },
-    [navigate]
+    [navigate, isSandbox]
   );
 
   const handleNodeMouseEnter = useCallback(
@@ -375,6 +429,18 @@ export function GraphCanvas() {
     },
     [edges, setNodes]
   );
+
+  function onNodeCreatedHandler(created: ApplicationResponse) {
+    handleNodeCreated(created);
+    if (isSandbox) setSandboxDirty(true);
+  }
+
+  function onEdgeCreatedHandler(created: GraphEdgeCreateResponse): string | null {
+    const msg = handleEdgeCreated(created);
+    if (msg) return msg;
+    if (isSandbox) setSandboxDirty(true);
+    return null;
+  }
 
   function handleNodeCreated(created: ApplicationResponse) {
     setNodes((prev) => {
@@ -444,7 +510,12 @@ export function GraphCanvas() {
     return null;
   }
 
-  /** Remove application node + incident edges from React Flow after successful API delete */
+  /** Remove application node + incident edges from React Flow after delete */
+  function onApplicationDeletedHandler(applicationId: string) {
+    handleApplicationDeleted(applicationId);
+    if (isSandbox) setSandboxDirty(true);
+  }
+
   function handleApplicationDeleted(applicationId: string) {
     setNodes((prev) => prev.filter((n) => n.id !== applicationId));
     setEdges((prev) =>
@@ -456,6 +527,32 @@ export function GraphCanvas() {
     );
     setSelectedApplication(null);
     setIsDetailsDrawerOpen(false);
+  }
+
+  function handleApplicationUpdated(applicationId: string, patch: ApplicationUpdatePatch) {
+    setGraphNodes((prev) =>
+      prev.map((n) =>
+        n.id === applicationId
+          ? {
+              ...n,
+              label: patch.name,
+              description: patch.description ?? n.description,
+              year: patch.year ?? undefined,
+            }
+          : n
+      )
+    );
+    setNodes((prev) =>
+      prev.map((n) =>
+        n.id === applicationId
+          ? { ...n, data: { ...n.data, label: patch.name } }
+          : n
+      )
+    );
+    setSelectedApplication((prev) =>
+      prev?.id === applicationId ? { ...prev, label: patch.name } : prev
+    );
+    if (isSandbox) setSandboxDirty(true);
   }
 
   return (
@@ -473,133 +570,156 @@ export function GraphCanvas() {
       {status === 'ready' && message && (
         <p className="graph-canvas-hint">{message}</p>
       )}
-      <div className={`graph-workspace${isDrawerOpen ? ' is-drawer-open' : ''}`}>
-        <div className="graph-stage">
-          <button
-            type="button"
-            className="graph-filter-toggle"
-            onClick={() => setIsFilterDrawerOpen((open) => !open)}
-            aria-expanded={isFilterDrawerOpen}
-            aria-controls="graph-filter-drawer"
-          >
-            <span className="graph-drawer-toggle-label">Filtres</span>
-            <span className="graph-drawer-toggle-icon" aria-hidden="true">
-              {filtersActive ? 'On' : 'Off'}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            className={`graph-panel-overlay graph-panel-overlay--filter${isFilterDrawerOpen ? ' is-visible' : ''}`}
-            aria-label="Fermer les filtres"
-            onClick={() => setIsFilterDrawerOpen(false)}
-          />
-          <FilterDrawer
-            isOpen={isFilterDrawerOpen}
-            onClose={() => setIsFilterDrawerOpen(false)}
-            applications={applications}
-            businessUnits={businessUnits}
-            regions={regions}
-            initialYear={year}
-            initialApplicationIds={applicationIds}
-            initialBusinessUnitIds={businessUnitIds}
-            initialRegionCodes={regionCodes}
-            onApply={({ year: y, applicationIds: appIds, businessUnitIds: buIds, regionCodes: codes }) => {
-              setYear(y);
-              setApplicationIds(appIds);
-              setBusinessUnitIds(buIds);
-              setRegionCodes(codes);
-            }}
-          />
-
-          <div
-            ref={containerRef}
-            className="graph-canvas"
-            role="img"
-            aria-label="Graphe des dépendances entre applications"
-          >
-            <ReactFlow<AppNode, Edge>
-              nodes={displayNodes}
-              edges={displayEdges}
-              nodeTypes={nodeTypes}
-              edgeTypes={edgeTypes}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onInit={(instance) => {
-                rfRef.current = instance;
-              }}
-              onNodeClick={handleNodeClick}
-              onNodeDoubleClick={handleNodeDoubleClick}
-              onNodeMouseEnter={handleNodeMouseEnter}
-              onNodeMouseLeave={handleNodeMouseLeave}
-              onNodeDragStop={handleNodeDragStop}
-              onPaneClick={handlePaneClick}
-              nodesDraggable
-              nodesConnectable={false}
-              elementsSelectable
-              snapToGrid
-              snapGrid={[GRID, GRID]}
-              minZoom={0.05}
-              maxZoom={2.5}
-              proOptions={{ hideAttribution: true }}
+      <div className="map-graph-panel">
+        <GraphModeTabs
+          mode={graphMode}
+          sandboxDirty={sandboxDirty}
+          onModeChange={(mode) => {
+            if (mode === 'sandbox') switchToSandboxMode();
+            else switchToNormalMode();
+          }}
+        />
+        <div className={`map-graph-body${isDrawerOpen ? ' is-drawer-open' : ''}`}>
+          <div className="graph-stage">
+            <div
+              ref={containerRef}
+              id="graph-canvas-pane"
+              className={`graph-canvas${isSandbox ? ' is-sandbox' : ''}`}
+              role="tabpanel"
+              aria-labelledby={
+                graphMode === 'sandbox' ? 'graph-mode-tab-sandbox' : 'graph-mode-tab-normal'
+              }
+              aria-label="Graphe des dépendances entre applications"
             >
-              <Background color="#e2e8f0" gap={GRID} />
-              <Controls showInteractive={false} />
-              <Panel position="top-left">
-                <GraphLegend
-                  nodeTypes={['Application']}
-                  colorPropertyKey={colorPropertyKey}
-                  colorPropertyOptions={legendColorPropertyOptions}
-                  onColorPropertyChange={handleColorPropertyChange}
-                  colorValues={legendColorValues}
-                />
-              </Panel>
-            </ReactFlow>
+              <button
+                type="button"
+                className="graph-filter-toggle"
+                onClick={() => setIsFilterDrawerOpen((open) => !open)}
+                aria-expanded={isFilterDrawerOpen}
+                aria-controls="graph-filter-drawer"
+              >
+                <span className="graph-drawer-toggle-label">Filtres</span>
+                <span className="graph-drawer-toggle-icon" aria-hidden="true">
+                  {filtersActive ? 'On' : 'Off'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className={`graph-panel-overlay graph-panel-overlay--filter${isFilterDrawerOpen ? ' is-visible' : ''}`}
+                aria-label="Fermer les filtres"
+                onClick={() => setIsFilterDrawerOpen(false)}
+              />
+              <FilterDrawer
+                isOpen={isFilterDrawerOpen}
+                onClose={() => setIsFilterDrawerOpen(false)}
+                applications={applications}
+                businessUnits={businessUnits}
+                regions={regions}
+                initialYear={year}
+                initialApplicationIds={applicationIds}
+                initialBusinessUnitIds={businessUnitIds}
+                initialRegionCodes={regionCodes}
+                onApply={({ year: y, applicationIds: appIds, businessUnitIds: buIds, regionCodes: codes }) => {
+                  if (isSandbox) {
+                    setSandboxDirty(false);
+                    setPendingSandboxFilterHint(true);
+                  }
+                  setYear(y);
+                  setApplicationIds(appIds);
+                  setBusinessUnitIds(buIds);
+                  setRegionCodes(codes);
+                }}
+              />
+
+              <ReactFlow<AppNode, Edge>
+                nodes={displayNodes}
+                edges={displayEdges}
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onInit={(instance) => {
+                  rfRef.current = instance;
+                }}
+                onNodeClick={handleNodeClick}
+                onNodeDoubleClick={handleNodeDoubleClick}
+                onNodeMouseEnter={handleNodeMouseEnter}
+                onNodeMouseLeave={handleNodeMouseLeave}
+                onNodeDragStop={handleNodeDragStop}
+                onPaneClick={handlePaneClick}
+                nodesDraggable
+                nodesConnectable={false}
+                elementsSelectable
+                snapToGrid
+                snapGrid={[GRID, GRID]}
+                minZoom={0.05}
+                maxZoom={2.5}
+                proOptions={{ hideAttribution: true }}
+              >
+                <Background color="#e2e8f0" gap={GRID} />
+                <Controls showInteractive={false} />
+                <Panel position="top-left">
+                  <GraphLegend
+                    nodeTypes={['Application']}
+                    colorPropertyKey={colorPropertyKey}
+                    colorPropertyOptions={legendColorPropertyOptions}
+                    onColorPropertyChange={handleColorPropertyChange}
+                    colorValues={legendColorValues}
+                  />
+                </Panel>
+              </ReactFlow>
+              <button
+                type="button"
+                className="graph-edit-toggle"
+                onClick={() => setIsDrawerOpen((open) => !open)}
+                aria-expanded={isDrawerOpen}
+                aria-controls="graph-actions-drawer"
+                aria-label={isDrawerOpen ? 'Fermer le panneau d’édition' : 'Ouvrir le panneau d’édition'}
+              >
+                <span className="graph-drawer-toggle-label">Edit</span>
+                <span className="graph-drawer-toggle-icon" aria-hidden="true">
+                  {isDrawerOpen ? 'Close' : 'Open'}
+                </span>
+              </button>
+            </div>
+
             <button
               type="button"
-              className="graph-edit-toggle"
-              onClick={() => setIsDrawerOpen((open) => !open)}
-              aria-expanded={isDrawerOpen}
-              aria-controls="graph-actions-drawer"
-              aria-label={isDrawerOpen ? 'Fermer le panneau d’édition' : 'Ouvrir le panneau d’édition'}
-            >
-              <span className="graph-drawer-toggle-label">Edit</span>
-              <span className="graph-drawer-toggle-icon" aria-hidden="true">
-                {isDrawerOpen ? 'Close' : 'Open'}
-              </span>
-            </button>
+              className={`graph-panel-overlay graph-panel-overlay--details${isDetailsDrawerOpen ? ' is-visible' : ''}`}
+              aria-label="Fermer le panneau de détails"
+              onClick={() => setIsDetailsDrawerOpen(false)}
+            />
+            <ApplicationDetailsDrawer
+              isOpen={isDetailsDrawerOpen}
+              application={selectedApplication}
+              onClose={() => setIsDetailsDrawerOpen(false)}
+              sandboxMode={isSandbox}
+              resolveSandboxApplication={resolveSandboxApplication}
+              onApplicationUpdated={handleApplicationUpdated}
+              onOpenModuleGraph={(applicationId) => {
+                navigate(`/map/apps/${encodeURIComponent(applicationId)}`);
+              }}
+              onApplicationDeleted={onApplicationDeletedHandler}
+            />
           </div>
 
           <button
             type="button"
-            className={`graph-panel-overlay graph-panel-overlay--details${isDetailsDrawerOpen ? ' is-visible' : ''}`}
-            aria-label="Fermer le panneau de détails"
-            onClick={() => setIsDetailsDrawerOpen(false)}
+            className={`graph-panel-overlay graph-panel-overlay--edit${isDrawerOpen ? ' is-visible' : ''}`}
+            aria-label="Fermer le drawer"
+            onClick={() => setIsDrawerOpen(false)}
           />
-          <ApplicationDetailsDrawer
-            isOpen={isDetailsDrawerOpen}
-            application={selectedApplication}
-            onClose={() => setIsDetailsDrawerOpen(false)}
-            onOpenModuleGraph={(applicationId) => {
-              navigate(`/map/apps/${encodeURIComponent(applicationId)}`);
-            }}
-            onApplicationDeleted={handleApplicationDeleted}
+          <WorkspaceDrawer
+            isOpen={isDrawerOpen}
+            onClose={() => setIsDrawerOpen(false)}
+            sandboxMode={isSandbox}
+            extraApplications={graphAppsForDrawer}
+            onNodeCreated={onNodeCreatedHandler}
+            onEdgeCreated={onEdgeCreatedHandler}
+            onBusinessUnitsChanged={refreshBusinessUnits}
           />
         </div>
-
-        <button
-          type="button"
-          className={`graph-panel-overlay graph-panel-overlay--edit${isDrawerOpen ? ' is-visible' : ''}`}
-          aria-label="Fermer le drawer"
-          onClick={() => setIsDrawerOpen(false)}
-        />
-        <WorkspaceDrawer
-          isOpen={isDrawerOpen}
-          onClose={() => setIsDrawerOpen(false)}
-          onNodeCreated={handleNodeCreated}
-          onEdgeCreated={handleEdgeCreated}
-          onBusinessUnitsChanged={refreshBusinessUnits}
-        />
       </div>
 
       <div className="graph-table-section">

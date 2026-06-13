@@ -8,10 +8,17 @@ import { createBusinessUnit } from '../api/businessUnitsApi';
 import { fetchApplications } from '../api/applicationsApi';
 import { useCreateApplicationNode } from '../hooks/useCreateApplicationNode';
 import { useCreateGraphEdge } from '../hooks/useCreateGraphEdge';
+import {
+  buildSandboxApplicationResponse,
+  buildSandboxEdgeResponse,
+} from '../utils/sandboxGraph';
 
 type WorkspaceDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
+  sandboxMode?: boolean;
+  /** Graph-visible applications (includes sandbox nodes) for edge autocomplete. */
+  extraApplications?: ApplicationResponse[];
   onNodeCreated?: (application: ApplicationResponse) => void;
   onEdgeCreated?: (edge: GraphEdgeCreateResponse) => string | null;
   /** After creating a BU, refresh lists (e.g. map filter dropdown). */
@@ -61,6 +68,8 @@ const DRAWER_ACTIONS = ['Add Node', 'Add Edge', 'Add Business Unit', 'Profile', 
 export function WorkspaceDrawer({
   isOpen,
   onClose,
+  sandboxMode = false,
+  extraApplications = [],
   onNodeCreated,
   onEdgeCreated,
   onBusinessUnitsChanged,
@@ -212,7 +221,7 @@ export function WorkspaceDrawer({
       setSearchError(null);
       return;
     }
-    if (allApps) {
+    if (allApps || extraApplications.length > 0) {
       setSearchStatus('ready');
       setSearchError(null);
       return;
@@ -236,13 +245,20 @@ export function WorkspaceDrawer({
     return () => {
       cancelled = true;
     };
-  }, [allApps, debouncedSourceQuery, debouncedTargetQuery, view]);
+  }, [allApps, debouncedSourceQuery, debouncedTargetQuery, extraApplications.length, view]);
+
+  const mergedApps = useMemo(() => {
+    if (!allApps) return extraApplications;
+    const seen = new Set(allApps.map((a) => a.id));
+    const extras = extraApplications.filter((a) => !seen.has(a.id));
+    return [...allApps, ...extras];
+  }, [allApps, extraApplications]);
 
   const filterApps = useMemo(() => {
     return (query: string) => {
-      if (!query || !allApps) return [];
+      if (!query) return [];
       const q = query.toLowerCase();
-      return allApps
+      return mergedApps
         .filter((app) => {
           const name = app.name.toLowerCase();
           const description = (app.description ?? '').toLowerCase();
@@ -250,7 +266,7 @@ export function WorkspaceDrawer({
         })
         .slice(0, 8);
     };
-  }, [allApps]);
+  }, [mergedApps]);
 
   const filteredSourceApps = useMemo(() => {
     return filterApps(debouncedSourceQuery);
@@ -319,17 +335,30 @@ export function WorkspaceDrawer({
       yearValue = parsed;
     }
 
-    const created = await createNode({
-      name: normalizedName,
-      description: nodeFormState.description.trim() || undefined,
-      year: yearValue,
-    });
+    let created: ApplicationResponse | null;
+    if (sandboxMode) {
+      created = buildSandboxApplicationResponse({
+        name: normalizedName,
+        description: nodeFormState.description.trim() || undefined,
+        year: yearValue,
+      });
+    } else {
+      created = await createNode({
+        name: normalizedName,
+        description: nodeFormState.description.trim() || undefined,
+        year: yearValue,
+      });
+    }
 
     if (!created) return;
 
     setNodeFormState(DEFAULT_FORM_STATE);
     setLocalError(null);
-    setFeedbackMessage(`Node "${created.name}" créé avec succès.`);
+    setFeedbackMessage(
+      sandboxMode
+        ? `Node "${created.name}" ajouté (sandbox, non sauvegardé).`
+        : `Node "${created.name}" créé avec succès.`
+    );
     onNodeCreated?.(created);
     setView('menu');
   }
@@ -349,11 +378,12 @@ export function WorkspaceDrawer({
       return;
     }
 
-    const created = await createEdge({
-      sourceId,
-      targetId,
-      type,
-    });
+    let created: GraphEdgeCreateResponse | null;
+    if (sandboxMode) {
+      created = buildSandboxEdgeResponse({ sourceId, targetId, type });
+    } else {
+      created = await createEdge({ sourceId, targetId, type });
+    }
     if (!created) return;
 
     const graphValidationMessage = onEdgeCreated?.(created);
@@ -369,7 +399,9 @@ export function WorkspaceDrawer({
     setIsTargetSuggestionsOpen(false);
     setLocalError(null);
     setFeedbackMessage(
-      `Edge "${created.type}" créé entre "${created.sourceId}" et "${created.targetId}".`
+      sandboxMode
+        ? `Edge "${created.type}" ajouté (sandbox, non sauvegardé).`
+        : `Edge "${created.type}" créé entre "${created.sourceId}" et "${created.targetId}".`
     );
     setView('menu');
   }
@@ -422,32 +454,41 @@ export function WorkspaceDrawer({
 
       {view === 'menu' ? (
         <div className="graph-drawer-actions" role="list">
-          {DRAWER_ACTIONS.map((action) => (
+          {DRAWER_ACTIONS.map((action) => {
+            const isBu = action === 'Add Business Unit';
+            const disabledInSandbox = sandboxMode && isBu;
+            const isSoon = action === 'Profile' || action === 'Settings';
+            return (
             <button
               key={action}
               type="button"
               className="graph-drawer-action"
               role="listitem"
+              disabled={disabledInSandbox || isSoon}
+              title={disabledInSandbox ? 'Indisponible en sandbox' : undefined}
               onClick={
                 action === 'Add Node'
                   ? openAddNodeForm
                   : action === 'Add Edge'
                     ? openAddEdgeForm
-                    : action === 'Add Business Unit'
+                    : action === 'Add Business Unit' && !sandboxMode
                       ? openAddBuForm
                       : undefined
               }
             >
               <span className="graph-drawer-action-title">{action}</span>
               <span className="graph-drawer-action-meta">
-                {action === 'Add Node' ||
-                action === 'Add Edge' ||
-                action === 'Add Business Unit'
-                  ? 'Open'
-                  : 'Soon'}
+                {disabledInSandbox
+                  ? 'Sandbox'
+                  : action === 'Add Node' ||
+                      action === 'Add Edge' ||
+                      action === 'Add Business Unit'
+                    ? 'Open'
+                    : 'Soon'}
               </span>
             </button>
-          ))}
+            );
+          })}
         </div>
       ) : view === 'add-node-form' ? (
         <form className="graph-drawer-form" onSubmit={onSubmitNode}>
