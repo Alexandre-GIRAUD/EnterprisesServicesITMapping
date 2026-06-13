@@ -490,7 +490,7 @@ export function GraphCanvas() {
 
           <button
             type="button"
-            className={`graph-details-overlay${isFilterDrawerOpen ? ' is-visible' : ''}`}
+            className={`graph-panel-overlay graph-panel-overlay--filter${isFilterDrawerOpen ? ' is-visible' : ''}`}
             aria-label="Fermer les filtres"
             onClick={() => setIsFilterDrawerOpen(false)}
           />
@@ -572,7 +572,7 @@ export function GraphCanvas() {
 
           <button
             type="button"
-            className={`graph-details-overlay${isDetailsDrawerOpen ? ' is-visible' : ''}`}
+            className={`graph-panel-overlay graph-panel-overlay--details${isDetailsDrawerOpen ? ' is-visible' : ''}`}
             aria-label="Fermer le panneau de détails"
             onClick={() => setIsDetailsDrawerOpen(false)}
           />
@@ -589,7 +589,7 @@ export function GraphCanvas() {
 
         <button
           type="button"
-          className={`graph-drawer-overlay${isDrawerOpen ? ' is-visible' : ''}`}
+          className={`graph-panel-overlay graph-panel-overlay--edit${isDrawerOpen ? ' is-visible' : ''}`}
           aria-label="Fermer le drawer"
           onClick={() => setIsDrawerOpen(false)}
         />
