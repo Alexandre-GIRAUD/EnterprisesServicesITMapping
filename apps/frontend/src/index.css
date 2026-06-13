@@ -835,6 +835,10 @@ body {
   word-break: break-all;
 }
 
+.graph-table-id--sandbox {
+  color: #b45309;
+}
+
 .graph-table-message {
   margin: 0.35rem 0.25rem;
   font-size: 0.88rem;
@@ -848,11 +852,18 @@ body {
   padding: 0.35rem 0.5rem;
 }
 
-.graph-workspace {
+.map-graph-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.map-graph-body {
   position: relative;
   display: flex;
   align-items: stretch;
   gap: 1rem;
+  min-width: 0;
 }
 
 .graph-stage {
@@ -1045,14 +1056,14 @@ body {
 .graph-canvas {
   position: relative;
   width: 100%;
-  /* fill the viewport below header (~56px) + toolbar (~60px) + layout padding (~48px) */
-  height: calc(100vh - 300px);
+  /* fill the viewport below header (~56px) + toolbar (~60px) + layout padding (~48px) + mode tabs (~36px) */
+  height: calc(100vh - 336px);
   min-height: 420px;
   background:
     radial-gradient(circle at top, rgb(59 130 246 / 6%), transparent 38%),
     linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   border: 1px solid #e2e8f0;
-  border-radius: 24px;
+  border-radius: 0 24px 24px 24px;
   box-shadow: 0 24px 60px rgb(15 23 42 / 8%);
   overflow: hidden;
 }
@@ -1217,6 +1228,75 @@ body {
 
 .graph-canvas .react-flow__controls-button svg {
   fill: #334155;
+}
+
+.graph-canvas.is-sandbox {
+  box-shadow:
+    0 24px 60px rgb(15 23 42 / 8%),
+    inset 0 3px 0 rgb(245 158 11 / 35%);
+}
+
+/* ===== Graph mode tabs (Excel / Sheets style) ===== */
+.graph-mode-tabs {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: flex-end;
+  gap: 0.15rem;
+  padding: 0 0 0 0.15rem;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.graph-mode-tab {
+  border: 1px solid #cbd5e1;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  padding: 0.42rem 0.85rem;
+  background: #e2e8f0;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease;
+}
+
+.graph-mode-tab:hover:not(.is-active) {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.graph-mode-tab.is-active {
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+  border-color: #e2e8f0;
+  margin-bottom: -1px;
+  padding-bottom: calc(0.42rem + 1px);
+  position: relative;
+  z-index: 1;
+}
+
+.graph-mode-tab--sandbox.is-active {
+  border-top: 2px solid #f59e0b;
+}
+
+.graph-mode-tab:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.graph-mode-tab__draft {
+  display: inline-block;
+  margin-left: 0.35rem;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: #f59e0b;
+  vertical-align: middle;
 }
 
 /* ===== Graph legend ===== */
@@ -1880,8 +1960,12 @@ body {
 
 /* ===== Responsive behavior ===== */
 @media (max-width: 900px) {
-  .graph-workspace {
+  .map-graph-body {
     display: block;
+  }
+
+  .graph-stage {
+    position: relative;
   }
 
   .graph-drawer {
@@ -1935,7 +2019,7 @@ body {
 }
 
 @media (min-width: 901px) {
-  .graph-workspace:not(.is-drawer-open) .graph-drawer {
+  .map-graph-body:not(.is-drawer-open) .graph-drawer {
     width: 0;
     flex-basis: 0;
     margin-left: -1rem;
@@ -1948,7 +2032,7 @@ body {
     transform: translateX(1rem);
   }
 
-  .graph-workspace.is-drawer-open .graph-drawer {
+  .map-graph-body.is-drawer-open .graph-drawer {
     opacity: 1;
     pointer-events: auto;
     transform: translateX(0);
@@ -1957,7 +2041,7 @@ body {
 
 @media (max-width: 640px) {
   .graph-canvas {
-    height: calc(100vh - 300px);
+    height: calc(100vh - 336px);
     min-height: 360px;
   }
 

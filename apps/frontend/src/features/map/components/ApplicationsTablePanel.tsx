@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { ApplicationResponse, GraphNodeDto } from '@/types/api';
+import { isSandboxId } from '../utils/sandboxGraph';
 
 type ApplicationsTablePanelProps = {
   isOpen: boolean;
@@ -105,7 +106,11 @@ export function ApplicationsTablePanel({
                 >
                   <td>{row.name}</td>
                   <td>
-                    <code className="graph-table-id">{row.id}</code>
+                    <code
+                      className={`graph-table-id${isSandboxId(row.id) ? ' graph-table-id--sandbox' : ''}`}
+                    >
+                      {row.id}
+                    </code>
                   </td>
                   <td>{dash(row.description)}</td>
                   <td>{dash(row.businessUnit)}</td>
