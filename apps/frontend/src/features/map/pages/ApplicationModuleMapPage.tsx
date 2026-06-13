@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ApplicationModuleGraph } from '../components/ApplicationModuleGraph';
 
 /**
- * Drill-down: modules under one application (Cytoscape tree), route /map/apps/:applicationId.
+ * Drill-down: modules under one application (React Flow tree), route /map/apps/:applicationId.
  */
 export function ApplicationModuleMapPage() {
   const { applicationId } = useParams<{ applicationId: string }>();

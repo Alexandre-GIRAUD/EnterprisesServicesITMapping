@@ -19,6 +19,10 @@ export interface GraphEdgeDto {
   sourceId: string;
   targetId: string;
   type: string;
+  /** Human-readable data exchanged on the link (Neo4j `r.data`), when present. */
+  data?: string | null;
+  /** Colorable relationship properties from Neo4j (excludes temporal fields). */
+  properties?: Record<string, string>;
 }
 
 export interface GraphEdgeCreateRequest {

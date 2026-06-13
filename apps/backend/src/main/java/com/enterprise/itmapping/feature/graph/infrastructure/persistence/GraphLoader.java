@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.graph.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeProjection;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeRow;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.data.neo4j.core.Neo4jClient;
@@ -47,7 +48,8 @@ public class GraphLoader {
       WITH collect(DISTINCT a.id) AS appIds
       MATCH (x:Application)-[r:DEPENDS_ON]->(y:Application)
       WHERE x.id IN appIds AND y.id IN appIds
-      RETURN x.id AS sourceId, y.id AS targetId, type(r) AS relType
+      RETURN x.id AS sourceId, y.id AS targetId, type(r) AS relType, r.data AS data, r.id AS relId,
+             properties(r) AS props
       """;
 
   private final Neo4jClient neo4jClient;
@@ -142,8 +144,30 @@ public class GraphLoader {
                 new GraphEdgeProjection(
                     Neo4jValueMapping.asString(map.get("sourceId")),
                     Neo4jValueMapping.asString(map.get("targetId")),
-                    Neo4jValueMapping.asString(map.get("relType"))))
+                    Neo4jValueMapping.asString(map.get("relType")),
+                    Neo4jValueMapping.asString(map.get("data")),
+                    Neo4jValueMapping.asString(map.get("relId")),
+                    colorableEdgeProperties(map.get("props"))))
         .toList();
+  }
+
+  /** Neo4j relationship props minus temporal/internal keys, stringified for the API. */
+  private static Map<String, String> colorableEdgeProperties(Object raw) {
+    if (!(raw instanceof Map<?, ?> map)) {
+      return Map.of();
+    }
+    Map<String, String> out = new LinkedHashMap<>();
+    for (Map.Entry<?, ?> entry : map.entrySet()) {
+      String key = String.valueOf(entry.getKey());
+      if ("validFrom".equals(key) || "validTo".equals(key)) {
+        continue;
+      }
+      String value = Neo4jValueMapping.asString(entry.getValue());
+      if (value != null && !value.isBlank()) {
+        out.put(key, value);
+      }
+    }
+    return out;
   }
 
   private static boolean hasFilter(List<String> values) {

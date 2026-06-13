@@ -57,7 +57,8 @@ public class ModuleGraphService {
     int i = 0;
     for (GraphEdgeProjection e : edgeRows) {
       edges.add(
-          new GraphEdgeDto("me" + i++, e.sourceId(), e.targetId(), e.type()));
+          new GraphEdgeDto(
+              "me" + i++, e.sourceId(), e.targetId(), e.type(), e.data(), e.properties()));
     }
 
     return Optional.of(new GraphResponseDto(nodes, edges));

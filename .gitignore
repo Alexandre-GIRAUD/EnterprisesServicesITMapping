@@ -46,3 +46,4 @@ coverage/
 *.tmp
 
 query.cypher
+seed-app-db.cypher
