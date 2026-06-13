@@ -377,11 +377,11 @@ export function WorkspaceDrawer({
   return (
     <aside
       id="graph-actions-drawer"
-      className={`graph-drawer${isOpen ? ' is-open' : ''}`}
-      aria-label="Panneau latéral des actions"
+      className={`graph-drawer graph-drawer--edit${isOpen ? ' is-open' : ''}`}
+      aria-label="Panneau d’édition"
     >
       <header className="graph-drawer-header">
-        <p className="graph-drawer-eyebrow">Workspace</p>
+        <p className="graph-drawer-eyebrow">Edit</p>
         <div className="graph-drawer-title-row">
           <div>
             <h2 className="graph-drawer-title">
