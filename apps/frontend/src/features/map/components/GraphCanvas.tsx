@@ -477,18 +477,6 @@ export function GraphCanvas() {
         <div className="graph-stage">
           <button
             type="button"
-            className="graph-drawer-toggle"
-            onClick={() => setIsDrawerOpen((open) => !open)}
-            aria-expanded={isDrawerOpen}
-            aria-controls="graph-actions-drawer"
-          >
-            <span className="graph-drawer-toggle-label">Workspace</span>
-            <span className="graph-drawer-toggle-icon" aria-hidden="true">
-              {isDrawerOpen ? 'Close' : 'Open'}
-            </span>
-          </button>
-          <button
-            type="button"
             className="graph-filter-toggle"
             onClick={() => setIsFilterDrawerOpen((open) => !open)}
             aria-expanded={isFilterDrawerOpen}
@@ -567,6 +555,19 @@ export function GraphCanvas() {
                 />
               </Panel>
             </ReactFlow>
+            <button
+              type="button"
+              className="graph-edit-toggle"
+              onClick={() => setIsDrawerOpen((open) => !open)}
+              aria-expanded={isDrawerOpen}
+              aria-controls="graph-actions-drawer"
+              aria-label={isDrawerOpen ? 'Fermer le panneau d’édition' : 'Ouvrir le panneau d’édition'}
+            >
+              <span className="graph-drawer-toggle-label">Edit</span>
+              <span className="graph-drawer-toggle-icon" aria-hidden="true">
+                {isDrawerOpen ? 'Close' : 'Open'}
+              </span>
+            </button>
           </div>
 
           <button

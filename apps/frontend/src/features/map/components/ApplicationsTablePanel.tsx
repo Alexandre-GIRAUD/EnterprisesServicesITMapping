@@ -57,7 +57,12 @@ export function ApplicationsTablePanel({
   if (!isOpen) return null;
 
   return (
-    <div id="graph-applications-table-panel" className="graph-table-panel" role="region">
+    <div
+      id="graph-applications-table-panel"
+      className="graph-table-panel graph-table-panel--light"
+      role="region"
+      aria-label="Table des applications du graphe"
+    >
       {status === 'loading' && (
         <p className="graph-table-message" role="status">
           Chargement…
