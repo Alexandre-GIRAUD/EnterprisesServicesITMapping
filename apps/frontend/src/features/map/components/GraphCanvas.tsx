@@ -18,19 +18,23 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import type {
   ApplicationResponse,
   BusinessUnitListItem,
   GraphEdgeCreateResponse,
   GraphEdgeDto,
   GraphNodeDto,
+  GraphSnapshotFilters,
   RegionSummary,
 } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
 import { fetchBusinessUnits } from '../api/businessUnitsApi';
 import { fetchRegions } from '../api/regionsApi';
 import { fetchGraph } from '../api/graphApi';
+import { createGraphSnapshot } from '../api/graphSnapshotsApi';
+import { useGraphSnapshotsRefresh } from '../context/GraphSnapshotsContext';
+import type { MapLocationState } from '../utils/mapNavigation';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
 import { FilterDrawer } from './FilterDrawer';
 import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
@@ -55,6 +59,7 @@ import { fitGraphView } from './fitGraphView';
 import { applicationResponseFromGraphNode } from '../utils/sandboxGraph';
 import type { ApplicationUpdatePatch } from './ApplicationDetailsDrawer';
 import { GraphModeTabs, type GraphMode } from './GraphModeTabs';
+import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 
 type SelectedApplication = {
   id: string;
@@ -100,6 +105,8 @@ function buildAppEdge(
  */
 export function GraphCanvas() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { refreshSnapshots } = useGraphSnapshotsRefresh();
   const containerRef = useRef<HTMLDivElement>(null);
   const rfRef = useRef<ReactFlowInstance<AppNode, Edge> | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
@@ -132,6 +139,7 @@ export function GraphCanvas() {
   const [sandboxDirty, setSandboxDirty] = useState(false);
   const [graphReloadNonce, setGraphReloadNonce] = useState(0);
   const [pendingSandboxFilterHint, setPendingSandboxFilterHint] = useState(false);
+  const [isSaveSnapshotOpen, setIsSaveSnapshotOpen] = useState(false);
   const isSandbox = graphMode === 'sandbox';
   const graphModeRef = useRef(graphMode);
   graphModeRef.current = graphMode;
@@ -184,6 +192,41 @@ export function GraphCanvas() {
     setSandboxDirty(false);
     setIsDrawerOpen(false);
     setGraphReloadNonce((n) => n + 1);
+  }
+
+  const applyGraphFilters = useCallback((filters: GraphSnapshotFilters) => {
+    if (graphModeRef.current === 'sandbox') {
+      setGraphMode('normal');
+      setSandboxDirty(false);
+      setIsDrawerOpen(false);
+    }
+    setYear(filters.year);
+    setApplicationIds(filters.applicationIds);
+    setBusinessUnitIds(filters.businessUnitIds);
+    setRegionCodes(filters.regionCodes);
+  }, []);
+
+  const currentGraphFilters = useMemo<GraphSnapshotFilters>(
+    () => ({
+      year,
+      applicationIds,
+      businessUnitIds,
+      regionCodes,
+    }),
+    [year, applicationIds, businessUnitIds, regionCodes]
+  );
+
+  useEffect(() => {
+    const state = location.state as MapLocationState | null;
+    if (!state?.applySnapshot) return;
+    applyGraphFilters(state.applySnapshot);
+    navigate('.', { replace: true, state: {} });
+  }, [location.state, applyGraphFilters, navigate]);
+
+  async function handleSaveSnapshot(name: string) {
+    await createGraphSnapshot(name, currentGraphFilters);
+    refreshSnapshots();
+    setMessage(`Vue « ${name} » enregistrée.`);
   }
 
   const handleColorPropertyChange = useCallback((key: string) => {
@@ -605,6 +648,22 @@ export function GraphCanvas() {
                   {filtersActive ? 'On' : 'Off'}
                 </span>
               </button>
+
+              {filtersActive && !isSandbox ? (
+                <button
+                  type="button"
+                  className="graph-save-snapshot-btn"
+                  onClick={() => setIsSaveSnapshotOpen(true)}
+                >
+                  Enregistrer la vue
+                </button>
+              ) : null}
+
+              <SaveSnapshotDialog
+                isOpen={isSaveSnapshotOpen}
+                onClose={() => setIsSaveSnapshotOpen(false)}
+                onSave={handleSaveSnapshot}
+              />
 
               <button
                 type="button"

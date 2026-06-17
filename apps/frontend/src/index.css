@@ -75,6 +75,132 @@ body {
   white-space: nowrap;
 }
 
+.layout-snapshots-menu {
+  position: relative;
+}
+
+.layout-snapshots-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #e2e8f0;
+  background: transparent;
+  border: none;
+  border-radius: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.layout-snapshots-menu-trigger:hover,
+.layout-snapshots-menu-trigger[aria-expanded='true'] {
+  background-color: rgb(148 163 184 / 15%);
+}
+
+.layout-snapshots-menu-trigger:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.layout-snapshots-menu-chevron {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.layout-snapshots-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 40;
+  min-width: 14rem;
+  max-width: 18rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
+  padding: 0.35rem 0;
+}
+
+.layout-snapshots-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.layout-snapshots-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.35rem;
+}
+
+.layout-snapshots-menu-item-btn {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  color: #334155;
+  background: transparent;
+  border: none;
+  border-radius: 0.35rem;
+  padding: 0.45rem 0.5rem;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-snapshots-menu-item-btn:hover {
+  background: #f8fafc;
+}
+
+.layout-snapshots-menu-item-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.layout-snapshots-menu-delete {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
+  border-radius: 0.35rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  cursor: pointer;
+}
+
+.layout-snapshots-menu-delete:hover {
+  color: #dc2626;
+  background: rgb(220 38 38 / 8%);
+}
+
+.layout-snapshots-menu-delete:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.layout-snapshots-menu-empty,
+.layout-snapshots-menu-error {
+  margin: 0;
+  padding: 0.65rem 0.85rem 0.75rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.layout-snapshots-menu-error {
+  color: #dc2626;
+}
+
 .layout-header-btn {
   font: inherit;
   font-size: 0.85rem;
@@ -909,6 +1035,112 @@ body {
 
 .graph-filter-toggle .graph-drawer-toggle-icon {
   color: #64748b;
+}
+
+.graph-save-snapshot-btn {
+  position: absolute;
+  top: 4.25rem;
+  right: 1rem;
+  z-index: 6;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  background: rgb(255 255 255 / 94%);
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
+}
+
+.graph-save-snapshot-btn:hover {
+  border-color: #93c5fd;
+  background: #ffffff;
+}
+
+.save-snapshot-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(15 23 42 / 35%);
+}
+
+.save-snapshot-dialog {
+  width: min(100%, 22rem);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.65rem;
+  padding: 1.1rem 1.15rem 1rem;
+  box-shadow: 0 16px 40px rgb(15 23 42 / 18%);
+}
+
+.save-snapshot-dialog-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  color: #0f172a;
+}
+
+.save-snapshot-dialog-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.save-snapshot-dialog-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.save-snapshot-dialog-input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 0.9rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.65rem;
+}
+
+.save-snapshot-dialog-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: #dc2626;
+}
+
+.save-snapshot-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.save-snapshot-dialog-btn {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+}
+
+.save-snapshot-dialog-btn--secondary {
+  color: #334155;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+}
+
+.save-snapshot-dialog-btn--primary {
+  color: #ffffff;
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
 }
 
 .graph-filter-drawer {

@@ -163,3 +163,18 @@ export interface SuggestModulesFromGithubResponse {
   created: SuggestModulesCreatedItem[];
   skipped: SuggestModulesSkippedItem[];
 }
+
+export type GraphSnapshotFilters = {
+  year: number | null;
+  applicationIds: string[];
+  businessUnitIds: string[];
+  regionCodes: string[];
+};
+
+export type GraphSnapshotDto = {
+  id: string;
+  name: string;
+  filters: GraphSnapshotFilters;
+  createdAt: string;
+  updatedAt: string;
+};
