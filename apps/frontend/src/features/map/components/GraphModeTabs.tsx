@@ -8,7 +8,7 @@ type GraphModeTabsProps = {
 
 export function GraphModeTabs({ mode, sandboxDirty = false, onModeChange }: GraphModeTabsProps) {
   return (
-    <div className="graph-mode-tabs" role="tablist" aria-label="Mode du graphe">
+    <div className="graph-mode-tabs" role="tablist" aria-label="Graph mode">
       <button
         type="button"
         role="tab"
@@ -35,7 +35,7 @@ export function GraphModeTabs({ mode, sandboxDirty = false, onModeChange }: Grap
       >
         Sandbox
         {sandboxDirty && mode === 'sandbox' ? (
-          <span className="graph-mode-tab__draft" aria-label="Brouillon non sauvegardé" />
+          <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
         ) : null}
       </button>
     </div>

@@ -21,7 +21,7 @@ export function Layout() {
               <div className="layout-header-actions">
                 {isAdmin ? (
                   <Link to="/admin/users" className="layout-header-link">
-                    Utilisateurs
+                    Users
                   </Link>
                 ) : null}
                 <GraphSnapshotsMenu />
@@ -36,7 +36,7 @@ export function Layout() {
                     navigate('/login', { replace: true });
                   }}
                 >
-                  Déconnexion
+                  Sign out
                 </button>
               </div>
             ) : null}

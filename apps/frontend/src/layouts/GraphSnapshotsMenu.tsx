@@ -23,7 +23,7 @@ export function GraphSnapshotsMenu() {
       setStatus('ready');
     } catch (e) {
       setStatus('error');
-      setErrorMessage(e instanceof Error ? e.message : 'Impossible de charger les vues.');
+      setErrorMessage(e instanceof Error ? e.message : 'Unable to load views.');
     }
   }, []);
 
@@ -53,12 +53,12 @@ export function GraphSnapshotsMenu() {
   }, [isOpen]);
 
   async function handleDelete(id: string, name: string) {
-    if (!window.confirm(`Supprimer la vue « ${name} » ?`)) return;
+    if (!window.confirm(`Delete view "${name}"?`)) return;
     try {
       await deleteGraphSnapshot(id);
       setSnapshots((prev) => prev.filter((s) => s.id !== id));
     } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : 'Suppression impossible.');
+      setErrorMessage(e instanceof Error ? e.message : 'Unable to delete.');
     }
   }
 
@@ -77,7 +77,7 @@ export function GraphSnapshotsMenu() {
         aria-controls="graph-snapshots-menu"
         onClick={() => setIsOpen((open) => !open)}
       >
-        Mes vues
+        My views
         <span className="layout-snapshots-menu-chevron" aria-hidden="true">
           ▾
         </span>
@@ -85,11 +85,11 @@ export function GraphSnapshotsMenu() {
       {isOpen ? (
         <div id="graph-snapshots-menu" className="layout-snapshots-menu-panel" role="menu">
           {status === 'loading' ? (
-            <p className="layout-snapshots-menu-empty">Chargement…</p>
+            <p className="layout-snapshots-menu-empty">Loading…</p>
           ) : status === 'error' ? (
             <p className="layout-snapshots-menu-error">{errorMessage}</p>
           ) : snapshots.length === 0 ? (
-            <p className="layout-snapshots-menu-empty">Aucune vue enregistrée</p>
+            <p className="layout-snapshots-menu-empty">No saved views</p>
           ) : (
             <ul className="layout-snapshots-menu-list">
               {snapshots.map((snapshot) => (
@@ -105,7 +105,7 @@ export function GraphSnapshotsMenu() {
                   <button
                     type="button"
                     className="layout-snapshots-menu-delete"
-                    aria-label={`Supprimer ${snapshot.name}`}
+                    aria-label={`Delete ${snapshot.name}`}
                     onClick={() => void handleDelete(snapshot.id, snapshot.name)}
                   >
                     ×

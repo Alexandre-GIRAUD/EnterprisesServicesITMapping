@@ -101,7 +101,7 @@ function buildAppEdge(
 }
 
 /**
- * Graphe des applications et dépendances (React Flow), alimenté par GET /api/graph.
+ * Application dependency graph (React Flow), backed by GET /api/graph.
  */
 export function GraphCanvas() {
   const navigate = useNavigate();
@@ -177,14 +177,14 @@ export function GraphCanvas() {
   function switchToSandboxMode() {
     setGraphMode('sandbox');
     setSandboxDirty(false);
-    setMessage('Mode Sandbox — les modifications ne sont pas sauvegardées.');
+    setMessage('Sandbox mode — changes are not saved.');
     setIsDrawerOpen(true);
   }
 
   function switchToNormalMode() {
     if (
       sandboxDirty &&
-      !window.confirm('Quitter le sandbox ? Les modifications locales seront perdues.')
+      !window.confirm('Leave sandbox? Local changes will be lost.')
     ) {
       return;
     }
@@ -226,7 +226,7 @@ export function GraphCanvas() {
   async function handleSaveSnapshot(name: string) {
     await createGraphSnapshot(name, currentGraphFilters);
     refreshSnapshots();
-    setMessage(`Vue « ${name} » enregistrée.`);
+    setMessage(`View "${name}" saved.`);
   }
 
   const handleColorPropertyChange = useCallback((key: string) => {
@@ -378,17 +378,17 @@ export function GraphCanvas() {
 
         setStatus('ready');
         if (pendingSandboxFilterHint) {
-          setMessage('Filtres appliqués — brouillon sandbox réinitialisé.');
+          setMessage('Filters applied — sandbox draft reset.');
           setPendingSandboxFilterHint(false);
         } else {
           const emptyHint =
             data.nodes.length === 0
               ? filtersActive
-                ? 'Aucune application pour ces filtres (année / business unit / location). Changez de critères ou réinitialisez.'
-                : 'Aucun nœud. Démarrez le backend avec Neo4j pour charger les données de démo.'
+                ? 'No applications match these filters (year / business unit / location). Change criteria or reset.'
+                : 'No nodes. Start the backend with Neo4j to load demo data.'
               : graphModeRef.current === 'sandbox'
-                ? 'Mode Sandbox — les modifications ne sont pas sauvegardées.'
-                : 'Astuce : cliquez sur une application pour ouvrir le graphe de ses modules.';
+                ? 'Sandbox mode — changes are not saved.'
+                : 'Tip: click an application to open its module graph.';
           setMessage(emptyHint);
         }
       } catch (e) {
@@ -398,10 +398,10 @@ export function GraphCanvas() {
           setNodes([]);
           setEdges([]);
           setStatus('error');
-          let msg = e instanceof Error ? e.message : 'Impossible de charger le graphe';
+          let msg = e instanceof Error ? e.message : 'Unable to load the graph';
           if (msg === 'Failed to fetch') {
             msg +=
-              ' — le backend est injoignable. En dev Vite, vérifiez VITE_API_PROXY_TARGET (ex. 8081 avec Docker) ou lancez Spring Boot sur le port attendu.';
+              ' — backend is unreachable. In Vite dev, check VITE_API_PROXY_TARGET (e.g. 8081 with Docker) or start Spring Boot on the expected port.';
           }
           setMessage(msg);
         }
@@ -535,7 +535,7 @@ export function GraphCanvas() {
     const hasSource = nodes.some((n) => n.id === created.sourceId);
     const hasTarget = nodes.some((n) => n.id === created.targetId);
     if (!hasSource || !hasTarget) {
-      return 'Edge créé mais source/target absent du graphe affiché.';
+      return 'Edge created but source/target missing from the displayed graph.';
     }
 
     const typeById = new Map(nodes.map((n) => [n.id, n.data.nodeType]));
@@ -604,7 +604,7 @@ export function GraphCanvas() {
     <div className="graph-canvas-wrap">
       {status === 'loading' && (
         <p className="graph-canvas-status" role="status">
-          Chargement du graphe…
+          Loading graph…
         </p>
       )}
       {status === 'error' && message && (
@@ -634,7 +634,7 @@ export function GraphCanvas() {
               aria-labelledby={
                 graphMode === 'sandbox' ? 'graph-mode-tab-sandbox' : 'graph-mode-tab-normal'
               }
-              aria-label="Graphe des dépendances entre applications"
+              aria-label="Application dependency graph"
             >
               <button
                 type="button"
@@ -643,7 +643,7 @@ export function GraphCanvas() {
                 aria-expanded={isFilterDrawerOpen}
                 aria-controls="graph-filter-drawer"
               >
-                <span className="graph-drawer-toggle-label">Filtres</span>
+                <span className="graph-drawer-toggle-label">Filters</span>
                 <span className="graph-drawer-toggle-icon" aria-hidden="true">
                   {filtersActive ? 'On' : 'Off'}
                 </span>
@@ -655,7 +655,7 @@ export function GraphCanvas() {
                   className="graph-save-snapshot-btn"
                   onClick={() => setIsSaveSnapshotOpen(true)}
                 >
-                  Enregistrer la vue
+                  Save view
                 </button>
               ) : null}
 
@@ -668,7 +668,7 @@ export function GraphCanvas() {
               <button
                 type="button"
                 className={`graph-panel-overlay graph-panel-overlay--filter${isFilterDrawerOpen ? ' is-visible' : ''}`}
-                aria-label="Fermer les filtres"
+                aria-label="Close filters"
                 onClick={() => setIsFilterDrawerOpen(false)}
               />
               <FilterDrawer
@@ -736,7 +736,7 @@ export function GraphCanvas() {
                 onClick={() => setIsDrawerOpen((open) => !open)}
                 aria-expanded={isDrawerOpen}
                 aria-controls="graph-actions-drawer"
-                aria-label={isDrawerOpen ? 'Fermer le panneau d’édition' : 'Ouvrir le panneau d’édition'}
+                aria-label={isDrawerOpen ? 'Close edit panel' : 'Open edit panel'}
               >
                 <span className="graph-drawer-toggle-label">Edit</span>
                 <span className="graph-drawer-toggle-icon" aria-hidden="true">
@@ -748,7 +748,7 @@ export function GraphCanvas() {
             <button
               type="button"
               className={`graph-panel-overlay graph-panel-overlay--details${isDetailsDrawerOpen ? ' is-visible' : ''}`}
-              aria-label="Fermer le panneau de détails"
+              aria-label="Close details panel"
               onClick={() => setIsDetailsDrawerOpen(false)}
             />
             <ApplicationDetailsDrawer
@@ -768,7 +768,7 @@ export function GraphCanvas() {
           <button
             type="button"
             className={`graph-panel-overlay graph-panel-overlay--edit${isDrawerOpen ? ' is-visible' : ''}`}
-            aria-label="Fermer le drawer"
+            aria-label="Close drawer"
             onClick={() => setIsDrawerOpen(false)}
           />
           <WorkspaceDrawer

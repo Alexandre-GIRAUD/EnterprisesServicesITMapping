@@ -22,7 +22,7 @@ export function useCreateApplicationNode() {
       });
       return created;
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Impossible de créer le node';
+      const message = e instanceof Error ? e.message : 'Unable to create the node';
       setError(message);
       return null;
     } finally {

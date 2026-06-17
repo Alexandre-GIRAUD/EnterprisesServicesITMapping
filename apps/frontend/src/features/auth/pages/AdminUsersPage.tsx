@@ -21,7 +21,7 @@ export function AdminUsersPage() {
         const list = await listUsersRequest();
         if (!cancelled) setUsers(list);
       } catch (e) {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Chargement impossible.');
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Unable to load.');
       }
     })();
     return () => {
@@ -33,10 +33,10 @@ export function AdminUsersPage() {
     return (
       <div className="auth-page">
         <div className="auth-card">
-          <h1 className="auth-title">Accès refusé</h1>
-          <p className="auth-subtitle">Cette page est réservée aux administrateurs.</p>
+          <h1 className="auth-title">Access denied</h1>
+          <p className="auth-subtitle">This page is restricted to administrators.</p>
           <Link to="/map" className="auth-link">
-            Retour à la carte
+            Back to map
           </Link>
         </div>
       </div>
@@ -50,13 +50,13 @@ export function AdminUsersPage() {
     setCreateBusy(true);
     try {
       await createUserRequest(newUsername.trim(), newPassword);
-      setCreateMessage('Utilisateur créé.');
+      setCreateMessage('User created.');
       setNewUsername('');
       setNewPassword('');
       const list = await listUsersRequest();
       setUsers(list);
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'Création impossible.');
+      setCreateError(err instanceof Error ? err.message : 'Unable to create.');
     } finally {
       setCreateBusy(false);
     }
@@ -65,15 +65,15 @@ export function AdminUsersPage() {
   return (
     <div className="admin-users-page">
       <div className="admin-users-header">
-        <h1>Utilisateurs</h1>
-        <p className="admin-users-lead">Créer des comptes (rôle utilisateur standard).</p>
+        <h1>Users</h1>
+        <p className="admin-users-lead">Create accounts (standard user role).</p>
       </div>
 
       <section className="admin-users-panel">
-        <h2>Nouvel utilisateur</h2>
+        <h2>New user</h2>
         <form className="auth-form" onSubmit={onCreate}>
           <label className="auth-label">
-            Nom d’utilisateur
+            Username
             <input
               className="auth-input"
               value={newUsername}
@@ -84,7 +84,7 @@ export function AdminUsersPage() {
             />
           </label>
           <label className="auth-label">
-            Mot de passe (min. 8 caractères)
+            Password (min. 8 characters)
             <input
               className="auth-input"
               type="password"
@@ -106,13 +106,13 @@ export function AdminUsersPage() {
             </p>
           ) : null}
           <button type="submit" className="auth-submit" disabled={createBusy}>
-            {createBusy ? 'Création…' : 'Créer le compte'}
+            {createBusy ? 'Creating…' : 'Create account'}
           </button>
         </form>
       </section>
 
       <section className="admin-users-panel">
-        <h2>Liste</h2>
+        <h2>List</h2>
         {loadError ? (
           <p className="auth-error">{loadError}</p>
         ) : (

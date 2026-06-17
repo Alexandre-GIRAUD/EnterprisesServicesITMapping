@@ -171,7 +171,7 @@ export function FilterDrawer({
                 setSelectedApplicationIds(applyRootToggle(appCatalog, selectedApplicationIds))
               }
             />
-            <span>Tout sélectionner</span>
+            <span>Select all</span>
           </label>
           {applications.map((app) => (
             <label key={app.id} className="graph-drawer-checkbox-row">
@@ -201,7 +201,7 @@ export function FilterDrawer({
                 setSelectedBusinessUnitIds(applyRootToggle(buCatalog, selectedBusinessUnitIds))
               }
             />
-            <span>Tout sélectionner</span>
+            <span>Select all</span>
           </label>
           {businessUnits.map((bu) => (
             <label key={bu.id} className="graph-drawer-checkbox-row">
@@ -231,7 +231,7 @@ export function FilterDrawer({
                 setSelectedRegionCodes(applyRootToggle(regionCatalog, selectedRegionCodes))
               }
             />
-            <span>Tout sélectionner</span>
+            <span>Select all</span>
           </label>
           {regions.map((r) => (
             <label key={r.id} className="graph-drawer-checkbox-row">
@@ -256,13 +256,13 @@ export function FilterDrawer({
   }
 
   const headerTitle =
-    view === 'root' ? 'Filtres' : DIMENSION_META[view as DimensionKey]?.detailTitle ?? 'Filtres';
+    view === 'root' ? 'Filters' : DIMENSION_META[view as DimensionKey]?.detailTitle ?? 'Filters';
 
   return (
     <aside
       id="graph-filter-drawer"
       className={`graph-filter-drawer${isOpen ? ' is-open' : ''}`}
-      aria-label="Filtres du graphe"
+      aria-label="Graph filters"
       aria-hidden={!isOpen}
     >
       <header className="graph-filter-drawer-header">
@@ -271,19 +271,19 @@ export function FilterDrawer({
             type="button"
             className="graph-filter-back-btn"
             onClick={() => setView('root')}
-            aria-label="Retour aux filtres"
+            aria-label="Back to filters"
           >
-            ‹ Retour
+            ‹ Back
           </button>
         ) : (
-          <p className="graph-drawer-eyebrow">Filtres</p>
+          <p className="graph-drawer-eyebrow">Filters</p>
         )}
         <h2 className="graph-filter-view-title">{headerTitle}</h2>
         <button
           type="button"
           className="graph-drawer-close"
           onClick={onClose}
-          aria-label="Fermer les filtres"
+          aria-label="Close filters"
         >
           x
         </button>
@@ -291,14 +291,14 @@ export function FilterDrawer({
 
       <form className="graph-drawer-form graph-filter-form" onSubmit={onSubmit}>
         {view === 'root' ? (
-          <div className="graph-filter-root-list" role="group" aria-label="Types de filtres">
+          <div className="graph-filter-root-list" role="group" aria-label="Filter types">
             <label className="graph-drawer-field graph-filter-year-field">
               <span className="graph-drawer-field-label">Year</span>
               <input
                 className="graph-drawer-input"
                 type="number"
                 inputMode="numeric"
-                placeholder="Toutes les années"
+                placeholder="All years"
                 value={year ?? ''}
                 min={1970}
                 max={2100}
@@ -329,7 +329,7 @@ export function FilterDrawer({
                 type="button"
                 className="graph-filter-drill-btn"
                 onClick={() => setView('applications')}
-                aria-label="Ouvrir le filtre Application"
+                aria-label="Open Application filter"
               >
                 ›
               </button>
@@ -355,7 +355,7 @@ export function FilterDrawer({
                 type="button"
                 className="graph-filter-drill-btn"
                 onClick={() => setView('businessUnits')}
-                aria-label="Ouvrir le filtre Business unit"
+                aria-label="Open Business unit filter"
               >
                 ›
               </button>
@@ -379,7 +379,7 @@ export function FilterDrawer({
                 type="button"
                 className="graph-filter-drill-btn"
                 onClick={() => setView('regions')}
-                aria-label="Ouvrir le filtre Region"
+                aria-label="Open Region filter"
               >
                 ›
               </button>
@@ -394,10 +394,10 @@ export function FilterDrawer({
             type="submit"
             className="graph-drawer-action graph-drawer-action-primary"
           >
-            <span className="graph-drawer-action-title">Rechercher</span>
+            <span className="graph-drawer-action-title">Apply</span>
           </button>
           <button type="button" className="graph-drawer-action" onClick={onReset}>
-            <span className="graph-drawer-action-title">Réinitialiser</span>
+            <span className="graph-drawer-action-title">Reset</span>
           </button>
         </div>
       </form>

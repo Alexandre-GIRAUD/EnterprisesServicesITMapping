@@ -51,7 +51,7 @@ export function GitHubImportPage() {
       } catch (e) {
         if (cancelled) return;
         setStatus('error');
-        setErrorMessage(e instanceof Error ? e.message : 'Chargement impossible.');
+        setErrorMessage(e instanceof Error ? e.message : 'Unable to load.');
       }
     }
 
@@ -92,7 +92,7 @@ export function GitHubImportPage() {
     setImportErrors([]);
     const toCreate = repos.filter((r) => selected.has(r.id) && !isImported(r));
     if (toCreate.length === 0) {
-      setImportErrors(["Aucun dépôt sélectionné (ou tous sont déjà importés)."]);
+      setImportErrors(['No repository selected (or all are already imported).']);
       return;
     }
 
@@ -112,7 +112,7 @@ export function GitHubImportPage() {
           createdNames.push(normalizeName(repo.fullName));
         } catch (e) {
           errors.push(
-            `${repo.fullName}: ${e instanceof Error ? e.message : 'échec'}`
+            `${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`
           );
         }
       }
@@ -120,7 +120,7 @@ export function GitHubImportPage() {
       if (createdNames.length > 0) {
         setSelected(new Set());
         setSuccessMessage(
-          `${createdNames.length} application(s) créée(s). Ouvrez la carte pour voir le graphe mis à jour.`
+          `${createdNames.length} application(s) created. Open the map to see the updated graph.`
         );
       }
       setImportErrors(errors);
@@ -145,7 +145,7 @@ export function GitHubImportPage() {
     if (!appId || !isGitHubLinkedApplication({ name: repo.fullName })) {
       setAiBanner({
         tone: 'err',
-        text: `Application Neo4j introuvable pour ${repo.fullName} ou dépôt non détecté comme GitHub.`,
+        text: `Neo4j application not found for ${repo.fullName} or repository not detected as GitHub.`,
       });
       return;
     }
@@ -156,12 +156,12 @@ export function GitHubImportPage() {
       setApplications(await fetchApplications());
       setAiBanner({
         tone: 'ok',
-        text: `${res.created.length} module(s) créé(s). ${res.skipped.length} entrée(s) ignorée(s).`,
+        text: `${res.created.length} module(s) created. ${res.skipped.length} entry(ies) skipped.`,
       });
     } catch (e) {
       setAiBanner({
         tone: 'err',
-        text: e instanceof Error ? e.message : 'Suggestion IA impossible.',
+        text: e instanceof Error ? e.message : 'AI suggestion failed.',
       });
     } finally {
       setAiBusyRepoId(null);
@@ -175,13 +175,13 @@ export function GitHubImportPage() {
           <p className="github-import-eyebrow">Integrations</p>
           <h1 className="github-import-title">Import GitHub</h1>
           <p className="github-import-subtitle">
-            Les dépôts sont listés via le backend (token{' '}
-            <code className="github-import-code">GITHUB_TOKEN</code>). Cochez les
-            projets à importer comme applications dans Neo4j.
+            Repositories are listed via the backend (token{' '}
+            <code className="github-import-code">GITHUB_TOKEN</code>). Check the
+            projects to import as applications in Neo4j.
           </p>
         </div>
         <Link className="github-import-back" to="/map">
-          Retour carte
+          Back to map
         </Link>
       </header>
 
@@ -210,7 +210,7 @@ export function GitHubImportPage() {
                   )
                 }
               >
-                Voir le graphe modules
+                View module graph
               </button>
             ) : null}
           </p>
@@ -219,13 +219,13 @@ export function GitHubImportPage() {
 
       <div className="github-import-toolbar">
         <label className="github-import-search-label">
-          <span className="github-import-search-span">Filtrer</span>
+          <span className="github-import-search-span">Filter</span>
           <input
             className="github-import-search-input"
             type="search"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="owner/repo, nom, description…"
+            placeholder="owner/repo, name, description…"
             autoComplete="off"
             disabled={status !== 'ready'}
           />
@@ -236,13 +236,13 @@ export function GitHubImportPage() {
           disabled={isImporting || status !== 'ready' || selected.size === 0}
           onClick={() => void handleImportSelection()}
         >
-          {isImporting ? 'Import…' : 'Importer la sélection'}
+          {isImporting ? 'Importing…' : 'Import selection'}
         </button>
       </div>
 
       {status === 'loading' && (
         <p className="github-import-state" role="status">
-          Chargement des dépôts GitHub…
+          Loading GitHub repositories…
         </p>
       )}
       {status === 'error' && errorMessage && (
@@ -253,7 +253,7 @@ export function GitHubImportPage() {
 
       {importErrors.length > 0 && (
         <div className="github-import-feedback github-import-feedback-error" role="alert">
-          <p className="github-import-feedback-title">Erreurs partielles</p>
+          <p className="github-import-feedback-title">Partial errors</p>
           <ul className="github-import-feedback-list">
             {importErrors.map((line) => (
               <li key={line}>{line}</li>
@@ -274,16 +274,16 @@ export function GitHubImportPage() {
             className="github-import-inline-link"
             onClick={() => navigate('/map')}
           >
-            Ouvrir la carte
+            Open map
           </button>
         </div>
       )}
 
       {status === 'ready' && filteredRepos.length === 0 && (
-        <p className="github-import-state">Aucun dépôt ne correspond au filtre.</p>
+        <p className="github-import-state">No repositories match the filter.</p>
       )}
 
-      <ul className="github-import-list" aria-label="Dépôts GitHub">
+      <ul className="github-import-list" aria-label="GitHub repositories">
         {filteredRepos.map((repo) => {
           const imported = isImported(repo);
           const appRow = applicationForRepo(repo);
@@ -310,12 +310,12 @@ export function GitHubImportPage() {
                     )}
                     {imported && (
                       <span className="github-import-badge github-import-badge-imported">
-                        Déjà importé
+                        Already imported
                       </span>
                     )}
                   </span>
                   <span id={`repo-desc-${repo.id}`} className="github-import-card-desc">
-                    {repo.description?.trim() || 'Pas de description sur GitHub.'}
+                    {repo.description?.trim() || 'No description on GitHub.'}
                   </span>
                   <a
                     className="github-import-link"
@@ -323,7 +323,7 @@ export function GitHubImportPage() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Ouvrir sur GitHub
+                    Open on GitHub
                   </a>
                   {imported &&
                     isGitHubLinkedApplication({
@@ -344,17 +344,17 @@ export function GitHubImportPage() {
                           }
                           title={
                             modulesLocked
-                              ? 'Des modules sont déjà liés à cette application. La suggestion IA ne peut être relancée.'
+                              ? 'Modules are already linked to this application. AI suggestion cannot be run again.'
                               : undefined
                           }
                           aria-busy={aiBusyRepoId === repo.id}
                           onClick={() => void handleSuggestModules(repo)}
                         >
                           {aiBusyRepoId === repo.id
-                            ? 'Analyse IA…'
+                            ? 'AI analysis…'
                             : modulesLocked
-                              ? 'Modules déjà en place'
-                              : 'Suggérer les modules (IA)'}
+                              ? 'Modules already in place'
+                              : 'Suggest modules (AI)'}
                         </button>
                       </div>
                     )}
@@ -366,18 +366,18 @@ export function GitHubImportPage() {
       </ul>
 
       <p className="github-import-footnote" role="note">
-        Pagination GitHub : la première page seulement est chargée (max 100 dépôts les plus
-        récemment mis à jour). Les applications existantes sont détectées par nom exact (
-        <code className="github-import-code">full_name</code> GitHub). Le bouton « Suggérer les modules
-        (IA) » apparaît pour les lignes déjà importées lorsque{' '}
-        <code className="github-import-code">name</code> ressemble à <code className="github-import-code">
+        GitHub pagination: only the first page is loaded (max 100 most recently updated
+        repositories). Existing applications are detected by exact name (
+        <code className="github-import-code">full_name</code> on GitHub). The &quot;Suggest modules
+        (AI)&quot; button appears for already-imported rows when{' '}
+        <code className="github-import-code">name</code> looks like <code className="github-import-code">
           owner/repo
         </code>{' '}
-        ou que la description suit le schéma d’import <code className="github-import-code">
+        or the description follows the import schema <code className="github-import-code">
           GitHub: https://…
         </code>
-        . Une fois des modules liés à l’application, le bouton passe en « Modules déjà en place » (pas de
-        nouvelle suggestion IA).
+        . Once modules are linked to the application, the button changes to &quot;Modules already in place&quot; (no
+        new AI suggestion).
       </p>
     </div>
   );

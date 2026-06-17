@@ -160,7 +160,7 @@ export function WorkspaceDrawer({
     event.preventDefault();
     const normalizedName = buFormState.name.trim();
     if (!normalizedName) {
-      setLocalError('Le nom de la business unit est obligatoire.');
+      setLocalError('Business unit name is required.');
       return;
     }
     const payload: BusinessUnitCreateRequest = {
@@ -174,11 +174,11 @@ export function WorkspaceDrawer({
       setFeedbackMessage(null);
       await createBusinessUnit(payload);
       setBuFormState(DEFAULT_BU_FORM_STATE);
-      setFeedbackMessage(`Business unit « ${normalizedName} » créée.`);
+      setFeedbackMessage(`Business unit "${normalizedName}" created.`);
       await onBusinessUnitsChanged?.();
       setView('menu');
     } catch (e) {
-      setLocalError(e instanceof Error ? e.message : 'Impossible de créer la business unit.');
+      setLocalError(e instanceof Error ? e.message : 'Unable to create the business unit.');
     } finally {
       setIsBuSubmitting(false);
     }
@@ -239,7 +239,7 @@ export function WorkspaceDrawer({
       .catch((e) => {
         if (cancelled) return;
         setSearchStatus('error');
-        setSearchError(e instanceof Error ? e.message : 'Impossible de charger les applications');
+        setSearchError(e instanceof Error ? e.message : 'Unable to load applications');
       });
 
     return () => {
@@ -320,7 +320,7 @@ export function WorkspaceDrawer({
     event.preventDefault();
     const normalizedName = nodeFormState.name.trim();
     if (!normalizedName) {
-      setLocalError('Le champ name est obligatoire.');
+      setLocalError('The name field is required.');
       return;
     }
 
@@ -329,7 +329,7 @@ export function WorkspaceDrawer({
     if (yearTrimmed) {
       const parsed = Number(yearTrimmed);
       if (!Number.isInteger(parsed) || parsed < 1970 || parsed > 2100) {
-        setLocalError('Year doit être un entier valide (1970–2100).');
+        setLocalError('Year must be a valid integer (1970–2100).');
         return;
       }
       yearValue = parsed;
@@ -356,8 +356,8 @@ export function WorkspaceDrawer({
     setLocalError(null);
     setFeedbackMessage(
       sandboxMode
-        ? `Node "${created.name}" ajouté (sandbox, non sauvegardé).`
-        : `Node "${created.name}" créé avec succès.`
+        ? `Node "${created.name}" added (sandbox, not saved).`
+        : `Node "${created.name}" created successfully.`
     );
     onNodeCreated?.(created);
     setView('menu');
@@ -370,11 +370,11 @@ export function WorkspaceDrawer({
     const type = edgeFormState.type.trim();
 
     if (!sourceId || !targetId || !type) {
-      setLocalError('Source application, target application et type sont obligatoires.');
+      setLocalError('Source application, target application, and type are required.');
       return;
     }
     if (sourceId === targetId) {
-      setLocalError('sourceId et targetId doivent etre differents.');
+      setLocalError('sourceId and targetId must be different.');
       return;
     }
 
@@ -400,8 +400,8 @@ export function WorkspaceDrawer({
     setLocalError(null);
     setFeedbackMessage(
       sandboxMode
-        ? `Edge "${created.type}" ajouté (sandbox, non sauvegardé).`
-        : `Edge "${created.type}" créé entre "${created.sourceId}" et "${created.targetId}".`
+        ? `Edge "${created.type}" added (sandbox, not saved).`
+        : `Edge "${created.type}" created between "${created.sourceId}" and "${created.targetId}".`
     );
     setView('menu');
   }
@@ -410,7 +410,7 @@ export function WorkspaceDrawer({
     <aside
       id="graph-actions-drawer"
       className={`graph-drawer graph-drawer--edit${isOpen ? ' is-open' : ''}`}
-      aria-label="Panneau d’édition"
+      aria-label="Edit panel"
     >
       <header className="graph-drawer-header">
         <p className="graph-drawer-eyebrow">Edit</p>
@@ -423,23 +423,23 @@ export function WorkspaceDrawer({
                   ? 'Create Node'
                   : view === 'add-edge-form'
                     ? 'Create Edge'
-                    : 'Nouvelle business unit'}
+                    : 'New business unit'}
             </h2>
             <p className="graph-drawer-description">
               {view === 'menu'
-                ? 'Préparez vos prochaines opérations depuis un panneau latéral sobre et moderne.'
+                ? 'Prepare your next operations from a clean, modern side panel.'
                 : view === 'add-node-form'
-                  ? 'Créez un nœud Application (nom, description, année).'
+                  ? 'Create an Application node (name, description, year).'
                   : view === 'add-edge-form'
-                    ? 'Créez une relation typée entre deux nœuds déjà visibles dans le graphe.'
-                    : 'Créez une business unit (regroupement au-dessus des applications).'}
+                    ? 'Create a typed relationship between two nodes already visible in the graph.'
+                    : 'Create a business unit (grouping above applications).'}
             </p>
           </div>
           <button
             type="button"
             className="graph-drawer-close"
             onClick={closeDrawer}
-            aria-label="Fermer le panneau"
+            aria-label="Close panel"
           >
             x
           </button>
@@ -465,7 +465,7 @@ export function WorkspaceDrawer({
               className="graph-drawer-action"
               role="listitem"
               disabled={disabledInSandbox || isSoon}
-              title={disabledInSandbox ? 'Indisponible en sandbox' : undefined}
+              title={disabledInSandbox ? 'Unavailable in sandbox' : undefined}
               onClick={
                 action === 'Add Node'
                   ? openAddNodeForm
@@ -511,7 +511,7 @@ export function WorkspaceDrawer({
               value={nodeFormState.description}
               onChange={(e) => updateNodeField('description', e.target.value)}
               rows={3}
-              placeholder="Contexte fonctionnel du nœud"
+              placeholder="Functional context for the node"
             />
           </label>
 
@@ -547,7 +547,7 @@ export function WorkspaceDrawer({
       ) : view === 'add-bu-form' ? (
         <form className="graph-drawer-form" onSubmit={onSubmitBu}>
           <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">Nom</span>
+            <span className="graph-drawer-field-label">Name</span>
             <input
               className="graph-drawer-input"
               type="text"
@@ -559,7 +559,7 @@ export function WorkspaceDrawer({
             />
           </label>
           <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">Code (optionnel)</span>
+            <span className="graph-drawer-field-label">Code (optional)</span>
             <input
               className="graph-drawer-input"
               type="text"
@@ -570,7 +570,7 @@ export function WorkspaceDrawer({
             />
           </label>
           <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">Description (optionnel)</span>
+            <span className="graph-drawer-field-label">Description (optional)</span>
             <textarea
               className="graph-drawer-input graph-drawer-textarea"
               value={buFormState.description}
@@ -586,11 +586,11 @@ export function WorkspaceDrawer({
               disabled={isBuSubmitting}
             >
               <span className="graph-drawer-action-title">
-                {isBuSubmitting ? 'Création…' : 'Créer la business unit'}
+                {isBuSubmitting ? 'Creating…' : 'Create business unit'}
               </span>
             </button>
             <button type="button" className="graph-drawer-action" onClick={cancelForm} disabled={isBuSubmitting}>
-              <span className="graph-drawer-action-title">Annuler</span>
+              <span className="graph-drawer-action-title">Cancel</span>
             </button>
           </div>
         </form>
@@ -624,10 +624,10 @@ export function WorkspaceDrawer({
                 id="source-application-suggestions"
                 className="graph-drawer-search-dropdown"
                 role="listbox"
-                aria-label="Suggestions applications source"
+                aria-label="Source application suggestions"
               >
                 {searchStatus === 'loading' && (
-                  <p className="graph-drawer-search-state">Chargement...</p>
+                  <p className="graph-drawer-search-state">Loading...</p>
                 )}
                 {searchStatus === 'error' && (
                   <p className="graph-drawer-search-error" role="alert">
@@ -635,7 +635,7 @@ export function WorkspaceDrawer({
                   </p>
                 )}
                 {searchStatus === 'ready' && filteredSourceApps.length === 0 && (
-                  <p className="graph-drawer-search-state">Aucune application trouvée</p>
+                  <p className="graph-drawer-search-state">No applications found</p>
                 )}
                 {searchStatus === 'ready' &&
                   filteredSourceApps.map((app) => (
@@ -683,10 +683,10 @@ export function WorkspaceDrawer({
                 id="target-application-suggestions"
                 className="graph-drawer-search-dropdown"
                 role="listbox"
-                aria-label="Suggestions applications cibles"
+                aria-label="Target application suggestions"
               >
                 {searchStatus === 'loading' && (
-                  <p className="graph-drawer-search-state">Chargement...</p>
+                  <p className="graph-drawer-search-state">Loading...</p>
                 )}
                 {searchStatus === 'error' && (
                   <p className="graph-drawer-search-error" role="alert">
@@ -694,7 +694,7 @@ export function WorkspaceDrawer({
                   </p>
                 )}
                 {searchStatus === 'ready' && filteredTargetApps.length === 0 && (
-                  <p className="graph-drawer-search-state">Aucune application trouvée</p>
+                  <p className="graph-drawer-search-state">No applications found</p>
                 )}
                 {searchStatus === 'ready' &&
                   filteredTargetApps.map((app) => (

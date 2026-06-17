@@ -64,7 +64,7 @@ export function ApplicationSearchBar() {
       } catch (e) {
         if (cancelled) return;
         setStatus('error');
-        setErrorMessage(e instanceof Error ? e.message : 'Impossible de charger les applications');
+        setErrorMessage(e instanceof Error ? e.message : 'Unable to load applications');
       }
     }
 
@@ -105,7 +105,7 @@ export function ApplicationSearchBar() {
   return (
     <div ref={wrapperRef} className="application-search">
       <label htmlFor="application-search-input" className="application-search-label">
-        Rechercher une application
+        Search for an application
       </label>
       <input
         id="application-search-input"
@@ -122,15 +122,15 @@ export function ApplicationSearchBar() {
       />
 
       {isOpen && debouncedQuery && (
-        <div className="application-search-dropdown" role="listbox" aria-label="Resultats applications">
-          {status === 'loading' && <p className="application-search-state">Chargement...</p>}
+        <div className="application-search-dropdown" role="listbox" aria-label="Application results">
+          {status === 'loading' && <p className="application-search-state">Loading...</p>}
           {status === 'error' && errorMessage && (
             <p className="application-search-error" role="alert">
               {errorMessage}
             </p>
           )}
           {status === 'ready' && filteredApps.length === 0 && (
-            <p className="application-search-state">Aucune application trouvee</p>
+            <p className="application-search-state">No applications found</p>
           )}
           {status === 'ready' &&
             filteredApps.slice(0, 8).map((app) => (

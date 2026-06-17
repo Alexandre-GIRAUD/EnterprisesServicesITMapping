@@ -179,7 +179,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
         setStatus('ready');
         setMessage(
           data.nodes.length <= 1 && data.edges.length === 0
-            ? 'Aucun module lié à cette application pour l’instant (racine seule).'
+            ? 'No modules linked to this application yet (root only).'
             : null
         );
       } catch (e) {
@@ -189,14 +189,14 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
           setLegendNodeTypes([]);
           setLegendEdgeTypes([]);
           setStatus('error');
-          let msg = e instanceof Error ? e.message : 'Impossible de charger le graphe modules';
+          let msg = e instanceof Error ? e.message : 'Unable to load the module graph';
           if (msg.includes('404')) {
             msg =
-              'Application introuvable ou inactive à cette date (404). Vérifiez l’identifiant ou revenez à la carte.';
+              'Application not found or inactive at this date (404). Check the ID or return to the map.';
           }
           if (msg === 'Failed to fetch') {
             msg +=
-              ' — backend injoignable. Vérifiez VITE_API_PROXY_TARGET ou VITE_API_BASE_URL.';
+              ' — backend unreachable. Check VITE_API_PROXY_TARGET or VITE_API_BASE_URL.';
           }
           setMessage(msg);
         }
@@ -248,7 +248,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
     <div className="graph-canvas-wrap module-graph-wrap">
       {status === 'loading' && (
         <p className="graph-canvas-status" role="status">
-          Chargement des modules…
+          Loading modules…
         </p>
       )}
       {status === 'error' && message && (
@@ -265,7 +265,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
         ref={containerRef}
         className="graph-canvas module-graph-canvas"
         role="img"
-        aria-label="Graphe des modules de l’application"
+        aria-label="Application module graph"
       >
         <ReactFlow<ModuleNode, Edge>
           nodes={displayNodes}

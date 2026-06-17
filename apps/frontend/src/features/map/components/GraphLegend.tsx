@@ -44,19 +44,19 @@ export function GraphLegend({
   const showColorSelector =
     colorPropertyOptions.length > 0 && colorPropertyKey != null && onColorPropertyChange != null;
   const colorGroupTitle =
-    colorPropertyKey != null ? labelForColorProperty(colorPropertyKey) : 'Liens';
+    colorPropertyKey != null ? labelForColorProperty(colorPropertyKey) : 'Links';
 
   return (
-    <div className="graph-legend" role="note" aria-label="Légende du graphe">
+    <div className="graph-legend" role="note" aria-label="Graph legend">
       {showColorSelector && (
         <div className="graph-legend__group graph-legend__group--control">
           <label className="graph-legend__control">
-            <span className="graph-legend__title">Couleur des liens</span>
+            <span className="graph-legend__title">Link color</span>
             <select
               className="graph-legend__select"
               value={colorPropertyKey}
               onChange={(event) => onColorPropertyChange(event.target.value)}
-              aria-label="Propriété utilisée pour la couleur des liens"
+              aria-label="Edge property used for link color"
             >
               {colorPropertyOptions.map((option) => (
                 <option key={option.key} value={option.key}>
@@ -70,7 +70,7 @@ export function GraphLegend({
 
       {nodeTypes.length > 0 && (
         <div className="graph-legend__group">
-          <p className="graph-legend__title">Nœuds</p>
+          <p className="graph-legend__title">Nodes</p>
           <ul className="graph-legend__list">
             {nodeTypes.map((key) => (
               <li key={key} className="graph-legend__item">
@@ -112,7 +112,7 @@ export function GraphLegend({
 
       {relationTypes.length > 0 && (
         <div className="graph-legend__group">
-          <p className="graph-legend__title">Relations</p>
+          <p className="graph-legend__title">Relationships</p>
           <ul className="graph-legend__list">
             {relationTypes.map((key) => (
               <li key={key} className="graph-legend__item">

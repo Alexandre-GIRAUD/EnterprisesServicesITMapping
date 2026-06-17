@@ -53,7 +53,7 @@ function runWithJumps(s: Point, e: Point, jumps: Point[], hopRadius: number): st
  * Corner rounding: at each interior vertex `V` between incoming/outgoing
  * segments, the corner is trimmed by `radius` (capped at half of each adjacent
  * segment so it never overshoots) to `entry = V - radius·inDir` and
- * `exit = V + radius·outDir`, joined by a quadratic Bézier whose control point
+ * `exit = V + radius·outDir`, joined by a quadratic Bezier whose control point
  * is `V`. Straight runs between trimmed corners carry the hop arcs.
  */
 export function buildOrthogonalPath(

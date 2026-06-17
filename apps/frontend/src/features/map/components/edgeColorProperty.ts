@@ -18,11 +18,11 @@ const KNOWN_PROPERTY_ORDER = ['data', 'asset_class', 'frequency', 'creation_date
 const INTERNAL_PROPERTY_KEYS = new Set(['validFrom', 'validTo', 'id']);
 
 export const EDGE_COLOR_PROPERTY_LABELS: Record<string, string> = {
-  data: 'Données échangées',
-  asset_class: "Classe d'actifs",
-  frequency: 'Fréquence',
-  creation_date: 'Année de création',
-  [RELATION_TYPE_COLOR_KEY]: 'Type de relation',
+  data: 'Exchanged data',
+  asset_class: 'Asset class',
+  frequency: 'Frequency',
+  creation_date: 'Creation year',
+  [RELATION_TYPE_COLOR_KEY]: 'Relationship type',
 };
 
 export function labelForColorProperty(key: string): string {
