@@ -177,7 +177,7 @@ export function GraphCanvas() {
   function switchToSandboxMode() {
     setGraphMode('sandbox');
     setSandboxDirty(false);
-    setMessage('Sandbox mode — changes are not saved.');
+    setMessage('Sandbox mode — customize your graph, no changes saved.');
     setIsDrawerOpen(true);
   }
 
@@ -387,7 +387,7 @@ export function GraphCanvas() {
                 ? 'No applications match these filters (year / business unit / location). Change criteria or reset.'
                 : 'No nodes. Start the backend with Neo4j to load demo data.'
               : graphModeRef.current === 'sandbox'
-                ? 'Sandbox mode — changes are not saved.'
+                ? 'Sandbox mode — customize your graph, no changes saved.'
                 : 'Tip: click an application to open its module graph.';
           setMessage(emptyHint);
         }
@@ -655,7 +655,7 @@ export function GraphCanvas() {
                   className="graph-save-snapshot-btn"
                   onClick={() => setIsSaveSnapshotOpen(true)}
                 >
-                  Save view
+                  Pin view
                 </button>
               ) : null}
 
@@ -736,9 +736,19 @@ export function GraphCanvas() {
                 onClick={() => setIsDrawerOpen((open) => !open)}
                 aria-expanded={isDrawerOpen}
                 aria-controls="graph-actions-drawer"
-                aria-label={isDrawerOpen ? 'Close edit panel' : 'Open edit panel'}
+                aria-label={
+                  isDrawerOpen
+                    ? isSandbox
+                      ? 'Close edit panel'
+                      : 'Close corrections panel'
+                    : isSandbox
+                      ? 'Open edit panel'
+                      : 'Open corrections panel'
+                }
               >
-                <span className="graph-drawer-toggle-label">Edit</span>
+                <span className="graph-drawer-toggle-label">
+                  {isSandbox ? 'Edit' : 'Corrections'}
+                </span>
                 <span className="graph-drawer-toggle-icon" aria-hidden="true">
                   {isDrawerOpen ? 'Close' : 'Open'}
                 </span>

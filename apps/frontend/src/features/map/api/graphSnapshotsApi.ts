@@ -32,7 +32,7 @@ export async function createGraphSnapshot(
   }
   if (!res.ok) {
     throw new Error(
-      `Save view ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`
+      `Pin view ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`
     );
   }
   try {

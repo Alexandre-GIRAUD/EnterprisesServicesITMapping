@@ -410,10 +410,10 @@ export function WorkspaceDrawer({
     <aside
       id="graph-actions-drawer"
       className={`graph-drawer graph-drawer--edit${isOpen ? ' is-open' : ''}`}
-      aria-label="Edit panel"
+      aria-label={sandboxMode ? 'Edit panel' : 'Corrections panel'}
     >
       <header className="graph-drawer-header">
-        <p className="graph-drawer-eyebrow">Edit</p>
+        <p className="graph-drawer-eyebrow">{sandboxMode ? 'Edit' : 'Corrections'}</p>
         <div className="graph-drawer-title-row">
           <div>
             <h2 className="graph-drawer-title">

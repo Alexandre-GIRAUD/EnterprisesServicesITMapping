@@ -55,7 +55,7 @@ export function SaveSnapshotDialog({ isOpen, onClose, onSave }: SaveSnapshotDial
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="save-snapshot-dialog-title" className="save-snapshot-dialog-title">
-          Save view
+          Pin view
         </h2>
         <p className="save-snapshot-dialog-hint">
           Saves the current filters so you can reapply them in one click.
