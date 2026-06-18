@@ -87,7 +87,7 @@ export async function patchApplicationBusinessUnit(
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(
-      `Business unit lien ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+      `Business unit link ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
     );
   }
 
@@ -113,7 +113,7 @@ export async function patchApplicationRegions(
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(
-      `Régions liaison ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+      `Regions link ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
     );
   }
 
@@ -158,7 +158,7 @@ export async function suggestModulesFromGithub(
     const detail = await res.text().catch(() => '');
     if (res.status === 409) {
       const fallback =
-        'Les modules ont déjà été suggérés pour cette application.';
+        'Modules have already been suggested for this application.';
       let msg = fallback;
       try {
         const json = JSON.parse(detail) as { message?: string };

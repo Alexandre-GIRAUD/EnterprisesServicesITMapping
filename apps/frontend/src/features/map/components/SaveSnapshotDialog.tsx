@@ -27,11 +27,11 @@ export function SaveSnapshotDialog({ isOpen, onClose, onSave }: SaveSnapshotDial
     event.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) {
-      setError('Le nom est obligatoire.');
+      setError('Name is required.');
       return;
     }
     if (trimmed.length > 80) {
-      setError('Le nom ne peut pas dépasser 80 caractères.');
+      setError('Name cannot exceed 80 characters.');
       return;
     }
     setSaving(true);
@@ -40,7 +40,7 @@ export function SaveSnapshotDialog({ isOpen, onClose, onSave }: SaveSnapshotDial
       await onSave(trimmed);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Enregistrement impossible.');
+      setError(e instanceof Error ? e.message : 'Unable to save.');
       setSaving(false);
     }
   }
@@ -55,14 +55,14 @@ export function SaveSnapshotDialog({ isOpen, onClose, onSave }: SaveSnapshotDial
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="save-snapshot-dialog-title" className="save-snapshot-dialog-title">
-          Enregistrer la vue
+          Pin view
         </h2>
         <p className="save-snapshot-dialog-hint">
-          Sauvegarde les filtres actuels pour les réappliquer en un clic.
+          Saves the current filters so you can reapply them in one click.
         </p>
         <form onSubmit={handleSubmit}>
           <label className="save-snapshot-dialog-label" htmlFor="save-snapshot-name">
-            Nom
+            Name
           </label>
           <input
             ref={inputRef}
@@ -73,7 +73,7 @@ export function SaveSnapshotDialog({ isOpen, onClose, onSave }: SaveSnapshotDial
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={saving}
-            placeholder="Ex. Retail EMEA 2024"
+            placeholder="E.g. Retail EMEA 2024"
           />
           {error ? <p className="save-snapshot-dialog-error">{error}</p> : null}
           <div className="save-snapshot-dialog-actions">
@@ -83,14 +83,14 @@ export function SaveSnapshotDialog({ isOpen, onClose, onSave }: SaveSnapshotDial
               onClick={onClose}
               disabled={saving}
             >
-              Annuler
+              Cancel
             </button>
             <button
               type="submit"
               className="save-snapshot-dialog-btn save-snapshot-dialog-btn--primary"
               disabled={saving}
             >
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
+              {saving ? 'Saving…' : 'Save'}
             </button>
           </div>
         </form>

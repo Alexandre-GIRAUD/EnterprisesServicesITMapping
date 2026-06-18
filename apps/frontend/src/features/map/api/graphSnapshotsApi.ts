@@ -8,7 +8,7 @@ export async function listGraphSnapshots(): Promise<GraphSnapshotDto[]> {
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(
-      `Liste des vues ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+      `View list ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`
     );
   }
   return res.json();
@@ -28,17 +28,17 @@ export async function createGraphSnapshot(
   });
   const text = await res.text().catch(() => '');
   if (res.status === 409) {
-    throw new Error('Une vue avec ce nom existe déjà.');
+    throw new Error('A view with this name already exists.');
   }
   if (!res.ok) {
     throw new Error(
-      `Enregistrement de la vue ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`
+      `Pin view ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`
     );
   }
   try {
     return JSON.parse(text) as GraphSnapshotDto;
   } catch {
-    throw new Error('Réponse serveur invalide après enregistrement.');
+    throw new Error('Invalid server response after save.');
   }
 }
 
@@ -48,12 +48,12 @@ export async function deleteGraphSnapshot(id: string): Promise<void> {
     { method: 'DELETE' }
   );
   if (res.status === 404) {
-    throw new Error('Vue introuvable.');
+    throw new Error('View not found.');
   }
   if (!res.ok && res.status !== 204) {
     const detail = await res.text().catch(() => '');
     throw new Error(
-      `Suppression de la vue ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+      `Delete view ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`
     );
   }
 }

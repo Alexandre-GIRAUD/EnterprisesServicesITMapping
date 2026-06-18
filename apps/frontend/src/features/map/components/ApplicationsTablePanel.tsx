@@ -62,31 +62,31 @@ export function ApplicationsTablePanel({
       id="graph-applications-table-panel"
       className="graph-table-panel graph-table-panel--light"
       role="region"
-      aria-label="Table des applications du graphe"
+      aria-label="Graph applications table"
     >
       {status === 'loading' && (
         <p className="graph-table-message" role="status">
-          Chargement…
+          Loading…
         </p>
       )}
       {status === 'error' && (
         <p className="graph-table-message graph-table-message-error" role="alert">
-          {errorMessage ?? 'Impossible de charger le graphe.'}
+          {errorMessage ?? 'Unable to load the graph.'}
         </p>
       )}
       {status === 'ready' && rows.length === 0 && (
-        <p className="graph-table-message">Aucune application à afficher.</p>
+        <p className="graph-table-message">No applications to display.</p>
       )}
       {status === 'ready' && rows.length > 0 && (
         <div className="graph-table-scroll">
-          <table className="graph-table" aria-label="Applications du graphe">
+          <table className="graph-table" aria-label="Graph applications">
             <thead>
               <tr>
-                <th scope="col">Nom</th>
+                <th scope="col">Name</th>
                 <th scope="col">ID</th>
                 <th scope="col">Description</th>
                 <th scope="col">Business unit</th>
-                <th scope="col">Régions</th>
+                <th scope="col">Regions</th>
                 <th scope="col">Year</th>
               </tr>
             </thead>

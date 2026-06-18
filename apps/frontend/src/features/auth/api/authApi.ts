@@ -21,8 +21,8 @@ export async function loginRequest(username: string, password: string): Promise<
     const detail = await res.text().catch(() => '');
     throw new Error(
       detail
-        ? `Connexion impossible (${res.status}): ${detail.slice(0, 200)}`
-        : `Connexion impossible (${res.status})`
+        ? `Unable to sign in (${res.status}): ${detail.slice(0, 200)}`
+        : `Unable to sign in (${res.status})`
     );
   }
   return res.json() as Promise<LoginResponseDto>;
@@ -35,7 +35,7 @@ export async function listUsersRequest(): Promise<UserSummaryDto[]> {
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(
-      `Liste utilisateurs ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+      `User list ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`
     );
   }
   return res.json();
@@ -49,16 +49,16 @@ export async function createUserRequest(username: string, password: string): Pro
   });
   const text = await res.text().catch(() => '');
   if (res.status === 409) {
-    throw new Error('Ce nom d’utilisateur existe déjà.');
+    throw new Error('That username already exists.');
   }
   if (!res.ok) {
     throw new Error(
-      `Création utilisateur ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`
+      `User creation ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`
     );
   }
   try {
     return JSON.parse(text) as UserSummaryDto;
   } catch {
-    throw new Error('Réponse serveur invalide après création.');
+    throw new Error('Invalid server response after creation.');
   }
 }

@@ -22,7 +22,7 @@ export function useCreateGraphEdge() {
         type: input.type,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Impossible de creer la relation');
+      setError(e instanceof Error ? e.message : 'Unable to create the relationship');
       return null;
     } finally {
       setIsSubmitting(false);

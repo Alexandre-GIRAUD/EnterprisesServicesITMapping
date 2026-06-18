@@ -1,4 +1,4 @@
-export type GraphMode = 'normal' | 'sandbox';
+export type GraphMode = 'normal' | 'sandbox' | 'views';
 
 type GraphModeTabsProps = {
   mode: GraphMode;
@@ -8,7 +8,7 @@ type GraphModeTabsProps = {
 
 export function GraphModeTabs({ mode, sandboxDirty = false, onModeChange }: GraphModeTabsProps) {
   return (
-    <div className="graph-mode-tabs" role="tablist" aria-label="Mode du graphe">
+    <div className="graph-mode-tabs" role="tablist" aria-label="Graph mode">
       <button
         type="button"
         role="tab"
@@ -20,7 +20,7 @@ export function GraphModeTabs({ mode, sandboxDirty = false, onModeChange }: Grap
           if (mode !== 'normal') onModeChange('normal');
         }}
       >
-        Normal
+        Information System Explorer
       </button>
       <button
         type="button"
@@ -33,10 +33,23 @@ export function GraphModeTabs({ mode, sandboxDirty = false, onModeChange }: Grap
           if (mode !== 'sandbox') onModeChange('sandbox');
         }}
       >
-        Sandbox
+        Impact Sandbox
         {sandboxDirty && mode === 'sandbox' ? (
-          <span className="graph-mode-tab__draft" aria-label="Brouillon non sauvegardé" />
+          <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
         ) : null}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        id="graph-mode-tab-views"
+        className={`graph-mode-tab graph-mode-tab--views${mode === 'views' ? ' is-active' : ''}`}
+        aria-selected={mode === 'views'}
+        aria-controls="graph-views-pane"
+        onClick={() => {
+          if (mode !== 'views') onModeChange('views');
+        }}
+      >
+        My views
       </button>
     </div>
   );

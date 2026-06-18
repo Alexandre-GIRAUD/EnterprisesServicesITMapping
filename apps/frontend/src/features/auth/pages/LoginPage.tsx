@@ -28,7 +28,7 @@ export function LoginPage() {
       login(dto);
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Échec de la connexion.');
+      setError(err instanceof Error ? err.message : 'Login failed.');
     } finally {
       setBusy(false);
     }
@@ -43,11 +43,11 @@ export function LoginPage() {
         </header>
 
         <div className="auth-card">
-          <h2 className="auth-section-title">Connexion</h2>
-          <p className="auth-subtitle">Accès à la carte applicative</p>
+          <h2 className="auth-section-title">Sign in</h2>
+          <p className="auth-subtitle">Access the application map</p>
           <form className="auth-form" onSubmit={onSubmit}>
             <label className="auth-label">
-              Nom d’utilisateur
+              Username
               <input
                 className="auth-input"
                 autoComplete="username"
@@ -57,7 +57,7 @@ export function LoginPage() {
               />
             </label>
             <label className="auth-label">
-              Mot de passe
+              Password
               <input
                 className="auth-input"
                 type="password"
@@ -73,10 +73,10 @@ export function LoginPage() {
               </p>
             ) : null}
             <button type="submit" className="auth-submit" disabled={busy}>
-              {busy ? 'Connexion…' : 'Se connecter'}
+              {busy ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
-          <p className="auth-footnote">Les comptes sont créés par un administrateur.</p>
+          <p className="auth-footnote">Accounts are created by an administrator.</p>
         </div>
       </div>
     </div>

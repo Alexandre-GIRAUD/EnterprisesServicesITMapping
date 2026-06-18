@@ -90,7 +90,7 @@ export function ApplicationDetailsDrawer({
       const local = resolveSandboxApplication?.(application.id);
       if (!local) {
         setStatus('error');
-        setErrorMessage('Application sandbox introuvable sur le graphe.');
+        setErrorMessage('Sandbox application not found on the graph.');
         return;
       }
       setDetails(local);
@@ -121,7 +121,7 @@ export function ApplicationDetailsDrawer({
       .catch((e) => {
         if (cancelled) return;
         setStatus('error');
-        setErrorMessage(e instanceof Error ? e.message : "Impossible de charger les details");
+        setErrorMessage(e instanceof Error ? e.message : 'Unable to load details');
       });
 
     return () => {
@@ -169,10 +169,10 @@ export function ApplicationDetailsDrawer({
   const description =
     details?.description && details.description.trim().length > 0
       ? details.description
-      : 'Description non renseignée.';
+      : 'No description provided.';
 
   const yearText = useMemo(
-    () => (details?.year != null ? String(details.year) : 'Non renseigné'),
+    () => (details?.year != null ? String(details.year) : 'Not provided'),
     [details?.year]
   );
 
@@ -182,7 +182,7 @@ export function ApplicationDetailsDrawer({
 
     const name = formState.name.trim();
     if (!name) {
-      setFormErrorMessage('Le champ name est obligatoire.');
+      setFormErrorMessage('The name field is required.');
       return;
     }
 
@@ -191,7 +191,7 @@ export function ApplicationDetailsDrawer({
     if (yearTrimmed) {
       const parsed = Number(yearTrimmed);
       if (!Number.isInteger(parsed) || parsed < 1970 || parsed > 2100) {
-        setFormErrorMessage('Year doit être un entier valide (1970–2100).');
+        setFormErrorMessage('Year must be a valid integer (1970–2100).');
         return;
       }
       yearValue = parsed;
@@ -232,7 +232,7 @@ export function ApplicationDetailsDrawer({
           description: payload.description,
           year: yearValue ?? null,
         });
-        setSaveSuccessMessage('Application mise à jour (sandbox, non sauvegardé).');
+        setSaveSuccessMessage('Application updated (sandbox, not saved).');
         setIsEditing(false);
       } finally {
         setIsSaving(false);
@@ -259,11 +259,11 @@ export function ApplicationDetailsDrawer({
         businessUnitId: refreshed.businessUnit?.id ?? '',
         regionCodes: regionCodesFromDetail(refreshed),
       });
-      setSaveSuccessMessage('Application mise à jour.');
+      setSaveSuccessMessage('Application updated.');
       setIsEditing(false);
     } catch (e) {
       setFormErrorMessage(
-        e instanceof Error ? e.message : "Impossible d'enregistrer les modifications."
+        e instanceof Error ? e.message : 'Unable to save changes.'
       );
     } finally {
       setIsSaving(false);
@@ -299,11 +299,11 @@ export function ApplicationDetailsDrawer({
       const res = await suggestModulesFromGithub(id);
       setDetails(await fetchApplicationById(id));
       setSuggestSuccessMessage(
-        `${res.created.length} module(s) créé(s). ${res.skipped.length} entrée(s) ignorée(s).`
+        `${res.created.length} module(s) created. ${res.skipped.length} entry(ies) skipped.`
       );
     } catch (e) {
       setSuggestErrorMessage(
-        e instanceof Error ? e.message : 'Suggestion modules IA impossible.'
+        e instanceof Error ? e.message : 'AI module suggestion failed.'
       );
     } finally {
       setSuggestBusy(false);
@@ -323,7 +323,7 @@ export function ApplicationDetailsDrawer({
       setShowDeleteConfirm(false);
     } catch (e) {
       setDeleteErrorMessage(
-        e instanceof Error ? e.message : 'Impossible de supprimer cette application.'
+        e instanceof Error ? e.message : 'Unable to delete this application.'
       );
     } finally {
       setIsDeleting(false);
@@ -333,20 +333,20 @@ export function ApplicationDetailsDrawer({
   return (
     <aside
       className={`graph-details-drawer${isOpen ? ' is-open' : ''}`}
-      aria-label="Panneau de détails d'application"
+      aria-label="Application details panel"
     >
       <header className="graph-details-header">
         <p className="graph-drawer-eyebrow">Application</p>
         <div className="graph-drawer-title-row">
           <div>
-            <h2 className="graph-drawer-title">{application?.label ?? 'Détails'}</h2>
+            <h2 className="graph-drawer-title">{application?.label ?? 'Details'}</h2>
             {application?.id && <p className="graph-details-id">{application.id}</p>}
           </div>
           <button
             type="button"
             className="graph-drawer-close"
             onClick={onClose}
-            aria-label="Fermer les détails application"
+            aria-label="Close application details"
           >
             x
           </button>
@@ -354,10 +354,10 @@ export function ApplicationDetailsDrawer({
       </header>
 
       <div className="graph-details-content">
-        {status === 'loading' && <p className="graph-details-text">Chargement...</p>}
+        {status === 'loading' && <p className="graph-details-text">Loading...</p>}
         {status === 'error' && (
           <p className="graph-details-text graph-details-text-error">
-            {errorMessage ?? 'Impossible de charger les détails.'}
+            {errorMessage ?? 'Unable to load details.'}
           </p>
         )}
         {status === 'ready' && (
@@ -381,12 +381,12 @@ export function ApplicationDetailsDrawer({
                     ? `${details.businessUnit.name ?? '—'}${
                         details.businessUnit.code ? ` (${details.businessUnit.code})` : ''
                       }`
-                    : 'Non rattachée à une business unit.'}
+                    : 'Not linked to a business unit.'}
                 </p>
               </section>
 
               <section className="graph-details-section">
-                <h3 className="graph-details-section-title">Régions</h3>
+                <h3 className="graph-details-section-title">Regions</h3>
                 {details?.regions && details.regions.length > 0 ? (
                   <ul className="graph-details-region-list">
                     {details.regions.map((r) => (
@@ -397,7 +397,7 @@ export function ApplicationDetailsDrawer({
                     ))}
                   </ul>
                 ) : (
-                  <p className="graph-details-text">Aucune région renseignée.</p>
+                  <p className="graph-details-text">No regions provided.</p>
                 )}
               </section>
 
@@ -442,9 +442,9 @@ export function ApplicationDetailsDrawer({
                     setFormState((prev) => ({ ...prev, businessUnitId: e.target.value }))
                   }
                   disabled={isSaving || isDeleting || sandboxMode}
-                  aria-label="Business unit de l'application"
+                  aria-label="Application business unit"
                 >
-                  <option value="">Aucune / non rattachée</option>
+                  <option value="">None / not linked</option>
                   {businessUnitsCatalog.map((bu) => (
                     <option key={bu.id} value={bu.id}>
                       {bu.name}
@@ -452,15 +452,15 @@ export function ApplicationDetailsDrawer({
                   ))}
                 </select>
                 {sandboxMode && (
-                  <span className="graph-drawer-field-hint">Non modifiable en sandbox.</span>
+                  <span className="graph-drawer-field-hint">Not editable in sandbox.</span>
                 )}
               </label>
               <fieldset className="graph-drawer-field graph-drawer-fieldset" disabled={sandboxMode}>
-                <legend className="graph-drawer-field-label">Régions</legend>
+                <legend className="graph-drawer-field-label">Regions</legend>
                 {sandboxMode ? (
-                  <p className="graph-details-text">Non modifiable en sandbox.</p>
+                  <p className="graph-details-text">Not editable in sandbox.</p>
                 ) : regionsCatalog.length === 0 ? (
-                  <p className="graph-details-text">Chargement du catalogue…</p>
+                  <p className="graph-details-text">Loading catalog…</p>
                 ) : (
                   <div className="graph-drawer-region-checkboxes">
                     {regionsCatalog.map((r) => (
@@ -549,8 +549,8 @@ export function ApplicationDetailsDrawer({
                 >
                   <p id="graph-delete-confirm-title" className="graph-details-delete-confirm-title">
                     {sandboxMode
-                      ? 'Retirer cette application du graphe sandbox ? Aucune donnée en base ne sera modifiée.'
-                      : 'Supprimer cette application ? Les modules reliés via CONTAINS et les arêtes attachées seront supprimés définitivement.'}
+                      ? 'Remove this application from the sandbox graph? No database data will be changed.'
+                      : 'Delete this application? Modules linked via CONTAINS and attached edges will be permanently removed.'}
                   </p>
                   <div className="graph-details-delete-confirm-actions">
                     <button
@@ -560,7 +560,7 @@ export function ApplicationDetailsDrawer({
                       onClick={() => void onConfirmDelete()}
                     >
                       <span className="graph-drawer-action-title">
-                        {isDeleting ? 'Suppression…' : 'Confirmer la suppression'}
+                        {isDeleting ? 'Deleting…' : 'Confirm deletion'}
                       </span>
                     </button>
                     <button
@@ -572,7 +572,7 @@ export function ApplicationDetailsDrawer({
                         setDeleteErrorMessage(null);
                       }}
                     >
-                      <span className="graph-drawer-action-title">Annuler</span>
+                      <span className="graph-drawer-action-title">Cancel</span>
                     </button>
                   </div>
                 </div>
@@ -598,7 +598,7 @@ export function ApplicationDetailsDrawer({
               ))}
             </>
           ) : (
-            <p className="graph-details-text">Aucun contributor lié à cette application.</p>
+            <p className="graph-details-text">No contributors linked to this application.</p>
           )}
         </section>
       </div>
@@ -621,7 +621,7 @@ export function ApplicationDetailsDrawer({
                 className="github-import-inline-link"
                 to={`/map/apps/${encodeURIComponent(application.id)}`}
               >
-                Voir le graphe modules
+                View module graph
               </Link>
             ) : null}
           </p>
@@ -640,7 +640,7 @@ export function ApplicationDetailsDrawer({
               }
               title={
                 details.hasModuleSubtree
-                  ? 'Des modules sont déjà liés à cette application. La suggestion IA ne peut être relancée.'
+                  ? 'Modules are already linked to this application. AI suggestion cannot be run again.'
                   : undefined
               }
               aria-busy={suggestBusy}
@@ -648,10 +648,10 @@ export function ApplicationDetailsDrawer({
             >
               <span className="graph-drawer-action-title">
                 {suggestBusy
-                  ? 'Analyse IA…'
+                  ? 'AI analysis…'
                   : details.hasModuleSubtree
-                    ? 'Modules déjà en place'
-                    : 'Suggérer les modules (IA)'}
+                    ? 'Modules already in place'
+                    : 'Suggest modules (AI)'}
               </span>
             </button>
           )}
@@ -660,7 +660,7 @@ export function ApplicationDetailsDrawer({
             type="button"
             className="graph-drawer-action graph-drawer-action-primary"
             disabled={sandboxMode}
-            title={sandboxMode ? 'Indisponible en sandbox' : undefined}
+            title={sandboxMode ? 'Unavailable in sandbox' : undefined}
             onClick={() => onOpenModuleGraph(application.id)}
           >
             <span className="graph-drawer-action-title">Open module graph</span>

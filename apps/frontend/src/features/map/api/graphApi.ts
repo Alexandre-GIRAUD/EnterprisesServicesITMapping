@@ -3,7 +3,7 @@
  * Supports filtering by year via query param year (integer).
  *
  * - Relative `/api/...` : same origin (Vite proxy en dev, nginx en prod Docker).
- * - VITE_API_BASE_URL=http://127.0.0.1:8081 : appel direct (CORS activé côté backend).
+ * - VITE_API_BASE_URL=http://127.0.0.1:8081: direct call (CORS enabled server-side).
  */
 
 import type { GraphEdgeCreateRequest, GraphEdgeCreateResponse, GraphResponseDto } from '@/types/api';
@@ -32,7 +32,7 @@ async function fetchGraphJson(
     const detail = await res.text().catch(() => '');
     const hint =
       res.status === 502 || res.status === 503
-        ? ' (vérifie que le backend tourne et le port du proxy Vite : VITE_API_PROXY_TARGET, ex. 8081)'
+        ? ' (check that the backend is running and the Vite proxy port: VITE_API_PROXY_TARGET, e.g. 8081)'
         : '';
     throw new Error(
       `${label} ${res.status} ${res.statusText}${hint}${detail ? `: ${detail.slice(0, 200)}` : ''}`
@@ -91,7 +91,7 @@ export async function createGraphEdge(
     const detail = await res.text().catch(() => '');
     if (res.status === 404 || res.status === 405) {
       throw new Error(
-        'API create edge non disponible pour le moment. Endpoint backend de creation de relation absent.'
+        'Create edge API is not available yet. Backend relationship creation endpoint is missing.'
       );
     }
     throw new Error(

@@ -3,10 +3,13 @@ import type { ApplicationResponse, BusinessUnitListItem, RegionSummary } from '@
 import {
   type FilterView,
   dimensionMode,
+  dimensionStatusLabel,
+  hasInvalidDimensionSelection,
   rootCheckboxState,
   selectAllCatalog,
   toApiFilterList,
   toggleSortedValue,
+  yearFilterLabel,
 } from './filterDimensionUtils';
 
 export type GraphFilters = {
@@ -33,22 +36,25 @@ type DimensionKey = 'applications' | 'businessUnits' | 'regions';
 
 const DIMENSION_META: Record<
   DimensionKey,
-  { view: FilterView; rootLabel: string; detailTitle: string }
+  { view: FilterView; rootLabel: string; detailTitle: string; plural: string }
 > = {
   applications: {
     view: 'applications',
     rootLabel: 'Application',
-    detailTitle: 'Application',
+    detailTitle: 'Applications',
+    plural: 'applications',
   },
   businessUnits: {
     view: 'businessUnits',
     rootLabel: 'Business unit',
-    detailTitle: 'Business unit',
+    detailTitle: 'Business units',
+    plural: 'business units',
   },
   regions: {
     view: 'regions',
     rootLabel: 'Region',
-    detailTitle: 'Region',
+    detailTitle: 'Regions',
+    plural: 'regions',
   },
 };
 
@@ -56,6 +62,12 @@ function applyRootToggle(catalog: string[], selected: string[]): string[] {
   const mode = dimensionMode(selected, catalog);
   if (mode === 'none') return selectAllCatalog(catalog);
   return [];
+}
+
+function statusClass(mode: ReturnType<typeof dimensionMode>): string {
+  if (mode === 'some') return 'graph-filter-status is-active';
+  if (mode === 'none') return 'graph-filter-status is-invalid';
+  return 'graph-filter-status';
 }
 
 export function FilterDrawer({
@@ -75,6 +87,8 @@ export function FilterDrawer({
   const [selectedApplicationIds, setSelectedApplicationIds] = useState(initialApplicationIds);
   const [selectedBusinessUnitIds, setSelectedBusinessUnitIds] = useState(initialBusinessUnitIds);
   const [selectedRegionCodes, setSelectedRegionCodes] = useState(initialRegionCodes);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   const appCatalog = useMemo(
     () =>
@@ -101,6 +115,8 @@ export function FilterDrawer({
   const appMode = dimensionMode(selectedApplicationIds, appCatalog);
   const buMode = dimensionMode(selectedBusinessUnitIds, buCatalog);
   const regionMode = dimensionMode(selectedRegionCodes, regionCatalog);
+  const dimensionModes = [appMode, buMode, regionMode];
+  const applyBlocked = hasInvalidDimensionSelection(dimensionModes);
 
   const detailSelectAllRef = useRef<HTMLInputElement | null>(null);
 
@@ -108,6 +124,8 @@ export function FilterDrawer({
     if (isOpen) {
       setView('root');
       setYear(initialYear);
+      setDetailError(null);
+      setApplyError(null);
       setSelectedApplicationIds(
         initialApplicationIds.length > 0 ? initialApplicationIds : selectAllCatalog(appCatalog)
       );
@@ -139,8 +157,38 @@ export function FilterDrawer({
     }
   }, [detailMode, view]);
 
+  function openDetail(next: FilterView) {
+    setDetailError(null);
+    setView(next);
+  }
+
+  function clearDetailDimension(key: DimensionKey) {
+    setDetailError(null);
+    if (key === 'applications') setSelectedApplicationIds(selectAllCatalog(appCatalog));
+    if (key === 'businessUnits') setSelectedBusinessUnitIds(selectAllCatalog(buCatalog));
+    if (key === 'regions') setSelectedRegionCodes(selectAllCatalog(regionCatalog));
+  }
+
+  function confirmDetailDimension(key: DimensionKey) {
+    const mode =
+      key === 'applications' ? appMode : key === 'businessUnits' ? buMode : regionMode;
+    if (mode === 'none') {
+      setDetailError('Select at least one, or tap Clear to include all.');
+      return;
+    }
+    setDetailError(null);
+    setView('root');
+  }
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (applyBlocked) {
+      setApplyError(
+        'One or more dimensions have no items selected. The graph would be empty. Open each dimension and pick at least one item, or use Clear to include all.'
+      );
+      return;
+    }
+    setApplyError(null);
     onApply({
       year,
       applicationIds: toApiFilterList(selectedApplicationIds, appCatalog) ?? [],
@@ -156,98 +204,166 @@ export function FilterDrawer({
     setSelectedBusinessUnitIds(selectAllCatalog(buCatalog));
     setSelectedRegionCodes(selectAllCatalog(regionCatalog));
     setView('root');
+    setDetailError(null);
+    setApplyError(null);
+  }
+
+  function renderDetailFooter(key: DimensionKey) {
+    const mode =
+      key === 'applications' ? appMode : key === 'businessUnits' ? buMode : regionMode;
+    const selectedCount =
+      key === 'applications'
+        ? selectedApplicationIds.length
+        : key === 'businessUnits'
+          ? selectedBusinessUnitIds.length
+          : selectedRegionCodes.length;
+    const doneLabel =
+      mode === 'all'
+        ? 'Done (all)'
+        : mode === 'some'
+          ? `Done (${selectedCount} selected)`
+          : 'Done';
+
+    return (
+      <div className="graph-filter-detail-footer">
+        <button
+          type="button"
+          className="graph-drawer-action"
+          onClick={() => clearDetailDimension(key)}
+        >
+          <span className="graph-drawer-action-title">Clear</span>
+        </button>
+        <button
+          type="button"
+          className="graph-drawer-action graph-drawer-action-primary graph-filter-done-btn"
+          onClick={() => confirmDetailDimension(key)}
+        >
+          <span className="graph-drawer-action-title">{doneLabel}</span>
+          <span className="graph-filter-done-icon" aria-hidden="true">
+            ✓
+          </span>
+        </button>
+      </div>
+    );
   }
 
   function renderDetail() {
     if (view === 'applications') {
       return (
-        <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
-          <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
-            <input
-              ref={detailSelectAllRef}
-              type="checkbox"
-              checked={rootCheckboxState(appMode) === 'checked'}
-              onChange={() =>
-                setSelectedApplicationIds(applyRootToggle(appCatalog, selectedApplicationIds))
-              }
-            />
-            <span>Tout sélectionner</span>
-          </label>
-          {applications.map((app) => (
-            <label key={app.id} className="graph-drawer-checkbox-row">
+        <div className="graph-filter-detail-panel">
+          {detailError ? (
+            <p className="graph-filter-warning" role="alert">
+              {detailError}
+            </p>
+          ) : null}
+          <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
+            <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
               <input
+                ref={detailSelectAllRef}
                 type="checkbox"
-                checked={selectedApplicationIds.includes(app.id)}
+                checked={rootCheckboxState(appMode) === 'checked'}
                 onChange={() =>
-                  setSelectedApplicationIds((prev) => toggleSortedValue(prev, app.id))
+                  setSelectedApplicationIds(applyRootToggle(appCatalog, selectedApplicationIds))
                 }
               />
-              <span>{app.name ?? app.id}</span>
+              <span>Select all</span>
             </label>
-          ))}
+            {applications.map((app) => (
+              <label key={app.id} className="graph-drawer-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={selectedApplicationIds.includes(app.id)}
+                  onChange={() => {
+                    setDetailError(null);
+                    setSelectedApplicationIds((prev) => toggleSortedValue(prev, app.id));
+                  }}
+                />
+                <span>{app.name ?? app.id}</span>
+              </label>
+            ))}
+          </div>
+          {renderDetailFooter('applications')}
         </div>
       );
     }
 
     if (view === 'businessUnits') {
       return (
-        <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
-          <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
-            <input
-              ref={detailSelectAllRef}
-              type="checkbox"
-              checked={rootCheckboxState(buMode) === 'checked'}
-              onChange={() =>
-                setSelectedBusinessUnitIds(applyRootToggle(buCatalog, selectedBusinessUnitIds))
-              }
-            />
-            <span>Tout sélectionner</span>
-          </label>
-          {businessUnits.map((bu) => (
-            <label key={bu.id} className="graph-drawer-checkbox-row">
+        <div className="graph-filter-detail-panel">
+          {detailError ? (
+            <p className="graph-filter-warning" role="alert">
+              {detailError}
+            </p>
+          ) : null}
+          <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
+            <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
               <input
+                ref={detailSelectAllRef}
                 type="checkbox"
-                checked={selectedBusinessUnitIds.includes(bu.id)}
+                checked={rootCheckboxState(buMode) === 'checked'}
                 onChange={() =>
-                  setSelectedBusinessUnitIds((prev) => toggleSortedValue(prev, bu.id))
+                  setSelectedBusinessUnitIds(applyRootToggle(buCatalog, selectedBusinessUnitIds))
                 }
               />
-              <span>{bu.name}</span>
+              <span>Select all</span>
             </label>
-          ))}
+            {businessUnits.map((bu) => (
+              <label key={bu.id} className="graph-drawer-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={selectedBusinessUnitIds.includes(bu.id)}
+                  onChange={() => {
+                    setDetailError(null);
+                    setSelectedBusinessUnitIds((prev) => toggleSortedValue(prev, bu.id));
+                  }}
+                />
+                <span>{bu.name}</span>
+              </label>
+            ))}
+          </div>
+          {renderDetailFooter('businessUnits')}
         </div>
       );
     }
 
     if (view === 'regions') {
       return (
-        <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
-          <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
-            <input
-              ref={detailSelectAllRef}
-              type="checkbox"
-              checked={rootCheckboxState(regionMode) === 'checked'}
-              onChange={() =>
-                setSelectedRegionCodes(applyRootToggle(regionCatalog, selectedRegionCodes))
-              }
-            />
-            <span>Tout sélectionner</span>
-          </label>
-          {regions.map((r) => (
-            <label key={r.id} className="graph-drawer-checkbox-row">
+        <div className="graph-filter-detail-panel">
+          {detailError ? (
+            <p className="graph-filter-warning" role="alert">
+              {detailError}
+            </p>
+          ) : null}
+          <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
+            <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
               <input
+                ref={detailSelectAllRef}
                 type="checkbox"
-                checked={selectedRegionCodes.includes(r.code)}
+                checked={rootCheckboxState(regionMode) === 'checked'}
                 onChange={() =>
-                  setSelectedRegionCodes((prev) => toggleSortedValue(prev, r.code))
+                  setSelectedRegionCodes(applyRootToggle(regionCatalog, selectedRegionCodes))
                 }
               />
-              <span>
-                {r.code}
-                {r.name ? ` — ${r.name}` : ''}
-              </span>
+              <span>Select all</span>
             </label>
-          ))}
+            {regions.map((r) => (
+              <label key={r.id} className="graph-drawer-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={selectedRegionCodes.includes(r.code)}
+                  onChange={() => {
+                    setDetailError(null);
+                    setSelectedRegionCodes((prev) => toggleSortedValue(prev, r.code));
+                  }}
+                />
+                <span>
+                  {r.code}
+                  {r.name ? ` — ${r.name}` : ''}
+                </span>
+              </label>
+            ))}
+          </div>
+          {renderDetailFooter('regions')}
         </div>
       );
     }
@@ -255,14 +371,132 @@ export function FilterDrawer({
     return null;
   }
 
+  function renderYearDetail() {
+    const doneLabel = year != null ? `Done (${year})` : 'Done (all years)';
+
+    return (
+      <div className="graph-filter-detail-panel">
+        <div className="graph-filter-year-detail">
+          <label className="graph-drawer-field">
+            <span className="graph-drawer-field-label">Year</span>
+            <input
+              className="graph-drawer-input"
+              type="number"
+              inputMode="numeric"
+              placeholder="All years"
+              value={year ?? ''}
+              min={1970}
+              max={2100}
+              onChange={(e) => {
+                setApplyError(null);
+                const v = e.target.value.trim();
+                setYear(v === '' ? null : Number(v));
+              }}
+            />
+            <span className={`graph-filter-status${year != null ? ' is-active' : ''}`}>
+              {yearFilterLabel(year)}
+            </span>
+          </label>
+        </div>
+        <div className="graph-filter-detail-footer">
+          <button
+            type="button"
+            className="graph-drawer-action"
+            onClick={() => {
+              setApplyError(null);
+              setYear(null);
+            }}
+          >
+            <span className="graph-drawer-action-title">Clear</span>
+          </button>
+          <button
+            type="button"
+            className="graph-drawer-action graph-drawer-action-primary graph-filter-done-btn"
+            onClick={() => setView('root')}
+          >
+            <span className="graph-drawer-action-title">{doneLabel}</span>
+            <span className="graph-filter-done-icon" aria-hidden="true">
+              ✓
+            </span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderYearRootRow() {
+    return (
+      <div className="graph-filter-root-row">
+        <button
+          type="button"
+          className="graph-filter-root-row-main"
+          onClick={() => openDetail('year')}
+        >
+          <span className="graph-filter-root-row-title">Year</span>
+          <span className={`graph-filter-status${year != null ? ' is-active' : ''}`}>
+            {yearFilterLabel(year)}
+          </span>
+        </button>
+        <button
+          type="button"
+          className="graph-filter-drill-btn"
+          onClick={() => openDetail('year')}
+          aria-label="Choose year"
+        >
+          Choose
+        </button>
+      </div>
+    );
+  }
+
+  function renderRootDimensionRow(key: DimensionKey) {
+    const meta = DIMENSION_META[key];
+    const mode = key === 'applications' ? appMode : key === 'businessUnits' ? buMode : regionMode;
+    const catalog =
+      key === 'applications' ? appCatalog : key === 'businessUnits' ? buCatalog : regionCatalog;
+    const selected =
+      key === 'applications'
+        ? selectedApplicationIds
+        : key === 'businessUnits'
+          ? selectedBusinessUnitIds
+          : selectedRegionCodes;
+
+    return (
+      <div className="graph-filter-root-row" key={key}>
+        <button
+          type="button"
+          className="graph-filter-root-row-main"
+          onClick={() => openDetail(meta.view)}
+        >
+          <span className="graph-filter-root-row-title">{meta.rootLabel}</span>
+          <span className={statusClass(mode)}>
+            {dimensionStatusLabel(mode, selected.length, catalog.length, meta.plural)}
+          </span>
+        </button>
+        <button
+          type="button"
+          className="graph-filter-drill-btn"
+          onClick={() => openDetail(meta.view)}
+          aria-label={`Choose ${meta.plural}`}
+        >
+          Choose
+        </button>
+      </div>
+    );
+  }
+
   const headerTitle =
-    view === 'root' ? 'Filtres' : DIMENSION_META[view as DimensionKey]?.detailTitle ?? 'Filtres';
+    view === 'root'
+      ? 'Filters'
+      : view === 'year'
+        ? 'Year'
+        : DIMENSION_META[view as DimensionKey]?.detailTitle ?? 'Filters';
 
   return (
     <aside
       id="graph-filter-drawer"
       className={`graph-filter-drawer${isOpen ? ' is-open' : ''}`}
-      aria-label="Filtres du graphe"
+      aria-label="Graph filters"
       aria-hidden={!isOpen}
     >
       <header className="graph-filter-drawer-header">
@@ -270,20 +504,23 @@ export function FilterDrawer({
           <button
             type="button"
             className="graph-filter-back-btn"
-            onClick={() => setView('root')}
-            aria-label="Retour aux filtres"
+            onClick={() => {
+              setDetailError(null);
+              setView('root');
+            }}
+            aria-label="Back to filters"
           >
-            ‹ Retour
+            ‹ Back
           </button>
         ) : (
-          <p className="graph-drawer-eyebrow">Filtres</p>
+          <p className="graph-drawer-eyebrow">Filters</p>
         )}
         <h2 className="graph-filter-view-title">{headerTitle}</h2>
         <button
           type="button"
           className="graph-drawer-close"
           onClick={onClose}
-          aria-label="Fermer les filtres"
+          aria-label="Close filters"
         >
           x
         </button>
@@ -291,115 +528,47 @@ export function FilterDrawer({
 
       <form className="graph-drawer-form graph-filter-form" onSubmit={onSubmit}>
         {view === 'root' ? (
-          <div className="graph-filter-root-list" role="group" aria-label="Types de filtres">
-            <label className="graph-drawer-field graph-filter-year-field">
-              <span className="graph-drawer-field-label">Year</span>
-              <input
-                className="graph-drawer-input"
-                type="number"
-                inputMode="numeric"
-                placeholder="Toutes les années"
-                value={year ?? ''}
-                min={1970}
-                max={2100}
-                onChange={(e) => {
-                  const v = e.target.value.trim();
-                  setYear(v === '' ? null : Number(v));
-                }}
-              />
-            </label>
-            <div className="graph-filter-root-row">
-              <label className="graph-filter-root-label">
-                <input
-                  type="checkbox"
-                  ref={(el) => {
-                    if (el) el.indeterminate = appMode === 'some';
-                  }}
-                  checked={rootCheckboxState(appMode) === 'checked'}
-                  onChange={() =>
-                    setSelectedApplicationIds(
-                      applyRootToggle(appCatalog, selectedApplicationIds)
-                    )
-                  }
-                />
-                <span>{DIMENSION_META.applications.rootLabel}</span>
-                {appMode === 'all' && <span className="graph-filter-all-badge">all</span>}
-              </label>
-              <button
-                type="button"
-                className="graph-filter-drill-btn"
-                onClick={() => setView('applications')}
-                aria-label="Ouvrir le filtre Application"
-              >
-                ›
-              </button>
-            </div>
-            <div className="graph-filter-root-row">
-              <label className="graph-filter-root-label">
-                <input
-                  type="checkbox"
-                  ref={(el) => {
-                    if (el) el.indeterminate = buMode === 'some';
-                  }}
-                  checked={rootCheckboxState(buMode) === 'checked'}
-                  onChange={() =>
-                    setSelectedBusinessUnitIds(
-                      applyRootToggle(buCatalog, selectedBusinessUnitIds)
-                    )
-                  }
-                />
-                <span>{DIMENSION_META.businessUnits.rootLabel}</span>
-                {buMode === 'all' && <span className="graph-filter-all-badge">all</span>}
-              </label>
-              <button
-                type="button"
-                className="graph-filter-drill-btn"
-                onClick={() => setView('businessUnits')}
-                aria-label="Ouvrir le filtre Business unit"
-              >
-                ›
-              </button>
-            </div>
-            <div className="graph-filter-root-row">
-              <label className="graph-filter-root-label">
-                <input
-                  type="checkbox"
-                  ref={(el) => {
-                    if (el) el.indeterminate = regionMode === 'some';
-                  }}
-                  checked={rootCheckboxState(regionMode) === 'checked'}
-                  onChange={() =>
-                    setSelectedRegionCodes(applyRootToggle(regionCatalog, selectedRegionCodes))
-                  }
-                />
-                <span>{DIMENSION_META.regions.rootLabel}</span>
-                {regionMode === 'all' && <span className="graph-filter-all-badge">all</span>}
-              </label>
-              <button
-                type="button"
-                className="graph-filter-drill-btn"
-                onClick={() => setView('regions')}
-                aria-label="Ouvrir le filtre Region"
-              >
-                ›
-              </button>
-            </div>
+          <div className="graph-filter-root-list" role="group" aria-label="Filter types">
+            <p className="graph-filter-hint">
+              Narrow the graph. Each dimension combines with AND (all conditions must match).
+            </p>
+
+            {renderYearRootRow()}
+            {renderRootDimensionRow('applications')}
+            {renderRootDimensionRow('businessUnits')}
+            {renderRootDimensionRow('regions')}
+
+            {applyError ? (
+              <p className="graph-filter-warning" role="alert">
+                {applyError}
+              </p>
+            ) : applyBlocked ? (
+              <p className="graph-filter-warning graph-filter-warning--hint" role="status">
+                Fix dimensions marked &quot;None selected&quot; before applying.
+              </p>
+            ) : null}
           </div>
+        ) : view === 'year' ? (
+          renderYearDetail()
         ) : (
           renderDetail()
         )}
 
-        <div className="graph-drawer-form-actions">
-          <button
-            type="submit"
-            className="graph-drawer-action graph-drawer-action-primary"
-          >
-            <span className="graph-drawer-action-title">Rechercher</span>
-          </button>
-          <button type="button" className="graph-drawer-action" onClick={onReset}>
-            <span className="graph-drawer-action-title">Réinitialiser</span>
-          </button>
-        </div>
+        {view === 'root' ? (
+          <div className="graph-drawer-form-actions">
+            <button
+              type="submit"
+              className="graph-drawer-action graph-drawer-action-primary"
+              disabled={applyBlocked}
+              aria-disabled={applyBlocked}
+            >
+              <span className="graph-drawer-action-title">Apply filters</span>
+            </button>
+            <button type="button" className="graph-drawer-action" onClick={onReset}>
+              <span className="graph-drawer-action-title">Clear all filters</span>
+            </button>
+          </div>
+        ) : null}
       </form>
     </aside>
   );

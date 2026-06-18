@@ -58,7 +58,9 @@ import { computeFocus } from './graphFocus';
 import { fitGraphView } from './fitGraphView';
 import { applicationResponseFromGraphNode } from '../utils/sandboxGraph';
 import type { ApplicationUpdatePatch } from './ApplicationDetailsDrawer';
+import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { GraphModeTabs, type GraphMode } from './GraphModeTabs';
+import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 
 type SelectedApplication = {
@@ -101,7 +103,7 @@ function buildAppEdge(
 }
 
 /**
- * Graphe des applications et dépendances (React Flow), alimenté par GET /api/graph.
+ * Application dependency graph (React Flow), backed by GET /api/graph.
  */
 export function GraphCanvas() {
   const navigate = useNavigate();
@@ -141,6 +143,7 @@ export function GraphCanvas() {
   const [pendingSandboxFilterHint, setPendingSandboxFilterHint] = useState(false);
   const [isSaveSnapshotOpen, setIsSaveSnapshotOpen] = useState(false);
   const isSandbox = graphMode === 'sandbox';
+  const isViewsMode = graphMode === 'views';
   const graphModeRef = useRef(graphMode);
   graphModeRef.current = graphMode;
   const filtersActive =
@@ -177,14 +180,28 @@ export function GraphCanvas() {
   function switchToSandboxMode() {
     setGraphMode('sandbox');
     setSandboxDirty(false);
-    setMessage('Mode Sandbox — les modifications ne sont pas sauvegardées.');
+    setMessage('Impact Sandbox — customize your graph, no changes saved.');
     setIsDrawerOpen(true);
+  }
+
+  function switchToViewsMode() {
+    if (
+      sandboxDirty &&
+      !window.confirm('Leave sandbox? Local changes will be lost.')
+    ) {
+      return;
+    }
+    setGraphMode('views');
+    setSandboxDirty(false);
+    setIsDrawerOpen(false);
+    setIsFilterDrawerOpen(false);
+    setIsDetailsDrawerOpen(false);
   }
 
   function switchToNormalMode() {
     if (
       sandboxDirty &&
-      !window.confirm('Quitter le sandbox ? Les modifications locales seront perdues.')
+      !window.confirm('Leave sandbox? Local changes will be lost.')
     ) {
       return;
     }
@@ -195,7 +212,7 @@ export function GraphCanvas() {
   }
 
   const applyGraphFilters = useCallback((filters: GraphSnapshotFilters) => {
-    if (graphModeRef.current === 'sandbox') {
+    if (graphModeRef.current === 'sandbox' || graphModeRef.current === 'views') {
       setGraphMode('normal');
       setSandboxDirty(false);
       setIsDrawerOpen(false);
@@ -218,15 +235,44 @@ export function GraphCanvas() {
 
   useEffect(() => {
     const state = location.state as MapLocationState | null;
-    if (!state?.applySnapshot) return;
-    applyGraphFilters(state.applySnapshot);
+    if (!state?.applySnapshot && !state?.graphMode) return;
+
+    if (state.applySnapshot) {
+      applyGraphFilters(state.applySnapshot);
+    }
+
+    if (state.graphMode === 'normal') {
+      if (
+        !sandboxDirty ||
+        window.confirm('Leave sandbox? Local changes will be lost.')
+      ) {
+        setGraphMode('normal');
+        setSandboxDirty(false);
+        setIsDrawerOpen(false);
+        setIsFilterDrawerOpen(false);
+        setIsDetailsDrawerOpen(false);
+        setGraphReloadNonce((n) => n + 1);
+      }
+    } else if (state.graphMode === 'sandbox') {
+      setGraphMode('sandbox');
+      setSandboxDirty(false);
+      setMessage('Impact Sandbox — customize your graph, no changes saved.');
+      setIsDrawerOpen(true);
+    } else if (state.graphMode === 'views') {
+      setGraphMode('views');
+      setSandboxDirty(false);
+      setIsDrawerOpen(false);
+      setIsFilterDrawerOpen(false);
+      setIsDetailsDrawerOpen(false);
+    }
+
     navigate('.', { replace: true, state: {} });
-  }, [location.state, applyGraphFilters, navigate]);
+  }, [location.state, applyGraphFilters, navigate, sandboxDirty]);
 
   async function handleSaveSnapshot(name: string) {
     await createGraphSnapshot(name, currentGraphFilters);
     refreshSnapshots();
-    setMessage(`Vue « ${name} » enregistrée.`);
+    setMessage(`View "${name}" saved.`);
   }
 
   const handleColorPropertyChange = useCallback((key: string) => {
@@ -378,17 +424,17 @@ export function GraphCanvas() {
 
         setStatus('ready');
         if (pendingSandboxFilterHint) {
-          setMessage('Filtres appliqués — brouillon sandbox réinitialisé.');
+          setMessage('Filters applied — sandbox draft reset.');
           setPendingSandboxFilterHint(false);
         } else {
           const emptyHint =
             data.nodes.length === 0
               ? filtersActive
-                ? 'Aucune application pour ces filtres (année / business unit / location). Changez de critères ou réinitialisez.'
-                : 'Aucun nœud. Démarrez le backend avec Neo4j pour charger les données de démo.'
+                ? 'No applications match these filters (year / business unit / location). Change criteria or reset.'
+                : 'No nodes. Start the backend with Neo4j to load demo data.'
               : graphModeRef.current === 'sandbox'
-                ? 'Mode Sandbox — les modifications ne sont pas sauvegardées.'
-                : 'Astuce : cliquez sur une application pour ouvrir le graphe de ses modules.';
+                ? 'Impact Sandbox — customize your graph, no changes saved.'
+                : 'Tip: click an application to open its module graph.';
           setMessage(emptyHint);
         }
       } catch (e) {
@@ -398,10 +444,10 @@ export function GraphCanvas() {
           setNodes([]);
           setEdges([]);
           setStatus('error');
-          let msg = e instanceof Error ? e.message : 'Impossible de charger le graphe';
+          let msg = e instanceof Error ? e.message : 'Unable to load the graph';
           if (msg === 'Failed to fetch') {
             msg +=
-              ' — le backend est injoignable. En dev Vite, vérifiez VITE_API_PROXY_TARGET (ex. 8081 avec Docker) ou lancez Spring Boot sur le port attendu.';
+              ' — backend is unreachable. In Vite dev, check VITE_API_PROXY_TARGET (e.g. 8081 with Docker) or start Spring Boot on the expected port.';
           }
           setMessage(msg);
         }
@@ -535,7 +581,7 @@ export function GraphCanvas() {
     const hasSource = nodes.some((n) => n.id === created.sourceId);
     const hasTarget = nodes.some((n) => n.id === created.targetId);
     if (!hasSource || !hasTarget) {
-      return 'Edge créé mais source/target absent du graphe affiché.';
+      return 'Edge created but source/target missing from the displayed graph.';
     }
 
     const typeById = new Map(nodes.map((n) => [n.id, n.data.nodeType]));
@@ -600,32 +646,47 @@ export function GraphCanvas() {
     if (isSandbox) setSandboxDirty(true);
   }
 
+  const tabDescription = useMemo(() => {
+    if (isViewsMode) {
+      return 'Pinned filter sets. Select a view to apply it to the graph.';
+    }
+    if (status === 'loading') return 'Loading graph…';
+    if (status === 'error') return message;
+    return message;
+  }, [isViewsMode, status, message]);
+
   return (
     <div className="graph-canvas-wrap">
-      {status === 'loading' && (
-        <p className="graph-canvas-status" role="status">
-          Chargement du graphe…
-        </p>
-      )}
-      {status === 'error' && message && (
-        <p className="graph-canvas-error" role="alert">
-          {message}
-        </p>
-      )}
-      {status === 'ready' && message && (
-        <p className="graph-canvas-hint">{message}</p>
-      )}
       <div className="map-graph-panel">
-        <GraphModeTabs
-          mode={graphMode}
-          sandboxDirty={sandboxDirty}
-          onModeChange={(mode) => {
-            if (mode === 'sandbox') switchToSandboxMode();
-            else switchToNormalMode();
-          }}
-        />
+        <div className="graph-mode-tabs-bar">
+          <GraphModeTabs
+            mode={graphMode}
+            sandboxDirty={sandboxDirty}
+            onModeChange={(mode) => {
+              if (mode === 'sandbox') switchToSandboxMode();
+              else if (mode === 'views') switchToViewsMode();
+              else switchToNormalMode();
+            }}
+          />
+          {tabDescription ? (
+            <p
+              className={`graph-mode-tabs-description${status === 'error' && !isViewsMode ? ' is-error' : ''}`}
+              role={status === 'error' && !isViewsMode ? 'alert' : 'status'}
+            >
+              {tabDescription}
+            </p>
+          ) : null}
+        </div>
         <div className={`map-graph-body${isDrawerOpen ? ' is-drawer-open' : ''}`}>
           <div className="graph-stage">
+            {isViewsMode ? (
+              <GraphViewsPanel
+                onApply={(filters) => {
+                  applyGraphFilters(filters);
+                  setGraphReloadNonce((n) => n + 1);
+                }}
+              />
+            ) : (
             <div
               ref={containerRef}
               id="graph-canvas-pane"
@@ -634,8 +695,12 @@ export function GraphCanvas() {
               aria-labelledby={
                 graphMode === 'sandbox' ? 'graph-mode-tab-sandbox' : 'graph-mode-tab-normal'
               }
-              aria-label="Graphe des dépendances entre applications"
+              aria-label="Application dependency graph"
             >
+              <div className="graph-canvas-search">
+                <ApplicationSearchBar variant="canvas" />
+              </div>
+
               <button
                 type="button"
                 className="graph-filter-toggle"
@@ -643,7 +708,7 @@ export function GraphCanvas() {
                 aria-expanded={isFilterDrawerOpen}
                 aria-controls="graph-filter-drawer"
               >
-                <span className="graph-drawer-toggle-label">Filtres</span>
+                <span className="graph-drawer-toggle-label">Filters</span>
                 <span className="graph-drawer-toggle-icon" aria-hidden="true">
                   {filtersActive ? 'On' : 'Off'}
                 </span>
@@ -655,7 +720,7 @@ export function GraphCanvas() {
                   className="graph-save-snapshot-btn"
                   onClick={() => setIsSaveSnapshotOpen(true)}
                 >
-                  Enregistrer la vue
+                  Pin view
                 </button>
               ) : null}
 
@@ -668,7 +733,7 @@ export function GraphCanvas() {
               <button
                 type="button"
                 className={`graph-panel-overlay graph-panel-overlay--filter${isFilterDrawerOpen ? ' is-visible' : ''}`}
-                aria-label="Fermer les filtres"
+                aria-label="Close filters"
                 onClick={() => setIsFilterDrawerOpen(false)}
               />
               <FilterDrawer
@@ -736,19 +801,30 @@ export function GraphCanvas() {
                 onClick={() => setIsDrawerOpen((open) => !open)}
                 aria-expanded={isDrawerOpen}
                 aria-controls="graph-actions-drawer"
-                aria-label={isDrawerOpen ? 'Fermer le panneau d’édition' : 'Ouvrir le panneau d’édition'}
+                aria-label={
+                  isDrawerOpen
+                    ? isSandbox
+                      ? 'Close toolkit panel'
+                      : 'Close corrections panel'
+                    : isSandbox
+                      ? 'Open toolkit panel'
+                      : 'Open corrections panel'
+                }
               >
-                <span className="graph-drawer-toggle-label">Edit</span>
+                <span className="graph-drawer-toggle-label">
+                  {isSandbox ? 'Toolkit' : 'Corrections'}
+                </span>
                 <span className="graph-drawer-toggle-icon" aria-hidden="true">
                   {isDrawerOpen ? 'Close' : 'Open'}
                 </span>
               </button>
             </div>
+            )}
 
             <button
               type="button"
               className={`graph-panel-overlay graph-panel-overlay--details${isDetailsDrawerOpen ? ' is-visible' : ''}`}
-              aria-label="Fermer le panneau de détails"
+              aria-label="Close details panel"
               onClick={() => setIsDetailsDrawerOpen(false)}
             />
             <ApplicationDetailsDrawer
@@ -765,10 +841,12 @@ export function GraphCanvas() {
             />
           </div>
 
+          {!isViewsMode ? (
+            <>
           <button
             type="button"
             className={`graph-panel-overlay graph-panel-overlay--edit${isDrawerOpen ? ' is-visible' : ''}`}
-            aria-label="Fermer le drawer"
+            aria-label="Close drawer"
             onClick={() => setIsDrawerOpen(false)}
           />
           <WorkspaceDrawer
@@ -780,6 +858,8 @@ export function GraphCanvas() {
             onEdgeCreated={onEdgeCreatedHandler}
             onBusinessUnitsChanged={refreshBusinessUnits}
           />
+            </>
+          ) : null}
         </div>
       </div>
 

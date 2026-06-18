@@ -12,7 +12,7 @@ export function ApplicationModuleMapPage() {
     <div className="map-page module-map-page">
       <div className="module-map-toolbar">
         <Link to="/" className="module-map-back">
-          ← Retour à la carte des applications
+          ← Back to application map
         </Link>
         {id ? (
           <span className="module-map-title" title={id}>
@@ -20,7 +20,7 @@ export function ApplicationModuleMapPage() {
           </span>
         ) : null}
       </div>
-      {id ? <ApplicationModuleGraph applicationId={id} /> : <p>Identifiant d’application manquant.</p>}
+      {id ? <ApplicationModuleGraph applicationId={id} /> : <p>Application ID is missing.</p>}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-export type FilterView = 'root' | 'applications' | 'businessUnits' | 'regions';
+export type FilterView = 'root' | 'year' | 'applications' | 'businessUnits' | 'regions';
 
 export type DimensionMode = 'none' | 'all' | 'some';
 
@@ -44,4 +44,25 @@ export function rootCheckboxState(mode: DimensionMode): RootCheckboxState {
   if (mode === 'all') return 'checked';
   if (mode === 'some') return 'indeterminate';
   return 'unchecked';
+}
+
+/** User-facing status for a filter dimension on the root screen. */
+export function dimensionStatusLabel(
+  mode: DimensionMode,
+  selectedCount: number,
+  catalogCount: number,
+  entityNamePlural: string
+): string {
+  if (catalogCount === 0) return `No ${entityNamePlural} available`;
+  if (mode === 'all') return `All ${entityNamePlural}`;
+  if (mode === 'some') return `${selectedCount} of ${catalogCount} selected`;
+  return 'None selected';
+}
+
+export function yearFilterLabel(year: number | null): string {
+  return year != null ? `Year ${year}` : 'All years';
+}
+
+export function hasInvalidDimensionSelection(modes: DimensionMode[]): boolean {
+  return modes.some((m) => m === 'none');
 }
