@@ -58,6 +58,7 @@ import { computeFocus } from './graphFocus';
 import { fitGraphView } from './fitGraphView';
 import { applicationResponseFromGraphNode } from '../utils/sandboxGraph';
 import type { ApplicationUpdatePatch } from './ApplicationDetailsDrawer';
+import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { GraphModeTabs, type GraphMode } from './GraphModeTabs';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
@@ -645,31 +646,37 @@ export function GraphCanvas() {
     if (isSandbox) setSandboxDirty(true);
   }
 
+  const tabDescription = useMemo(() => {
+    if (isViewsMode) {
+      return 'Pinned filter sets. Select a view to apply it to the graph.';
+    }
+    if (status === 'loading') return 'Loading graph…';
+    if (status === 'error') return message;
+    return message;
+  }, [isViewsMode, status, message]);
+
   return (
     <div className="graph-canvas-wrap">
-      {status === 'loading' && (
-        <p className="graph-canvas-status" role="status">
-          Loading graph…
-        </p>
-      )}
-      {status === 'error' && message && (
-        <p className="graph-canvas-error" role="alert">
-          {message}
-        </p>
-      )}
-      {status === 'ready' && message && (
-        <p className="graph-canvas-hint">{message}</p>
-      )}
       <div className="map-graph-panel">
-        <GraphModeTabs
-          mode={graphMode}
-          sandboxDirty={sandboxDirty}
-          onModeChange={(mode) => {
-            if (mode === 'sandbox') switchToSandboxMode();
-            else if (mode === 'views') switchToViewsMode();
-            else switchToNormalMode();
-          }}
-        />
+        <div className="graph-mode-tabs-bar">
+          <GraphModeTabs
+            mode={graphMode}
+            sandboxDirty={sandboxDirty}
+            onModeChange={(mode) => {
+              if (mode === 'sandbox') switchToSandboxMode();
+              else if (mode === 'views') switchToViewsMode();
+              else switchToNormalMode();
+            }}
+          />
+          {tabDescription ? (
+            <p
+              className={`graph-mode-tabs-description${status === 'error' && !isViewsMode ? ' is-error' : ''}`}
+              role={status === 'error' && !isViewsMode ? 'alert' : 'status'}
+            >
+              {tabDescription}
+            </p>
+          ) : null}
+        </div>
         <div className={`map-graph-body${isDrawerOpen ? ' is-drawer-open' : ''}`}>
           <div className="graph-stage">
             {isViewsMode ? (
@@ -690,6 +697,10 @@ export function GraphCanvas() {
               }
               aria-label="Application dependency graph"
             >
+              <div className="graph-canvas-search">
+                <ApplicationSearchBar variant="canvas" />
+              </div>
+
               <button
                 type="button"
                 className="graph-filter-toggle"

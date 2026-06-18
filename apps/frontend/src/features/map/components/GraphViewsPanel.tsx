@@ -53,9 +53,6 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
     >
       <header className="graph-views-pane-header">
         <h2 className="graph-views-pane-title">My views</h2>
-        <p className="graph-views-pane-subtitle">
-          Pinned filter sets from Information System Explorer. Select a view to apply it to the graph.
-        </p>
       </header>
 
       {status === 'loading' ? (

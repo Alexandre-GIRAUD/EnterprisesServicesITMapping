@@ -804,6 +804,53 @@ body {
   font-size: 0.8rem;
 }
 
+.application-search--canvas {
+  max-width: none;
+  flex: none;
+  width: 100%;
+}
+
+.application-search-sr-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.graph-canvas-search {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 6;
+  width: min(280px, 42vw);
+}
+
+.application-search--canvas .application-search-input {
+  padding: 0.55rem 0.85rem;
+  font-size: 0.82rem;
+  border-radius: 999px;
+  border-color: #e2e8f0;
+  background: rgb(255 255 255 / 94%);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
+}
+
+.application-search--canvas .application-search-input:focus {
+  border-color: #93c5fd;
+  box-shadow:
+    0 4px 12px rgb(15 23 42 / 10%),
+    0 0 0 3px rgb(37 99 235 / 12%);
+}
+
+.application-search--canvas .application-search-dropdown {
+  border-radius: 12px;
+}
+
 @media (max-width: 640px) {
   .map-filters-toolbar {
     display: block;
@@ -1000,7 +1047,7 @@ body {
 
 .graph-filter-toggle {
   position: absolute;
-  top: 1rem;
+  top: 3.4rem;
   right: 1rem;
   z-index: 6;
   display: inline-flex;
@@ -1039,7 +1086,7 @@ body {
 
 .graph-save-snapshot-btn {
   position: absolute;
-  top: 4.25rem;
+  top: 5.9rem;
   right: 1rem;
   z-index: 6;
   font: inherit;
@@ -1145,7 +1192,7 @@ body {
 
 .graph-filter-drawer {
   position: absolute;
-  top: 4.1rem;
+  top: 6.85rem;
   right: 1rem;
   z-index: 17;
   width: min(320px, 72vw);
@@ -1590,6 +1637,29 @@ body {
 }
 
 /* ===== Graph mode tabs (Excel / Sheets style) ===== */
+.graph-mode-tabs-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+}
+
+.graph-mode-tabs-description {
+  margin: 0;
+  padding: 0 0.25rem 0.48rem;
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.graph-mode-tabs-description.is-error {
+  color: #b91c1c;
+}
+
 .graph-mode-tabs {
   display: inline-flex;
   align-self: flex-start;

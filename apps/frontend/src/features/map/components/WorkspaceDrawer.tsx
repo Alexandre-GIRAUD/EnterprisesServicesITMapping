@@ -63,7 +63,39 @@ const DEFAULT_BU_FORM_STATE: AddBuFormState = {
   description: '',
 };
 
-const DRAWER_ACTIONS = ['Add Node', 'Add Edge', 'Add Business Unit', 'Profile', 'Settings'] as const;
+type DrawerActionId = 'add-node' | 'add-edge' | 'edit-object-props' | 'edit-flow-props' | 'add-icons';
+
+type DrawerActionItem = {
+  id: DrawerActionId;
+  label: string;
+};
+
+const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
+  { id: 'add-node', label: 'Add object' },
+  { id: 'add-edge', label: 'Add flow' },
+  { id: 'edit-object-props', label: 'Edit object properties' },
+  { id: 'edit-flow-props', label: 'Edit flow properties' },
+];
+
+const TOOLKIT_ACTIONS: DrawerActionItem[] = [
+  { id: 'add-node', label: 'Add node' },
+  { id: 'add-edge', label: 'Add edge' },
+  { id: 'add-icons', label: 'Add icons' },
+];
+
+function actionHandler(
+  id: DrawerActionId,
+  handlers: {
+    openAddNodeForm: () => void;
+    openAddEdgeForm: () => void;
+    openAddBuForm: () => void;
+  }
+): (() => void) | undefined {
+  if (id === 'add-node') return handlers.openAddNodeForm;
+  if (id === 'add-edge') return handlers.openAddEdgeForm;
+  if (id === 'edit-object-props') return handlers.openAddBuForm;
+  return undefined;
+}
 
 export function WorkspaceDrawer({
   isOpen,
@@ -415,26 +447,26 @@ export function WorkspaceDrawer({
       <header className="graph-drawer-header">
         <p className="graph-drawer-eyebrow">{sandboxMode ? 'Toolkit' : 'Corrections'}</p>
         <div className="graph-drawer-title-row">
-          <div>
-            <h2 className="graph-drawer-title">
-              {view === 'menu'
-                ? 'Actions'
-                : view === 'add-node-form'
+          {view !== 'menu' ? (
+            <div>
+              <h2 className="graph-drawer-title">
+                {view === 'add-node-form'
                   ? 'Create Node'
                   : view === 'add-edge-form'
                     ? 'Create Edge'
                     : 'New business unit'}
-            </h2>
-            <p className="graph-drawer-description">
-              {view === 'menu'
-                ? 'Prepare your next operations from a clean, modern side panel.'
-                : view === 'add-node-form'
+              </h2>
+              <p className="graph-drawer-description">
+                {view === 'add-node-form'
                   ? 'Create an Application node (name, description, year).'
                   : view === 'add-edge-form'
                     ? 'Create a typed relationship between two nodes already visible in the graph.'
                     : 'Create a business unit (grouping above applications).'}
-            </p>
-          </div>
+              </p>
+            </div>
+          ) : (
+            <div className="graph-drawer-title-spacer" aria-hidden="true" />
+          )}
           <button
             type="button"
             className="graph-drawer-close"
@@ -454,39 +486,23 @@ export function WorkspaceDrawer({
 
       {view === 'menu' ? (
         <div className="graph-drawer-actions" role="list">
-          {DRAWER_ACTIONS.map((action) => {
-            const isBu = action === 'Add Business Unit';
-            const disabledInSandbox = sandboxMode && isBu;
-            const isSoon = action === 'Profile' || action === 'Settings';
+          {(sandboxMode ? TOOLKIT_ACTIONS : CORRECTIONS_ACTIONS).map((action) => {
+            const onClick = actionHandler(action.id, {
+              openAddNodeForm,
+              openAddEdgeForm,
+              openAddBuForm,
+            });
             return (
-            <button
-              key={action}
-              type="button"
-              className="graph-drawer-action"
-              role="listitem"
-              disabled={disabledInSandbox || isSoon}
-              title={disabledInSandbox ? 'Unavailable in sandbox' : undefined}
-              onClick={
-                action === 'Add Node'
-                  ? openAddNodeForm
-                  : action === 'Add Edge'
-                    ? openAddEdgeForm
-                    : action === 'Add Business Unit' && !sandboxMode
-                      ? openAddBuForm
-                      : undefined
-              }
-            >
-              <span className="graph-drawer-action-title">{action}</span>
-              <span className="graph-drawer-action-meta">
-                {disabledInSandbox
-                  ? 'Sandbox'
-                  : action === 'Add Node' ||
-                      action === 'Add Edge' ||
-                      action === 'Add Business Unit'
-                    ? 'Open'
-                    : 'Soon'}
-              </span>
-            </button>
+              <button
+                key={action.id}
+                type="button"
+                className="graph-drawer-action"
+                role="listitem"
+                onClick={onClick}
+              >
+                <span className="graph-drawer-action-title">{action.label}</span>
+                <span className="graph-drawer-action-meta">Open</span>
+              </button>
             );
           })}
         </div>

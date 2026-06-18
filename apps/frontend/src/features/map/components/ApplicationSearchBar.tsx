@@ -6,7 +6,7 @@ import { fetchApplications } from '../api/applicationsApi';
 const DEBOUNCE_MS = 250;
 
 /** Search applications and navigate to module graph on selection. */
-export function ApplicationSearchBar() {
+export function ApplicationSearchBar({ variant = 'toolbar' }: { variant?: 'toolbar' | 'canvas' }) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -103,16 +103,25 @@ export function ApplicationSearchBar() {
   }
 
   return (
-    <div ref={wrapperRef} className="application-search">
-      <label htmlFor="application-search-input" className="application-search-label">
-        Search for an application
-      </label>
+    <div
+      ref={wrapperRef}
+      className={`application-search${variant === 'canvas' ? ' application-search--canvas' : ''}`}
+    >
+      {variant === 'canvas' ? (
+        <label htmlFor="application-search-input" className="application-search-sr-label">
+          Search for an application
+        </label>
+      ) : (
+        <label htmlFor="application-search-input" className="application-search-label">
+          Search for an application
+        </label>
+      )}
       <input
         id="application-search-input"
         className="application-search-input"
         type="search"
         value={query}
-        placeholder="Ex: portail, gateway, paiement..."
+        placeholder={variant === 'canvas' ? 'Search applications…' : 'Ex: portail, gateway, paiement...'}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => {
           if (query.trim()) setIsOpen(true);

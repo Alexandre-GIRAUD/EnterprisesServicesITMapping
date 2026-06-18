@@ -26,6 +26,9 @@ export function Layout() {
                 >
                   Self Service
                 </Link>
+                <Link to="/map/import-github" className="layout-header-link">
+                  Import repos
+                </Link>
                 {isAdmin ? (
                   <Link to="/admin/users" className="layout-header-link">
                     Users
