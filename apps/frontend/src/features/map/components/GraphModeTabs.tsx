@@ -1,4 +1,4 @@
-export type GraphMode = 'normal' | 'sandbox';
+export type GraphMode = 'normal' | 'sandbox' | 'views';
 
 type GraphModeTabsProps = {
   mode: GraphMode;
@@ -20,7 +20,7 @@ export function GraphModeTabs({ mode, sandboxDirty = false, onModeChange }: Grap
           if (mode !== 'normal') onModeChange('normal');
         }}
       >
-        Normal
+        Self Service
       </button>
       <button
         type="button"
@@ -37,6 +37,19 @@ export function GraphModeTabs({ mode, sandboxDirty = false, onModeChange }: Grap
         {sandboxDirty && mode === 'sandbox' ? (
           <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
         ) : null}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        id="graph-mode-tab-views"
+        className={`graph-mode-tab graph-mode-tab--views${mode === 'views' ? ' is-active' : ''}`}
+        aria-selected={mode === 'views'}
+        aria-controls="graph-views-pane"
+        onClick={() => {
+          if (mode !== 'views') onModeChange('views');
+        }}
+      >
+        My views
       </button>
     </div>
   );

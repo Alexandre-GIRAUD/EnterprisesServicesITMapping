@@ -2,7 +2,6 @@ import { Link, Outlet, useNavigate } from 'react-router-dom';
 import flowraLogo from '@/assets/flowra.svg.svg';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { GraphSnapshotsProvider } from '@/features/map/context/GraphSnapshotsContext';
-import { GraphSnapshotsMenu } from './GraphSnapshotsMenu';
 
 export function Layout() {
   const { user, isAdmin, logout } = useAuth();
@@ -24,7 +23,6 @@ export function Layout() {
                     Users
                   </Link>
                 ) : null}
-                <GraphSnapshotsMenu />
                 <span className="layout-header-user" title={user.username}>
                   {user.username}
                 </span>

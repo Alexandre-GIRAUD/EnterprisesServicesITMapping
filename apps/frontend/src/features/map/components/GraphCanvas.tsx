@@ -59,6 +59,7 @@ import { fitGraphView } from './fitGraphView';
 import { applicationResponseFromGraphNode } from '../utils/sandboxGraph';
 import type { ApplicationUpdatePatch } from './ApplicationDetailsDrawer';
 import { GraphModeTabs, type GraphMode } from './GraphModeTabs';
+import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 
 type SelectedApplication = {
@@ -141,6 +142,7 @@ export function GraphCanvas() {
   const [pendingSandboxFilterHint, setPendingSandboxFilterHint] = useState(false);
   const [isSaveSnapshotOpen, setIsSaveSnapshotOpen] = useState(false);
   const isSandbox = graphMode === 'sandbox';
+  const isViewsMode = graphMode === 'views';
   const graphModeRef = useRef(graphMode);
   graphModeRef.current = graphMode;
   const filtersActive =
@@ -181,6 +183,20 @@ export function GraphCanvas() {
     setIsDrawerOpen(true);
   }
 
+  function switchToViewsMode() {
+    if (
+      sandboxDirty &&
+      !window.confirm('Leave sandbox? Local changes will be lost.')
+    ) {
+      return;
+    }
+    setGraphMode('views');
+    setSandboxDirty(false);
+    setIsDrawerOpen(false);
+    setIsFilterDrawerOpen(false);
+    setIsDetailsDrawerOpen(false);
+  }
+
   function switchToNormalMode() {
     if (
       sandboxDirty &&
@@ -195,7 +211,7 @@ export function GraphCanvas() {
   }
 
   const applyGraphFilters = useCallback((filters: GraphSnapshotFilters) => {
-    if (graphModeRef.current === 'sandbox') {
+    if (graphModeRef.current === 'sandbox' || graphModeRef.current === 'views') {
       setGraphMode('normal');
       setSandboxDirty(false);
       setIsDrawerOpen(false);
@@ -621,11 +637,20 @@ export function GraphCanvas() {
           sandboxDirty={sandboxDirty}
           onModeChange={(mode) => {
             if (mode === 'sandbox') switchToSandboxMode();
+            else if (mode === 'views') switchToViewsMode();
             else switchToNormalMode();
           }}
         />
         <div className={`map-graph-body${isDrawerOpen ? ' is-drawer-open' : ''}`}>
           <div className="graph-stage">
+            {isViewsMode ? (
+              <GraphViewsPanel
+                onApply={(filters) => {
+                  applyGraphFilters(filters);
+                  setGraphReloadNonce((n) => n + 1);
+                }}
+              />
+            ) : (
             <div
               ref={containerRef}
               id="graph-canvas-pane"
@@ -739,21 +764,22 @@ export function GraphCanvas() {
                 aria-label={
                   isDrawerOpen
                     ? isSandbox
-                      ? 'Close edit panel'
+                      ? 'Close toolkit panel'
                       : 'Close corrections panel'
                     : isSandbox
-                      ? 'Open edit panel'
+                      ? 'Open toolkit panel'
                       : 'Open corrections panel'
                 }
               >
                 <span className="graph-drawer-toggle-label">
-                  {isSandbox ? 'Edit' : 'Corrections'}
+                  {isSandbox ? 'Toolkit' : 'Corrections'}
                 </span>
                 <span className="graph-drawer-toggle-icon" aria-hidden="true">
                   {isDrawerOpen ? 'Close' : 'Open'}
                 </span>
               </button>
             </div>
+            )}
 
             <button
               type="button"
@@ -775,6 +801,8 @@ export function GraphCanvas() {
             />
           </div>
 
+          {!isViewsMode ? (
+            <>
           <button
             type="button"
             className={`graph-panel-overlay graph-panel-overlay--edit${isDrawerOpen ? ' is-visible' : ''}`}
@@ -790,6 +818,8 @@ export function GraphCanvas() {
             onEdgeCreated={onEdgeCreatedHandler}
             onBusinessUnitsChanged={refreshBusinessUnits}
           />
+            </>
+          ) : null}
         </div>
       </div>
 
