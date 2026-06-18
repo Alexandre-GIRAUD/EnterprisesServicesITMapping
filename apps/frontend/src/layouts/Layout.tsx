@@ -2,6 +2,7 @@ import { Link, Outlet, useNavigate } from 'react-router-dom';
 import flowraLogo from '@/assets/flowra.svg.svg';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { GraphSnapshotsProvider } from '@/features/map/context/GraphSnapshotsContext';
+import type { MapLocationState } from '@/features/map/utils/mapNavigation';
 
 export function Layout() {
   const { user, isAdmin, logout } = useAuth();
@@ -18,6 +19,13 @@ export function Layout() {
             </Link>
             {user ? (
               <div className="layout-header-actions">
+                <Link
+                  to="/map"
+                  state={{ graphMode: 'normal' } satisfies MapLocationState}
+                  className="layout-header-link"
+                >
+                  Self Service
+                </Link>
                 {isAdmin ? (
                   <Link to="/admin/users" className="layout-header-link">
                     Users

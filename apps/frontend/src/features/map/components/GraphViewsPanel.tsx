@@ -54,7 +54,7 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
       <header className="graph-views-pane-header">
         <h2 className="graph-views-pane-title">My views</h2>
         <p className="graph-views-pane-subtitle">
-          Pinned filter sets from Self Service. Select a view to apply it to the graph.
+          Pinned filter sets from Information System Explorer. Select a view to apply it to the graph.
         </p>
       </header>
 
@@ -67,7 +67,7 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
           {errorMessage}
         </p>
       ) : snapshots.length === 0 ? (
-        <p className="graph-views-state">No saved views yet. Pin a filter set from Self Service.</p>
+        <p className="graph-views-state">No saved views yet. Pin a filter set from Information System Explorer.</p>
       ) : (
         <ul className="graph-views-list" aria-label="Saved views">
           {snapshots.map((snapshot) => (

@@ -20,7 +20,7 @@ export function GraphModeTabs({ mode, sandboxDirty = false, onModeChange }: Grap
           if (mode !== 'normal') onModeChange('normal');
         }}
       >
-        Self Service
+        Information System Explorer
       </button>
       <button
         type="button"
@@ -33,7 +33,7 @@ export function GraphModeTabs({ mode, sandboxDirty = false, onModeChange }: Grap
           if (mode !== 'sandbox') onModeChange('sandbox');
         }}
       >
-        Sandbox
+        Impact Sandbox
         {sandboxDirty && mode === 'sandbox' ? (
           <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
         ) : null}

@@ -179,7 +179,7 @@ export function GraphCanvas() {
   function switchToSandboxMode() {
     setGraphMode('sandbox');
     setSandboxDirty(false);
-    setMessage('Sandbox mode — customize your graph, no changes saved.');
+    setMessage('Impact Sandbox — customize your graph, no changes saved.');
     setIsDrawerOpen(true);
   }
 
@@ -234,10 +234,39 @@ export function GraphCanvas() {
 
   useEffect(() => {
     const state = location.state as MapLocationState | null;
-    if (!state?.applySnapshot) return;
-    applyGraphFilters(state.applySnapshot);
+    if (!state?.applySnapshot && !state?.graphMode) return;
+
+    if (state.applySnapshot) {
+      applyGraphFilters(state.applySnapshot);
+    }
+
+    if (state.graphMode === 'normal') {
+      if (
+        !sandboxDirty ||
+        window.confirm('Leave sandbox? Local changes will be lost.')
+      ) {
+        setGraphMode('normal');
+        setSandboxDirty(false);
+        setIsDrawerOpen(false);
+        setIsFilterDrawerOpen(false);
+        setIsDetailsDrawerOpen(false);
+        setGraphReloadNonce((n) => n + 1);
+      }
+    } else if (state.graphMode === 'sandbox') {
+      setGraphMode('sandbox');
+      setSandboxDirty(false);
+      setMessage('Impact Sandbox — customize your graph, no changes saved.');
+      setIsDrawerOpen(true);
+    } else if (state.graphMode === 'views') {
+      setGraphMode('views');
+      setSandboxDirty(false);
+      setIsDrawerOpen(false);
+      setIsFilterDrawerOpen(false);
+      setIsDetailsDrawerOpen(false);
+    }
+
     navigate('.', { replace: true, state: {} });
-  }, [location.state, applyGraphFilters, navigate]);
+  }, [location.state, applyGraphFilters, navigate, sandboxDirty]);
 
   async function handleSaveSnapshot(name: string) {
     await createGraphSnapshot(name, currentGraphFilters);
@@ -403,7 +432,7 @@ export function GraphCanvas() {
                 ? 'No applications match these filters (year / business unit / location). Change criteria or reset.'
                 : 'No nodes. Start the backend with Neo4j to load demo data.'
               : graphModeRef.current === 'sandbox'
-                ? 'Sandbox mode — customize your graph, no changes saved.'
+                ? 'Impact Sandbox — customize your graph, no changes saved.'
                 : 'Tip: click an application to open its module graph.';
           setMessage(emptyHint);
         }
