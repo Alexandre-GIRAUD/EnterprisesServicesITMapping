@@ -371,6 +371,84 @@ export function FilterDrawer({
     return null;
   }
 
+  function renderYearDetail() {
+    const doneLabel = year != null ? `Done (${year})` : 'Done (all years)';
+
+    return (
+      <div className="graph-filter-detail-panel">
+        <div className="graph-filter-year-detail">
+          <label className="graph-drawer-field">
+            <span className="graph-drawer-field-label">Year</span>
+            <input
+              className="graph-drawer-input"
+              type="number"
+              inputMode="numeric"
+              placeholder="All years"
+              value={year ?? ''}
+              min={1970}
+              max={2100}
+              onChange={(e) => {
+                setApplyError(null);
+                const v = e.target.value.trim();
+                setYear(v === '' ? null : Number(v));
+              }}
+            />
+            <span className={`graph-filter-status${year != null ? ' is-active' : ''}`}>
+              {yearFilterLabel(year)}
+            </span>
+          </label>
+        </div>
+        <div className="graph-filter-detail-footer">
+          <button
+            type="button"
+            className="graph-drawer-action"
+            onClick={() => {
+              setApplyError(null);
+              setYear(null);
+            }}
+          >
+            <span className="graph-drawer-action-title">Clear</span>
+          </button>
+          <button
+            type="button"
+            className="graph-drawer-action graph-drawer-action-primary graph-filter-done-btn"
+            onClick={() => setView('root')}
+          >
+            <span className="graph-drawer-action-title">{doneLabel}</span>
+            <span className="graph-filter-done-icon" aria-hidden="true">
+              ✓
+            </span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderYearRootRow() {
+    return (
+      <div className="graph-filter-root-row">
+        <button
+          type="button"
+          className="graph-filter-root-row-main"
+          onClick={() => openDetail('year')}
+        >
+          <span className="graph-filter-root-row-title">Year</span>
+          <span className={`graph-filter-status${year != null ? ' is-active' : ''}`}>
+            {yearFilterLabel(year)}
+          </span>
+        </button>
+        <button
+          type="button"
+          className="graph-filter-drill-btn"
+          onClick={() => openDetail('year')}
+          aria-label="Choose year"
+        >
+          Choose
+        </button>
+      </div>
+    );
+  }
+
   function renderRootDimensionRow(key: DimensionKey) {
     const meta = DIMENSION_META[key];
     const mode = key === 'applications' ? appMode : key === 'businessUnits' ? buMode : regionMode;
@@ -408,7 +486,11 @@ export function FilterDrawer({
   }
 
   const headerTitle =
-    view === 'root' ? 'Filters' : DIMENSION_META[view as DimensionKey]?.detailTitle ?? 'Filters';
+    view === 'root'
+      ? 'Filters'
+      : view === 'year'
+        ? 'Year'
+        : DIMENSION_META[view as DimensionKey]?.detailTitle ?? 'Filters';
 
   return (
     <aside
@@ -451,29 +533,7 @@ export function FilterDrawer({
               Narrow the graph. Each dimension combines with AND (all conditions must match).
             </p>
 
-            <label className="graph-drawer-field graph-filter-year-field">
-              <span className="graph-drawer-field-label">Year</span>
-              <input
-                className="graph-drawer-input"
-                type="number"
-                inputMode="numeric"
-                placeholder="All years"
-                value={year ?? ''}
-                min={1970}
-                max={2100}
-                onChange={(e) => {
-                  setApplyError(null);
-                  const v = e.target.value.trim();
-                  setYear(v === '' ? null : Number(v));
-                }}
-              />
-              <span
-                className={`graph-filter-status${year != null ? ' is-active' : ''}`}
-              >
-                {yearFilterLabel(year)}
-              </span>
-            </label>
-
+            {renderYearRootRow()}
             {renderRootDimensionRow('applications')}
             {renderRootDimensionRow('businessUnits')}
             {renderRootDimensionRow('regions')}
@@ -488,6 +548,8 @@ export function FilterDrawer({
               </p>
             ) : null}
           </div>
+        ) : view === 'year' ? (
+          renderYearDetail()
         ) : (
           renderDetail()
         )}

@@ -1447,10 +1447,14 @@ body {
   margin-left: 0.4rem;
 }
 
-.graph-filter-year-field {
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e2e8f0;
+.graph-filter-year-detail {
+  flex: 1;
+  min-height: 0;
+  padding: 0.15rem 0;
+}
+
+.graph-filter-year-detail .graph-filter-status {
+  margin-top: 0.35rem;
 }
 
 .graph-canvas {

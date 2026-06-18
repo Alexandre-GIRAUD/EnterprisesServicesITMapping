@@ -1,4 +1,4 @@
-export type FilterView = 'root' | 'applications' | 'businessUnits' | 'regions';
+export type FilterView = 'root' | 'year' | 'applications' | 'businessUnits' | 'regions';
 
 export type DimensionMode = 'none' | 'all' | 'some';
 
