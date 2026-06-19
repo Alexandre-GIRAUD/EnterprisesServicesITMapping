@@ -11,7 +11,7 @@ class ModuleSuggestionUserPromptBuilderTest {
   void pathsOnlyOmitsReadmeSection() {
     String out =
         ModuleSuggestionUserPromptBuilder.build(List.of("src/a.ts", "src/b.ts"), null, 50_000);
-    assertThat(out).contains("## Repository paths (evidence source)");
+    assertThat(out).contains("## Repository paths");
     assertThat(out).doesNotContain("## README (context only)");
     assertThat(out).contains("src/a.ts");
   }
@@ -21,7 +21,7 @@ class ModuleSuggestionUserPromptBuilderTest {
     String out =
         ModuleSuggestionUserPromptBuilder.build(
             List.of("README.md", "src/x.ts"), "# Title\nHello", 50_000);
-    assertThat(out).contains("## Repository paths (evidence source)");
+    assertThat(out).contains("## Repository paths");
     assertThat(out).contains("## README (context only)");
     assertThat(out).contains("# Title");
     int pathsIdx = out.indexOf("## Repository paths");
@@ -34,6 +34,6 @@ class ModuleSuggestionUserPromptBuilderTest {
     String readme = "x".repeat(5000);
     String out = ModuleSuggestionUserPromptBuilder.build(List.of("a"), readme, 1200);
     assertThat(out).doesNotContain("## README (context only)");
-    assertThat(out).contains("## Repository paths (evidence source)");
+    assertThat(out).contains("## Repository paths");
   }
 }

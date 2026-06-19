@@ -22,8 +22,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  *       GET /repos/{owner}/{repo}/contents/{path}}.
  *   <li>Otherwise call {@code GET /repos/{owner}/{repo}/readme}; use the body only if the API's
  *       {@code path} field (normalized) is contained in {@code knownPaths} (e.g. README listed under
- *       a different casing than our selector, or rare layout). If not listed, return empty so
- *       {@code evidence_paths} validation stays aligned with the path list sent to the model.
+ *       a different casing than our selector, or rare layout). If not listed, return empty.
  * </ol>
  */
 @Service
@@ -36,7 +35,7 @@ public class GitHubRepoReadmeService {
   }
 
   /**
-   * @param knownPaths normalized tree paths (same set used for evidence validation)
+   * @param knownPaths normalized tree paths (same set sent to the LLM)
    * @param maxChars max UTF-16 code units to return (truncated)
    */
   public Optional<String> fetchRootReadmePlaintextForKnownPaths(

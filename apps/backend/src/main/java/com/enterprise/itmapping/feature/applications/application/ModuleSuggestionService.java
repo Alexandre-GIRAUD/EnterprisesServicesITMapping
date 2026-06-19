@@ -37,7 +37,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Fetches repo tree paths, prompts an LLM, validates evidence-only JSON, persists {@code Module}
+ * Fetches repo tree paths, prompts an LLM, validates JSON, persists {@code Module}
  * subgraph as {@code CONTAINS} rooted at the {@link
  * com.enterprise.itmapping.domain.Application}.
  *
@@ -176,10 +176,6 @@ public class ModuleSuggestionService {
         skipped.add(new SkippedItem("module", "business_name_manquant", slug));
         continue;
       }
-      if (!ModuleSuggestionEvidenceValidator.allEvidenceMatches(mod.getEvidencePaths(), pathSet)) {
-        skipped.add(new SkippedItem("module", "evidence_paths_non_observes", slug));
-        continue;
-      }
       if (acceptedBySlug.containsKey(slug)) {
         skipped.add(new SkippedItem("module", "doublon_slug_ia", slug));
         continue;
@@ -208,12 +204,6 @@ public class ModuleSuggestionService {
                 "relationship",
                 "module_slug_inconnu",
                 r.getFromModuleId() + "->" + r.getToModuleId()));
-        continue;
-      }
-      if (r.getEvidencePaths() == null
-          || r.getEvidencePaths().isEmpty()
-          || !ModuleSuggestionEvidenceValidator.allEvidenceMatches(r.getEvidencePaths(), pathSet)) {
-        skipped.add(new SkippedItem("relationship", "evidence_manquante", r.getFromModuleId() + "->" + r.getToModuleId()));
         continue;
       }
       relsAccepted.add(new Rel(r.getFromModuleId(), r.getToModuleId()));

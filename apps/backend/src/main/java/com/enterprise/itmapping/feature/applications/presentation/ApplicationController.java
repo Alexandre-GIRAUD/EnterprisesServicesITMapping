@@ -63,7 +63,7 @@ public class ApplicationController {
   }
 
   /**
-   * Builds {@code Module} subgraph from GitHub tree paths + LLM suggestion (evidence-only JSON).
+   * Builds {@code Module} subgraph from GitHub tree paths + LLM suggestion.
    * Structural edges are persisted as {@code CONTAINS} only (see {@link ModuleSuggestionService}
    * documentation).
    */
