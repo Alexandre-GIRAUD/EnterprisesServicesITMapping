@@ -4,19 +4,11 @@ import type {
   SuggestModulesFromGithubRequest,
   SuggestModulesFromGithubResponse,
 } from '@/types/api';
-import { authenticatedFetch } from '@/config/api';
-
-function resolveUrl(pathWithQuery: string): string {
-  const origin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
-    /\/$/,
-    ''
-  );
-  return origin ? `${origin}${pathWithQuery}` : pathWithQuery;
-}
+import { authenticatedFetch, resolveApiUrl } from '@/config/api';
 
 /** Fetch all applications for search/autocomplete. */
 export async function fetchApplications(): Promise<ApplicationResponse[]> {
-  const url = resolveUrl('/api/applications');
+  const url = resolveApiUrl('/api/applications');
   const res = await authenticatedFetch(url, {
     headers: { Accept: 'application/json' },
   });
@@ -32,7 +24,7 @@ export async function fetchApplications(): Promise<ApplicationResponse[]> {
 }
 
 export async function createApplication(payload: ApplicationRequest): Promise<ApplicationResponse> {
-  const url = resolveUrl('/api/applications');
+  const url = resolveApiUrl('/api/applications');
   const res = await authenticatedFetch(url, {
     method: 'POST',
     headers: {
@@ -53,7 +45,7 @@ export async function createApplication(payload: ApplicationRequest): Promise<Ap
 }
 
 export async function fetchApplicationById(applicationId: string): Promise<ApplicationResponse> {
-  const url = resolveUrl(`/api/applications/${encodeURIComponent(applicationId)}`);
+  const url = resolveApiUrl(`/api/applications/${encodeURIComponent(applicationId)}`);
   const res = await authenticatedFetch(url, {
     headers: { Accept: 'application/json' },
   });
@@ -72,7 +64,7 @@ export async function patchApplicationBusinessUnit(
   applicationId: string,
   businessUnitId: string | null
 ): Promise<ApplicationResponse> {
-  const url = resolveUrl(
+  const url = resolveApiUrl(
     `/api/applications/${encodeURIComponent(applicationId)}/business-unit`
   );
   const res = await authenticatedFetch(url, {
@@ -98,7 +90,7 @@ export async function patchApplicationRegions(
   applicationId: string,
   regionCodes: string[]
 ): Promise<ApplicationResponse> {
-  const url = resolveUrl(
+  const url = resolveApiUrl(
     `/api/applications/${encodeURIComponent(applicationId)}/regions`
   );
   const res = await authenticatedFetch(url, {
@@ -124,7 +116,7 @@ export async function patchApplicationRegions(
  * Cascade-delete application (backend removes CONTAINS subtree Modules and DETACH DELETE the app node).
  */
 export async function deleteApplicationById(applicationId: string): Promise<void> {
-  const url = resolveUrl(`/api/applications/${encodeURIComponent(applicationId)}`);
+  const url = resolveApiUrl(`/api/applications/${encodeURIComponent(applicationId)}`);
   const res = await authenticatedFetch(url, {
     method: 'DELETE',
     headers: { Accept: 'application/json' },
@@ -142,7 +134,7 @@ export async function suggestModulesFromGithub(
   applicationId: string,
   body?: SuggestModulesFromGithubRequest
 ): Promise<SuggestModulesFromGithubResponse> {
-  const url = resolveUrl(
+  const url = resolveApiUrl(
     `/api/applications/${encodeURIComponent(applicationId)}/modules/suggest-from-github`
   );
   const res = await authenticatedFetch(url, {
@@ -182,7 +174,7 @@ export async function updateApplicationById(
   applicationId: string,
   payload: ApplicationRequest
 ): Promise<ApplicationResponse> {
-  const url = resolveUrl(`/api/applications/${encodeURIComponent(applicationId)}`);
+  const url = resolveApiUrl(`/api/applications/${encodeURIComponent(applicationId)}`);
   const res = await authenticatedFetch(url, {
     method: 'PUT',
     headers: {

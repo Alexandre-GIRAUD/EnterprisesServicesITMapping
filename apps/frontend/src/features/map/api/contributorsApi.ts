@@ -3,15 +3,10 @@ import type {
   ContributorListItem,
   ContributorWriteRequest,
 } from '@/types/api';
-import { authenticatedFetch } from '@/config/api';
-
-function resolveUrl(pathWithQuery: string): string {
-  const origin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
-  return origin ? `${origin}${pathWithQuery}` : pathWithQuery;
-}
+import { authenticatedFetch, resolveApiUrl } from '@/config/api';
 
 export async function fetchContributors(): Promise<ContributorListItem[]> {
-  const url = resolveUrl('/api/contributors');
+  const url = resolveApiUrl('/api/contributors');
   const res = await authenticatedFetch(url, {
     headers: { Accept: 'application/json' },
   });
@@ -25,7 +20,7 @@ export async function fetchContributors(): Promise<ContributorListItem[]> {
 }
 
 export async function fetchContributorById(contributorId: string): Promise<ContributorDetail> {
-  const url = resolveUrl(`/api/contributors/${encodeURIComponent(contributorId)}`);
+  const url = resolveApiUrl(`/api/contributors/${encodeURIComponent(contributorId)}`);
   const res = await authenticatedFetch(url, {
     headers: { Accept: 'application/json' },
   });
@@ -41,7 +36,7 @@ export async function fetchContributorById(contributorId: string): Promise<Contr
 export async function createContributor(
   payload: ContributorWriteRequest
 ): Promise<ContributorDetail> {
-  const url = resolveUrl('/api/contributors');
+  const url = resolveApiUrl('/api/contributors');
   const res = await authenticatedFetch(url, {
     method: 'POST',
     headers: {
@@ -63,7 +58,7 @@ export async function updateContributor(
   contributorId: string,
   payload: ContributorWriteRequest
 ): Promise<ContributorDetail> {
-  const url = resolveUrl(`/api/contributors/${encodeURIComponent(contributorId)}`);
+  const url = resolveApiUrl(`/api/contributors/${encodeURIComponent(contributorId)}`);
   const res = await authenticatedFetch(url, {
     method: 'PUT',
     headers: {

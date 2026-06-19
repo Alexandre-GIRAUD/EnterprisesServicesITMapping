@@ -7,18 +7,10 @@
  */
 
 import type { GraphEdgeCreateRequest, GraphEdgeCreateResponse, GraphResponseDto } from '@/types/api';
-import { authenticatedFetch } from '@/config/api';
-
-function resolveUrl(pathWithQuery: string): string {
-  const origin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
-    /\/$/,
-    ''
-  );
-  return origin ? `${origin}${pathWithQuery}` : pathWithQuery;
-}
+import { authenticatedFetch, resolveApiUrl } from '@/config/api';
 
 function graphUrl(search: string): string {
-  return resolveUrl(`/api/graph${search}`);
+  return resolveApiUrl(`/api/graph${search}`);
 }
 
 async function fetchGraphJson(
@@ -72,13 +64,13 @@ export async function fetchModuleGraph(
   applicationId: string
 ): Promise<GraphResponseDto> {
   const path = `/api/applications/${encodeURIComponent(applicationId)}/module-graph`;
-  return fetchGraphJson(resolveUrl(path), 'Module graph API');
+  return fetchGraphJson(resolveApiUrl(path), 'Module graph API');
 }
 
 export async function createGraphEdge(
   payload: GraphEdgeCreateRequest
 ): Promise<GraphEdgeCreateResponse> {
-  const res = await authenticatedFetch(resolveUrl('/api/graph/edges'), {
+  const res = await authenticatedFetch(resolveApiUrl('/api/graph/edges'), {
     method: 'POST',
     headers: {
       Accept: 'application/json',

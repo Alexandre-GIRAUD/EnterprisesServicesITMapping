@@ -1,5 +1,10 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import type { ApplicationResponse, BusinessUnitListItem, RegionSummary } from '@/types/api';
+import type {
+  ApplicationResponse,
+  BusinessUnitListItem,
+  GraphFilters,
+  RegionSummary,
+} from '@/types/api';
 import {
   type FilterView,
   dimensionMode,
@@ -12,12 +17,7 @@ import {
   yearFilterLabel,
 } from './filterDimensionUtils';
 
-export type GraphFilters = {
-  year: number | null;
-  applicationIds: string[];
-  businessUnitIds: string[];
-  regionCodes: string[];
-};
+export type { GraphFilters };
 
 type FilterDrawerProps = {
   isOpen: boolean;

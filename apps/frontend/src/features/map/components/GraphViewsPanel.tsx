@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
-import { deleteGraphSnapshot, listGraphSnapshots } from '../api/graphSnapshotsApi';
-import { useGraphSnapshotsRefresh } from '../context/GraphSnapshotsContext';
+import { useGraphSnapshotsList } from '../hooks/useGraphSnapshotsList';
 import type { GraphSnapshotDto, GraphSnapshotFilters } from '@/types/api';
 
 type GraphViewsPanelProps = {
@@ -8,37 +6,7 @@ type GraphViewsPanelProps = {
 };
 
 export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
-  const { version } = useGraphSnapshotsRefresh();
-  const [snapshots, setSnapshots] = useState<GraphSnapshotDto[]>([]);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const loadSnapshots = useCallback(async () => {
-    setStatus('loading');
-    setErrorMessage(null);
-    try {
-      const data = await listGraphSnapshots();
-      setSnapshots(data);
-      setStatus('ready');
-    } catch (e) {
-      setStatus('error');
-      setErrorMessage(e instanceof Error ? e.message : 'Unable to load views.');
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadSnapshots();
-  }, [version, loadSnapshots]);
-
-  async function handleDelete(id: string, name: string) {
-    if (!window.confirm(`Delete view "${name}"?`)) return;
-    try {
-      await deleteGraphSnapshot(id);
-      setSnapshots((prev) => prev.filter((s) => s.id !== id));
-    } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : 'Unable to delete.');
-    }
-  }
+  const { snapshots, status, errorMessage, deleteSnapshot } = useGraphSnapshotsList();
 
   function handleApply(snapshot: GraphSnapshotDto) {
     onApply(snapshot.filters);
@@ -81,7 +49,7 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
                 type="button"
                 className="graph-views-item-delete"
                 aria-label={`Delete ${snapshot.name}`}
-                onClick={() => void handleDelete(snapshot.id, snapshot.name)}
+                onClick={() => void deleteSnapshot(snapshot.id, snapshot.name)}
               >
                 ×
               </button>

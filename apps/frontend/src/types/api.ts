@@ -164,17 +164,21 @@ export interface SuggestModulesFromGithubResponse {
   skipped: SuggestModulesSkippedItem[];
 }
 
-export type GraphSnapshotFilters = {
+/** Canonical graph filter set (year + dimension id lists). */
+export type GraphFilters = {
   year: number | null;
   applicationIds: string[];
   businessUnitIds: string[];
   regionCodes: string[];
 };
 
+/** Alias kept for snapshot APIs; identical to {@link GraphFilters}. */
+export type GraphSnapshotFilters = GraphFilters;
+
 export type GraphSnapshotDto = {
   id: string;
   name: string;
-  filters: GraphSnapshotFilters;
+  filters: GraphFilters;
   createdAt: string;
   updatedAt: string;
 };

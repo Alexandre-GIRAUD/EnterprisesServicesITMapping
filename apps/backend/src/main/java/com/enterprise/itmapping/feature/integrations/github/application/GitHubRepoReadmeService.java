@@ -1,12 +1,11 @@
 package com.enterprise.itmapping.feature.integrations.github.application;
 
-import com.enterprise.itmapping.feature.integrations.github.GitHubIntegrationProperties;
+import com.enterprise.itmapping.feature.integrations.github.GitHubApiClient;
 import com.enterprise.itmapping.feature.integrations.github.GitHubReadmeFileBodyDecoder;
 import com.enterprise.itmapping.feature.integrations.github.GithubTreePathFilter;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Optional;
 import java.util.Set;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -30,10 +29,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Service
 public class GitHubRepoReadmeService {
 
-  private final GitHubIntegrationProperties githubProperties;
+  private final GitHubApiClient apiClient;
 
-  public GitHubRepoReadmeService(GitHubIntegrationProperties githubProperties) {
-    this.githubProperties = githubProperties;
+  public GitHubRepoReadmeService(GitHubApiClient apiClient) {
+    this.apiClient = apiClient;
   }
 
   /**
@@ -45,7 +44,7 @@ public class GitHubRepoReadmeService {
     if (!StringUtils.hasText(owner) || !StringUtils.hasText(repo) || knownPaths == null) {
       return Optional.empty();
     }
-    if (!hasGithubToken()) {
+    if (!apiClient.hasToken()) {
       return Optional.empty();
     }
     int cap = Math.max(0, maxChars);
@@ -53,7 +52,7 @@ public class GitHubRepoReadmeService {
       return Optional.empty();
     }
 
-    RestClient client = buildClient(apiBase());
+    RestClient client = apiClient.buildClient();
 
     Optional<String> fromContents =
         GitHubRootReadmePathSelector.selectRootReadmePath(knownPaths)
@@ -74,35 +73,6 @@ public class GitHubRepoReadmeService {
       return Optional.empty();
     }
     return GitHubReadmeFileBodyDecoder.decodeUtf8Plaintext(node).map(s -> truncate(s, cap));
-  }
-
-  private boolean hasGithubToken() {
-    String token = githubProperties.token() != null ? githubProperties.token().trim() : "";
-    return StringUtils.hasText(token);
-  }
-
-  private String apiBase() {
-    String raw = githubProperties.apiBaseUrl();
-    if (raw == null || raw.isBlank()) {
-      return "https://api.github.com";
-    }
-    String u = raw.trim();
-    while (u.endsWith("/")) {
-      u = u.substring(0, u.length() - 1);
-    }
-    return u;
-  }
-
-  private RestClient buildClient(String base) {
-    String token = githubProperties.token() != null ? githubProperties.token().trim() : "";
-    return RestClient.builder()
-        .baseUrl(base)
-        .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
-        .defaultHeader("Authorization", "Bearer " + token)
-        .defaultHeader(
-            "User-Agent", "FlowraGraphDb-Backend (https://github.com; Spring RestClient)")
-        .defaultHeader("X-GitHub-Api-Version", "2022-11-28")
-        .build();
   }
 
   private static Optional<JsonNode> getContentsFileJson(

@@ -96,14 +96,6 @@ export function edgeColorForProperty(
   return hashColor(`${propertyKey}:${key}`);
 }
 
-/** @deprecated Use {@link edgeColorForProperty} with property key `data`. */
-export function edgeColorForData(
-  dataLabel: string | null | undefined,
-  relationType: string
-): string {
-  return edgeColorForProperty(dataLabel, relationType, 'data');
-}
-
 /** Legend label for a data type key (falls back to the raw key). */
 export function legendLabelForData(dataKey: string): string {
   return DATA_TYPE_STYLES[dataKey]?.legendLabel ?? dataKey;
