@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.feature.integrations.github.application;
 
+import com.enterprise.itmapping.feature.integrations.github.GitHubApiClient;
 import com.enterprise.itmapping.feature.integrations.github.GitHubIntegrationProperties;
 import com.enterprise.itmapping.feature.integrations.github.dto.GitHubApiRepoJson;
 import com.enterprise.itmapping.feature.integrations.github.dto.GitHubRepoDto;
@@ -10,7 +11,6 @@ import java.util.Locale;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient.ResponseSpec;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestClient;
@@ -19,9 +19,11 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class GitHubReposService {
 
+  private final GitHubApiClient apiClient;
   private final GitHubIntegrationProperties properties;
 
-  public GitHubReposService(GitHubIntegrationProperties properties) {
+  public GitHubReposService(GitHubApiClient apiClient, GitHubIntegrationProperties properties) {
+    this.apiClient = apiClient;
     this.properties = properties;
   }
 
@@ -32,30 +34,15 @@ public class GitHubReposService {
    * GitHubIntegrationProperties#maxRepos()}). Follow {@code Link rel="next"} for full catalog (TODO).
    */
   public List<GitHubRepoDto> listUserRepos() {
-    String token =
-        properties.token() != null ? properties.token().trim() : "";
-    if (!StringUtils.hasText(token)) {
+    if (!apiClient.hasToken()) {
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE,
           "Integration GitHub non configuree : definissez GITHUB_TOKEN (ou app.integrations.github.token) "
               + "cote backend. Le navigateur ne doit jamais recevoir ce secret.");
     }
 
-    String base =
-        properties.apiBaseUrl() != null && !properties.apiBaseUrl().isBlank()
-            ? trimTrailing(properties.apiBaseUrl())
-            : "https://api.github.com";
     int limit = Math.min(Math.max(properties.maxRepos(), 1), 100);
-    RestClient client =
-        RestClient.builder()
-            .baseUrl(base)
-            .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
-            .defaultHeader("Authorization", "Bearer " + token)
-            .defaultHeader(
-                "User-Agent",
-                "FlowraGraphDb-Backend (https://github.com; Spring RestClient)")
-            .defaultHeader("X-GitHub-Api-Version", "2022-11-28")
-            .build();
+    RestClient client = apiClient.buildClient();
 
     String uri =
         String.format(
@@ -105,13 +92,5 @@ public class GitHubReposService {
           HttpStatus.BAD_GATEWAY,
           "Erreur API GitHub " + code + ". " + bodySnippet);
     }
-  }
-
-  private static String trimTrailing(String url) {
-    String u = url.trim();
-    while (u.endsWith("/")) {
-      u = u.substring(0, u.length() - 1);
-    }
-    return u;
   }
 }

@@ -3,8 +3,6 @@ import {
   Controls,
   Panel,
   ReactFlow,
-  useEdgesState,
-  useNodesState,
   type Edge,
   type EdgeTypes,
   type NodeTypes,
@@ -24,42 +22,38 @@ import type {
   BusinessUnitListItem,
   GraphEdgeCreateResponse,
   GraphEdgeDto,
-  GraphNodeDto,
-  GraphSnapshotFilters,
   RegionSummary,
 } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
 import { fetchBusinessUnits } from '../api/businessUnitsApi';
 import { fetchRegions } from '../api/regionsApi';
-import { fetchGraph } from '../api/graphApi';
 import { createGraphSnapshot } from '../api/graphSnapshotsApi';
 import { useGraphSnapshotsRefresh } from '../context/GraphSnapshotsContext';
 import type { MapLocationState } from '../utils/mapNavigation';
+import {
+  buildAppNode,
+  buildAppEdge,
+  useGraphData,
+  type AppNode,
+  GRID,
+  NODE_WIDTH,
+  NODE_HEIGHT,
+} from '../hooks/useGraphData';
+import { useGraphFilters } from '../hooks/useGraphFilters';
+import { useGraphMode } from '../hooks/useGraphMode';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
 import { FilterDrawer } from './FilterDrawer';
 import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
 import { ApplicationsTablePanel } from './ApplicationsTablePanel';
-import { layoutGraph } from './graphLayout';
-import { elkLayout } from './elkLayout';
 import { snapDraggedNodeForStraighterEdges } from './alignNodes';
-import { computeBridges } from './bridges';
 import { GraphLegend } from './GraphLegend';
-import {
-  collectLegendColorValues,
-  colorPropertyOptions,
-  loadStoredColorPropertyKey,
-  resolveColorPropertyKey,
-  storeColorPropertyKey,
-} from './edgeColorProperty';
-import { AppGraphNode, type AppGraphNodeType } from './AppGraphNode';
-import { OrientedEdge, type OrientedEdgeType } from './OrientedEdge';
-import { buildOrientedEdge, attachRoute, restyleEdgeColorProperty } from './orientedEdgeBuilders';
+import { AppGraphNode } from './AppGraphNode';
+import { OrientedEdge } from './OrientedEdge';
 import { computeFocus } from './graphFocus';
-import { fitGraphView } from './fitGraphView';
 import { applicationResponseFromGraphNode } from '../utils/sandboxGraph';
 import type { ApplicationUpdatePatch } from './ApplicationDetailsDrawer';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
-import { GraphModeTabs, type GraphMode } from './GraphModeTabs';
+import { GraphModeTabs } from './GraphModeTabs';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 
@@ -68,42 +62,13 @@ type SelectedApplication = {
   label: string;
 };
 
-type AppNode = AppGraphNodeType;
-
-const NODE_WIDTH = 160;
-const NODE_HEIGHT = 48;
-const GRID = 16;
-
-function buildAppNode(node: GraphNodeDto): AppNode {
-  return {
-    id: node.id,
-    type: 'app',
-    position: { x: 0, y: 0 },
-    data: { label: node.label, nodeType: node.type },
-    className: 'graph-node',
-  };
-}
-
-function buildAppEdge(
-  edge: GraphEdgeDto,
-  typeById: Map<string, string>,
-  colorPropertyKey: string
-) {
-  return buildOrientedEdge({
-    id: edge.id,
-    sourceId: edge.sourceId,
-    targetId: edge.targetId,
-    relationType: edge.type,
-    dataLabel: edge.data,
-    colorPropertyKey,
-    properties: edge.properties,
-    sourceNodeType: typeById.get(edge.sourceId) ?? 'Application',
-    targetNodeType: typeById.get(edge.targetId) ?? 'Application',
-  });
-}
-
 /**
  * Application dependency graph (React Flow), backed by GET /api/graph.
+ *
+ * Composes three hooks: {@link useGraphMode} (normal / sandbox / views),
+ * {@link useGraphFilters} (active filter set) and {@link useGraphData}
+ * (fetch + layout). This component wires them to the drawers, React Flow
+ * surface, mode tabs and the saved-views panel.
  */
 export function GraphCanvas() {
   const navigate = useNavigate();
@@ -111,54 +76,81 @@ export function GraphCanvas() {
   const { refreshSnapshots } = useGraphSnapshotsRefresh();
   const containerRef = useRef<HTMLDivElement>(null);
   const rfRef = useRef<ReactFlowInstance<AppNode, Edge> | null>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+
   const [message, setMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [isTableOpen, setIsTableOpen] = useState(false);
-  const [graphNodes, setGraphNodes] = useState<GraphNodeDto[]>([]);
   const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
   const [businessUnits, setBusinessUnits] = useState<BusinessUnitListItem[]>([]);
   const [regions, setRegions] = useState<RegionSummary[]>([]);
-  const [year, setYear] = useState<number | null>(null);
-  const [applicationIds, setApplicationIds] = useState<string[]>([]);
-  const [businessUnitIds, setBusinessUnitIds] = useState<string[]>([]);
-  const [regionCodes, setRegionCodes] = useState<string[]>([]);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   // Hover takes priority; if no hover, the pinned node keeps the highlight.
   const focusedId = hoveredId ?? pinnedId;
-  const [layoutRevision, setLayoutRevision] = useState(0);
-  const [graphEdges, setGraphEdges] = useState<GraphEdgeDto[]>([]);
-  const graphEdgesRef = useRef(graphEdges);
-  graphEdgesRef.current = graphEdges;
-  const [colorPropertyKey, setColorPropertyKey] = useState(loadStoredColorPropertyKey);
-  const [graphMode, setGraphMode] = useState<GraphMode>('normal');
-  const [sandboxDirty, setSandboxDirty] = useState(false);
   const [graphReloadNonce, setGraphReloadNonce] = useState(0);
   const [pendingSandboxFilterHint, setPendingSandboxFilterHint] = useState(false);
   const [isSaveSnapshotOpen, setIsSaveSnapshotOpen] = useState(false);
-  const isSandbox = graphMode === 'sandbox';
-  const isViewsMode = graphMode === 'views';
-  const graphModeRef = useRef(graphMode);
-  graphModeRef.current = graphMode;
-  const filtersActive =
-    year != null ||
-    applicationIds.length > 0 ||
-    businessUnitIds.length > 0 ||
-    regionCodes.length > 0;
-  const legendColorPropertyOptions = useMemo(
-    () => colorPropertyOptions(graphEdges),
-    [graphEdges]
-  );
-  const legendColorValues = useMemo(
-    () => collectLegendColorValues(graphEdges, colorPropertyKey),
-    [graphEdges, colorPropertyKey]
-  );
+
+  const reloadGraph = useCallback(() => setGraphReloadNonce((n) => n + 1), []);
+
+  const mode = useGraphMode({
+    setMessage,
+    setIsDrawerOpen,
+    setIsFilterDrawerOpen,
+    setIsDetailsDrawerOpen,
+    reloadGraph,
+  });
+  const { graphMode, sandboxDirty, graphModeRef, isSandbox, isViewsMode } = mode;
+
+  const filters = useGraphFilters({
+    graphModeRef,
+    setGraphMode: mode.setGraphMode,
+    setSandboxDirty: mode.setSandboxDirty,
+    setIsDrawerOpen,
+  });
+  const {
+    year,
+    applicationIds,
+    businessUnitIds,
+    regionCodes,
+    filtersActive,
+    applyGraphFilters,
+    currentGraphFilters,
+  } = filters;
+
+  const data = useGraphData({
+    year,
+    applicationIds,
+    businessUnitIds,
+    regionCodes,
+    filtersActive,
+    graphReloadNonce,
+    graphModeRef,
+    pendingSandboxFilterHint,
+    setPendingSandboxFilterHint,
+    setMessage,
+    containerRef,
+    rfRef,
+  });
+  const {
+    nodes,
+    setNodes,
+    onNodesChange,
+    edges,
+    setEdges,
+    onEdgesChange,
+    status,
+    graphNodes,
+    setGraphNodes,
+    setGraphEdges,
+    colorPropertyKey,
+    handleColorPropertyChange,
+    legendColorPropertyOptions,
+    legendColorValues,
+  } = data;
 
   const graphAppsForDrawer = useMemo(
     () =>
@@ -177,62 +169,6 @@ export function GraphCanvas() {
     [graphNodes]
   );
 
-  function switchToSandboxMode() {
-    setGraphMode('sandbox');
-    setSandboxDirty(false);
-    setMessage('Impact Sandbox — customize your graph, no changes saved.');
-    setIsDrawerOpen(true);
-  }
-
-  function switchToViewsMode() {
-    if (
-      sandboxDirty &&
-      !window.confirm('Leave sandbox? Local changes will be lost.')
-    ) {
-      return;
-    }
-    setGraphMode('views');
-    setSandboxDirty(false);
-    setIsDrawerOpen(false);
-    setIsFilterDrawerOpen(false);
-    setIsDetailsDrawerOpen(false);
-  }
-
-  function switchToNormalMode() {
-    if (
-      sandboxDirty &&
-      !window.confirm('Leave sandbox? Local changes will be lost.')
-    ) {
-      return;
-    }
-    setGraphMode('normal');
-    setSandboxDirty(false);
-    setIsDrawerOpen(false);
-    setGraphReloadNonce((n) => n + 1);
-  }
-
-  const applyGraphFilters = useCallback((filters: GraphSnapshotFilters) => {
-    if (graphModeRef.current === 'sandbox' || graphModeRef.current === 'views') {
-      setGraphMode('normal');
-      setSandboxDirty(false);
-      setIsDrawerOpen(false);
-    }
-    setYear(filters.year);
-    setApplicationIds(filters.applicationIds);
-    setBusinessUnitIds(filters.businessUnitIds);
-    setRegionCodes(filters.regionCodes);
-  }, []);
-
-  const currentGraphFilters = useMemo<GraphSnapshotFilters>(
-    () => ({
-      year,
-      applicationIds,
-      businessUnitIds,
-      regionCodes,
-    }),
-    [year, applicationIds, businessUnitIds, regionCodes]
-  );
-
   useEffect(() => {
     const state = location.state as MapLocationState | null;
     if (!state?.applySnapshot && !state?.graphMode) return;
@@ -246,27 +182,28 @@ export function GraphCanvas() {
         !sandboxDirty ||
         window.confirm('Leave sandbox? Local changes will be lost.')
       ) {
-        setGraphMode('normal');
-        setSandboxDirty(false);
+        mode.setGraphMode('normal');
+        mode.setSandboxDirty(false);
         setIsDrawerOpen(false);
         setIsFilterDrawerOpen(false);
         setIsDetailsDrawerOpen(false);
-        setGraphReloadNonce((n) => n + 1);
+        reloadGraph();
       }
     } else if (state.graphMode === 'sandbox') {
-      setGraphMode('sandbox');
-      setSandboxDirty(false);
+      mode.setGraphMode('sandbox');
+      mode.setSandboxDirty(false);
       setMessage('Impact Sandbox — customize your graph, no changes saved.');
       setIsDrawerOpen(true);
     } else if (state.graphMode === 'views') {
-      setGraphMode('views');
-      setSandboxDirty(false);
+      mode.setGraphMode('views');
+      mode.setSandboxDirty(false);
       setIsDrawerOpen(false);
       setIsFilterDrawerOpen(false);
       setIsDetailsDrawerOpen(false);
     }
 
     navigate('.', { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- react to navigation state only
   }, [location.state, applyGraphFilters, navigate, sandboxDirty]);
 
   async function handleSaveSnapshot(name: string) {
@@ -274,23 +211,6 @@ export function GraphCanvas() {
     refreshSnapshots();
     setMessage(`View "${name}" saved.`);
   }
-
-  const handleColorPropertyChange = useCallback((key: string) => {
-    setColorPropertyKey(key);
-    storeColorPropertyKey(key);
-  }, []);
-
-  // Re-stroke edges when the user picks another color property (keep ELK routes).
-  useEffect(() => {
-    if (status !== 'ready') return;
-    setEdges((prev) => {
-      if (prev.length === 0) return prev;
-      const byId = new Map(graphEdgesRef.current.map((edge) => [edge.id, edge]));
-      return prev.map((edge) =>
-        restyleEdgeColorProperty(edge as OrientedEdgeType, colorPropertyKey, byId.get(edge.id))
-      );
-    });
-  }, [colorPropertyKey, status, setEdges]);
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ app: AppGraphNode }), []);
   const edgeTypes = useMemo<EdgeTypes>(() => ({ oriented: OrientedEdge }), []);
@@ -356,125 +276,16 @@ export function GraphCanvas() {
     void refreshRegions();
   }, [refreshApplications, refreshBusinessUnits, refreshRegions]);
 
-  // Fit the full diagram once nodes are rendered (double rAF inside fitGraphView).
+  // Escape closes the application details drawer.
   useEffect(() => {
-    if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
-    fitGraphView(rfRef.current);
-  }, [status, nodes.length, layoutRevision]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        setStatus('loading');
-        setMessage(null);
-        const data = await fetchGraph({
-          year: year ?? undefined,
-          applicationIds: applicationIds.length > 0 ? applicationIds : undefined,
-          businessUnitIds: businessUnitIds.length > 0 ? businessUnitIds : undefined,
-          regionCodes: regionCodes.length > 0 ? regionCodes : undefined,
-        });
-        if (cancelled) return;
-
-        setGraphNodes(data.nodes);
-        setGraphEdges(data.edges);
-        const effectiveColorKey = resolveColorPropertyKey(colorPropertyKey, data.edges);
-        if (effectiveColorKey !== colorPropertyKey) {
-          setColorPropertyKey(effectiveColorKey);
-          storeColorPropertyKey(effectiveColorKey);
-        }
-
-        const typeById = new Map(data.nodes.map((n) => [n.id, n.type]));
-        const baseNodes = data.nodes.map(buildAppNode);
-        const builtEdges = data.edges.map((e) => buildAppEdge(e, typeById, effectiveColorKey));
-        const rect = containerRef.current?.getBoundingClientRect();
-        const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
-
-        try {
-          // Preferred: ELK layered layout with node-avoiding orthogonal routing.
-          const { nodes: laidOut, routes } = await elkLayout(baseNodes, builtEdges, {
-            nodeWidth: NODE_WIDTH,
-            nodeHeight: NODE_HEIGHT,
-            nodeSeparation: 70,
-            layerSeparation: 100,
-            aspectRatio,
-          });
-          if (cancelled) return;
-          const jumps = computeBridges(routes);
-          setNodes(laidOut);
-          setEdges(builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id))));
-        } catch {
-          // Fallback: dagre layout + smoothstep edges if ELK fails.
-          if (cancelled) return;
-          setNodes(
-            layoutGraph(baseNodes, builtEdges, {
-              nodeWidth: NODE_WIDTH,
-              nodeHeight: NODE_HEIGHT,
-              nodeSeparation: 70,
-              rankSeparation: 100,
-              snapGrid: GRID,
-              aspectRatio,
-            })
-          );
-          setEdges(builtEdges);
-        }
-
-        if (!cancelled) setLayoutRevision((v) => v + 1);
-
-        setStatus('ready');
-        if (pendingSandboxFilterHint) {
-          setMessage('Filters applied — sandbox draft reset.');
-          setPendingSandboxFilterHint(false);
-        } else {
-          const emptyHint =
-            data.nodes.length === 0
-              ? filtersActive
-                ? 'No applications match these filters (year / business unit / location). Change criteria or reset.'
-                : 'No nodes. Start the backend with Neo4j to load demo data.'
-              : graphModeRef.current === 'sandbox'
-                ? 'Impact Sandbox — customize your graph, no changes saved.'
-                : 'Tip: click an application to open its module graph.';
-          setMessage(emptyHint);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setGraphNodes([]);
-          setGraphEdges([]);
-          setNodes([]);
-          setEdges([]);
-          setStatus('error');
-          let msg = e instanceof Error ? e.message : 'Unable to load the graph';
-          if (msg === 'Failed to fetch') {
-            msg +=
-              ' — backend is unreachable. In Vite dev, check VITE_API_PROXY_TARGET (e.g. 8081 with Docker) or start Spring Boot on the expected port.';
-          }
-          setMessage(msg);
-        }
-      }
-    })();
-
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsDetailsDrawerOpen(false);
       }
     };
     window.addEventListener('keydown', onEscape);
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener('keydown', onEscape);
-    };
-  }, [
-    year,
-    applicationIds,
-    businessUnitIds,
-    regionCodes,
-    filtersActive,
-    graphReloadNonce,
-    setNodes,
-    setEdges,
-  ]);
+    return () => window.removeEventListener('keydown', onEscape);
+  }, []);
 
   const handleNodeClick = useCallback(
     (_: ReactMouseEvent, node: AppNode) => {
@@ -523,13 +334,13 @@ export function GraphCanvas() {
 
   function onNodeCreatedHandler(created: ApplicationResponse) {
     handleNodeCreated(created);
-    if (isSandbox) setSandboxDirty(true);
+    if (isSandbox) mode.setSandboxDirty(true);
   }
 
   function onEdgeCreatedHandler(created: GraphEdgeCreateResponse): string | null {
     const msg = handleEdgeCreated(created);
     if (msg) return msg;
-    if (isSandbox) setSandboxDirty(true);
+    if (isSandbox) mode.setSandboxDirty(true);
     return null;
   }
 
@@ -604,7 +415,7 @@ export function GraphCanvas() {
   /** Remove application node + incident edges from React Flow after delete */
   function onApplicationDeletedHandler(applicationId: string) {
     handleApplicationDeleted(applicationId);
-    if (isSandbox) setSandboxDirty(true);
+    if (isSandbox) mode.setSandboxDirty(true);
   }
 
   function handleApplicationDeleted(applicationId: string) {
@@ -643,7 +454,7 @@ export function GraphCanvas() {
     setSelectedApplication((prev) =>
       prev?.id === applicationId ? { ...prev, label: patch.name } : prev
     );
-    if (isSandbox) setSandboxDirty(true);
+    if (isSandbox) mode.setSandboxDirty(true);
   }
 
   const tabDescription = useMemo(() => {
@@ -662,10 +473,10 @@ export function GraphCanvas() {
           <GraphModeTabs
             mode={graphMode}
             sandboxDirty={sandboxDirty}
-            onModeChange={(mode) => {
-              if (mode === 'sandbox') switchToSandboxMode();
-              else if (mode === 'views') switchToViewsMode();
-              else switchToNormalMode();
+            onModeChange={(nextMode) => {
+              if (nextMode === 'sandbox') mode.switchToSandboxMode();
+              else if (nextMode === 'views') mode.switchToViewsMode();
+              else mode.switchToNormalMode();
             }}
           />
           {tabDescription ? (
@@ -681,9 +492,9 @@ export function GraphCanvas() {
           <div className="graph-stage">
             {isViewsMode ? (
               <GraphViewsPanel
-                onApply={(filters) => {
-                  applyGraphFilters(filters);
-                  setGraphReloadNonce((n) => n + 1);
+                onApply={(snapshotFilters) => {
+                  applyGraphFilters(snapshotFilters);
+                  reloadGraph();
                 }}
               />
             ) : (
@@ -748,13 +559,13 @@ export function GraphCanvas() {
                 initialRegionCodes={regionCodes}
                 onApply={({ year: y, applicationIds: appIds, businessUnitIds: buIds, regionCodes: codes }) => {
                   if (isSandbox) {
-                    setSandboxDirty(false);
+                    mode.setSandboxDirty(false);
                     setPendingSandboxFilterHint(true);
                   }
-                  setYear(y);
-                  setApplicationIds(appIds);
-                  setBusinessUnitIds(buIds);
-                  setRegionCodes(codes);
+                  filters.setYear(y);
+                  filters.setApplicationIds(appIds);
+                  filters.setBusinessUnitIds(buIds);
+                  filters.setRegionCodes(codes);
                 }}
               />
 

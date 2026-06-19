@@ -1,13 +1,8 @@
 import type { BusinessUnitCreateRequest, BusinessUnitListItem } from '@/types/api';
-import { authenticatedFetch } from '@/config/api';
-
-function resolveUrl(pathWithQuery: string): string {
-  const origin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
-  return origin ? `${origin}${pathWithQuery}` : pathWithQuery;
-}
+import { authenticatedFetch, resolveApiUrl } from '@/config/api';
 
 export async function fetchBusinessUnits(): Promise<BusinessUnitListItem[]> {
-  const res = await authenticatedFetch(resolveUrl('/api/business-units'), {
+  const res = await authenticatedFetch(resolveApiUrl('/api/business-units'), {
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) {
@@ -22,7 +17,7 @@ export async function fetchBusinessUnits(): Promise<BusinessUnitListItem[]> {
 export async function createBusinessUnit(
   payload: BusinessUnitCreateRequest
 ): Promise<BusinessUnitListItem> {
-  const res = await authenticatedFetch(resolveUrl('/api/business-units'), {
+  const res = await authenticatedFetch(resolveApiUrl('/api/business-units'), {
     method: 'POST',
     headers: {
       Accept: 'application/json',

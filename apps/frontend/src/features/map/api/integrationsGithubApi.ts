@@ -1,19 +1,11 @@
 import type { GitHubRepoDto } from '@/types/api';
-import { authenticatedFetch } from '@/config/api';
-
-function resolveUrl(pathWithQuery: string): string {
-  const origin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
-    /\/$/,
-    ''
-  );
-  return origin ? `${origin}${pathWithQuery}` : pathWithQuery;
-}
+import { authenticatedFetch, resolveApiUrl } from '@/config/api';
 
 /**
  * Proxies through the backend (uses server-side GITHUB_TOKEN). Never calls GitHub from the browser.
  */
 export async function fetchGitHubRepos(): Promise<GitHubRepoDto[]> {
-  const url = resolveUrl('/api/integrations/github/repos');
+  const url = resolveApiUrl('/api/integrations/github/repos');
   const res = await authenticatedFetch(url, {
     headers: { Accept: 'application/json' },
   });

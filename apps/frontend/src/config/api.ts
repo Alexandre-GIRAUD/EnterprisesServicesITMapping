@@ -40,10 +40,6 @@ export function getStoredRoles(): string[] {
   }
 }
 
-export function isAdmin(): boolean {
-  return getStoredRoles().some((r) => r === 'ADMIN');
-}
-
 export function setSession(login: LoginResponseDto): void {
   sessionStorage.setItem(TOKEN_KEY, login.token);
   sessionStorage.setItem(USER_KEY, login.username);

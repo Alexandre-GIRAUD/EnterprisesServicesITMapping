@@ -1,7 +1,7 @@
 package com.enterprise.itmapping.feature.integrations.github.application;
 
+import com.enterprise.itmapping.feature.integrations.github.GitHubApiClient;
 import com.enterprise.itmapping.feature.integrations.github.GithubTreePathFilter;
-import com.enterprise.itmapping.feature.integrations.github.GitHubIntegrationProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -20,10 +19,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Service
 public class GitHubRepoTreeService {
 
-  private final GitHubIntegrationProperties githubProperties;
+  private final GitHubApiClient apiClient;
 
-  public GitHubRepoTreeService(GitHubIntegrationProperties githubProperties) {
-    this.githubProperties = githubProperties;
+  public GitHubRepoTreeService(GitHubApiClient apiClient) {
+    this.apiClient = apiClient;
   }
 
   /**
@@ -31,10 +30,12 @@ public class GitHubRepoTreeService {
    * capped for LLM consumption.
    */
   public List<String> fetchFilteredTreePaths(String owner, String repo, int maxPathsInPrompt) {
-    requireGithubToken();
-    String base = apiBase();
+    if (!apiClient.hasToken()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "GITHUB_TOKEN requis pour lire larbre du depot.");
+    }
 
-    RestClient client = buildClient(base);
+    RestClient client = apiClient.buildClient();
 
     String defaultBranch = fetchDefaultBranch(client, owner, repo);
     String headTreeSha = resolveHeadTreeSha(client, owner, repo, defaultBranch);
@@ -75,40 +76,6 @@ public class GitHubRepoTreeService {
     }
 
     return filtered;
-  }
-
-  private void requireGithubToken() {
-    String token =
-        githubProperties.token() != null ? githubProperties.token().trim() : "";
-    if (!StringUtils.hasText(token)) {
-      throw new ResponseStatusException(
-          HttpStatus.SERVICE_UNAVAILABLE,
-          "GITHUB_TOKEN requis pour lire larbre du depot.");
-    }
-  }
-
-  private String apiBase() {
-    String raw = githubProperties.apiBaseUrl();
-    if (raw == null || raw.isBlank()) return "https://api.github.com";
-    String u = raw.trim();
-    while (u.endsWith("/")) {
-      u = u.substring(0, u.length() - 1);
-    }
-    return u;
-  }
-
-  private RestClient buildClient(String base) {
-    String token =
-        githubProperties.token() != null ? githubProperties.token().trim() : "";
-    return RestClient.builder()
-        .baseUrl(base)
-        .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
-        .defaultHeader("Authorization", "Bearer " + token)
-        .defaultHeader(
-            "User-Agent",
-            "FlowraGraphDb-Backend (https://github.com; Spring RestClient)")
-        .defaultHeader("X-GitHub-Api-Version", "2022-11-28")
-        .build();
   }
 
   private static String fetchDefaultBranch(RestClient client, String owner, String repo) {

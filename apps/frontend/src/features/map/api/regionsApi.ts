@@ -1,17 +1,9 @@
 import type { RegionSummary } from '@/types/api';
-import { authenticatedFetch } from '@/config/api';
-
-function resolveUrl(pathWithQuery: string): string {
-  const origin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(
-    /\/$/,
-    ''
-  );
-  return origin ? `${origin}${pathWithQuery}` : pathWithQuery;
-}
+import { authenticatedFetch, resolveApiUrl } from '@/config/api';
 
 /** Catalogue for multi-select (ordered by code on the server). */
 export async function fetchRegions(): Promise<RegionSummary[]> {
-  const url = resolveUrl('/api/regions');
+  const url = resolveApiUrl('/api/regions');
   const res = await authenticatedFetch(url, {
     headers: { Accept: 'application/json' },
   });

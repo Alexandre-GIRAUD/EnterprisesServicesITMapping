@@ -1,4 +1,4 @@
-package com.enterprise.itmapping.feature.graphsnapshot.application;
+package com.enterprise.itmapping.feature.auth.application;
 
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
