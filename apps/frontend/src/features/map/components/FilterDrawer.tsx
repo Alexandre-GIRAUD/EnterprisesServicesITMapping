@@ -22,6 +22,7 @@ export type { GraphFilters };
 type FilterDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
+  variant?: 'overlay' | 'embedded';
   applications: ApplicationResponse[];
   businessUnits: BusinessUnitListItem[];
   regions: RegionSummary[];
@@ -73,6 +74,7 @@ function statusClass(mode: ReturnType<typeof dimensionMode>): string {
 export function FilterDrawer({
   isOpen,
   onClose,
+  variant = 'overlay',
   applications,
   businessUnits,
   regions,
@@ -492,39 +494,46 @@ export function FilterDrawer({
         ? 'Year'
         : DIMENSION_META[view as DimensionKey]?.detailTitle ?? 'Filters';
 
+  const isEmbedded = variant === 'embedded';
+  const showHeader = !isEmbedded || view !== 'root';
+
   return (
     <aside
       id="graph-filter-drawer"
-      className={`graph-filter-drawer${isOpen ? ' is-open' : ''}`}
+      className={`graph-filter-drawer${isOpen ? ' is-open' : ''}${isEmbedded ? ' graph-filter-drawer--embedded' : ''}`}
       aria-label="Graph filters"
       aria-hidden={!isOpen}
     >
-      <header className="graph-filter-drawer-header">
-        {view !== 'root' ? (
-          <button
-            type="button"
-            className="graph-filter-back-btn"
-            onClick={() => {
-              setDetailError(null);
-              setView('root');
-            }}
-            aria-label="Back to filters"
-          >
-            ‹ Back
-          </button>
-        ) : (
-          <p className="graph-drawer-eyebrow">Filters</p>
-        )}
-        <h2 className="graph-filter-view-title">{headerTitle}</h2>
-        <button
-          type="button"
-          className="graph-drawer-close"
-          onClick={onClose}
-          aria-label="Close filters"
-        >
-          x
-        </button>
-      </header>
+      {showHeader ? (
+        <header className="graph-filter-drawer-header">
+          {view !== 'root' ? (
+            <button
+              type="button"
+              className="graph-filter-back-btn"
+              onClick={() => {
+                setDetailError(null);
+                setView('root');
+              }}
+              aria-label="Back to filters"
+            >
+              ‹ Back
+            </button>
+          ) : isEmbedded ? null : (
+            <p className="graph-drawer-eyebrow">Filters</p>
+          )}
+          <h2 className="graph-filter-view-title">{headerTitle}</h2>
+          {!isEmbedded ? (
+            <button
+              type="button"
+              className="graph-drawer-close"
+              onClick={onClose}
+              aria-label="Close filters"
+            >
+              x
+            </button>
+          ) : null}
+        </header>
+      ) : null}
 
       <form className="graph-drawer-form graph-filter-form" onSubmit={onSubmit}>
         {view === 'root' ? (

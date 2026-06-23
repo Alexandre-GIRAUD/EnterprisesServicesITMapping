@@ -16,6 +16,7 @@ import {
 type WorkspaceDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
+  variant?: 'side' | 'embedded';
   sandboxMode?: boolean;
   /** Graph-visible applications (includes sandbox nodes) for edge autocomplete. */
   extraApplications?: ApplicationResponse[];
@@ -100,6 +101,7 @@ function actionHandler(
 export function WorkspaceDrawer({
   isOpen,
   onClose,
+  variant = 'side',
   sandboxMode = false,
   extraApplications = [],
   onNodeCreated,
@@ -438,45 +440,52 @@ export function WorkspaceDrawer({
     setView('menu');
   }
 
+  const isEmbedded = variant === 'embedded';
+  const showMenuHeader = !(isEmbedded && view === 'menu');
+
   return (
     <aside
       id="graph-actions-drawer"
-      className={`graph-drawer graph-drawer--edit${isOpen ? ' is-open' : ''}`}
+      className={`graph-drawer graph-drawer--edit${isOpen ? ' is-open' : ''}${isEmbedded ? ' graph-drawer--embedded' : ''}`}
       aria-label={sandboxMode ? 'Toolkit panel' : 'Corrections panel'}
     >
-      <header className="graph-drawer-header">
-        <p className="graph-drawer-eyebrow">{sandboxMode ? 'Toolkit' : 'Corrections'}</p>
-        <div className="graph-drawer-title-row">
-          {view !== 'menu' ? (
-            <div>
-              <h2 className="graph-drawer-title">
-                {view === 'add-node-form'
-                  ? 'Create Node'
-                  : view === 'add-edge-form'
-                    ? 'Create Edge'
-                    : 'New business unit'}
-              </h2>
-              <p className="graph-drawer-description">
-                {view === 'add-node-form'
-                  ? 'Create an Application node (name, description, year).'
-                  : view === 'add-edge-form'
-                    ? 'Create a typed relationship between two nodes already visible in the graph.'
-                    : 'Create a business unit (grouping above applications).'}
-              </p>
-            </div>
-          ) : (
-            <div className="graph-drawer-title-spacer" aria-hidden="true" />
-          )}
-          <button
-            type="button"
-            className="graph-drawer-close"
-            onClick={closeDrawer}
-            aria-label="Close panel"
-          >
-            x
-          </button>
-        </div>
-      </header>
+      {showMenuHeader ? (
+        <header className="graph-drawer-header">
+          <p className="graph-drawer-eyebrow">{sandboxMode ? 'Toolkit' : 'Corrections'}</p>
+          <div className="graph-drawer-title-row">
+            {view !== 'menu' ? (
+              <div>
+                <h2 className="graph-drawer-title">
+                  {view === 'add-node-form'
+                    ? 'Create Node'
+                    : view === 'add-edge-form'
+                      ? 'Create Edge'
+                      : 'New business unit'}
+                </h2>
+                <p className="graph-drawer-description">
+                  {view === 'add-node-form'
+                    ? 'Create an Application node (name, description, year).'
+                    : view === 'add-edge-form'
+                      ? 'Create a typed relationship between two nodes already visible in the graph.'
+                      : 'Create a business unit (grouping above applications).'}
+                </p>
+              </div>
+            ) : (
+              <div className="graph-drawer-title-spacer" aria-hidden="true" />
+            )}
+            {!isEmbedded ? (
+              <button
+                type="button"
+                className="graph-drawer-close"
+                onClick={closeDrawer}
+                aria-label="Close panel"
+              >
+                x
+              </button>
+            ) : null}
+          </div>
+        </header>
+      ) : null}
 
       {feedback && (
         <p className={feedbackClassName} role="status" aria-live="polite">

@@ -4,6 +4,7 @@ import { isSandboxId } from '../utils/sandboxGraph';
 
 type ApplicationsTablePanelProps = {
   isOpen: boolean;
+  variant?: 'embedded' | 'main';
   status: 'loading' | 'ready' | 'error';
   nodes: GraphNodeDto[];
   applicationsCatalog: ApplicationResponse[];
@@ -22,6 +23,7 @@ function dash(value: string | null | undefined): string {
 
 export function ApplicationsTablePanel({
   isOpen,
+  variant = 'main',
   status,
   nodes,
   applicationsCatalog,
@@ -57,10 +59,15 @@ export function ApplicationsTablePanel({
 
   if (!isOpen) return null;
 
+  const panelClass =
+    variant === 'embedded'
+      ? 'graph-table-panel graph-table-panel--light graph-table-panel--embedded'
+      : 'graph-table-panel graph-table-panel--light graph-table-panel--main';
+
   return (
     <div
       id="graph-applications-table-panel"
-      className="graph-table-panel graph-table-panel--light"
+      className={panelClass}
       role="region"
       aria-label="Graph applications table"
     >

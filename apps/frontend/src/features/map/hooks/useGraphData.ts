@@ -219,7 +219,7 @@ export function useGraphData({
                 : 'No nodes. Start the backend with Neo4j to load demo data.'
               : graphModeRef.current === 'sandbox'
                 ? 'Impact Sandbox — customize your graph, no changes saved.'
-                : 'Tip: click an application to open its module graph.';
+                : 'Tip: double-click an application to open its module graph. Single-click for details.';
           setMessage(emptyHint);
         }
       } catch (e) {
