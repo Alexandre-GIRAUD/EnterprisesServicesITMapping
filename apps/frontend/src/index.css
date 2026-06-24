@@ -1235,11 +1235,6 @@ body {
   flex-shrink: 0;
 }
 
-.self-service-pin-view-btn {
-  width: 100%;
-  margin: 0.35rem 0 0;
-}
-
 .self-service-side-menu-section + .self-service-side-menu-section {
   margin-top: 1.1rem;
   padding-top: 1rem;
@@ -1706,6 +1701,7 @@ body {
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.35rem;
   flex-shrink: 0;
   margin: 0 0 0.45rem;
@@ -1754,14 +1750,6 @@ body {
 .graph-filter-compact-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-.graph-filter-form .graph-drawer-form-actions {
-  flex-shrink: 0;
-  margin-top: 0.65rem;
-  padding-top: 0.65rem;
-  border-top: 1px solid #e2e8f0;
-  background: linear-gradient(180deg, transparent 0%, #f8fafc 28%);
 }
 
 .graph-filter-hint {

@@ -31,6 +31,9 @@ type FilterDrawerProps = {
   initialBusinessUnitIds: string[];
   initialRegionCodes: string[];
   onApply: (filters: GraphFilters) => void;
+  showPinView?: boolean;
+  pinViewDisabled?: boolean;
+  onPinView?: () => void;
 };
 
 type DimensionKey = 'applications' | 'businessUnits' | 'regions';
@@ -83,6 +86,9 @@ export function FilterDrawer({
   initialBusinessUnitIds,
   initialRegionCodes,
   onApply,
+  showPinView = false,
+  pinViewDisabled = false,
+  onPinView,
 }: FilterDrawerProps) {
   const [view, setView] = useState<FilterView>('root');
   const [year, setYear] = useState<number | null>(initialYear);
@@ -224,6 +230,22 @@ export function FilterDrawer({
         >
           Apply
         </button>
+        {showPinView && onPinView ? (
+          <button
+            type="button"
+            className="graph-filter-compact-btn"
+            onClick={onPinView}
+            disabled={pinViewDisabled}
+            aria-disabled={pinViewDisabled}
+            title={
+              pinViewDisabled
+                ? 'Apply at least one filter before pinning a view'
+                : 'Pin current filter set'
+            }
+          >
+            Pin
+          </button>
+        ) : null}
       </div>
     );
   }

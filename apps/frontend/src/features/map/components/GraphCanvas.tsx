@@ -616,40 +616,32 @@ export function GraphCanvas() {
         return <ApplicationSearchBar variant="menu" />;
       case 'filters':
         return (
-          <>
-            <FilterDrawer
-              key={`filters-${graphMode}`}
-              variant="embedded"
-              isOpen
-              onClose={noopClose}
-              applications={applications}
-              businessUnits={businessUnits}
-              regions={regions}
-              initialYear={year}
-              initialApplicationIds={applicationIds}
-              initialBusinessUnitIds={businessUnitIds}
-              initialRegionCodes={regionCodes}
-              onApply={({ year: y, applicationIds: appIds, businessUnitIds: buIds, regionCodes: codes }) => {
-                if (isSandbox) {
-                  mode.setSandboxDirty(false);
-                  setPendingSandboxFilterHint(true);
-                }
-                filters.setYear(y);
-                filters.setApplicationIds(appIds);
-                filters.setBusinessUnitIds(buIds);
-                filters.setRegionCodes(codes);
-              }}
-            />
-            {isExplorer && filtersActive ? (
-              <button
-                type="button"
-                className="graph-drawer-action self-service-pin-view-btn"
-                onClick={() => setIsSaveSnapshotOpen(true)}
-              >
-                <span className="graph-drawer-action-title">Pin current filter set</span>
-              </button>
-            ) : null}
-          </>
+          <FilterDrawer
+            key={`filters-${graphMode}`}
+            variant="embedded"
+            isOpen
+            onClose={noopClose}
+            applications={applications}
+            businessUnits={businessUnits}
+            regions={regions}
+            initialYear={year}
+            initialApplicationIds={applicationIds}
+            initialBusinessUnitIds={businessUnitIds}
+            initialRegionCodes={regionCodes}
+            onApply={({ year: y, applicationIds: appIds, businessUnitIds: buIds, regionCodes: codes }) => {
+              if (isSandbox) {
+                mode.setSandboxDirty(false);
+                setPendingSandboxFilterHint(true);
+              }
+              filters.setYear(y);
+              filters.setApplicationIds(appIds);
+              filters.setBusinessUnitIds(buIds);
+              filters.setRegionCodes(codes);
+            }}
+            showPinView={isExplorer}
+            pinViewDisabled={!filtersActive}
+            onPinView={() => setIsSaveSnapshotOpen(true)}
+          />
         );
       case 'actions':
         return (
