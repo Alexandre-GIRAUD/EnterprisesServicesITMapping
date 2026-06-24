@@ -1702,6 +1702,60 @@ body {
   gap: 0;
 }
 
+.graph-filter-compact-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  margin: 0 0 0.45rem;
+}
+
+.graph-filter-compact-btn {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.graph-filter-compact-btn:hover:not(:disabled) {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.graph-filter-compact-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.graph-filter-compact-btn--primary {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.graph-filter-compact-btn--primary:hover:not(:disabled) {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
+.graph-filter-compact-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .graph-filter-form .graph-drawer-form-actions {
   flex-shrink: 0;
   margin-top: 0.65rem;
