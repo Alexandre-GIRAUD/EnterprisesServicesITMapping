@@ -911,6 +911,14 @@ body {
 }
 
 .map-graph-panel {
+  --ss-accent: #2563eb;
+  --ss-accent-dark: #1d4ed8;
+  --ss-accent-border: #93c5fd;
+  --ss-accent-surface: #eff6ff;
+  --ss-accent-text: #1d4ed8;
+  --ss-accent-focus: #3b82f6;
+  --ss-accent-shadow: rgb(37 99 235 / 12%);
+  --ss-accent-shadow-strong: rgb(37 99 235 / 25%);
   position: relative;
   display: flex;
   flex-direction: row;
@@ -920,6 +928,100 @@ body {
   width: 100%;
   min-width: 0;
   gap: 0;
+}
+
+.map-graph-panel.is-sandbox-mode {
+  --ss-accent: #d97706;
+  --ss-accent-dark: #b45309;
+  --ss-accent-border: #fbbf24;
+  --ss-accent-surface: #fffbeb;
+  --ss-accent-text: #b45309;
+  --ss-accent-focus: #f59e0b;
+  --ss-accent-shadow: rgb(245 158 11 / 12%);
+  --ss-accent-shadow-strong: rgb(245 158 11 / 25%);
+}
+
+/* Self Service accent theming (Explorer blue default, Sandbox amber via .is-sandbox-mode) */
+.map-graph-panel .graph-display-toggle-btn.is-active {
+  color: var(--ss-accent-text);
+  box-shadow: 0 2px 8px var(--ss-accent-shadow);
+}
+
+.map-graph-panel .graph-display-toggle-btn:focus-visible {
+  outline-color: var(--ss-accent-focus);
+}
+
+.map-graph-panel .self-service-burger:hover,
+.map-graph-panel .self-service-burger.is-open {
+  border-color: var(--ss-accent-border);
+  box-shadow: 0 6px 18px var(--ss-accent-shadow);
+}
+
+.map-graph-panel .self-service-burger:focus-visible {
+  outline-color: var(--ss-accent-focus);
+}
+
+.map-graph-panel .self-service-tool-bar-btn.is-active {
+  border-color: var(--ss-accent-border);
+  color: var(--ss-accent-text);
+  box-shadow: 0 2px 8px var(--ss-accent-shadow);
+}
+
+.map-graph-panel .self-service-tool-bar-btn:focus-visible {
+  outline-color: var(--ss-accent-focus);
+}
+
+.map-graph-panel .self-service-tool-bar-badge {
+  color: var(--ss-accent-text);
+}
+
+.map-graph-panel .graph-filter-compact-btn:focus-visible {
+  outline-color: var(--ss-accent-focus);
+}
+
+.map-graph-panel .graph-filter-compact-btn--primary {
+  border-color: var(--ss-accent);
+  background: var(--ss-accent);
+}
+
+.map-graph-panel .graph-filter-compact-btn--primary:hover:not(:disabled) {
+  border-color: var(--ss-accent-dark);
+  background: var(--ss-accent-dark);
+}
+
+.map-graph-panel .graph-filter-status.is-active {
+  color: var(--ss-accent);
+}
+
+.map-graph-panel .graph-filter-root-label input[type='checkbox'],
+.map-graph-panel .graph-filter-detail-list input[type='checkbox'],
+.map-graph-panel .graph-filter-year-detail input[type='checkbox'] {
+  accent-color: var(--ss-accent);
+}
+
+.map-graph-panel .graph-filter-drill-btn:focus-visible {
+  outline: 2px solid var(--ss-accent-focus);
+  outline-offset: 2px;
+}
+
+.map-graph-panel .graph-drawer-action-primary {
+  border-color: var(--ss-accent-focus);
+  background: linear-gradient(180deg, var(--ss-accent-focus) 0%, var(--ss-accent) 100%);
+}
+
+.map-graph-panel .graph-drawer-action-primary:hover:not(:disabled) {
+  border-color: var(--ss-accent);
+  background: linear-gradient(180deg, var(--ss-accent) 0%, var(--ss-accent-dark) 100%);
+  box-shadow: 0 8px 20px var(--ss-accent-shadow-strong);
+}
+
+.map-graph-panel .graph-drawer-eyebrow {
+  color: var(--ss-accent);
+}
+
+.map-graph-panel .graph-drawer-action:focus-visible,
+.map-graph-panel .graph-drawer-action-primary:focus-visible {
+  outline-color: var(--ss-accent-focus);
 }
 
 .map-graph-main {
