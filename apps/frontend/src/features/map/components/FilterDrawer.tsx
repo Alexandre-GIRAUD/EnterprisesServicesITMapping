@@ -214,6 +214,12 @@ export function FilterDrawer({
     setView('root');
     setDetailError(null);
     setApplyError(null);
+    onApply({
+      year: null,
+      applicationIds: [],
+      businessUnitIds: [],
+      regionCodes: [],
+    });
   }
 
   function renderRootActions() {
