@@ -919,6 +919,9 @@ body {
   --ss-accent-focus: #3b82f6;
   --ss-accent-shadow: rgb(37 99 235 / 12%);
   --ss-accent-shadow-strong: rgb(37 99 235 / 25%);
+  --ss-views-accent: #16a34a;
+  --ss-views-accent-dark: #15803d;
+  --ss-views-focus: #22c55e;
   position: relative;
   display: flex;
   flex-direction: row;
@@ -998,6 +1001,33 @@ body {
 .map-graph-panel .graph-filter-compact-btn--primary:hover:not(:disabled) {
   border-color: var(--ss-accent-dark);
   background: var(--ss-accent-dark);
+}
+
+.map-graph-panel .graph-filter-compact-btn--pin:not(:disabled) {
+  border-color: var(--ss-views-accent);
+  background: var(--ss-views-accent);
+  color: #ffffff;
+  min-width: 7.25rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  white-space: nowrap;
+}
+
+.map-graph-panel .graph-filter-compact-btn--pin:not(:disabled):hover {
+  border-color: var(--ss-views-accent-dark);
+  background: var(--ss-views-accent-dark);
+  color: #ffffff;
+}
+
+.map-graph-panel .graph-filter-compact-btn--pin:focus-visible {
+  outline-color: var(--ss-views-focus);
+}
+
+.map-graph-panel .graph-filter-compact-btn--pin:disabled {
+  min-width: 7.25rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  white-space: nowrap;
 }
 
 .map-graph-panel .graph-filter-status.is-active {

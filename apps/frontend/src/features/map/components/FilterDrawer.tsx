@@ -239,7 +239,7 @@ export function FilterDrawer({
         {showPinView && onPinView ? (
           <button
             type="button"
-            className="graph-filter-compact-btn"
+            className="graph-filter-compact-btn graph-filter-compact-btn--pin"
             onClick={onPinView}
             disabled={pinViewDisabled}
             aria-disabled={pinViewDisabled}
@@ -249,7 +249,7 @@ export function FilterDrawer({
                 : 'Pin current filter set'
             }
           >
-            Pin
+            Pin filters set
           </button>
         ) : null}
       </div>
