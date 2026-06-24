@@ -84,3 +84,8 @@ app:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
 
 # JWT: set JWT_SECRET (>= 32 UTF-8 bytes for HS256). First admin: ADMIN_BOOTSTRAP_USERNAME / ADMIN_BOOTSTRAP_PASSWORD when users table is empty.
+
+# Module suggestion: INFO logs file-selection summary and final result; DEBUG adds per-iteration detail.
+logging:
+  level:
+    com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService: DEBUG

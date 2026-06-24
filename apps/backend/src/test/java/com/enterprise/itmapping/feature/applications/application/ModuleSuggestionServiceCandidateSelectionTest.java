@@ -44,4 +44,16 @@ class ModuleSuggestionServiceCandidateSelectionTest {
             List.of("src/a.ts"), TREE, Set.of("pom.xml", "src/c.ts"), 10, 2);
     assertThat(out).isEmpty();
   }
+
+  @Test
+  void rejectedPathsAreThoseNotAccepted() {
+    List<String> accepted =
+        ModuleSuggestionService.selectCandidatePaths(
+            List.of("pom.xml", "src/a.ts", "missing.ts", "src/a.ts"), TREE, Set.of(), 10, 25);
+    List<String> rejected =
+        ModuleSuggestionService.rejectedSelectionPaths(
+            List.of("pom.xml", "src/a.ts", "missing.ts", "src/a.ts"), accepted);
+    assertThat(accepted).containsExactly("pom.xml", "src/a.ts");
+    assertThat(rejected).containsExactly("missing.ts");
+  }
 }

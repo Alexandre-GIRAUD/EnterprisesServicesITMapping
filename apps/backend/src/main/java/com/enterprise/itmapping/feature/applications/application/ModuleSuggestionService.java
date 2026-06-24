@@ -139,6 +139,13 @@ public class ModuleSuggestionService {
     String owner = parts[0];
     String repo = parts[1];
 
+    log.info(
+        "Module suggestion start applicationId={} repo={}/{} agentic={}",
+        applicationId,
+        owner,
+        repo,
+        llmProperties.enableAgenticFileReading());
+
     List<String> paths =
         gitHubRepoTreeService.fetchFilteredTreePaths(owner, repo, llmProperties.maxPathsInPrompt());
     if (paths.isEmpty()) {
@@ -154,7 +161,8 @@ public class ModuleSuggestionService {
                 owner, repo, pathSet, llmProperties.maxReadmeCharsInPrompt())
             .orElse(null);
 
-    Map<String, String> fileContents = gatherFileContents(owner, repo, paths, pathSet, readme);
+    Map<String, String> fileContents =
+        gatherFileContents(applicationId, owner, repo, paths, pathSet, readme);
 
     String userPrompt =
         ModuleSuggestionUserPromptBuilder.build(
@@ -273,6 +281,21 @@ public class ModuleSuggestionService {
       linkModuleContains(slugToNeoId.get(rel.parent()), slugToNeoId.get(rel.child()));
     }
 
+    log.info(
+        "Module suggestion result applicationId={} created={} skipped={} modules={} relationships={}",
+        applicationId,
+        created.size(),
+        skipped.size(),
+        created.stream().map(CreatedItem::slugId).toList(),
+        relsAccepted.stream().map(r -> r.parent() + "->" + r.child()).toList());
+    for (SkippedItem item : skipped) {
+      log.debug(
+          "Module suggestion skipped scope={} reason={} detail={}",
+          item.scope(),
+          item.reason(),
+          item.detail());
+    }
+
     return new SuggestModulesFromGithubResponse(
         List.copyOf(created), List.copyOf(skipped), List.copyOf(fileContents.keySet()));
   }
@@ -284,16 +307,31 @@ public class ModuleSuggestionService {
    * Selection-pass failures are non-fatal: the final analysis pass proceeds with whatever was read.
    */
   private Map<String, String> gatherFileContents(
-      String owner, String repo, List<String> paths, Set<String> pathSet, String readme) {
+      String applicationId,
+      String owner,
+      String repo,
+      List<String> paths,
+      Set<String> pathSet,
+      String readme) {
     Map<String, String> read = new LinkedHashMap<>();
     if (!llmProperties.enableAgenticFileReading()) {
+      log.info(
+          "File selection complete applicationId={} iterations={} filesRead={} totalChars={} stopReason={}",
+          applicationId,
+          0,
+          0,
+          0,
+          "agentic_disabled");
       return read;
     }
 
     String selectSystemPrompt = loadSelectSystemPrompt();
     int totalChars = 0;
+    int iterationsRun = 0;
+    String stopReason = "max_iterations";
 
     for (int iteration = 0; iteration < llmProperties.maxIterations(); iteration++) {
+      iterationsRun = iteration + 1;
       String selectionUserPrompt =
           ModuleSuggestionUserPromptBuilder.build(
               paths, readme, read, llmProperties.maxUserPromptChars());
@@ -303,47 +341,104 @@ public class ModuleSuggestionService {
         String json = openAiChatJsonClient.completeJson(selectSystemPrompt, selectionUserPrompt);
         selection = objectMapper.readValue(json, FileSelectionRequestPayload.class);
       } catch (Exception e) {
-        log.debug("File-selection pass {} failed, proceeding with {} file(s): {}",
-            iteration, read.size(), e.getMessage());
+        log.warn(
+            "File-selection pass {} failed, proceeding with {} file(s): {}",
+            iteration,
+            read.size(),
+            e.getMessage());
+        stopReason = "selection_failed";
         break;
       }
 
+      List<String> llmRequested = selection.getFilesToRead();
+      log.debug(
+          "Selection iteration={} llmRequested={} done={}",
+          iteration,
+          llmRequested,
+          selection.isDone());
+
       List<String> candidates =
           selectCandidatePaths(
-              selection.getFilesToRead(),
+              llmRequested,
               pathSet,
               read.keySet(),
               llmProperties.maxFilesPerIteration(),
               llmProperties.maxFilesTotal());
+      List<String> rejected =
+          rejectedSelectionPaths(llmRequested, candidates);
+      log.debug(
+          "Selection iteration={} accepted={} rejected={}",
+          iteration,
+          candidates,
+          rejected);
+
       if (candidates.isEmpty()) {
-        log.debug("Iteration {}: no new valid file selected (done={}).", iteration, selection.isDone());
+        stopReason = selection.isDone() ? "done" : "no_valid_candidates";
         break;
       }
 
       Map<String, String> fetched =
           gitHubRepoFileContentService.fetchFileContents(
               owner, repo, candidates, llmProperties.maxCharsPerFile());
+
+      for (String candidate : candidates) {
+        if (!fetched.containsKey(candidate)) {
+          log.warn("File fetch skipped path={} reason=not_found_or_undecodable", candidate);
+        }
+      }
+
+      boolean hitCharBudget = false;
       for (Map.Entry<String, String> e : fetched.entrySet()) {
         int len = e.getValue() != null ? e.getValue().length() : 0;
         if (totalChars + len > llmProperties.maxTotalContentChars()) {
+          hitCharBudget = true;
           totalChars = llmProperties.maxTotalContentChars();
           break;
         }
         read.put(e.getKey(), e.getValue());
         totalChars += len;
+        log.debug("File read path={} chars={}", e.getKey(), len);
       }
 
-      log.debug(
-          "Iteration {}: requested {} candidate(s), read {} total file(s), {} chars (done={}).",
-          iteration, candidates.size(), read.size(), totalChars, selection.isDone());
-
-      if (selection.isDone()
-          || read.size() >= llmProperties.maxFilesTotal()
-          || totalChars >= llmProperties.maxTotalContentChars()) {
+      if (selection.isDone()) {
+        stopReason = "done";
+        break;
+      }
+      if (read.size() >= llmProperties.maxFilesTotal()) {
+        stopReason = "max_files_total";
+        break;
+      }
+      if (hitCharBudget || totalChars >= llmProperties.maxTotalContentChars()) {
+        stopReason = "max_total_content_chars";
         break;
       }
     }
+
+    log.info(
+        "File selection complete applicationId={} iterations={} filesRead={} totalChars={} stopReason={}",
+        applicationId,
+        iterationsRun,
+        read.size(),
+        totalChars,
+        stopReason);
     return read;
+  }
+
+  /** Paths the LLM asked for in this iteration that did not pass {@link #selectCandidatePaths}. */
+  static List<String> rejectedSelectionPaths(List<String> llmRequested, List<String> accepted) {
+    if (llmRequested == null || llmRequested.isEmpty()) {
+      return List.of();
+    }
+    Set<String> acceptedSet = new LinkedHashSet<>(accepted);
+    List<String> rejected = new ArrayList<>();
+    for (String requestedPath : llmRequested) {
+      String norm = GithubTreePathFilter.normalizePath(requestedPath);
+      if (norm.isEmpty() || acceptedSet.contains(norm) || rejected.contains(norm)) {
+        continue;
+      }
+      rejected.add(norm);
+    }
+    return rejected;
   }
 
   /** Keeps only in-tree, not-yet-read, de-duplicated paths, capped to {@code maxFilesPerIteration}. */
