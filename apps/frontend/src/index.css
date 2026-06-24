@@ -941,7 +941,18 @@ body {
   --ss-accent-shadow-strong: rgb(245 158 11 / 25%);
 }
 
-/* Self Service accent theming (Explorer blue default, Sandbox amber via .is-sandbox-mode) */
+.map-graph-panel.is-views-mode {
+  --ss-accent: #16a34a;
+  --ss-accent-dark: #15803d;
+  --ss-accent-border: #86efac;
+  --ss-accent-surface: #f0fdf4;
+  --ss-accent-text: #15803d;
+  --ss-accent-focus: #22c55e;
+  --ss-accent-shadow: rgb(34 197 94 / 12%);
+  --ss-accent-shadow-strong: rgb(34 197 94 / 25%);
+}
+
+/* Self Service accent theming (Explorer / Sandbox / My views via mode class) */
 .map-graph-panel .graph-display-toggle-btn.is-active {
   color: var(--ss-accent-text);
   box-shadow: 0 2px 8px var(--ss-accent-shadow);
@@ -1022,6 +1033,33 @@ body {
 .map-graph-panel .graph-drawer-action:focus-visible,
 .map-graph-panel .graph-drawer-action-primary:focus-visible {
   outline-color: var(--ss-accent-focus);
+}
+
+.map-graph-panel.is-views-mode .graph-views-pane {
+  background:
+    radial-gradient(circle at top, rgb(34 197 94 / 6%), transparent 38%),
+    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  box-shadow:
+    0 24px 60px rgb(15 23 42 / 8%),
+    inset 0 3px 0 rgb(34 197 94 / 35%);
+}
+
+.map-graph-panel.is-views-mode .graph-views-item-btn:hover {
+  border-color: var(--ss-accent-border);
+  background: var(--ss-accent-surface);
+  box-shadow: 0 4px 14px var(--ss-accent-shadow);
+}
+
+.map-graph-panel.is-views-mode .graph-views-item-btn:focus-visible {
+  outline-color: var(--ss-accent-focus);
+}
+
+.map-graph-panel.is-views-mode .graph-views-item-hint {
+  color: var(--ss-accent);
+}
+
+.map-graph-panel.is-views-mode .self-service-view-item--views.is-active {
+  border-left-color: var(--ss-accent-focus);
 }
 
 .map-graph-main {
@@ -1400,7 +1438,7 @@ body {
 }
 
 .self-service-view-item--views.is-active {
-  border-left-color: #3b82f6;
+  border-left-color: #22c55e;
 }
 
 .self-service-view-item-label {

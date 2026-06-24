@@ -684,7 +684,9 @@ export function GraphCanvas() {
   return (
     <div className="graph-canvas-wrap">
       <div
-        className={`map-graph-panel${isSideMenuOpen ? ' is-menu-open' : ''}${isSandbox && !isViewsMode ? ' is-sandbox-mode' : ''}`}
+        className={`map-graph-panel${isSideMenuOpen ? ' is-menu-open' : ''}${
+          isViewsMode ? ' is-views-mode' : isSandbox ? ' is-sandbox-mode' : ''
+        }`}
       >
         <div className="map-graph-main">
           <header className="graph-view-header">
