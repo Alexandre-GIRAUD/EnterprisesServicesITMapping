@@ -2875,6 +2875,36 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
+  min-width: 0;
+}
+
+.graph-details-header .graph-drawer-title-row {
+  min-width: 0;
+}
+
+.graph-details-header-main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.graph-details-header .graph-drawer-title {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  word-break: break-word;
+}
+
+.graph-details-header .graph-details-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-details-header .graph-drawer-close {
+  flex-shrink: 0;
+  align-self: flex-start;
 }
 
 .graph-details-content {
