@@ -1,11 +1,13 @@
 package com.enterprise.itmapping.feature.applications.application;
 
 import java.util.List;
+import java.util.Map;
 import org.springframework.util.StringUtils;
 
 /**
- * Builds the user message for module suggestion: repository paths plus optional README context at
- * the end. Total size is capped by {@code maxUserPromptChars}.
+ * Builds the user message for module suggestion: repository paths, optional README context, and
+ * (optionally) the content of files the LLM asked to read. Total size is capped by {@code
+ * maxUserPromptChars}; file contents are placed last so they are the first to be truncated.
  */
 public final class ModuleSuggestionUserPromptBuilder {
 
@@ -18,11 +20,27 @@ public final class ModuleSuggestionUserPromptBuilder {
           + "Optional documentation. Use it to choose clearer business-facing module names and "
           + "short descriptions.\n\n";
 
+  private static final String FILE_CONTENTS_HEADER =
+      "## File contents\n\n"
+          + "Selected source files (possibly truncated). Use them to refine module boundaries, "
+          + "names and descriptions.\n\n";
+
   private static final int SAFETY = 80;
 
   private ModuleSuggestionUserPromptBuilder() {}
 
   public static String build(List<String> paths, String readmePlaintextOrNull, int maxUserPromptChars) {
+    return build(paths, readmePlaintextOrNull, Map.of(), maxUserPromptChars);
+  }
+
+  /**
+   * @param fileContents ordered map {@code path -> content}; appended last and truncated first
+   */
+  public static String build(
+      List<String> paths,
+      String readmePlaintextOrNull,
+      Map<String, String> fileContents,
+      int maxUserPromptChars) {
     int maxTotal = Math.max(0, maxUserPromptChars);
     String readmeBlock = "";
     if (StringUtils.hasText(readmePlaintextOrNull)) {
@@ -52,6 +70,32 @@ public final class ModuleSuggestionUserPromptBuilder {
       sb.append("\n... (paths truncated for prompt size limit)\n");
     }
     sb.append(readmeBlock);
+    appendFileContents(sb, fileContents, maxTotal);
     return sb.toString();
+  }
+
+  private static void appendFileContents(
+      StringBuilder sb, Map<String, String> fileContents, int maxTotal) {
+    if (fileContents == null || fileContents.isEmpty()) {
+      return;
+    }
+    if (sb.length() + FILE_CONTENTS_HEADER.length() + SAFETY > maxTotal) {
+      return;
+    }
+    sb.append(FILE_CONTENTS_HEADER);
+    boolean truncated = false;
+    for (Map.Entry<String, String> e : fileContents.entrySet()) {
+      String path = e.getKey();
+      String content = e.getValue() != null ? e.getValue() : "";
+      String entry = "=== " + path + " ===\n" + content + "\n\n";
+      if (sb.length() + entry.length() + SAFETY > maxTotal) {
+        truncated = true;
+        break;
+      }
+      sb.append(entry);
+    }
+    if (truncated) {
+      sb.append("... (file contents truncated for prompt size limit)\n");
+    }
   }
 }

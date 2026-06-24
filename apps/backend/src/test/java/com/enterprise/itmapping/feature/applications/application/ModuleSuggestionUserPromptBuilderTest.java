@@ -2,7 +2,9 @@ package com.enterprise.itmapping.feature.applications.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ModuleSuggestionUserPromptBuilderTest {
@@ -35,5 +37,49 @@ class ModuleSuggestionUserPromptBuilderTest {
     String out = ModuleSuggestionUserPromptBuilder.build(List.of("a"), readme, 1200);
     assertThat(out).doesNotContain("## README (context only)");
     assertThat(out).contains("## Repository paths");
+  }
+
+  @Test
+  void fileContentsSectionAppendedLastInOrder() {
+    Map<String, String> contents = new LinkedHashMap<>();
+    contents.put("src/a.ts", "alpha-body");
+    contents.put("src/b.ts", "beta-body");
+
+    String out =
+        ModuleSuggestionUserPromptBuilder.build(
+            List.of("src/a.ts", "src/b.ts"), "# Readme", contents, 50_000);
+
+    assertThat(out).contains("## File contents");
+    assertThat(out).contains("=== src/a.ts ===");
+    assertThat(out).contains("alpha-body");
+    assertThat(out).contains("=== src/b.ts ===");
+    int readmeIdx = out.indexOf("## README (context only)");
+    int filesIdx = out.indexOf("## File contents");
+    int aIdx = out.indexOf("=== src/a.ts ===");
+    int bIdx = out.indexOf("=== src/b.ts ===");
+    assertThat(filesIdx).isGreaterThan(readmeIdx);
+    assertThat(bIdx).isGreaterThan(aIdx);
+  }
+
+  @Test
+  void fileContentsTruncatedWhenBudgetTooTight() {
+    Map<String, String> contents = new LinkedHashMap<>();
+    contents.put("src/a.ts", "x".repeat(2000));
+    contents.put("src/b.ts", "y".repeat(2000));
+
+    String out =
+        ModuleSuggestionUserPromptBuilder.build(List.of("src/a.ts"), null, contents, 1500);
+
+    assertThat(out).contains("## Repository paths");
+    assertThat(out).doesNotContain("=== src/b.ts ===");
+  }
+
+  @Test
+  void emptyFileContentsMatchesPathsOnlyOutput() {
+    String withMap =
+        ModuleSuggestionUserPromptBuilder.build(List.of("src/a.ts"), "# R", Map.of(), 50_000);
+    String legacy = ModuleSuggestionUserPromptBuilder.build(List.of("src/a.ts"), "# R", 50_000);
+    assertThat(withMap).isEqualTo(legacy);
+    assertThat(withMap).doesNotContain("## File contents");
   }
 }

@@ -3,11 +3,13 @@ package com.enterprise.itmapping.feature.applications.application;
 import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload;
 import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload.AiModuleEntry;
 import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload.AiRelationshipEntry;
+import com.enterprise.itmapping.feature.applications.application.dto.FileSelectionRequestPayload;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse.CreatedItem;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse.SkippedItem;
+import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoFileContentService;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoReadmeService;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoTreeService;
 import com.enterprise.itmapping.feature.integrations.llm.LlmModuleSuggestionProperties;
@@ -26,6 +28,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -48,9 +52,15 @@ import org.springframework.web.server.ResponseStatusException;
  * <p><strong>Idempotence:</strong> if the application already has at least one {@code Module} reachable
  * via outbound {@code CONTAINS}, returns {@code 409 Conflict} without calling GitHub or the LLM (retry
  * allowed when the subtree is empty, e.g. all modules removed).
+ *
+ * <p><strong>Agentic file reading:</strong> when {@code enableAgenticFileReading} is on, a selection
+ * pass lets the LLM choose repository files to read (bounded by the configured budgets); their
+ * contents are injected into the final analysis prompt for sharper module boundaries.
  */
 @Service
 public class ModuleSuggestionService {
+
+  private static final Logger log = LoggerFactory.getLogger(ModuleSuggestionService.class);
 
   private static final java.util.regex.Pattern SLUG_PATTERN =
       java.util.regex.Pattern.compile("[a-z][a-z0-9_.-]{1,127}");
@@ -58,6 +68,7 @@ public class ModuleSuggestionService {
   private final ApplicationRepository applicationRepository;
   private final GitHubRepoTreeService gitHubRepoTreeService;
   private final GitHubRepoReadmeService gitHubRepoReadmeService;
+  private final GitHubRepoFileContentService gitHubRepoFileContentService;
   private final OpenAiChatJsonClient openAiChatJsonClient;
   private final LlmModuleSuggestionProperties llmProperties;
   private final Neo4jClient neo4jClient;
@@ -70,6 +81,7 @@ public class ModuleSuggestionService {
       ApplicationRepository applicationRepository,
       GitHubRepoTreeService gitHubRepoTreeService,
       GitHubRepoReadmeService gitHubRepoReadmeService,
+      GitHubRepoFileContentService gitHubRepoFileContentService,
       OpenAiChatJsonClient openAiChatJsonClient,
       LlmModuleSuggestionProperties llmProperties,
       Neo4jClient neo4jClient,
@@ -80,6 +92,7 @@ public class ModuleSuggestionService {
     this.applicationRepository = applicationRepository;
     this.gitHubRepoTreeService = gitHubRepoTreeService;
     this.gitHubRepoReadmeService = gitHubRepoReadmeService;
+    this.gitHubRepoFileContentService = gitHubRepoFileContentService;
     this.openAiChatJsonClient = openAiChatJsonClient;
     this.llmProperties = llmProperties;
     this.neo4jClient = neo4jClient;
@@ -140,9 +153,12 @@ public class ModuleSuggestionService {
             .fetchRootReadmePlaintextForKnownPaths(
                 owner, repo, pathSet, llmProperties.maxReadmeCharsInPrompt())
             .orElse(null);
+
+    Map<String, String> fileContents = gatherFileContents(owner, repo, paths, pathSet, readme);
+
     String userPrompt =
         ModuleSuggestionUserPromptBuilder.build(
-            paths, readme, llmProperties.maxUserPromptChars());
+            paths, readme, fileContents, llmProperties.maxUserPromptChars());
 
     String rawJson;
     try {
@@ -257,7 +273,106 @@ public class ModuleSuggestionService {
       linkModuleContains(slugToNeoId.get(rel.parent()), slugToNeoId.get(rel.child()));
     }
 
-    return new SuggestModulesFromGithubResponse(List.copyOf(created), List.copyOf(skipped));
+    return new SuggestModulesFromGithubResponse(
+        List.copyOf(created), List.copyOf(skipped), List.copyOf(fileContents.keySet()));
+  }
+
+  /**
+   * Runs the agentic selection loop: repeatedly asks the LLM which repository files to read, fetches
+   * their content, and re-injects it until the model is done or a budget is hit. Returns an ordered
+   * {@code path -> content} map (empty when the feature is disabled or nothing useful was selected).
+   * Selection-pass failures are non-fatal: the final analysis pass proceeds with whatever was read.
+   */
+  private Map<String, String> gatherFileContents(
+      String owner, String repo, List<String> paths, Set<String> pathSet, String readme) {
+    Map<String, String> read = new LinkedHashMap<>();
+    if (!llmProperties.enableAgenticFileReading()) {
+      return read;
+    }
+
+    String selectSystemPrompt = loadSelectSystemPrompt();
+    int totalChars = 0;
+
+    for (int iteration = 0; iteration < llmProperties.maxIterations(); iteration++) {
+      String selectionUserPrompt =
+          ModuleSuggestionUserPromptBuilder.build(
+              paths, readme, read, llmProperties.maxUserPromptChars());
+
+      FileSelectionRequestPayload selection;
+      try {
+        String json = openAiChatJsonClient.completeJson(selectSystemPrompt, selectionUserPrompt);
+        selection = objectMapper.readValue(json, FileSelectionRequestPayload.class);
+      } catch (Exception e) {
+        log.debug("File-selection pass {} failed, proceeding with {} file(s): {}",
+            iteration, read.size(), e.getMessage());
+        break;
+      }
+
+      List<String> candidates =
+          selectCandidatePaths(
+              selection.getFilesToRead(),
+              pathSet,
+              read.keySet(),
+              llmProperties.maxFilesPerIteration(),
+              llmProperties.maxFilesTotal());
+      if (candidates.isEmpty()) {
+        log.debug("Iteration {}: no new valid file selected (done={}).", iteration, selection.isDone());
+        break;
+      }
+
+      Map<String, String> fetched =
+          gitHubRepoFileContentService.fetchFileContents(
+              owner, repo, candidates, llmProperties.maxCharsPerFile());
+      for (Map.Entry<String, String> e : fetched.entrySet()) {
+        int len = e.getValue() != null ? e.getValue().length() : 0;
+        if (totalChars + len > llmProperties.maxTotalContentChars()) {
+          totalChars = llmProperties.maxTotalContentChars();
+          break;
+        }
+        read.put(e.getKey(), e.getValue());
+        totalChars += len;
+      }
+
+      log.debug(
+          "Iteration {}: requested {} candidate(s), read {} total file(s), {} chars (done={}).",
+          iteration, candidates.size(), read.size(), totalChars, selection.isDone());
+
+      if (selection.isDone()
+          || read.size() >= llmProperties.maxFilesTotal()
+          || totalChars >= llmProperties.maxTotalContentChars()) {
+        break;
+      }
+    }
+    return read;
+  }
+
+  /** Keeps only in-tree, not-yet-read, de-duplicated paths, capped to {@code maxFilesPerIteration}. */
+  static List<String> selectCandidatePaths(
+      List<String> requested,
+      Set<String> pathSet,
+      Set<String> alreadyRead,
+      int maxFilesPerIteration,
+      int maxFilesTotal) {
+    int remainingTotal = maxFilesTotal - alreadyRead.size();
+    if (remainingTotal <= 0) {
+      return List.of();
+    }
+    int perIterationCap = Math.min(maxFilesPerIteration, remainingTotal);
+    List<String> candidates = new ArrayList<>();
+    for (String requestedPath : requested) {
+      String norm = GithubTreePathFilter.normalizePath(requestedPath);
+      if (norm.isEmpty()
+          || !pathSet.contains(norm)
+          || alreadyRead.contains(norm)
+          || candidates.contains(norm)) {
+        continue;
+      }
+      candidates.add(norm);
+      if (candidates.size() >= perIterationCap) {
+        break;
+      }
+    }
+    return candidates;
   }
 
   private void linkApplicationContains(String applicationId, String moduleNeoId) {
@@ -306,14 +421,22 @@ public class ModuleSuggestionService {
   }
 
   private String loadSystemPrompt() {
-    Resource r = resourceLoader.getResource("classpath:prompts/module-suggest-system.txt");
+    return loadClasspathPrompt("classpath:prompts/module-suggest-system.txt");
+  }
+
+  private String loadSelectSystemPrompt() {
+    return loadClasspathPrompt("classpath:prompts/module-suggest-select-system.txt");
+  }
+
+  private String loadClasspathPrompt(String location) {
+    Resource r = resourceLoader.getResource(location);
     if (!r.exists()) {
-      throw new IllegalStateException("classpath:prompts/module-suggest-system.txt manquant.");
+      throw new IllegalStateException(location + " manquant.");
     }
     try {
       return new String(r.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     } catch (IOException e) {
-      throw new IllegalStateException("Impossible de lire le prompt system module-suggest.", e);
+      throw new IllegalStateException("Impossible de lire le prompt " + location, e);
     }
   }
 
