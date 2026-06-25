@@ -338,9 +338,15 @@ export function ApplicationDetailsDrawer({
       <header className="graph-details-header">
         <p className="graph-drawer-eyebrow">Application</p>
         <div className="graph-drawer-title-row">
-          <div>
-            <h2 className="graph-drawer-title">{application?.label ?? 'Details'}</h2>
-            {application?.id && <p className="graph-details-id">{application.id}</p>}
+          <div className="graph-details-header-main">
+            <h2 className="graph-drawer-title" title={application?.label}>
+              {application?.label ?? 'Details'}
+            </h2>
+            {application?.id && (
+              <p className="graph-details-id" title={application.id}>
+                {application.id}
+              </p>
+            )}
           </div>
           <button
             type="button"

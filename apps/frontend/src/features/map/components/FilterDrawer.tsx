@@ -22,6 +22,7 @@ export type { GraphFilters };
 type FilterDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
+  variant?: 'overlay' | 'embedded';
   applications: ApplicationResponse[];
   businessUnits: BusinessUnitListItem[];
   regions: RegionSummary[];
@@ -30,6 +31,9 @@ type FilterDrawerProps = {
   initialBusinessUnitIds: string[];
   initialRegionCodes: string[];
   onApply: (filters: GraphFilters) => void;
+  showPinView?: boolean;
+  pinViewDisabled?: boolean;
+  onPinView?: () => void;
 };
 
 type DimensionKey = 'applications' | 'businessUnits' | 'regions';
@@ -73,6 +77,7 @@ function statusClass(mode: ReturnType<typeof dimensionMode>): string {
 export function FilterDrawer({
   isOpen,
   onClose,
+  variant = 'overlay',
   applications,
   businessUnits,
   regions,
@@ -81,6 +86,9 @@ export function FilterDrawer({
   initialBusinessUnitIds,
   initialRegionCodes,
   onApply,
+  showPinView = false,
+  pinViewDisabled = false,
+  onPinView,
 }: FilterDrawerProps) {
   const [view, setView] = useState<FilterView>('root');
   const [year, setYear] = useState<number | null>(initialYear);
@@ -206,45 +214,108 @@ export function FilterDrawer({
     setView('root');
     setDetailError(null);
     setApplyError(null);
+    onApply({
+      year: null,
+      applicationIds: [],
+      businessUnitIds: [],
+      regionCodes: [],
+    });
   }
 
-  function renderDetailFooter(key: DimensionKey) {
-    const mode =
-      key === 'applications' ? appMode : key === 'businessUnits' ? buMode : regionMode;
-    const selectedCount =
-      key === 'applications'
-        ? selectedApplicationIds.length
-        : key === 'businessUnits'
-          ? selectedBusinessUnitIds.length
-          : selectedRegionCodes.length;
-    const doneLabel =
-      mode === 'all'
-        ? 'Done (all)'
-        : mode === 'some'
-          ? `Done (${selectedCount} selected)`
-          : 'Done';
-
+  function renderRootActions() {
     return (
-      <div className="graph-filter-detail-footer">
-        <button
-          type="button"
-          className="graph-drawer-action"
-          onClick={() => clearDetailDimension(key)}
-        >
-          <span className="graph-drawer-action-title">Clear</span>
+      <div className="graph-filter-compact-actions">
+        <button type="button" className="graph-filter-compact-btn" onClick={onReset}>
+          Clear
         </button>
         <button
-          type="button"
-          className="graph-drawer-action graph-drawer-action-primary graph-filter-done-btn"
-          onClick={() => confirmDetailDimension(key)}
+          type="submit"
+          className="graph-filter-compact-btn graph-filter-compact-btn--primary"
+          disabled={applyBlocked}
+          aria-disabled={applyBlocked}
         >
-          <span className="graph-drawer-action-title">{doneLabel}</span>
-          <span className="graph-filter-done-icon" aria-hidden="true">
-            ✓
-          </span>
+          Apply
         </button>
+        {showPinView && onPinView ? (
+          <button
+            type="button"
+            className="graph-filter-compact-btn graph-filter-compact-btn--pin"
+            onClick={onPinView}
+            disabled={pinViewDisabled}
+            aria-disabled={pinViewDisabled}
+            title={
+              pinViewDisabled
+                ? 'Apply at least one filter before pinning a view'
+                : 'Pin current filter set'
+            }
+          >
+            Pin filters set
+          </button>
+        ) : null}
       </div>
     );
+  }
+
+  function renderDetailViewActions() {
+    if (view === 'year') {
+      const doneLabel = year != null ? `Done (${year})` : 'Done';
+      return (
+        <div className="graph-filter-compact-actions">
+          <button
+            type="button"
+            className="graph-filter-compact-btn"
+            onClick={() => {
+              setApplyError(null);
+              setYear(null);
+            }}
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            className="graph-filter-compact-btn graph-filter-compact-btn--primary"
+            onClick={() => setView('root')}
+          >
+            {doneLabel}
+          </button>
+        </div>
+      );
+    }
+
+    if (view === 'applications' || view === 'businessUnits' || view === 'regions') {
+      const key = view;
+      const mode =
+        key === 'applications' ? appMode : key === 'businessUnits' ? buMode : regionMode;
+      const selectedCount =
+        key === 'applications'
+          ? selectedApplicationIds.length
+          : key === 'businessUnits'
+            ? selectedBusinessUnitIds.length
+            : selectedRegionCodes.length;
+      const doneLabel =
+        mode === 'all' ? 'Done' : mode === 'some' ? `Done (${selectedCount})` : 'Done';
+
+      return (
+        <div className="graph-filter-compact-actions">
+          <button
+            type="button"
+            className="graph-filter-compact-btn"
+            onClick={() => clearDetailDimension(key)}
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            className="graph-filter-compact-btn graph-filter-compact-btn--primary"
+            onClick={() => confirmDetailDimension(key)}
+          >
+            {doneLabel}
+          </button>
+        </div>
+      );
+    }
+
+    return null;
   }
 
   function renderDetail() {
@@ -282,7 +353,6 @@ export function FilterDrawer({
               </label>
             ))}
           </div>
-          {renderDetailFooter('applications')}
         </div>
       );
     }
@@ -321,7 +391,6 @@ export function FilterDrawer({
               </label>
             ))}
           </div>
-          {renderDetailFooter('businessUnits')}
         </div>
       );
     }
@@ -363,7 +432,6 @@ export function FilterDrawer({
               </label>
             ))}
           </div>
-          {renderDetailFooter('regions')}
         </div>
       );
     }
@@ -372,8 +440,6 @@ export function FilterDrawer({
   }
 
   function renderYearDetail() {
-    const doneLabel = year != null ? `Done (${year})` : 'Done (all years)';
-
     return (
       <div className="graph-filter-detail-panel">
         <div className="graph-filter-year-detail">
@@ -397,28 +463,6 @@ export function FilterDrawer({
               {yearFilterLabel(year)}
             </span>
           </label>
-        </div>
-        <div className="graph-filter-detail-footer">
-          <button
-            type="button"
-            className="graph-drawer-action"
-            onClick={() => {
-              setApplyError(null);
-              setYear(null);
-            }}
-          >
-            <span className="graph-drawer-action-title">Clear</span>
-          </button>
-          <button
-            type="button"
-            className="graph-drawer-action graph-drawer-action-primary graph-filter-done-btn"
-            onClick={() => setView('root')}
-          >
-            <span className="graph-drawer-action-title">{doneLabel}</span>
-            <span className="graph-filter-done-icon" aria-hidden="true">
-              ✓
-            </span>
-          </button>
         </div>
       </div>
     );
@@ -492,41 +536,49 @@ export function FilterDrawer({
         ? 'Year'
         : DIMENSION_META[view as DimensionKey]?.detailTitle ?? 'Filters';
 
+  const isEmbedded = variant === 'embedded';
+  const showHeader = !isEmbedded || view !== 'root';
+
   return (
     <aside
       id="graph-filter-drawer"
-      className={`graph-filter-drawer${isOpen ? ' is-open' : ''}`}
+      className={`graph-filter-drawer${isOpen ? ' is-open' : ''}${isEmbedded ? ' graph-filter-drawer--embedded' : ''}`}
       aria-label="Graph filters"
       aria-hidden={!isOpen}
     >
-      <header className="graph-filter-drawer-header">
-        {view !== 'root' ? (
-          <button
-            type="button"
-            className="graph-filter-back-btn"
-            onClick={() => {
-              setDetailError(null);
-              setView('root');
-            }}
-            aria-label="Back to filters"
-          >
-            ‹ Back
-          </button>
-        ) : (
-          <p className="graph-drawer-eyebrow">Filters</p>
-        )}
-        <h2 className="graph-filter-view-title">{headerTitle}</h2>
-        <button
-          type="button"
-          className="graph-drawer-close"
-          onClick={onClose}
-          aria-label="Close filters"
-        >
-          x
-        </button>
-      </header>
+      {showHeader ? (
+        <header className="graph-filter-drawer-header">
+          {view !== 'root' ? (
+            <button
+              type="button"
+              className="graph-filter-back-btn"
+              onClick={() => {
+                setDetailError(null);
+                setView('root');
+              }}
+              aria-label="Back to filters"
+            >
+              ‹ Back
+            </button>
+          ) : isEmbedded ? null : (
+            <p className="graph-drawer-eyebrow">Filters</p>
+          )}
+          <h2 className="graph-filter-view-title">{headerTitle}</h2>
+          {!isEmbedded ? (
+            <button
+              type="button"
+              className="graph-drawer-close"
+              onClick={onClose}
+              aria-label="Close filters"
+            >
+              x
+            </button>
+          ) : null}
+        </header>
+      ) : null}
 
       <form className="graph-drawer-form graph-filter-form" onSubmit={onSubmit}>
+        {view === 'root' ? renderRootActions() : renderDetailViewActions()}
         {view === 'root' ? (
           <div className="graph-filter-root-list" role="group" aria-label="Filter types">
             <p className="graph-filter-hint">
@@ -553,22 +605,6 @@ export function FilterDrawer({
         ) : (
           renderDetail()
         )}
-
-        {view === 'root' ? (
-          <div className="graph-drawer-form-actions">
-            <button
-              type="submit"
-              className="graph-drawer-action graph-drawer-action-primary"
-              disabled={applyBlocked}
-              aria-disabled={applyBlocked}
-            >
-              <span className="graph-drawer-action-title">Apply filters</span>
-            </button>
-            <button type="button" className="graph-drawer-action" onClick={onReset}>
-              <span className="graph-drawer-action-title">Clear all filters</span>
-            </button>
-          </div>
-        ) : null}
       </form>
     </aside>
   );

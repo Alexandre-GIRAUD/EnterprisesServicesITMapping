@@ -6,7 +6,11 @@ import { fetchApplications } from '../api/applicationsApi';
 const DEBOUNCE_MS = 250;
 
 /** Search applications and navigate to module graph on selection. */
-export function ApplicationSearchBar({ variant = 'toolbar' }: { variant?: 'toolbar' | 'canvas' }) {
+export function ApplicationSearchBar({
+  variant = 'toolbar',
+}: {
+  variant?: 'toolbar' | 'canvas' | 'menu';
+}) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -105,9 +109,15 @@ export function ApplicationSearchBar({ variant = 'toolbar' }: { variant?: 'toolb
   return (
     <div
       ref={wrapperRef}
-      className={`application-search${variant === 'canvas' ? ' application-search--canvas' : ''}`}
+      className={`application-search${
+        variant === 'canvas'
+          ? ' application-search--canvas'
+          : variant === 'menu'
+            ? ' application-search--menu'
+            : ''
+      }`}
     >
-      {variant === 'canvas' ? (
+      {variant === 'canvas' || variant === 'menu' ? (
         <label htmlFor="application-search-input" className="application-search-sr-label">
           Search for an application
         </label>
@@ -121,7 +131,13 @@ export function ApplicationSearchBar({ variant = 'toolbar' }: { variant?: 'toolb
         className="application-search-input"
         type="search"
         value={query}
-        placeholder={variant === 'canvas' ? 'Search applications…' : 'Ex: portail, gateway, paiement...'}
+        placeholder={
+          variant === 'menu'
+            ? 'Search applications…'
+            : variant === 'canvas'
+              ? 'Search applications…'
+              : 'Ex: portail, gateway, paiement...'
+        }
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => {
           if (query.trim()) setIsOpen(true);
