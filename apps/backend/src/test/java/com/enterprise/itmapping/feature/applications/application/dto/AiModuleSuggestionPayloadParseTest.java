@@ -21,6 +21,7 @@ class AiModuleSuggestionPayloadParseTest {
     assertThat(payload.getRelationships().get(0).getToModuleId()).isEqualTo("catalog");
     assertThat(payload.getRelationships().get(0).getRelationshipKind())
         .isEqualTo("structural_contains");
-    assertThat(payload.getRelationships().get(0).getEvidencePaths()).isNotEmpty();
+    assertThat(payload.getRelationships().get(0).getBusinessRationaleOneLiner())
+        .isEqualTo("Billing owns catalog configuration.");
   }
 }

@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 
 /**
  * Picks a single root-level README path present in a known path set (coherent with the filtered
- * GitHub tree used for {@code evidence_paths} validation).
+ * GitHub tree sent to the LLM).
  */
 public final class GitHubRootReadmePathSelector {
 

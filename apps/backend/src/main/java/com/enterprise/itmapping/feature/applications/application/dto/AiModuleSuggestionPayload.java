@@ -2,9 +2,9 @@ package com.enterprise.itmapping.feature.applications.application.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /** JSON returned by the LLM (strict-ish contract). */
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -44,9 +44,6 @@ public class AiModuleSuggestionPayload {
     @JsonProperty("description_metier_breve")
     private String descriptionMetierBreve;
 
-    @JsonProperty("evidence_paths")
-    private List<String> evidencePaths = new ArrayList<>();
-
     public String getId() {
       String s = id != null ? id.trim() : "";
       return s.toLowerCase(Locale.ROOT);
@@ -71,14 +68,6 @@ public class AiModuleSuggestionPayload {
     public void setDescriptionMetierBreve(String descriptionMetierBreve) {
       this.descriptionMetierBreve = descriptionMetierBreve;
     }
-
-    public List<String> getEvidencePaths() {
-      return evidencePaths != null ? evidencePaths : List.of();
-    }
-
-    public void setEvidencePaths(List<String> evidencePaths) {
-      this.evidencePaths = evidencePaths != null ? evidencePaths : new ArrayList<>();
-    }
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -93,8 +82,8 @@ public class AiModuleSuggestionPayload {
     @JsonProperty("relationship_kind")
     private String relationshipKind;
 
-    @JsonProperty("evidence_paths")
-    private List<String> evidencePaths = new ArrayList<>();
+    @JsonProperty("business_rationale_one_liner")
+    private String businessRationaleOneLiner;
 
     public String getFromModuleId() {
       String s = fromModuleId != null ? fromModuleId.trim() : "";
@@ -122,12 +111,12 @@ public class AiModuleSuggestionPayload {
       this.relationshipKind = relationshipKind;
     }
 
-    public List<String> getEvidencePaths() {
-      return evidencePaths != null ? evidencePaths : List.of();
+    public String getBusinessRationaleOneLiner() {
+      return businessRationaleOneLiner != null ? businessRationaleOneLiner.trim() : "";
     }
 
-    public void setEvidencePaths(List<String> evidencePaths) {
-      this.evidencePaths = evidencePaths != null ? evidencePaths : new ArrayList<>();
+    public void setBusinessRationaleOneLiner(String businessRationaleOneLiner) {
+      this.businessRationaleOneLiner = businessRationaleOneLiner;
     }
   }
 }

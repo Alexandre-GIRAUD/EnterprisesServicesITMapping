@@ -162,6 +162,8 @@ export interface SuggestModulesSkippedItem {
 export interface SuggestModulesFromGithubResponse {
   created: SuggestModulesCreatedItem[];
   skipped: SuggestModulesSkippedItem[];
+  /** Files whose content was read during the agentic selection loop (traceability). */
+  analyzedFiles?: string[];
 }
 
 /** Canonical graph filter set (year + dimension id lists). */

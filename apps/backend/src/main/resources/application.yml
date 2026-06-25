@@ -58,6 +58,15 @@ app:
       max-user-prompt-chars: 120000
       max-paths-in-prompt: 800
       max-readme-chars-in-prompt: 8000
+      # Agentic file-reading loop (Pass 1 selection -> read -> Pass 2 analysis).
+      enable-agentic-file-reading: true
+      max-iterations: 3
+      max-files-per-iteration: 10
+      max-files-total: 25
+      max-chars-per-file: 12000
+      max-total-content-chars: 80000
+      # Condensed multi-turn selection chat: cap on history size (excl. system prompt).
+      max-selection-history-chars: 60000
   sample-data:
     seed: ${SAMPLE_DATA_SEED:true} # set SAMPLE_DATA_SEED=false to disable
     # Neo4j may not accept Bolt immediately (Docker order, cold start, APOC). Retry before giving up.
@@ -77,3 +86,8 @@ app:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
 
 # JWT: set JWT_SECRET (>= 32 UTF-8 bytes for HS256). First admin: ADMIN_BOOTSTRAP_USERNAME / ADMIN_BOOTSTRAP_PASSWORD when users table is empty.
+
+# Module suggestion: INFO logs file-selection summary and final result; DEBUG adds per-iteration detail.
+logging:
+  level:
+    com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService: DEBUG
