@@ -2,6 +2,8 @@ package com.enterprise.itmapping.feature.applications.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.enterprise.itmapping.feature.integrations.llm.ChatMessage;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -55,5 +57,39 @@ class ModuleSuggestionServiceCandidateSelectionTest {
             List.of("pom.xml", "src/a.ts", "missing.ts", "src/a.ts"), accepted);
     assertThat(accepted).containsExactly("pom.xml", "src/a.ts");
     assertThat(rejected).containsExactly("missing.ts");
+  }
+
+  @Test
+  void trimSelectionHistoryKeepsSystemFirstUserAndLastTwoTurns() {
+    List<ChatMessage> history = new ArrayList<>();
+    history.add(ChatMessage.system("SYS"));
+    history.add(ChatMessage.user("FIRST_USER_TREE_README"));
+    for (int i = 0; i < 4; i++) {
+      history.add(ChatMessage.assistant("a".repeat(5000)));
+      history.add(ChatMessage.user("u".repeat(5000)));
+    }
+    int sizeBefore = history.size();
+
+    ModuleSuggestionService.trimSelectionHistory(history, 12_000);
+
+    assertThat(history.get(0).role()).isEqualTo("system");
+    assertThat(history.get(1).content()).isEqualTo("FIRST_USER_TREE_README");
+    assertThat(history.size()).isLessThan(sizeBefore);
+    int contentChars =
+        history.stream()
+            .filter(m -> !"system".equals(m.role()))
+            .mapToInt(m -> m.content().length())
+            .sum();
+    assertThat(contentChars).isLessThanOrEqualTo(12_000 + 5000);
+  }
+
+  @Test
+  void trimSelectionHistoryNoOpWhenSmall() {
+    List<ChatMessage> history = new ArrayList<>();
+    history.add(ChatMessage.system("SYS"));
+    history.add(ChatMessage.user("U0"));
+    history.add(ChatMessage.assistant("A0"));
+    ModuleSuggestionService.trimSelectionHistory(history, 60_000);
+    assertThat(history).hasSize(3);
   }
 }

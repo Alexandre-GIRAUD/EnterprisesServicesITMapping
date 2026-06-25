@@ -82,4 +82,44 @@ class ModuleSuggestionUserPromptBuilderTest {
     assertThat(withMap).isEqualTo(legacy);
     assertThat(withMap).doesNotContain("## File contents");
   }
+
+  @Test
+  void initialSelectionPromptContainsPathsAndReadme() {
+    String out =
+        ModuleSuggestionUserPromptBuilder.buildInitialSelectionPrompt(
+            List.of("README.md", "src/a.ts"), "# Title", 50_000);
+    assertThat(out).contains("## Repository paths");
+    assertThat(out).contains("## README (context only)");
+    assertThat(out).contains("src/a.ts");
+  }
+
+  @Test
+  void followUpSelectionMessageOmitsTreeAndReadmeAndShowsOnlyNewFiles() {
+    Map<String, String> newlyFetched = new LinkedHashMap<>();
+    newlyFetched.put("src/b.ts", "beta-body");
+
+    String out =
+        ModuleSuggestionUserPromptBuilder.buildFollowUpSelectionUserMessage(
+            List.of("pom.xml", "src/a.ts"), newlyFetched, 50_000);
+
+    assertThat(out).doesNotContain("## Repository paths");
+    assertThat(out).doesNotContain("## README (context only)");
+    assertThat(out).contains("## Already read");
+    assertThat(out).contains("pom.xml");
+    assertThat(out).contains("src/a.ts");
+    assertThat(out).contains("## New file contents");
+    assertThat(out).contains("=== src/b.ts ===");
+    assertThat(out).contains("beta-body");
+    assertThat(out).doesNotContain("=== src/a.ts ===");
+  }
+
+  @Test
+  void followUpSelectionMessageWithoutNewFilesHasNoContentsSection() {
+    String out =
+        ModuleSuggestionUserPromptBuilder.buildFollowUpSelectionUserMessage(
+            List.of("pom.xml"), Map.of(), 50_000);
+    assertThat(out).contains("## Already read");
+    assertThat(out).contains("pom.xml");
+    assertThat(out).doesNotContain("## New file contents");
+  }
 }

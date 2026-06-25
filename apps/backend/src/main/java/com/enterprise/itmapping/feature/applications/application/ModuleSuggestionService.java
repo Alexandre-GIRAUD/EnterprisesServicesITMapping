@@ -12,6 +12,7 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestMod
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoFileContentService;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoReadmeService;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoTreeService;
+import com.enterprise.itmapping.feature.integrations.llm.ChatMessage;
 import com.enterprise.itmapping.feature.integrations.llm.LlmModuleSuggestionProperties;
 import com.enterprise.itmapping.feature.integrations.llm.OpenAiChatJsonClient;
 import com.enterprise.itmapping.feature.integrations.github.GithubTreePathFilter;
@@ -325,20 +326,36 @@ public class ModuleSuggestionService {
       return read;
     }
 
-    String selectSystemPrompt = loadSelectSystemPrompt();
+    List<ChatMessage> history = new ArrayList<>();
+    history.add(ChatMessage.system(loadSelectSystemPrompt()));
+    Map<String, String> newlyFetched = new LinkedHashMap<>();
     int totalChars = 0;
     int iterationsRun = 0;
     String stopReason = "max_iterations";
 
     for (int iteration = 0; iteration < llmProperties.maxIterations(); iteration++) {
       iterationsRun = iteration + 1;
-      String selectionUserPrompt =
-          ModuleSuggestionUserPromptBuilder.build(
-              paths, readme, read, llmProperties.maxUserPromptChars());
+      String promptKind = iteration == 0 ? "initial" : "follow_up";
+      String userMessage =
+          iteration == 0
+              ? ModuleSuggestionUserPromptBuilder.buildInitialSelectionPrompt(
+                  paths, readme, llmProperties.maxUserPromptChars())
+              : ModuleSuggestionUserPromptBuilder.buildFollowUpSelectionUserMessage(
+                  read.keySet(), newlyFetched, llmProperties.maxUserPromptChars());
+      history.add(ChatMessage.user(userMessage));
+
+      log.debug(
+          "Selection iteration={} promptKind={} alreadyReadCount={} newFiles={} historyMessages={}",
+          iteration,
+          promptKind,
+          read.size(),
+          newlyFetched.keySet(),
+          history.size());
 
       FileSelectionRequestPayload selection;
       try {
-        String json = openAiChatJsonClient.completeJson(selectSystemPrompt, selectionUserPrompt);
+        String json = openAiChatJsonClient.completeJson(history);
+        history.add(ChatMessage.assistant(json));
         selection = objectMapper.readValue(json, FileSelectionRequestPayload.class);
       } catch (Exception e) {
         log.warn(
@@ -364,16 +381,18 @@ public class ModuleSuggestionService {
               read.keySet(),
               llmProperties.maxFilesPerIteration(),
               llmProperties.maxFilesTotal());
-      List<String> rejected =
-          rejectedSelectionPaths(llmRequested, candidates);
+      List<String> rejected = rejectedSelectionPaths(llmRequested, candidates);
       log.debug(
-          "Selection iteration={} accepted={} rejected={}",
-          iteration,
-          candidates,
-          rejected);
+          "Selection iteration={} accepted={} rejected={}", iteration, candidates, rejected);
 
       if (candidates.isEmpty()) {
-        stopReason = selection.isDone() ? "done" : "no_valid_candidates";
+        if (selection.isDone()) {
+          stopReason = "done";
+        } else if (!read.isEmpty()) {
+          stopReason = "already_satisfied";
+        } else {
+          stopReason = "no_valid_candidates";
+        }
         break;
       }
 
@@ -387,6 +406,7 @@ public class ModuleSuggestionService {
         }
       }
 
+      newlyFetched = new LinkedHashMap<>();
       boolean hitCharBudget = false;
       for (Map.Entry<String, String> e : fetched.entrySet()) {
         int len = e.getValue() != null ? e.getValue().length() : 0;
@@ -396,6 +416,7 @@ public class ModuleSuggestionService {
           break;
         }
         read.put(e.getKey(), e.getValue());
+        newlyFetched.put(e.getKey(), e.getValue());
         totalChars += len;
         log.debug("File read path={} chars={}", e.getKey(), len);
       }
@@ -412,16 +433,44 @@ public class ModuleSuggestionService {
         stopReason = "max_total_content_chars";
         break;
       }
+
+      trimSelectionHistory(history, llmProperties.maxSelectionHistoryChars());
     }
 
     log.info(
-        "File selection complete applicationId={} iterations={} filesRead={} totalChars={} stopReason={}",
+        "File selection complete applicationId={} iterations={} filesRead={} totalChars={} stopReason={} promptStrategy=condensed_chat",
         applicationId,
         iterationsRun,
         read.size(),
         totalChars,
         stopReason);
     return read;
+  }
+
+  /**
+   * Keeps the selection chat history under {@code maxHistoryChars} (content size, excluding the
+   * system prompt). Always preserves the system prompt, the first user turn (tree + README) and the
+   * two most recent turns; drops the oldest middle messages first.
+   */
+  static void trimSelectionHistory(List<ChatMessage> history, int maxHistoryChars) {
+    if (history == null || maxHistoryChars <= 0 || history.size() <= 4) {
+      return;
+    }
+    // Never drop: index 0 (system), index 1 (first user = tree + README), and the last two
+    // messages. Remove the oldest middle message (index 2) until under budget.
+    while (historyContentChars(history) > maxHistoryChars && history.size() > 4) {
+      history.remove(2);
+    }
+  }
+
+  private static int historyContentChars(List<ChatMessage> history) {
+    int total = 0;
+    for (ChatMessage m : history) {
+      if (!"system".equals(m.role())) {
+        total += m.content().length();
+      }
+    }
+    return total;
   }
 
   /** Paths the LLM asked for in this iteration that did not pass {@link #selectCandidatePaths}. */

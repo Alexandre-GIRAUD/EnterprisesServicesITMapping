@@ -35,8 +35,21 @@ public class OpenAiChatJsonClient {
     this.objectMapper = objectMapper;
   }
 
-  /** Returns assistant message text (JSON object string). */
+  /** Returns assistant message text (JSON object string) for a system + single user message. */
   public String completeJson(String systemPrompt, String userPrompt) {
+    return completeJson(
+        List.of(ChatMessage.system(systemPrompt), ChatMessage.user(userPrompt)));
+  }
+
+  /**
+   * Returns assistant message text (JSON object string) for a full multi-turn conversation. The
+   * caller is responsible for ordering/condensing the history; this client only forwards it.
+   */
+  public String completeJson(List<ChatMessage> messages) {
+    if (messages == null || messages.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "Aucun message a envoyer au LLM.");
+    }
     String key = properties.apiKey() != null ? properties.apiKey().trim() : "";
     if (!StringUtils.hasText(key)) {
       throw new ResponseStatusException(
@@ -54,7 +67,7 @@ public class OpenAiChatJsonClient {
 
     byte[] payload;
     try {
-      payload = objectMapper.writeValueAsBytes(buildPayload(systemPrompt, userPrompt));
+      payload = objectMapper.writeValueAsBytes(buildPayload(messages));
     } catch (JsonProcessingException e) {
       throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Serialisation payload LLM.", e);
     }
@@ -90,10 +103,11 @@ public class OpenAiChatJsonClient {
     }
   }
 
-  private Map<String, Object> buildPayload(String systemPrompt, String userPrompt) {
+  private Map<String, Object> buildPayload(List<ChatMessage> messages) {
     List<Map<String, String>> msgs = new ArrayList<>();
-    msgs.add(Map.of("role", "system", "content", systemPrompt));
-    msgs.add(Map.of("role", "user", "content", userPrompt));
+    for (ChatMessage m : messages) {
+      msgs.add(Map.of("role", m.role(), "content", m.content()));
+    }
 
     Map<String, Object> body = new LinkedHashMap<>();
     body.put("model", properties.model());

@@ -29,5 +29,11 @@ public record LlmModuleSuggestionProperties(
     /** Max UTF-16 code units kept per file (truncated). */
     @DefaultValue("12000") int maxCharsPerFile,
     /** Max total UTF-16 code units of file content read across all iterations. */
-    @DefaultValue("80000") int maxTotalContentChars
+    @DefaultValue("80000") int maxTotalContentChars,
+    /**
+     * Max UTF-16 code units of the selection chat history (excluding the system prompt). When
+     * exceeded, the oldest middle turns are dropped while keeping the first user turn (tree +
+     * README) and the most recent turns.
+     */
+    @DefaultValue("60000") int maxSelectionHistoryChars
 ) {}
