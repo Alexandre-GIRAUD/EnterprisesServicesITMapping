@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationConnectionSuggestionService;
@@ -11,20 +12,24 @@ import com.enterprise.itmapping.feature.applications.application.ApplicationRegi
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
+import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse;
+import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse.CreatedConnectionItem;
+import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse.SkippedItem;
 import com.enterprise.itmapping.feature.businessunit.application.BusinessUnitApplicationLinkService;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.server.ResponseStatusException;
 
-@WebMvcTest(controllers = ApplicationController.class, excludeAutoConfiguration = SecurityAutoConfiguration.class)
-class SuggestFromGithubConflictWebMvcTest {
+@WebMvcTest(
+    controllers = ApplicationController.class,
+    excludeAutoConfiguration = SecurityAutoConfiguration.class)
+class SuggestConnectionsFromGithubWebMvcTest {
 
   @Autowired MockMvc mockMvc;
 
@@ -41,20 +46,28 @@ class SuggestFromGithubConflictWebMvcTest {
   @MockBean ApplicationRegionLinkService applicationRegionLinkService;
 
   @Test
-  void postSuggestFromGithubReturnsConflictWhenServiceSignals409() throws Exception {
+  void postSuggestConnectionsReturnsCreatedWithBody() throws Exception {
     String appId = UUID.randomUUID().toString();
-    when(moduleSuggestionService.suggestFromGithub(anyString(), any()))
-        .thenThrow(
-            new ResponseStatusException(
-                HttpStatus.CONFLICT,
-                "Les modules ont déjà été suggérés pour cette application."));
+    var response =
+        new SuggestConnectionsFromGithubResponse(
+            List.of(
+                new CreatedConnectionItem(
+                    "edge-1", appId, "peer-1", "Service B", "outbound", "KAFKA", "topic.x")),
+            List.of(new SkippedItem("connection", "peer_inconnu", "Ghost App")),
+            List.of("README.md"));
+    when(connectionSuggestionService.suggestFromGithub(anyString(), any())).thenReturn(response);
 
     mockMvc
         .perform(
-            post("/applications/{id}/modules/suggest-from-github", appId)
+            post("/applications/{id}/connections/suggest-from-github", appId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .content("{}"))
-        .andExpect(status().isConflict());
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.created[0].edgeId").value("edge-1"))
+        .andExpect(jsonPath("$.created[0].direction").value("outbound"))
+        .andExpect(jsonPath("$.created[0].connectionKind").value("KAFKA"))
+        .andExpect(jsonPath("$.skipped[0].reason").value("peer_inconnu"))
+        .andExpect(jsonPath("$.analyzedFiles[0]").value("README.md"));
   }
 }

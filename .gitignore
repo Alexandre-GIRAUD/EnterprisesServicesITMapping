@@ -47,3 +47,5 @@ coverage/
 
 query.cypher
 seed-app-db.cypher
+
+graphify-out/

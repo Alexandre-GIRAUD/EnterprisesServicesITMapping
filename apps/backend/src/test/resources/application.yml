@@ -1,0 +1,10 @@
+# Test profile defaults: Spring AI requires a non-empty api-key at context startup.
+spring:
+  ai:
+    openai:
+      api-key: test-openai-key-not-used-in-tests
+
+app:
+  security:
+    jwt:
+      secret: test-jwt-secret-at-least-32-bytes-long-for-hs256

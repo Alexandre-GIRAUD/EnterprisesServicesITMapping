@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.feature.applications.presentation;
 
+import com.enterprise.itmapping.feature.applications.application.ApplicationConnectionSuggestionService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationRegionLinkService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
@@ -9,6 +10,8 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.Applicatio
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRegionsPatchRequest;
 import com.enterprise.itmapping.feature.businessunit.application.BusinessUnitApplicationLinkService;
+import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubRequest;
+import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
@@ -34,6 +37,7 @@ public class ApplicationController {
   private final ApplicationService applicationService;
   private final ModuleGraphService moduleGraphService;
   private final ModuleSuggestionService moduleSuggestionService;
+  private final ApplicationConnectionSuggestionService connectionSuggestionService;
   private final BusinessUnitApplicationLinkService businessUnitApplicationLinkService;
   private final ApplicationRegionLinkService applicationRegionLinkService;
 
@@ -41,11 +45,13 @@ public class ApplicationController {
       ApplicationService applicationService,
       ModuleGraphService moduleGraphService,
       ModuleSuggestionService moduleSuggestionService,
+      ApplicationConnectionSuggestionService connectionSuggestionService,
       BusinessUnitApplicationLinkService businessUnitApplicationLinkService,
       ApplicationRegionLinkService applicationRegionLinkService) {
     this.applicationService = applicationService;
     this.moduleGraphService = moduleGraphService;
     this.moduleSuggestionService = moduleSuggestionService;
+    this.connectionSuggestionService = connectionSuggestionService;
     this.businessUnitApplicationLinkService = businessUnitApplicationLinkService;
     this.applicationRegionLinkService = applicationRegionLinkService;
   }
@@ -74,6 +80,21 @@ public class ApplicationController {
   ) {
     SuggestModulesFromGithubResponse response =
         moduleSuggestionService.suggestFromGithub(id, body != null ? body : new SuggestModulesFromGithubRequest(null));
+    return ResponseEntity.status(HttpStatus.CREATED).body(response);
+  }
+
+  /**
+   * Infers application-to-application integration connections (outbound + inbound) from the GitHub
+   * repository code and persists them as {@code DEPENDS_ON} edges between {@code Application} nodes.
+   * Idempotent: re-runs skip duplicate edges (see {@link ApplicationConnectionSuggestionService}).
+   */
+  @PostMapping("/{id}/connections/suggest-from-github")
+  public ResponseEntity<SuggestConnectionsFromGithubResponse> suggestConnectionsFromGithub(
+      @PathVariable String id,
+      @RequestBody(required = false) SuggestConnectionsFromGithubRequest body) {
+    SuggestConnectionsFromGithubResponse response =
+        connectionSuggestionService.suggestFromGithub(
+            id, body != null ? body : new SuggestConnectionsFromGithubRequest(null));
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
