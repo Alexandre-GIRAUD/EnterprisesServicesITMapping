@@ -1,6 +1,14 @@
 spring:
   application:
     name: enterprise-it-mapping-backend
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      chat:
+        options:
+          model: ${SPRING_AI_MODEL:gpt-4o-mini}
+          temperature: 0.2
 
   neo4j:
     uri: ${NEO4J_URI:bolt://localhost:7687}
@@ -47,26 +55,14 @@ app:
       token: ${GITHUB_TOKEN:}
       api-base-url: https://api.github.com
       max-repos: 100
-    # OpenAI-compatible chat (server key only; never expose to browser).
+    # Module-discovery agent budgets (model transport is under spring.ai.openai.*).
     llm:
-      api-key: ${OPENAI_API_KEY:}
-      base-url: https://api.openai.com
-      chat-completions-path: /v1/chat/completions
-      model: gpt-4o-mini
-      timeout-ms: 120000
-      max-completion-tokens: 4096
-      max-user-prompt-chars: 120000
-      max-paths-in-prompt: 800
-      max-readme-chars-in-prompt: 8000
-      # Agentic file-reading loop (Pass 1 selection -> read -> Pass 2 analysis).
-      enable-agentic-file-reading: true
-      max-iterations: 3
-      max-files-per-iteration: 10
-      max-files-total: 25
-      max-chars-per-file: 12000
-      max-total-content-chars: 80000
-      # Condensed multi-turn selection chat: cap on history size (excl. system prompt).
-      max-selection-history-chars: 60000
+      module-discovery:
+        max-tool-iterations: 25
+        max-grep-hits: 50
+        max-read-chars-per-file: 12000
+        max-tree-entries: 500
+        clone-timeout-seconds: 120
   sample-data:
     seed: ${SAMPLE_DATA_SEED:true} # set SAMPLE_DATA_SEED=false to disable
     # Neo4j may not accept Bolt immediately (Docker order, cold start, APOC). Retry before giving up.
@@ -87,7 +83,10 @@ app:
 
 # JWT: set JWT_SECRET (>= 32 UTF-8 bytes for HS256). First admin: ADMIN_BOOTSTRAP_USERNAME / ADMIN_BOOTSTRAP_PASSWORD when users table is empty.
 
-# Module suggestion: INFO logs file-selection summary and final result; DEBUG adds per-iteration detail.
+# Module discovery: INFO logs clone + agent summary; DEBUG adds per-tool-call detail (grep/read/list).
 logging:
   level:
     com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService: DEBUG
+    com.enterprise.itmapping.feature.applications.application.ModuleDiscoveryAgent: DEBUG
+    com.enterprise.itmapping.feature.applications.application.ModuleDiscoveryTools: DEBUG
+    com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService: INFO

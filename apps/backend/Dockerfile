@@ -14,6 +14,8 @@ RUN mvn -B -DskipTests package
 # Run stage
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
+# git: required to clone repos for module discovery. ripgrep: fast grep tool used by the agent.
+RUN apk add --no-cache git ripgrep
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
