@@ -4,6 +4,7 @@ import type { ApplicationResponse, GitHubRepoDto } from '@/types/api';
 import {
   createApplication,
   fetchApplications,
+  suggestConnectionsFromGithub,
   suggestModulesFromGithub,
 } from '../api/applicationsApi';
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
@@ -27,6 +28,7 @@ export function GitHubImportPage() {
   const [aiBanner, setAiBanner] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const [lastSuggestApplicationId, setLastSuggestApplicationId] = useState<string | null>(null);
   const [aiBusyRepoId, setAiBusyRepoId] = useState<number | null>(null);
+  const [connBusyRepoId, setConnBusyRepoId] = useState<number | null>(null);
 
   const importedNames = useMemo(
     () => new Set(applications.map((a) => normalizeName(a.name ?? '')).filter(Boolean)),
@@ -165,6 +167,37 @@ export function GitHubImportPage() {
       });
     } finally {
       setAiBusyRepoId(null);
+    }
+  }
+
+  async function handleSuggestConnections(repo: GitHubRepoDto) {
+    const appId = resolveApplicationId(repo);
+    setAiBanner(null);
+    setLastSuggestApplicationId(null);
+    if (!appId || !isGitHubLinkedApplication({ name: repo.fullName })) {
+      setAiBanner({
+        tone: 'err',
+        text: `Neo4j application not found for ${repo.fullName} or repository not detected as GitHub.`,
+      });
+      return;
+    }
+    try {
+      setConnBusyRepoId(repo.id);
+      const res = await suggestConnectionsFromGithub(appId);
+      const outbound = res.created.filter((c) => c.direction === 'outbound').length;
+      const inbound = res.created.length - outbound;
+      setApplications(await fetchApplications());
+      setAiBanner({
+        tone: 'ok',
+        text: `${res.created.length} connexion(s) créée(s) (${outbound} sortante(s), ${inbound} entrante(s)). ${res.skipped.length} ignorée(s).`,
+      });
+    } catch (e) {
+      setAiBanner({
+        tone: 'err',
+        text: e instanceof Error ? e.message : 'AI connection suggestion failed.',
+      });
+    } finally {
+      setConnBusyRepoId(null);
     }
   }
 
@@ -338,6 +371,7 @@ export function GitHubImportPage() {
                           disabled={
                             status !== 'ready' ||
                             aiBusyRepoId !== null ||
+                            connBusyRepoId !== null ||
                             isImporting ||
                             !resolveApplicationId(repo) ||
                             modulesLocked
@@ -355,6 +389,23 @@ export function GitHubImportPage() {
                             : modulesLocked
                               ? 'Modules already in place'
                               : 'Suggest modules (AI)'}
+                        </button>
+                        <button
+                          type="button"
+                          className="github-import-ai-btn"
+                          disabled={
+                            status !== 'ready' ||
+                            aiBusyRepoId !== null ||
+                            connBusyRepoId !== null ||
+                            isImporting ||
+                            !resolveApplicationId(repo)
+                          }
+                          aria-busy={connBusyRepoId === repo.id}
+                          onClick={() => void handleSuggestConnections(repo)}
+                        >
+                          {connBusyRepoId === repo.id
+                            ? 'Analyse des connexions…'
+                            : 'Suggérer les connexions (IA)'}
                         </button>
                       </div>
                     )}

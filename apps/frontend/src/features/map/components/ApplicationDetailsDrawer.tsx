@@ -11,6 +11,7 @@ import {
   fetchApplicationById,
   patchApplicationBusinessUnit,
   patchApplicationRegions,
+  suggestConnectionsFromGithub,
   suggestModulesFromGithub,
   updateApplicationById,
 } from '../api/applicationsApi';
@@ -66,6 +67,9 @@ export function ApplicationDetailsDrawer({
   const [suggestBusy, setSuggestBusy] = useState(false);
   const [suggestErrorMessage, setSuggestErrorMessage] = useState<string | null>(null);
   const [suggestSuccessMessage, setSuggestSuccessMessage] = useState<string | null>(null);
+  const [connBusy, setConnBusy] = useState(false);
+  const [connErrorMessage, setConnErrorMessage] = useState<string | null>(null);
+  const [connSuccessMessage, setConnSuccessMessage] = useState<string | null>(null);
   const [formState, setFormState] = useState({
     name: '',
     description: '',
@@ -85,6 +89,8 @@ export function ApplicationDetailsDrawer({
     setFormErrorMessage(null);
     setSuggestErrorMessage(null);
     setSuggestSuccessMessage(null);
+    setConnErrorMessage(null);
+    setConnSuccessMessage(null);
 
     if (sandboxMode && isSandboxId(application.id)) {
       const local = resolveSandboxApplication?.(application.id);
@@ -163,6 +169,9 @@ export function ApplicationDetailsDrawer({
       setSuggestBusy(false);
       setSuggestErrorMessage(null);
       setSuggestSuccessMessage(null);
+      setConnBusy(false);
+      setConnErrorMessage(null);
+      setConnSuccessMessage(null);
     }
   }, [isOpen]);
 
@@ -307,6 +316,28 @@ export function ApplicationDetailsDrawer({
       );
     } finally {
       setSuggestBusy(false);
+    }
+  }
+
+  async function onSuggestConnectionsFromGithub() {
+    const id = application?.id;
+    if (!id || !details) return;
+    setConnErrorMessage(null);
+    setConnSuccessMessage(null);
+    try {
+      setConnBusy(true);
+      const res = await suggestConnectionsFromGithub(id);
+      const outbound = res.created.filter((c) => c.direction === 'outbound').length;
+      const inbound = res.created.length - outbound;
+      setConnSuccessMessage(
+        `${res.created.length} connexion(s) créée(s) (${outbound} sortante(s), ${inbound} entrante(s)). ${res.skipped.length} ignorée(s).`
+      );
+    } catch (e) {
+      setConnErrorMessage(
+        e instanceof Error ? e.message : 'AI connection suggestion failed.'
+      );
+    } finally {
+      setConnBusy(false);
     }
   }
 
@@ -658,6 +689,38 @@ export function ApplicationDetailsDrawer({
                   : details.hasModuleSubtree
                     ? 'Modules already in place'
                     : 'Suggest modules (AI)'}
+              </span>
+            </button>
+          )}
+        {connErrorMessage && (
+          <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
+            {connErrorMessage}
+          </p>
+        )}
+        {connSuccessMessage && (
+          <p
+            className="graph-drawer-feedback graph-drawer-feedback-success"
+            role="status"
+            aria-live="polite"
+          >
+            {connSuccessMessage}
+          </p>
+        )}
+        {application?.id &&
+          status === 'ready' &&
+          !isEditing &&
+          details &&
+          !sandboxMode &&
+          isGitHubLinkedApplication(details) && (
+            <button
+              type="button"
+              className="graph-drawer-action"
+              disabled={connBusy || suggestBusy || isDeleting}
+              aria-busy={connBusy}
+              onClick={() => void onSuggestConnectionsFromGithub()}
+            >
+              <span className="graph-drawer-action-title">
+                {connBusy ? 'Analyse des connexions…' : 'Suggérer les connexions (IA)'}
               </span>
             </button>
           )}

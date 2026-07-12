@@ -63,6 +63,15 @@ app:
         max-read-chars-per-file: 12000
         max-tree-entries: 500
         clone-timeout-seconds: 120
+      # Connection-discovery agent budgets (application-to-application DEPENDS_ON edges).
+      connection-discovery:
+        max-tool-iterations: 35
+        max-grep-hits: 50
+        max-read-chars-per-file: 12000
+        max-tree-entries: 500
+        clone-timeout-seconds: 120
+        skip-low-confidence: false
+        max-catalog-apps-in-prompt: 500
   sample-data:
     seed: ${SAMPLE_DATA_SEED:true} # set SAMPLE_DATA_SEED=false to disable
     # Neo4j may not accept Bolt immediately (Docker order, cold start, APOC). Retry before giving up.
@@ -89,4 +98,7 @@ logging:
     com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService: DEBUG
     com.enterprise.itmapping.feature.applications.application.ModuleDiscoveryAgent: DEBUG
     com.enterprise.itmapping.feature.applications.application.ModuleDiscoveryTools: DEBUG
+    com.enterprise.itmapping.feature.applications.application.ApplicationConnectionSuggestionService: DEBUG
+    com.enterprise.itmapping.feature.applications.application.ConnectionDiscoveryAgent: DEBUG
+    com.enterprise.itmapping.feature.applications.application.ApplicationConnectionEdgeWriter: DEBUG
     com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService: INFO

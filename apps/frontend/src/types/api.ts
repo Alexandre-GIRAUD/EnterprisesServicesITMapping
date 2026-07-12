@@ -166,6 +166,37 @@ export interface SuggestModulesFromGithubResponse {
   analyzedFiles?: string[];
 }
 
+/** {@code POST /api/applications/{id}/connections/suggest-from-github} */
+export interface SuggestConnectionsFromGithubRequest {
+  fullName?: string | null;
+}
+
+/** A materialized DEPENDS_ON edge suggested by the AI connection agent. */
+export interface SuggestConnectionsCreatedItem {
+  edgeId: string;
+  sourceApplicationId: string;
+  targetApplicationId: string;
+  peerName: string;
+  /** Analyzed-app perspective: 'outbound' | 'inbound'. */
+  direction: string;
+  /** Connection kind stored as Neo4j r.data (API, KAFKA, MQ, NAS, …). */
+  connectionKind: string;
+  channel: string;
+}
+
+export interface SuggestConnectionsSkippedItem {
+  scope: string;
+  reason: string;
+  detail: string;
+}
+
+export interface SuggestConnectionsFromGithubResponse {
+  created: SuggestConnectionsCreatedItem[];
+  skipped: SuggestConnectionsSkippedItem[];
+  /** Files whose content was read during the agentic discovery loop (traceability). */
+  analyzedFiles?: string[];
+}
+
 /** Canonical graph filter set (year + dimension id lists). */
 export type GraphFilters = {
   year: number | null;

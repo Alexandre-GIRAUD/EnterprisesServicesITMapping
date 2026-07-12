@@ -39,6 +39,17 @@ export const DATA_TYPE_STYLES: Record<string, EdgeTypeStyle> = {
   'clearing data': { legendLabel: 'Clearing data', color: '#d97706' },
   PV: { legendLabel: 'PV', color: '#7c3aed' },
   'trade economics': { legendLabel: 'Trade economics', color: '#db2777' },
+  // AI connection kinds (r.data set by the connection-discovery agent).
+  API: { legendLabel: 'API', color: '#2563eb' },
+  KAFKA: { legendLabel: 'Kafka', color: '#7c3aed' },
+  MQ: { legendLabel: 'Message queue', color: '#db2777' },
+  NAS: { legendLabel: 'NAS / file share', color: '#0891b2' },
+  FILE_SHARE: { legendLabel: 'File share', color: '#0891b2' },
+  DATABASE: { legendLabel: 'Database', color: '#059669' },
+  GRPC: { legendLabel: 'gRPC', color: '#d97706' },
+  SOAP: { legendLabel: 'SOAP', color: '#9333ea' },
+  SFTP: { legendLabel: 'SFTP', color: '#65a30d' },
+  OTHER: { legendLabel: 'Other integration', color: '#64748b' },
 };
 
 export const KNOWN_DATA_TYPE_KEYS = Object.keys(DATA_TYPE_STYLES);

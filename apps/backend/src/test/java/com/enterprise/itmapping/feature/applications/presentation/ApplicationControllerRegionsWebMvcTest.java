@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.enterprise.itmapping.feature.applications.application.ApplicationConnectionSuggestionService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationRegionLinkService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
@@ -35,6 +36,8 @@ class ApplicationControllerRegionsWebMvcTest {
   @MockBean ModuleGraphService moduleGraphService;
 
   @MockBean ModuleSuggestionService moduleSuggestionService;
+
+  @MockBean ApplicationConnectionSuggestionService connectionSuggestionService;
 
   @MockBean BusinessUnitApplicationLinkService businessUnitApplicationLinkService;
 
