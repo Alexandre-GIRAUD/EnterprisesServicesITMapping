@@ -27,6 +27,7 @@ class AiApplicationConnectionPayloadParseTest {
               "confidence": "High",
               "business_rationale_one_liner": "Appels REST",
               "evidence_hint": "src/client/OrdersFeignClient.java",
+              "edge_attributes": { "product_line": " ALPHA " },
               "unknown_field": "ignored"
             },
             {
@@ -53,6 +54,7 @@ class AiApplicationConnectionPayloadParseTest {
     assertThat(first.getConnectionKind()).isEqualTo("API");
     assertThat(first.getChannel()).isEqualTo("https://orders.internal/api/v1");
     assertThat(first.getConfidence()).isEqualTo("high");
+    assertThat(first.getEdgeAttributes()).containsEntry("product_line", "ALPHA");
 
     AiConnectionEntry second = payload.getConnections().get(1);
     assertThat(second.getDirection()).isEqualTo("inbound");

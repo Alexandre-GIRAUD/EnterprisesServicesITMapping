@@ -47,9 +47,16 @@ public class ConnectionDiscoveryAgent {
    *
    * @param catalogText compact catalogue of known applications ("name | id" per line), excluding the
    *     analyzed application itself.
+   * @param dataModelPromptSection dynamic "## Active Data Model" section; blank when no fields are
+   *     configured (topology-only mode).
    */
   public DiscoveryResult discover(
-      Path repoRoot, String owner, String repo, String sourceName, String catalogText) {
+      Path repoRoot,
+      String owner,
+      String repo,
+      String sourceName,
+      String catalogText,
+      String dataModelPromptSection) {
     ModuleDiscoveryTools tools =
         new ModuleDiscoveryTools(
             repoRoot,
@@ -58,28 +65,7 @@ public class ConnectionDiscoveryAgent {
             properties.maxTreeEntries());
 
     String userMessage =
-        """
-        Analyze the repository cloned locally for "%s/%s" (application "%s").
-
-        Find OUTBOUND and INBOUND integration connections between this application and the
-        catalogue below. Match peer_application_name EXACTLY to one catalogue name; never invent
-        applications outside the catalogue.
-
-        Explore with your tools before concluding:
-        - Start with readReadme() and listTree("") to understand the layout.
-        - grep for integration patterns (kafka, rabbit, amqp, RestTemplate, WebClient,
-          @FeignClient, @RestController, jdbc:, http(s)://, smb://, nfs, sftp) and for the
-          catalogue application names.
-        - readFile the most relevant configs/classes before concluding.
-        Be efficient: aim for at most %d tool calls in total.
-
-        Known IT applications (name | id):
-        %s
-
-        Then return ONLY the final JSON following the required schema exactly.
-        """
-            .formatted(
-                owner, repo, sourceName, properties.maxToolIterations(), catalogText);
+        buildUserMessage(owner, repo, sourceName, catalogText, dataModelPromptSection);
 
     log.info("Connection discovery agent start repo={}/{} app={}", owner, repo, sourceName);
     AiApplicationConnectionPayload payload;
@@ -112,6 +98,48 @@ public class ConnectionDiscoveryAgent {
         payload.getConnections().size(),
         analyzedFiles.size());
     return new DiscoveryResult(payload, analyzedFiles);
+  }
+
+  private String buildUserMessage(
+      String owner,
+      String repo,
+      String sourceName,
+      String catalogText,
+      String dataModelPromptSection) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(
+        """
+        Analyze the repository cloned locally for "%s/%s" (application "%s").
+
+        Find OUTBOUND and INBOUND integration connections between this application and the
+        catalogue below. Match peer_application_name EXACTLY to one catalogue name; never invent
+        applications outside the catalogue.
+
+        Explore with your tools before concluding:
+        - Start with readReadme() and listTree("") to understand the layout.
+        - grep for integration patterns (kafka, rabbit, amqp, RestTemplate, WebClient,
+          @FeignClient, @RestController, jdbc:, http(s)://, smb://, nfs, sftp) and for the
+          catalogue application names.
+        - readFile the most relevant configs/classes before concluding.
+        Be efficient: aim for at most %d tool calls in total.
+
+        Known IT applications (name | id):
+        %s
+        """
+            .formatted(owner, repo, sourceName, properties.maxToolIterations(), catalogText));
+
+    if (dataModelPromptSection != null && !dataModelPromptSection.isBlank()) {
+      sb.append('\n').append(dataModelPromptSection.trim()).append('\n');
+    } else {
+      sb.append(
+          """
+
+          (No Data Model configured — discover integration topology only; do not populate edge_attributes.)
+          """);
+    }
+
+    sb.append("\nThen return ONLY the final JSON following the required schema exactly.");
+    return sb.toString();
   }
 
   private static String loadPrompt(ResourceLoader resourceLoader) {

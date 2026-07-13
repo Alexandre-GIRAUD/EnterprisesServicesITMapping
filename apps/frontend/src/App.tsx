@@ -7,6 +7,7 @@ import { AuthProvider } from '@/features/auth/context/AuthContext';
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { AdminUsersPage } from '@/features/auth/pages/AdminUsersPage';
+import { DataModelPage } from '@/features/datamodel/pages/DataModelPage';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="/map" element={<MapPage />} />
             <Route path="/map/import-github" element={<GitHubImportPage />} />
             <Route path="/map/apps/:applicationId" element={<ApplicationModuleMapPage />} />
+            <Route path="/data-model" element={<DataModelPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="*" element={<Navigate to="/map" replace />} />
           </Route>

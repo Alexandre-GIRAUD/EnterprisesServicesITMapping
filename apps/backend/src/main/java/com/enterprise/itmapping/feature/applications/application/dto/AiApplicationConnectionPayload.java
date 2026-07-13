@@ -3,8 +3,10 @@ package com.enterprise.itmapping.feature.applications.application.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * JSON returned by the connection-discovery LLM agent (strict-ish contract). Describes the
@@ -72,6 +74,9 @@ public class AiApplicationConnectionPayload {
     @JsonProperty("evidence_hint")
     private String evidenceHint;
 
+    @JsonProperty("edge_attributes")
+    private Map<String, String> edgeAttributes = new LinkedHashMap<>();
+
     public String getPeerApplicationName() {
       return peerApplicationName != null ? peerApplicationName.trim() : "";
     }
@@ -131,6 +136,26 @@ public class AiApplicationConnectionPayload {
 
     public void setEvidenceHint(String evidenceHint) {
       this.evidenceHint = evidenceHint;
+    }
+
+    /** Trimmed keys and values; never null. */
+    public Map<String, String> getEdgeAttributes() {
+      if (edgeAttributes == null || edgeAttributes.isEmpty()) {
+        return Map.of();
+      }
+      Map<String, String> out = new LinkedHashMap<>();
+      for (Map.Entry<String, String> entry : edgeAttributes.entrySet()) {
+        String key = entry.getKey() != null ? entry.getKey().trim() : "";
+        String value = entry.getValue() != null ? entry.getValue().trim() : "";
+        if (!key.isEmpty() && !value.isEmpty()) {
+          out.put(key, value);
+        }
+      }
+      return out;
+    }
+
+    public void setEdgeAttributes(Map<String, String> edgeAttributes) {
+      this.edgeAttributes = edgeAttributes != null ? edgeAttributes : new LinkedHashMap<>();
     }
 
     @Override

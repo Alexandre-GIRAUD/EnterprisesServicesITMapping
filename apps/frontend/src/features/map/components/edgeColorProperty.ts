@@ -13,12 +13,13 @@ export const RELATION_TYPE_COLOR_KEY = '__relation__';
 export const EDGE_COLOR_PROPERTY_STORAGE_KEY = 'flowra.graph.edgeColorProperty';
 
 /** Preferred display order for known DEPENDS_ON properties (seed-app-db.cypher). */
-const KNOWN_PROPERTY_ORDER = ['data', 'asset_class', 'frequency', 'creation_date'] as const;
+const KNOWN_PROPERTY_ORDER = ['data', 'connection_kind', 'asset_class', 'frequency', 'creation_date'] as const;
 
 const INTERNAL_PROPERTY_KEYS = new Set(['validFrom', 'validTo', 'id']);
 
 export const EDGE_COLOR_PROPERTY_LABELS: Record<string, string> = {
   data: 'Exchanged data',
+  connection_kind: 'Integration kind',
   asset_class: 'Asset class',
   frequency: 'Frequency',
   creation_date: 'Creation year',
@@ -107,6 +108,9 @@ export function collectLegendColorValues(
   if (propertyKey === 'data') {
     return sortDataTypesForLegend(values);
   }
+  if (propertyKey === 'connection_kind') {
+    return sortDataTypesForLegend(values);
+  }
   if (propertyKey === RELATION_TYPE_COLOR_KEY) {
     const order = Object.keys(EDGE_TYPE_STYLES) as EdgeTypeKey[];
     const present = new Set(values);
@@ -118,7 +122,7 @@ export function collectLegendColorValues(
 }
 
 export function legendLabelForColorValue(propertyKey: string, value: string): string {
-  if (propertyKey === 'data') return legendLabelForData(value);
+  if (propertyKey === 'data' || propertyKey === 'connection_kind') return legendLabelForData(value);
   if (propertyKey === RELATION_TYPE_COLOR_KEY) {
     return (EDGE_TYPE_STYLES as Record<string, { legendLabel: string } | undefined>)[value]
       ?.legendLabel ?? value;

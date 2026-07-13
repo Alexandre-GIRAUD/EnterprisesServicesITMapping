@@ -3765,3 +3765,192 @@ body {
   letter-spacing: 0.04em;
 }
 
+.data-model-page {
+  max-width: 880px;
+  padding: 0 0 2rem;
+}
+
+.data-model-header h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  color: #0f172a;
+}
+
+.data-model-lead {
+  margin: 0 0 1rem;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.data-model-meta {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.data-model-banner {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.92rem;
+}
+
+.data-model-readonly {
+  margin: 0 0 1rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.data-model-form {
+  margin-bottom: 1.5rem;
+}
+
+.data-model-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.data-model-field-card {
+  padding: 1.1rem 1.25rem;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 6%);
+}
+
+.data-model-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .data-model-field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.data-model-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.data-model-input,
+.data-model-textarea {
+  font: inherit;
+  font-weight: 400;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.data-model-textarea {
+  resize: vertical;
+  min-height: 3rem;
+}
+
+.data-model-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.data-model-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.data-model-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.data-model-primary-btn,
+.data-model-secondary-btn,
+.data-model-remove-btn {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 0.5rem 0.9rem;
+}
+
+.data-model-primary-btn {
+  border: 0;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+}
+
+.data-model-primary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.data-model-secondary-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+}
+
+.data-model-remove-btn {
+  border: 0;
+  background: transparent;
+  color: #dc2626;
+  padding-left: 0;
+}
+
+.data-model-panel {
+  padding: 1.25rem 1.35rem;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 6%);
+}
+
+.data-model-panel h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  color: #334155;
+}
+
+.data-model-preview {
+  margin: 0.75rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.data-model-error {
+  color: #dc2626;
+  font-size: 0.9rem;
+}
+
+.data-model-success {
+  color: #059669;
+  font-size: 0.9rem;
+}
+
