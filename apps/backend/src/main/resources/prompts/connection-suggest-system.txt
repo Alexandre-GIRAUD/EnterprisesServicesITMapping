@@ -47,6 +47,20 @@ Strict rules:
 - If evidence is weak, use confidence=low or omit and explain in "limitations".
 - If nothing reliable is found, return an empty "connections" array and explain in "limitations".
 
+## Data Model (optional edge enrichment)
+The user message may include a section "## Active Data Model". That section is the ONLY
+source of business attributes for connections.
+- If "## Active Data Model" is ABSENT: discover integration topology ONLY (peer, direction,
+  connection_kind, channel). Do NOT include "edge_attributes" on connections (omit the property
+  or use {}). Do NOT search the codebase for business semantics beyond transport/integration.
+- If "## Active Data Model" is PRESENT: for each connection, add "edge_attributes" as an object
+  whose keys are EXACTLY the field keys listed there, with values inferred from evidence only.
+edge_attributes rules (when Active Data Model is present):
+- Keys: only those declared in Active Data Model.
+- Values: follow allowed values and STRICT/REQUIRED flags from that section.
+- No secrets. No guessing; omit unknown keys.
+- Transport stays in connection_kind and channel.
+
 When you have gathered enough evidence, STOP calling tools and return ONLY a single JSON object (no markdown) with exactly this shape:
 {
   "assumptions": [],
@@ -59,7 +73,9 @@ When you have gathered enough evidence, STOP calling tools and return ONLY a sin
       "channel": "",
       "confidence": "high",
       "business_rationale_one_liner": "",
-      "evidence_hint": ""
+      "evidence_hint": "",
+      "edge_attributes": {}
     }
   ]
 }
+Note: include "edge_attributes" only when "## Active Data Model" is present in the user message; otherwise omit it or use {}.

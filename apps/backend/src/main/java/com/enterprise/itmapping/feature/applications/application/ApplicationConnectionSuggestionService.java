@@ -8,6 +8,11 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestCon
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse.CreatedConnectionItem;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse.SkippedItem;
+import com.enterprise.itmapping.feature.datamodel.application.DataModelAttributeResolver;
+import com.enterprise.itmapping.feature.datamodel.application.DataModelAttributeResolver.ValidationResult;
+import com.enterprise.itmapping.feature.datamodel.application.DataModelPromptBuilder;
+import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.integrations.github.GithubTreePathFilter;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService;
 import com.enterprise.itmapping.feature.integrations.llm.ConnectionDiscoveryProperties;
@@ -65,6 +70,9 @@ public class ApplicationConnectionSuggestionService {
   private final ConnectionDiscoveryProperties properties;
   private final ApplicationCatalogQuery catalogQuery;
   private final ApplicationConnectionEdgeWriter edgeWriter;
+  private final DataModelService dataModelService;
+  private final DataModelPromptBuilder dataModelPromptBuilder;
+  private final DataModelAttributeResolver dataModelAttributeResolver;
 
   public ApplicationConnectionSuggestionService(
       ApplicationRepository applicationRepository,
@@ -72,13 +80,19 @@ public class ApplicationConnectionSuggestionService {
       ConnectionDiscoveryAgent connectionDiscoveryAgent,
       ConnectionDiscoveryProperties properties,
       ApplicationCatalogQuery catalogQuery,
-      ApplicationConnectionEdgeWriter edgeWriter) {
+      ApplicationConnectionEdgeWriter edgeWriter,
+      DataModelService dataModelService,
+      DataModelPromptBuilder dataModelPromptBuilder,
+      DataModelAttributeResolver dataModelAttributeResolver) {
     this.applicationRepository = applicationRepository;
     this.cloneService = cloneService;
     this.connectionDiscoveryAgent = connectionDiscoveryAgent;
     this.properties = properties;
     this.catalogQuery = catalogQuery;
     this.edgeWriter = edgeWriter;
+    this.dataModelService = dataModelService;
+    this.dataModelPromptBuilder = dataModelPromptBuilder;
+    this.dataModelAttributeResolver = dataModelAttributeResolver;
   }
 
   public SuggestConnectionsFromGithubResponse suggestFromGithub(
@@ -117,31 +131,52 @@ public class ApplicationConnectionSuggestionService {
 
     String sourceName = StringUtils.hasText(appRow.getName()) ? appRow.getName() : applicationId;
 
+    DataModelConfig dataModelConfig = dataModelService.loadConfig();
+    String dataModelPromptSection =
+        dataModelConfig.isEmpty() ? "" : dataModelPromptBuilder.buildPromptSection(dataModelConfig);
+    if (!dataModelPromptSection.isBlank()) {
+      String preview =
+          dataModelPromptSection.length() > 400
+              ? dataModelPromptSection.substring(0, 400) + "…"
+              : dataModelPromptSection;
+      log.debug("Data Model prompt section: {}", preview);
+    }
+
     log.info(
-        "Connection suggestion start applicationId={} repo={}/{} catalogSize={}",
+        "Connection suggestion start applicationId={} repo={}/{} catalogSize={} dataModelFields={}",
         applicationId,
         owner,
         repo,
-        catalog.entries().size());
+        catalog.entries().size(),
+        dataModelConfig.fields().size());
 
     Path workspace = cloneService.clone(owner, repo, properties.cloneTimeoutSeconds());
     try {
       DiscoveryResult discovery =
           connectionDiscoveryAgent.discover(
-              workspace, owner, repo, sourceName, catalog.promptText(properties.maxCatalogAppsInPrompt()));
-      return persist(applicationId, catalog, discovery);
+              workspace,
+              owner,
+              repo,
+              sourceName,
+              catalog.promptText(properties.maxCatalogAppsInPrompt()),
+              dataModelPromptSection);
+      return persist(applicationId, catalog, discovery, dataModelConfig);
     } finally {
       cloneService.deleteQuietly(workspace);
     }
   }
 
   private SuggestConnectionsFromGithubResponse persist(
-      String applicationId, Catalog catalog, DiscoveryResult discovery) {
+      String applicationId,
+      Catalog catalog,
+      DiscoveryResult discovery,
+      DataModelConfig dataModelConfig) {
 
     List<CreatedConnectionItem> created = new ArrayList<>();
     List<SkippedItem> skipped = new ArrayList<>();
     int outbound = 0;
     int inbound = 0;
+    Set<String> allowedDataModelKeys = dataModelAttributeResolver.allowedKeys(dataModelConfig);
 
     for (AiConnectionEntry entry : discovery.payload().getConnections()) {
       String peerName = entry.getPeerApplicationName();
@@ -184,6 +219,31 @@ public class ApplicationConnectionSuggestionService {
         continue;
       }
 
+      Map<String, String> validatedAttributes = Map.of();
+      if (!dataModelConfig.isEmpty()) {
+        ValidationResult validation =
+            dataModelAttributeResolver.validate(dataModelConfig, entry.getEdgeAttributes());
+        if (!validation.accepted()) {
+          skipped.add(
+              new SkippedItem(
+                  "connection", validation.skipReason(), peerName + ": " + validation.skipDetail()));
+          continue;
+        }
+        validatedAttributes = validation.attributes();
+        for (Map.Entry<String, String> attr : validatedAttributes.entrySet()) {
+          log.debug(
+              "Data Model attribute accepted peer={} key={} value={}",
+              peerName,
+              attr.getKey(),
+              attr.getValue());
+        }
+      } else if (!entry.getEdgeAttributes().isEmpty()) {
+        log.debug(
+            "Ignoring edge_attributes from LLM (no Data Model configured) peer={} keys={}",
+            peerName,
+            entry.getEdgeAttributes().keySet());
+      }
+
       String sourceId;
       String targetId;
       if ("outbound".equals(direction)) {
@@ -202,7 +262,9 @@ public class ApplicationConnectionSuggestionService {
               entry.getChannel(),
               direction,
               confidence,
-              applicationId);
+              applicationId,
+              validatedAttributes,
+              allowedDataModelKeys);
 
       switch (result.outcome()) {
         case DUPLICATE ->

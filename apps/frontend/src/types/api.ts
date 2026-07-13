@@ -215,3 +215,24 @@ export type GraphSnapshotDto = {
   createdAt: string;
   updatedAt: string;
 };
+
+/** Workspace Data Model field (dynamic edge enrichment). */
+export type DataModelFieldDto = {
+  key: string;
+  label: string;
+  description?: string;
+  promptHint?: string;
+  allowedValues?: string[];
+  enforceEnum: boolean;
+  required: boolean;
+};
+
+/** {@code GET/PUT /api/data-model} */
+export type DataModelResponse = {
+  fields: DataModelFieldDto[];
+  updatedAt: string;
+};
+
+export type DataModelPutRequest = {
+  fields: DataModelFieldDto[];
+};

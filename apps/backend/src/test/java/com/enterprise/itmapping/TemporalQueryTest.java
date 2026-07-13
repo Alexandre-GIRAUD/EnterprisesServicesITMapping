@@ -17,6 +17,7 @@ import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.Neo4jContainer;
+import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
@@ -29,11 +30,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TemporalQueryTest {
 
   @Container
+  static PostgreSQLContainer<?> postgres =
+      new PostgreSQLContainer<>(DockerImageName.parse("postgres:16-alpine"))
+          .withDatabaseName("itmapping")
+          .withUsername("itmapping")
+          .withPassword("itmapping");
+
+  @Container
   static Neo4jContainer<?> neo4j = new Neo4jContainer<>(DockerImageName.parse("neo4j:5-community"))
       .withAdminPassword("password");
 
   @DynamicPropertySource
-  static void neo4jProperties(DynamicPropertyRegistry registry) {
+  static void containerProperties(DynamicPropertyRegistry registry) {
+    registry.add("spring.datasource.url", postgres::getJdbcUrl);
+    registry.add("spring.datasource.username", postgres::getUsername);
+    registry.add("spring.datasource.password", postgres::getPassword);
     registry.add("spring.neo4j.uri", neo4j::getBoltUrl);
     registry.add("spring.neo4j.authentication.username", () -> "neo4j");
     registry.add("spring.neo4j.authentication.password", neo4j::getAdminPassword);

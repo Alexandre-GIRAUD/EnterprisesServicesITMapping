@@ -26,6 +26,9 @@ export function Layout() {
                 >
                   Self Service
                 </Link>
+                <Link to="/data-model" className="layout-header-link">
+                  Data Model
+                </Link>
                 <Link to="/map/import-github" className="layout-header-link">
                   Import repos
                 </Link>

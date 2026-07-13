@@ -104,6 +104,9 @@ export function edgeColorForProperty(
   if (propertyKey === 'data' && DATA_TYPE_STYLES[key]) {
     return DATA_TYPE_STYLES[key].color;
   }
+  if (propertyKey === 'connection_kind' && DATA_TYPE_STYLES[key]) {
+    return DATA_TYPE_STYLES[key].color;
+  }
   return hashColor(`${propertyKey}:${key}`);
 }
 
