@@ -344,6 +344,15 @@ export function GraphCanvas() {
     [clearPendingNodeClick]
   );
 
+  useEffect(() => {
+    const state = location.state as MapLocationState | null;
+    const appId = state?.openModuleGraphId?.trim();
+    if (!appId) return;
+
+    openModuleGraphById(appId, state?.openModuleGraphLabel?.trim() || undefined);
+    navigate('.', { replace: true, state: {} });
+  }, [location.state, navigate, openModuleGraphById]);
+
   const openModuleGraph = useCallback(
     (node: AppNode) => {
       if (node.data.nodeType !== 'Application') return;
