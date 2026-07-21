@@ -46,6 +46,7 @@ import { WorkspaceDrawer } from './WorkspaceDrawer';
 import { FilterDrawer } from './FilterDrawer';
 import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
 import { ApplicationsTablePanel } from './ApplicationsTablePanel';
+import { FeedsTablePanel } from './FeedsTablePanel';
 import { snapDraggedNodeForStraighterEdges } from './alignNodes';
 import { GraphLegend } from './GraphLegend';
 import { AppGraphNode } from './AppGraphNode';
@@ -176,6 +177,7 @@ export function GraphCanvas() {
     status,
     graphNodes,
     setGraphNodes,
+    graphEdges,
     setGraphEdges,
     colorPropertyKey,
     handleColorPropertyChange,
@@ -792,15 +794,36 @@ export function GraphCanvas() {
               </ReactFlow>
             </div>
             ) : (
-              <ApplicationsTablePanel
-                isOpen
-                variant="main"
-                status={status}
-                nodes={graphNodes}
-                applicationsCatalog={applications}
-                errorMessage={status === 'error' ? message : null}
-                onRowClick={openApplicationDetails}
-              />
+              <div className="graph-tables-view">
+                <section className="graph-table-section" aria-labelledby="graph-apps-table-heading">
+                  <h3 id="graph-apps-table-heading" className="graph-table-section-title">
+                    Applications
+                  </h3>
+                  <ApplicationsTablePanel
+                    isOpen
+                    variant="main"
+                    status={status}
+                    nodes={graphNodes}
+                    applicationsCatalog={applications}
+                    errorMessage={status === 'error' ? message : null}
+                    onRowClick={openApplicationDetails}
+                  />
+                </section>
+                <section className="graph-table-section" aria-labelledby="graph-feeds-table-heading">
+                  <h3 id="graph-feeds-table-heading" className="graph-table-section-title">
+                    Feeds
+                  </h3>
+                  <FeedsTablePanel
+                    isOpen
+                    variant="main"
+                    status={status}
+                    edges={graphEdges}
+                    nodes={graphNodes}
+                    errorMessage={status === 'error' ? message : null}
+                    onRowClick={openApplicationDetails}
+                  />
+                </section>
+              </div>
             )}
 
             <SaveSnapshotDialog
