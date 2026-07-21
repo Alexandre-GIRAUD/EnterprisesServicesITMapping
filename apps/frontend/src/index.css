@@ -955,7 +955,7 @@ body {
   --ss-accent-shadow-strong: rgb(34 197 94 / 25%);
 }
 
-/* Self Service accent theming (Explorer / Sandbox / My views via mode class) */
+/* Information System Studio accent theming (Production View / Sandbox / My views via mode class) */
 .map-graph-panel .graph-display-toggle-btn.is-active {
   color: var(--ss-accent-text);
   box-shadow: 0 2px 8px var(--ss-accent-shadow);
@@ -1191,7 +1191,7 @@ body {
   color: #b91c1c;
 }
 
-/* ===== Self Service side burger menu ===== */
+/* ===== Information System Studio side burger menu ===== */
 .self-service-burger {
   flex-shrink: 0;
   display: inline-flex;

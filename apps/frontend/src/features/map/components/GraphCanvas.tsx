@@ -223,7 +223,7 @@ export function GraphCanvas() {
     } else if (state.graphMode === 'sandbox') {
       mode.setGraphMode('sandbox');
       mode.setSandboxDirty(false);
-      setMessage('Impact Sandbox — customize your graph, no changes saved.');
+      setMessage('Sandbox — customize your graph, no changes saved.');
       setWorkspacePanelOpen(true);
     } else if (state.graphMode === 'views') {
       mode.setGraphMode('views');
@@ -564,8 +564,8 @@ export function GraphCanvas() {
   const activeViewTitle = useMemo(() => {
     if (moduleGraphApp) return `Modules — ${moduleGraphApp.label}`;
     if (isViewsMode) return 'My views';
-    if (isSandbox) return 'Impact Sandbox';
-    return 'Information System Explorer';
+    if (isSandbox) return 'Sandbox';
+    return 'Production View';
   }, [moduleGraphApp, isViewsMode, isSandbox]);
 
   const tabDescription = useMemo(() => {
