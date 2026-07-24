@@ -30,6 +30,12 @@ export type OrientedEdgeData = {
   colorValue?: string | null;
   /** Colorable relationship properties from the API. */
   properties?: Record<string, string>;
+  /** True for collapse shortcuts that bridge one or more hidden applications. */
+  indirect?: boolean;
+  /** Application ids restored when the expand control on this edge is clicked. */
+  hiddenNodeIds?: string[];
+  /** Expand hidden applications represented by this indirect edge. */
+  onExpand?: () => void;
   bendPoints?: Point[];
   routeStart?: Point;
   routeEnd?: Point;
@@ -541,7 +547,8 @@ export function OrientedEdge({
   const sourceColor = data?.sourceColor ?? '#64748b';
   const targetColor = data?.targetColor ?? '#64748b';
   const gradientId  = `oriented-edge-gradient-${id}`;
-  const showLabel   = Boolean(label) && zoom >= ZOOM_THRESHOLDS.secondaryDetail;
+  const isIndirect  = Boolean(data?.indirect);
+  const showLabel   = !isIndirect && Boolean(label) && zoom >= ZOOM_THRESHOLDS.secondaryDetail;
 
   return (
     <>
@@ -566,9 +573,30 @@ export function OrientedEdge({
           stroke: `url(#${gradientId})`,
           strokeWidth: 1.75,
           opacity: 0.95,
-          ...(data?.dashed ? { strokeDasharray: '6 4' } : {}),
+          ...(data?.dashed || isIndirect ? { strokeDasharray: '6 4' } : {}),
         }}
       />
+      {isIndirect && (
+        <EdgeLabelRenderer>
+          <button
+            type="button"
+            className="oriented-edge-expand nodrag nopan"
+            aria-label="Show hidden applications"
+            title="Show hidden applications"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              color: sourceColor,
+              borderColor: `${sourceColor}66`,
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              data?.onExpand?.();
+            }}
+          >
+            +
+          </button>
+        </EdgeLabelRenderer>
+      )}
       {showLabel && (
         <EdgeLabelRenderer>
           <div

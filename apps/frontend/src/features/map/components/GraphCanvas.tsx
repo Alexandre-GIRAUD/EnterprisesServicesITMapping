@@ -59,6 +59,7 @@ import { fitGraphView } from './fitGraphView';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
+import { layoutCollapsedAppGraph } from './layoutCollapsedAppGraph';
 
 type SelectedApplication = {
   id: string;
@@ -100,6 +101,17 @@ export function GraphCanvas() {
   const [displayMode, setDisplayMode] = useState<GraphDisplayMode>('graph');
   const [moduleGraphApp, setModuleGraphApp] = useState<{ id: string; label: string } | null>(null);
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
+  /** Local-only collapse set; tables keep using the full graph DTOs. */
+  const hiddenNodeIdsRef = useRef<Set<string>>(new Set());
+  const collapseGenerationRef = useRef(0);
+  const skipCollapseResetRef = useRef(true);
+  const collapseHandlersRef = useRef<{
+    hideNode: (nodeId: string) => void;
+    expandHidden: (ids: string[]) => void;
+  }>({
+    hideNode: () => undefined,
+    expandHidden: () => undefined,
+  });
 
   const setWorkspacePanelOpen = useCallback((value: SetStateAction<boolean>) => {
     if (typeof value === 'function') {
@@ -243,6 +255,74 @@ export function GraphCanvas() {
   const nodeTypes = useMemo<NodeTypes>(() => ({ app: AppGraphNode }), []);
   const edgeTypes = useMemo<EdgeTypes>(() => ({ oriented: OrientedEdge }), []);
 
+  const relayoutCollapsed = useCallback(
+    async (nextHidden: ReadonlySet<string>) => {
+      if (status !== 'ready' || graphNodes.length === 0) return;
+      const gen = ++collapseGenerationRef.current;
+      const rect = containerRef.current?.getBoundingClientRect();
+      const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
+      const laid = await layoutCollapsedAppGraph({
+        graphNodes,
+        graphEdges,
+        hiddenNodeIds: nextHidden,
+        colorPropertyKey,
+        aspectRatio,
+        handlers: {
+          onHideNode: (id) => collapseHandlersRef.current.hideNode(id),
+          onExpandHidden: (ids) => collapseHandlersRef.current.expandHidden(ids),
+        },
+      });
+      if (gen !== collapseGenerationRef.current) return;
+      setNodes(laid.nodes);
+      setEdges(laid.edges);
+    },
+    [status, graphNodes, graphEdges, colorPropertyKey, setNodes, setEdges]
+  );
+
+  const hideNode = useCallback(
+    (nodeId: string) => {
+      if (hiddenNodeIdsRef.current.has(nodeId)) return;
+      const next = new Set(hiddenNodeIdsRef.current);
+      next.add(nodeId);
+      hiddenNodeIdsRef.current = next;
+      setHoveredId((prev) => (prev === nodeId ? null : prev));
+      setPinnedId((prev) => (prev === nodeId ? null : prev));
+      void relayoutCollapsed(next);
+    },
+    [relayoutCollapsed]
+  );
+
+  const expandHidden = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      const next = new Set(hiddenNodeIdsRef.current);
+      let changed = false;
+      for (const id of ids) {
+        if (next.delete(id)) changed = true;
+      }
+      if (!changed) return;
+      hiddenNodeIdsRef.current = next;
+      void relayoutCollapsed(next);
+    },
+    [relayoutCollapsed]
+  );
+
+  collapseHandlersRef.current = { hideNode, expandHidden };
+
+  // Reset collapse on mode change / graph reload (UI-only; tables stay full).
+  useEffect(() => {
+    if (skipCollapseResetRef.current) {
+      skipCollapseResetRef.current = false;
+      return;
+    }
+    collapseGenerationRef.current += 1;
+    const hadHidden = hiddenNodeIdsRef.current.size > 0;
+    hiddenNodeIdsRef.current = new Set();
+    if (hadHidden) {
+      void relayoutCollapsed(new Set());
+    }
+  }, [graphMode, graphReloadNonce, relayoutCollapsed]);
+
   // Focus neighborhood for hover/selection dimming (null = nothing focused).
   const focus = useMemo(
     () => (focusedId ? computeFocus(edges, focusedId) : null),
@@ -250,10 +330,18 @@ export function GraphCanvas() {
   );
 
   const displayNodes = useMemo(() => {
-    if (!focus) return nodes;
     return nodes.map((n) => ({
       ...n,
-      className: `graph-node ${focus.nodeIds.has(n.id) ? 'is-focus' : 'is-faded'}`,
+      data: {
+        ...n.data,
+        onHide:
+          n.data.nodeType === 'Application'
+            ? () => collapseHandlersRef.current.hideNode(n.id)
+            : undefined,
+      },
+      className: focus
+        ? `graph-node ${focus.nodeIds.has(n.id) ? 'is-focus' : 'is-faded'}`
+        : n.className,
     }));
   }, [nodes, focus]);
 
@@ -765,6 +853,7 @@ export function GraphCanvas() {
                     colorPropertyOptions={legendColorPropertyOptions}
                     onColorPropertyChange={handleColorPropertyChange}
                     colorValues={legendColorValues}
+                    showIndirectFlow
                   />
                 </Panel>
               </ReactFlow>

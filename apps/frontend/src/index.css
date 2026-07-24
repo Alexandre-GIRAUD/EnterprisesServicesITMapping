@@ -2127,6 +2127,7 @@ body {
 
 .graph-node-card {
   box-sizing: border-box;
+  position: relative;
   width: 160px;
   min-height: 44px;
   display: flex;
@@ -2138,6 +2139,53 @@ body {
   border: 1.5px solid #3b82f6;
   box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
   transition: box-shadow 180ms ease, border-color 180ms ease, transform 150ms ease;
+}
+
+.graph-node-hide {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 96%);
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease,
+    background-color 140ms ease;
+}
+
+.graph-canvas .react-flow__node:hover .graph-node-hide,
+.graph-canvas .react-flow__node:focus-within .graph-node-hide,
+.graph-node-hide:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.graph-node-hide:hover {
+  color: #0f172a;
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.graph-node-hide:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
 }
 
 .graph-canvas .react-flow__node:hover .graph-node-card {
@@ -2238,6 +2286,44 @@ body {
   line-height: 1.4;
   pointer-events: none;
   white-space: nowrap;
+}
+
+.oriented-edge-expand {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgb(148 163 184 / 70%);
+  background: rgb(255 255 255 / 96%);
+  backdrop-filter: blur(4px);
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: all;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 12%);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.oriented-edge-expand:hover {
+  background: #f8fafc;
+  border-color: #64748b;
+  color: #0f172a;
+}
+
+.oriented-edge-expand:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
 .graph-canvas .react-flow__controls {

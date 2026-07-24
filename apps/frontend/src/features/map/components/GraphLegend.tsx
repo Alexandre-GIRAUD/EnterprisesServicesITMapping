@@ -27,6 +27,8 @@ type Props = {
   onColorPropertyChange?: (key: string) => void;
   /** Distinct values for the active color property. */
   colorValues?: string[];
+  /** Document dashed edges as indirect flows (application graph collapse). */
+  showIndirectFlow?: boolean;
 };
 
 /**
@@ -40,6 +42,7 @@ export function GraphLegend({
   colorPropertyOptions = [],
   onColorPropertyChange,
   colorValues = [],
+  showIndirectFlow = false,
 }: Props) {
   const showColorSelector =
     colorPropertyOptions.length > 0 && colorPropertyKey != null && onColorPropertyChange != null;
@@ -128,6 +131,22 @@ export function GraphLegend({
                 </span>
               </li>
             ))}
+          </ul>
+        </div>
+      )}
+
+      {showIndirectFlow && (
+        <div className="graph-legend__group">
+          <p className="graph-legend__title">Flow style</p>
+          <ul className="graph-legend__list">
+            <li className="graph-legend__item">
+              <span
+                className="graph-legend__swatch graph-legend__swatch--edge is-dashed"
+                style={{ color: '#64748b' }}
+                aria-hidden="true"
+              />
+              <span className="graph-legend__label">Indirect flow</span>
+            </li>
           </ul>
         </div>
       )}
