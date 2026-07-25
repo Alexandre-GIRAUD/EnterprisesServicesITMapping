@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.enterprise.itmapping.feature.graphsnapshot.application.GraphSnapshotService;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotFiltersDto;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
+import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.NodePositionDto;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +41,11 @@ class GraphSnapshotControllerWebMvcTest {
                     id,
                     "Retail EMEA",
                     new GraphSnapshotFiltersDto(
-                        List.of("app-1"), Map.of("region", List.of("EMEA"))),
+                        List.of("app-1"),
+                        Map.of("region", List.of("EMEA")),
+                        Map.of(),
+                        List.of("app-2"),
+                        Map.of("app-1", new NodePositionDto(10, 20))),
                     Instant.parse("2026-01-01T00:00:00Z"),
                     Instant.parse("2026-01-02T00:00:00Z"))));
 
@@ -49,7 +54,9 @@ class GraphSnapshotControllerWebMvcTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].name").value("Retail EMEA"))
         .andExpect(jsonPath("$[0].filters.applicationIds[0]").value("app-1"))
-        .andExpect(jsonPath("$[0].filters.nodeAttributes.region[0]").value("EMEA"));
+        .andExpect(jsonPath("$[0].filters.nodeAttributes.region[0]").value("EMEA"))
+        .andExpect(jsonPath("$[0].filters.hiddenApplicationIds[0]").value("app-2"))
+        .andExpect(jsonPath("$[0].filters.nodePositions['app-1'].x").value(10));
   }
 
   @Test
@@ -60,7 +67,12 @@ class GraphSnapshotControllerWebMvcTest {
             new GraphSnapshotResponse(
                 id,
                 "Vue Retail",
-                new GraphSnapshotFiltersDto(List.of("app-1"), Map.of()),
+                new GraphSnapshotFiltersDto(
+                    List.of("app-1"),
+                    Map.of("tier", List.of("GOLD")),
+                    Map.of(),
+                    List.of("app-9"),
+                    Map.of("app-1", new NodePositionDto(40, 80))),
                 Instant.parse("2026-01-01T00:00:00Z"),
                 Instant.parse("2026-01-01T00:00:00Z")));
 
@@ -74,12 +86,16 @@ class GraphSnapshotControllerWebMvcTest {
                       "name": "Vue Retail",
                       "filters": {
                         "applicationIds": ["app-1"],
-                        "nodeAttributes": { "tier": ["GOLD"] }
+                        "nodeAttributes": { "tier": ["GOLD"] },
+                        "hiddenApplicationIds": ["app-9"],
+                        "nodePositions": { "app-1": { "x": 40, "y": 80 } }
                       }
                     }
                     """))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.name").value("Vue Retail"));
+        .andExpect(jsonPath("$.name").value("Vue Retail"))
+        .andExpect(jsonPath("$.filters.hiddenApplicationIds[0]").value("app-9"))
+        .andExpect(jsonPath("$.filters.nodePositions['app-1'].y").value(80));
   }
 
   @Test

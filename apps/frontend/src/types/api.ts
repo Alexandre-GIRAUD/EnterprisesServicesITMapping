@@ -176,13 +176,24 @@ export type GraphNodeFilterDto = {
   options?: Array<{ id: string; name: string }>;
 };
 
-/** Alias kept for snapshot APIs; identical to {@link GraphFilters}. */
-export type GraphSnapshotFilters = GraphFilters;
+export type GraphNodePosition = { x: number; y: number };
+
+/**
+ * Saved-view payload: graph filters + diagram collapse + node layout.
+ * {@link hiddenApplicationIds} and {@link nodePositions} are UI-only
+ * (not sent to GET /api/graph).
+ */
+export type GraphSnapshotFilters = GraphFilters & {
+  /** Application node ids that were collapsed when the view was pinned. */
+  hiddenApplicationIds?: string[];
+  /** Canvas positions of visible application nodes at pin time. */
+  nodePositions?: Record<string, GraphNodePosition>;
+};
 
 export type GraphSnapshotDto = {
   id: string;
   name: string;
-  filters: GraphFilters;
+  filters: GraphSnapshotFilters;
   createdAt: string;
   updatedAt: string;
 };

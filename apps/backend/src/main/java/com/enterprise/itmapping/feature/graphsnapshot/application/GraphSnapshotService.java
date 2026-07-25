@@ -7,6 +7,7 @@ import com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistence
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.CreateGraphSnapshotRequest;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotFiltersDto;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
+import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.NodePositionDto;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -55,6 +56,8 @@ public class GraphSnapshotService {
     entity.setApplicationIds(filters.applicationIds());
     entity.setNodeAttributes(new LinkedHashMap<>(filters.nodeAttributes()));
     entity.setNodeRefs(new LinkedHashMap<>(filters.nodeRefs()));
+    entity.setHiddenApplicationIds(filters.hiddenApplicationIds());
+    entity.setNodePositions(new LinkedHashMap<>(filters.nodePositions()));
 
     return toResponse(graphSnapshotRepository.save(entity));
   }
@@ -83,12 +86,14 @@ public class GraphSnapshotService {
 
   private static GraphSnapshotFiltersDto normalizeFilters(GraphSnapshotFiltersDto filters) {
     if (filters == null) {
-      return new GraphSnapshotFiltersDto(List.of(), Map.of(), Map.of());
+      return new GraphSnapshotFiltersDto(List.of(), Map.of(), Map.of(), List.of(), Map.of());
     }
     return new GraphSnapshotFiltersDto(
         normalizeIdList(filters.applicationIds()),
         normalizeKeyedLists(filters.nodeAttributes()),
-        normalizeKeyedLists(filters.nodeRefs()));
+        normalizeKeyedLists(filters.nodeRefs()),
+        normalizeIdList(filters.hiddenApplicationIds()),
+        normalizeNodePositions(filters.nodePositions()));
   }
 
   /** Drops blank keys/values and keys left without any value; Data Model keys are lower-case. */
@@ -133,6 +138,21 @@ public class GraphSnapshotService {
     return Map.copyOf(out);
   }
 
+  private static Map<String, NodePositionDto> normalizeNodePositions(
+      Map<String, NodePositionDto> values) {
+    if (values == null || values.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, NodePositionDto> out = new LinkedHashMap<>();
+    for (Map.Entry<String, NodePositionDto> entry : values.entrySet()) {
+      if (!StringUtils.hasText(entry.getKey()) || entry.getValue() == null) {
+        continue;
+      }
+      out.put(entry.getKey().trim(), entry.getValue());
+    }
+    return Map.copyOf(out);
+  }
+
   private GraphSnapshotResponse toResponse(GraphSnapshotEntity entity) {
     return new GraphSnapshotResponse(
         entity.getId(),
@@ -140,7 +160,9 @@ public class GraphSnapshotService {
         new GraphSnapshotFiltersDto(
             List.copyOf(entity.getApplicationIds()),
             copyKeyedLists(entity.getNodeAttributes()),
-            copyKeyedLists(entity.getNodeRefs())),
+            copyKeyedLists(entity.getNodeRefs()),
+            List.copyOf(entity.getHiddenApplicationIds()),
+            Map.copyOf(entity.getNodePositions())),
         entity.getCreatedAt(),
         entity.getUpdatedAt());
   }

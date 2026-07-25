@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
+import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.NodePositionDto;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -47,6 +48,14 @@ public class GraphSnapshotEntity {
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "node_refs", nullable = false, columnDefinition = "jsonb")
   private Map<String, List<String>> nodeRefs = new LinkedHashMap<>();
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "hidden_application_ids", nullable = false, columnDefinition = "jsonb")
+  private List<String> hiddenApplicationIds = new ArrayList<>();
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "node_positions", nullable = false, columnDefinition = "jsonb")
+  private Map<String, NodePositionDto> nodePositions = new LinkedHashMap<>();
 
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
@@ -115,6 +124,23 @@ public class GraphSnapshotEntity {
 
   public void setNodeRefs(Map<String, List<String>> nodeRefs) {
     this.nodeRefs = nodeRefs != null ? nodeRefs : new LinkedHashMap<>();
+  }
+
+  public List<String> getHiddenApplicationIds() {
+    return hiddenApplicationIds;
+  }
+
+  public void setHiddenApplicationIds(List<String> hiddenApplicationIds) {
+    this.hiddenApplicationIds =
+        hiddenApplicationIds != null ? hiddenApplicationIds : new ArrayList<>();
+  }
+
+  public Map<String, NodePositionDto> getNodePositions() {
+    return nodePositions;
+  }
+
+  public void setNodePositions(Map<String, NodePositionDto> nodePositions) {
+    this.nodePositions = nodePositions != null ? nodePositions : new LinkedHashMap<>();
   }
 
   public Instant getCreatedAt() {

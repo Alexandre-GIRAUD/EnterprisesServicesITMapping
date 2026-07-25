@@ -23,6 +23,8 @@ import type {
   GraphEdgeCreateResponse,
   GraphEdgeDto,
   GraphNodeFilterDto,
+  GraphNodePosition,
+  GraphSnapshotFilters,
 } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
 import { fetchGraphNodeFilters } from '../api/graphApi';
@@ -59,7 +61,15 @@ import { fitGraphView } from './fitGraphView';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
-import { layoutCollapsedAppGraph } from './layoutCollapsedAppGraph';
+import {
+  layoutCollapsedAppGraph,
+  type NodePositionsMap,
+} from './layoutCollapsedAppGraph';
+
+type PendingViewRestore = {
+  hiddenApplicationIds: string[];
+  nodePositions: NodePositionsMap;
+};
 
 type SelectedApplication = {
   id: string;
@@ -103,6 +113,9 @@ export function GraphCanvas() {
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
   /** Local-only collapse set; tables keep using the full graph DTOs. */
   const hiddenNodeIdsRef = useRef<Set<string>>(new Set());
+  /** Queued restore from My views — applied after graph fetch reaches ready. */
+  const pendingViewRestoreRef = useRef<PendingViewRestore | null>(null);
+  const prevGraphStatusRef = useRef<'loading' | 'ready' | 'error'>('loading');
   const collapseGenerationRef = useRef(0);
   const skipCollapseResetRef = useRef(true);
   const collapseHandlersRef = useRef<{
@@ -214,7 +227,9 @@ export function GraphCanvas() {
     if (!state?.applySnapshot && !state?.graphMode) return;
 
     if (state.applySnapshot) {
+      queueViewRestore(state.applySnapshot);
       applyGraphFilters(state.applySnapshot);
+      reloadGraph();
     }
 
     if (state.graphMode === 'normal') {
@@ -246,17 +261,54 @@ export function GraphCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- react to navigation state only
   }, [location.state, applyGraphFilters, navigate, sandboxDirty]);
 
+  function queueViewRestore(snapshot: GraphSnapshotFilters) {
+    const positions: NodePositionsMap = {};
+    const rawPositions = snapshot.nodePositions ?? {};
+    for (const [id, pos] of Object.entries(rawPositions)) {
+      if (
+        pos &&
+        typeof pos.x === 'number' &&
+        typeof pos.y === 'number' &&
+        Number.isFinite(pos.x) &&
+        Number.isFinite(pos.y)
+      ) {
+        positions[id] = { x: pos.x, y: pos.y };
+      }
+    }
+    pendingViewRestoreRef.current = {
+      hiddenApplicationIds: [...(snapshot.hiddenApplicationIds ?? [])],
+      nodePositions: positions,
+    };
+  }
+
   async function handleSaveSnapshot(name: string) {
-    await createGraphSnapshot(name, currentGraphFilters);
+    const nodePositions: Record<string, GraphNodePosition> = {};
+    for (const n of nodes) {
+      nodePositions[n.id] = { x: n.position.x, y: n.position.y };
+    }
+    await createGraphSnapshot(name, {
+      ...currentGraphFilters,
+      hiddenApplicationIds: [...hiddenNodeIdsRef.current],
+      nodePositions,
+    });
     refreshSnapshots();
     setMessage(`View "${name}" saved.`);
   }
+
+  const applySavedView = useCallback(
+    (snapshotFilters: GraphSnapshotFilters) => {
+      queueViewRestore(snapshotFilters);
+      applyGraphFilters(snapshotFilters);
+      reloadGraph();
+    },
+    [applyGraphFilters, reloadGraph]
+  );
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ app: AppGraphNode }), []);
   const edgeTypes = useMemo<EdgeTypes>(() => ({ oriented: OrientedEdge }), []);
 
   const relayoutCollapsed = useCallback(
-    async (nextHidden: ReadonlySet<string>) => {
+    async (nextHidden: ReadonlySet<string>, nodePositions?: NodePositionsMap) => {
       if (status !== 'ready' || graphNodes.length === 0) return;
       const gen = ++collapseGenerationRef.current;
       const rect = containerRef.current?.getBoundingClientRect();
@@ -267,6 +319,7 @@ export function GraphCanvas() {
         hiddenNodeIds: nextHidden,
         colorPropertyKey,
         aspectRatio,
+        nodePositions,
         handlers: {
           onHideNode: (id) => collapseHandlersRef.current.hideNode(id),
           onExpandHidden: (ids) => collapseHandlersRef.current.expandHidden(ids),
@@ -275,6 +328,9 @@ export function GraphCanvas() {
       if (gen !== collapseGenerationRef.current) return;
       setNodes(laid.nodes);
       setEdges(laid.edges);
+      if (nodePositions && Object.keys(nodePositions).length > 0) {
+        window.setTimeout(() => fitGraphView(rfRef.current, { duration: 200 }), 40);
+      }
     },
     [status, graphNodes, graphEdges, colorPropertyKey, setNodes, setEdges]
   );
@@ -309,19 +365,57 @@ export function GraphCanvas() {
 
   collapseHandlersRef.current = { hideNode, expandHidden };
 
-  // Reset collapse on mode change / graph reload (UI-only; tables stay full).
+  // Reset collapse on mode change / graph reload — but keep a pending view restore.
   useEffect(() => {
     if (skipCollapseResetRef.current) {
       skipCollapseResetRef.current = false;
       return;
     }
     collapseGenerationRef.current += 1;
+    if (pendingViewRestoreRef.current != null) {
+      hiddenNodeIdsRef.current = new Set();
+      return;
+    }
     const hadHidden = hiddenNodeIdsRef.current.size > 0;
     hiddenNodeIdsRef.current = new Set();
     if (hadHidden) {
       void relayoutCollapsed(new Set());
     }
   }, [graphMode, graphReloadNonce, relayoutCollapsed]);
+
+  // Apply queued My-views restore only on loading→ready (avoids applying to the stale graph).
+  useEffect(() => {
+    const prevStatus = prevGraphStatusRef.current;
+    prevGraphStatusRef.current = status;
+
+    if (status === 'error' && pendingViewRestoreRef.current != null) {
+      pendingViewRestoreRef.current = null;
+      return;
+    }
+
+    if (status !== 'ready' || prevStatus !== 'loading') return;
+
+    const pending = pendingViewRestoreRef.current;
+    if (pending == null) return;
+    pendingViewRestoreRef.current = null;
+
+    const existing = new Set(graphNodes.map((n) => n.id));
+    const nextHidden = new Set(
+      pending.hiddenApplicationIds.filter((id) => existing.has(id))
+    );
+    const nextPositions: NodePositionsMap = {};
+    for (const [id, pos] of Object.entries(pending.nodePositions)) {
+      if (existing.has(id) && !nextHidden.has(id)) {
+        nextPositions[id] = pos;
+      }
+    }
+
+    hiddenNodeIdsRef.current = nextHidden;
+    void relayoutCollapsed(
+      nextHidden,
+      Object.keys(nextPositions).length > 0 ? nextPositions : undefined
+    );
+  }, [status, graphNodes, graphEdges, relayoutCollapsed]);
 
   // Focus neighborhood for hover/selection dimming (null = nothing focused).
   const focus = useMemo(
@@ -646,7 +740,7 @@ export function GraphCanvas() {
       return 'Module dependency tree for this application. Double-click a module to explore further.';
     }
     if (isViewsMode) {
-      return 'Pinned filter sets. Select a view to apply it to the graph.';
+      return 'Saved views (filters, hidden apps, layout). Select a view to apply it to the graph.';
     }
     if (status === 'loading') return 'Loading graph…';
     if (status === 'error') return message;
@@ -718,7 +812,7 @@ export function GraphCanvas() {
               filters.setNodeRefs(refs);
             }}
             showPinView={isExplorer}
-            pinViewDisabled={!filtersActive}
+            pinViewDisabled={status !== 'ready'}
             onPinView={() => setIsSaveSnapshotOpen(true)}
           />
         );
@@ -787,12 +881,7 @@ export function GraphCanvas() {
         <div className="map-graph-body">
           <div className="graph-stage">
             {isViewsMode ? (
-              <GraphViewsPanel
-                onApply={(snapshotFilters) => {
-                  applyGraphFilters(snapshotFilters);
-                  reloadGraph();
-                }}
-              />
+              <GraphViewsPanel onApply={applySavedView} />
             ) : moduleGraphApp ? (
             <div className="graph-module-drilldown" role="tabpanel" aria-label="Application module graph">
               <div className="module-map-toolbar">

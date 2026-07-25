@@ -265,11 +265,11 @@ export function FilterDrawer({
             aria-disabled={pinViewDisabled}
             title={
               pinViewDisabled
-                ? 'Apply at least one filter before pinning a view'
-                : 'Pin current filter set'
+                ? 'Wait for the graph to load before pinning a view'
+                : 'Pin current view (filters, hidden apps, layout)'
             }
           >
-            Pin filters set
+            Pin view
           </button>
         ) : null}
       </div>

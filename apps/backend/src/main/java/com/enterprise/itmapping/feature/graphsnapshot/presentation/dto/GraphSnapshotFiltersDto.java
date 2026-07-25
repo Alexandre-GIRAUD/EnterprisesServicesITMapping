@@ -10,21 +10,36 @@ import java.util.Map;
  * @param nodeAttributes Data Model {@code target=NODE} key → selected values (OR inside a key, AND
  *     across keys)
  * @param nodeRefs Data Model {@code target=NODE_REF} key → selected catalogue ref ids
+ * @param hiddenApplicationIds application node ids collapsed when the view was pinned (UI-only)
+ * @param nodePositions canvas positions of visible application nodes at pin time (UI-only)
  */
 public record GraphSnapshotFiltersDto(
     List<String> applicationIds,
     Map<String, List<String>> nodeAttributes,
-    Map<String, List<String>> nodeRefs) {
+    Map<String, List<String>> nodeRefs,
+    List<String> hiddenApplicationIds,
+    Map<String, NodePositionDto> nodePositions) {
 
   public GraphSnapshotFiltersDto {
     applicationIds = applicationIds != null ? List.copyOf(applicationIds) : List.of();
     nodeAttributes = nodeAttributes != null ? Map.copyOf(nodeAttributes) : Map.of();
     nodeRefs = nodeRefs != null ? Map.copyOf(nodeRefs) : Map.of();
+    hiddenApplicationIds =
+        hiddenApplicationIds != null ? List.copyOf(hiddenApplicationIds) : List.of();
+    nodePositions = nodePositions != null ? Map.copyOf(nodePositions) : Map.of();
   }
 
-  /** Convenience constructor when nodeRefs are empty. */
+  /** Convenience when UI-only pin fields are empty. */
+  public GraphSnapshotFiltersDto(
+      List<String> applicationIds,
+      Map<String, List<String>> nodeAttributes,
+      Map<String, List<String>> nodeRefs) {
+    this(applicationIds, nodeAttributes, nodeRefs, List.of(), Map.of());
+  }
+
+  /** Convenience when nodeRefs and UI-only pin fields are empty. */
   public GraphSnapshotFiltersDto(
       List<String> applicationIds, Map<String, List<String>> nodeAttributes) {
-    this(applicationIds, nodeAttributes, Map.of());
+    this(applicationIds, nodeAttributes, Map.of(), List.of(), Map.of());
   }
 }

@@ -12,8 +12,12 @@ export type CollapseLayoutHandlers = {
   onExpandHidden: (hiddenNodeIds: string[]) => void;
 };
 
+export type NodePositionsMap = Record<string, { x: number; y: number }>;
+
 /**
  * Project the full graph through the hidden-node set, then run ELK (dagre fallback).
+ * When {@link nodePositions} is provided, saved positions override the layout and
+ * edge routes are left for OrientedEdge live recalculation.
  * Tables should keep using the unprojected `graphNodes` / `graphEdges`.
  */
 export async function layoutCollapsedAppGraph(params: {
@@ -23,8 +27,19 @@ export async function layoutCollapsedAppGraph(params: {
   colorPropertyKey: string;
   aspectRatio: number;
   handlers: CollapseLayoutHandlers;
+  /** Optional saved canvas positions (visible nodes only). */
+  nodePositions?: NodePositionsMap;
 }): Promise<{ nodes: AppNode[]; edges: OrientedEdgeType[] }> {
-  const { graphNodes, graphEdges, hiddenNodeIds, colorPropertyKey, aspectRatio, handlers } = params;
+  const {
+    graphNodes,
+    graphEdges,
+    hiddenNodeIds,
+    colorPropertyKey,
+    aspectRatio,
+    handlers,
+    nodePositions,
+  } = params;
+  const hasSavedPositions = Boolean(nodePositions && Object.keys(nodePositions).length > 0);
 
   const projected = projectCollapsedGraph(
     graphNodes.map((n) => n.id),
@@ -94,6 +109,9 @@ export async function layoutCollapsedAppGraph(params: {
     };
   });
 
+  let positioned: AppNode[];
+  let routedEdges: OrientedEdgeType[];
+
   try {
     const { nodes: laidOut, routes } = await elkLayout(baseNodes, builtEdges, {
       nodeWidth: NODE_WIDTH,
@@ -102,22 +120,31 @@ export async function layoutCollapsedAppGraph(params: {
       layerSeparation: 100,
       aspectRatio,
     });
-    const jumps = computeBridges(routes);
-    return {
-      nodes: laidOut,
-      edges: builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id))),
-    };
+    positioned = laidOut;
+    if (hasSavedPositions) {
+      routedEdges = builtEdges;
+    } else {
+      const jumps = computeBridges(routes);
+      routedEdges = builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id)));
+    }
   } catch {
-    return {
-      nodes: layoutGraph(baseNodes, builtEdges, {
-        nodeWidth: NODE_WIDTH,
-        nodeHeight: NODE_HEIGHT,
-        nodeSeparation: 70,
-        rankSeparation: 100,
-        snapGrid: 16,
-        aspectRatio,
-      }),
-      edges: builtEdges,
-    };
+    positioned = layoutGraph(baseNodes, builtEdges, {
+      nodeWidth: NODE_WIDTH,
+      nodeHeight: NODE_HEIGHT,
+      nodeSeparation: 70,
+      rankSeparation: 100,
+      snapGrid: 16,
+      aspectRatio,
+    });
+    routedEdges = builtEdges;
   }
+
+  if (hasSavedPositions && nodePositions) {
+    positioned = positioned.map((n) => {
+      const saved = nodePositions[n.id];
+      return saved ? { ...n, position: { x: saved.x, y: saved.y } } : n;
+    });
+  }
+
+  return { nodes: positioned, edges: routedEdges };
 }
