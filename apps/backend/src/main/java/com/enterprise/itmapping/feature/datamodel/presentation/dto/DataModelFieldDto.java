@@ -1,7 +1,7 @@
 package com.enterprise.itmapping.feature.datamodel.presentation.dto;
 
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -17,7 +17,32 @@ public record DataModelFieldDto(
     @Size(max = 500) String promptHint,
     List<@NotBlank @Size(max = 120) String> allowedValues,
     boolean enforceEnum,
-    boolean required) {
+    boolean required,
+    DataModelDetection detection) {
+
+  public DataModelFieldDto {
+    detection = DataModelDetection.orDefault(detection);
+  }
+
+  /** Backward-compatible constructor used by tests (automatic detection). */
+  public DataModelFieldDto(
+      String key,
+      String label,
+      String description,
+      String promptHint,
+      List<String> allowedValues,
+      boolean enforceEnum,
+      boolean required) {
+    this(
+        key,
+        label,
+        description,
+        promptHint,
+        allowedValues,
+        enforceEnum,
+        required,
+        DataModelDetection.AUTOMATIC_DETECTION);
+  }
 
   public DataModelField toDomain() {
     List<String> values =
@@ -31,7 +56,8 @@ public record DataModelFieldDto(
         promptHint != null ? promptHint.trim() : "",
         values,
         enforceEnum,
-        required);
+        required,
+        detection);
   }
 
   public static DataModelFieldDto fromDomain(DataModelField field) {
@@ -42,6 +68,7 @@ public record DataModelFieldDto(
         field.promptHint(),
         field.allowedValues() != null ? List.copyOf(field.allowedValues()) : List.of(),
         field.enforceEnum(),
-        field.required());
+        field.required(),
+        field.detection());
   }
 }

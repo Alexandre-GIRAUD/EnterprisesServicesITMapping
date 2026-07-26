@@ -3895,6 +3895,13 @@ body {
   min-height: 3rem;
 }
 
+.data-model-field-hint {
+  margin: -0.35rem 0 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #92400e;
+}
+
 .data-model-checks {
   display: flex;
   flex-wrap: wrap;

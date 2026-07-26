@@ -243,6 +243,55 @@ class ApplicationConnectionSuggestionServiceTest {
   }
 
   @Test
+  void withOnlyManualDataModelFieldsIgnoresEdgeAttributes() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "owner_note",
+                    "Note",
+                    "",
+                    "",
+                    List.of(),
+                    false,
+                    true,
+                    com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection.MANUAL)));
+    when(dataModelService.loadConfig()).thenReturn(config);
+    when(dataModelAttributeResolver.allowedKeys(config)).thenReturn(Set.of());
+
+    AiConnectionEntry entry = connection("Service B", "outbound", "API", "x");
+    entry.setEdgeAttributes(Map.of("owner_note", "should-ignore"));
+    stubAgent(entry);
+    when(edgeWriter.createOrMerge(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            any(),
+            anySet()))
+        .thenReturn(new WriteResult(Outcome.CREATED, "edge-1"));
+
+    service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
+
+    org.mockito.Mockito.verify(edgeWriter)
+        .createOrMerge(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            eq(Map.of()),
+            eq(Set.of()));
+    org.mockito.Mockito.verify(dataModelAttributeResolver, org.mockito.Mockito.never())
+        .validate(any(), any());
+  }
+
+  @Test
   void withDataModelSkipsInvalidEnumValue() {
     DataModelConfig config =
         new DataModelConfig(
