@@ -794,6 +794,18 @@ body {
   margin-top: 0;
 }
 
+.graph-tables-view .graph-table-section--single {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.graph-tables-view .graph-table-section--single .graph-table-panel--main {
+  flex: 1;
+  min-height: 0;
+}
+
 .graph-table-section-title {
   margin: 0 0 0.15rem 0.25rem;
   font-size: 0.74rem;
@@ -1155,6 +1167,8 @@ body {
 .graph-view-header-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.5rem;
   flex-shrink: 0;
 }

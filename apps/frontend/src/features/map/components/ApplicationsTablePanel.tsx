@@ -64,7 +64,7 @@ export function ApplicationsTablePanel({
       id="graph-applications-table-panel"
       className={panelClass}
       role="region"
-      aria-label="Graph applications table"
+      aria-label="Apps table"
     >
       {status === 'loading' && (
         <p className="graph-table-message" role="status">
@@ -77,11 +77,11 @@ export function ApplicationsTablePanel({
         </p>
       )}
       {status === 'ready' && rows.length === 0 && (
-        <p className="graph-table-message">No applications to display.</p>
+        <p className="graph-table-message">No apps to display.</p>
       )}
       {status === 'ready' && rows.length > 0 && (
         <div className="graph-table-scroll">
-          <table className="graph-table" aria-label="Graph applications">
+          <table className="graph-table" aria-label="Apps">
             <thead>
               <tr>
                 <th scope="col">Name</th>

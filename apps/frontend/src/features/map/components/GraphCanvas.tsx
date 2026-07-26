@@ -57,6 +57,7 @@ import { ApplicationModuleGraph } from './ApplicationModuleGraph';
 import type { ApplicationUpdatePatch } from './ApplicationDetailsDrawer';
 import { SelfServiceBurger, SelfServiceSideMenu, type SideMenuTool } from './SelfServiceSideMenu';
 import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle';
+import { TableContentToggle, type TableContentMode } from './TableContentToggle';
 import { fitGraphView } from './fitGraphView';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
@@ -109,6 +110,7 @@ export function GraphCanvas() {
   const [isSaveSnapshotOpen, setIsSaveSnapshotOpen] = useState(false);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [displayMode, setDisplayMode] = useState<GraphDisplayMode>('graph');
+  const [tableContent, setTableContent] = useState<TableContentMode>('apps');
   const [moduleGraphApp, setModuleGraphApp] = useState<{ id: string; label: string } | null>(null);
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
   /** Local-only collapse set; tables keep using the full graph DTOs. */
@@ -871,6 +873,9 @@ export function GraphCanvas() {
               ) : null}
             </div>
             <div className="graph-view-header-actions">
+              {showGraphDisplayToggle && displayMode === 'table' ? (
+                <TableContentToggle value={tableContent} onChange={setTableContent} />
+              ) : null}
               {showGraphDisplayToggle ? (
                 <GraphDisplayToggle displayMode={displayMode} onChange={setDisplayMode} />
               ) : null}
@@ -949,35 +954,44 @@ export function GraphCanvas() {
             </div>
             ) : (
               <div className="graph-tables-view">
-                <section className="graph-table-section" aria-labelledby="graph-apps-table-heading">
-                  <h3 id="graph-apps-table-heading" className="graph-table-section-title">
-                    Applications
-                  </h3>
-                  <ApplicationsTablePanel
-                    isOpen
-                    variant="main"
-                    status={status}
-                    nodes={graphNodes}
-                    applicationsCatalog={applications}
-                    nodeFilters={nodeFilters}
-                    errorMessage={status === 'error' ? message : null}
-                    onRowClick={openApplicationDetails}
-                  />
-                </section>
-                <section className="graph-table-section" aria-labelledby="graph-feeds-table-heading">
-                  <h3 id="graph-feeds-table-heading" className="graph-table-section-title">
-                    Feeds
-                  </h3>
-                  <FeedsTablePanel
-                    isOpen
-                    variant="main"
-                    status={status}
-                    edges={graphEdges}
-                    nodes={graphNodes}
-                    errorMessage={status === 'error' ? message : null}
-                    onRowClick={openApplicationDetails}
-                  />
-                </section>
+                {tableContent === 'apps' ? (
+                  <section
+                    className="graph-table-section graph-table-section--single"
+                    aria-labelledby="graph-apps-table-heading"
+                  >
+                    <h3 id="graph-apps-table-heading" className="graph-table-section-title">
+                      Apps
+                    </h3>
+                    <ApplicationsTablePanel
+                      isOpen
+                      variant="main"
+                      status={status}
+                      nodes={graphNodes}
+                      applicationsCatalog={applications}
+                      nodeFilters={nodeFilters}
+                      errorMessage={status === 'error' ? message : null}
+                      onRowClick={openApplicationDetails}
+                    />
+                  </section>
+                ) : (
+                  <section
+                    className="graph-table-section graph-table-section--single"
+                    aria-labelledby="graph-flows-table-heading"
+                  >
+                    <h3 id="graph-flows-table-heading" className="graph-table-section-title">
+                      Flows
+                    </h3>
+                    <FeedsTablePanel
+                      isOpen
+                      variant="main"
+                      status={status}
+                      edges={graphEdges}
+                      nodes={graphNodes}
+                      errorMessage={status === 'error' ? message : null}
+                      onRowClick={openApplicationDetails}
+                    />
+                  </section>
+                )}
               </div>
             )}
 
