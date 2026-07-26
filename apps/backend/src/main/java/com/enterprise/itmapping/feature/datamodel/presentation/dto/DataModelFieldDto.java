@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.datamodel.presentation.dto;
 
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -18,13 +19,15 @@ public record DataModelFieldDto(
     List<@NotBlank @Size(max = 120) String> allowedValues,
     boolean enforceEnum,
     boolean required,
-    DataModelDetection detection) {
+    DataModelDetection detection,
+    DataModelTarget target) {
 
   public DataModelFieldDto {
     detection = DataModelDetection.orDefault(detection);
+    target = DataModelTarget.orDefault(target);
   }
 
-  /** Backward-compatible constructor used by tests (automatic detection). */
+  /** Backward-compatible constructor (automatic + EDGE). */
   public DataModelFieldDto(
       String key,
       String label,
@@ -41,7 +44,30 @@ public record DataModelFieldDto(
         allowedValues,
         enforceEnum,
         required,
-        DataModelDetection.AUTOMATIC_DETECTION);
+        DataModelDetection.AUTOMATIC_DETECTION,
+        DataModelTarget.EDGE);
+  }
+
+  /** Backward-compatible constructor with detection (EDGE target). */
+  public DataModelFieldDto(
+      String key,
+      String label,
+      String description,
+      String promptHint,
+      List<String> allowedValues,
+      boolean enforceEnum,
+      boolean required,
+      DataModelDetection detection) {
+    this(
+        key,
+        label,
+        description,
+        promptHint,
+        allowedValues,
+        enforceEnum,
+        required,
+        detection,
+        DataModelTarget.EDGE);
   }
 
   public DataModelField toDomain() {
@@ -57,7 +83,8 @@ public record DataModelFieldDto(
         values,
         enforceEnum,
         required,
-        detection);
+        detection,
+        target);
   }
 
   public static DataModelFieldDto fromDomain(DataModelField field) {
@@ -69,6 +96,7 @@ public record DataModelFieldDto(
         field.allowedValues() != null ? List.copyOf(field.allowedValues()) : List.of(),
         field.enforceEnum(),
         field.required(),
-        field.detection());
+        field.detection(),
+        field.target());
   }
 }

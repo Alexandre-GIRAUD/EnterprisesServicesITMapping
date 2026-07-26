@@ -84,7 +84,54 @@ class DataModelControllerWebMvcTest {
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.fields[0].required").value(true))
-        .andExpect(jsonPath("$.fields[0].detection").value("MANUAL"));
+        .andExpect(jsonPath("$.fields[0].detection").value("MANUAL"))
+        .andExpect(jsonPath("$.fields[0].target").value("EDGE"));
+  }
+
+  @Test
+  void putAcceptsTargetNode() throws Exception {
+    when(dataModelService.replace(any()))
+        .thenReturn(
+            new DataModelResponse(
+                List.of(
+                    new DataModelFieldDto(
+                        "tier",
+                        "Tier",
+                        "d",
+                        "h",
+                        List.of("T1"),
+                        true,
+                        false,
+                        com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection
+                            .AUTOMATIC_DETECTION,
+                        com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget.NODE)),
+                Instant.parse("2026-01-03T00:00:00Z")));
+
+    mockMvc
+        .perform(
+            put("/data-model")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "fields": [
+                        {
+                          "key": "tier",
+                          "label": "Tier",
+                          "description": "d",
+                          "promptHint": "h",
+                          "allowedValues": ["T1"],
+                          "enforceEnum": true,
+                          "required": false,
+                          "detection": "AUTOMATIC_DETECTION",
+                          "target": "NODE"
+                        }
+                      ]
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.fields[0].key").value("tier"))
+        .andExpect(jsonPath("$.fields[0].target").value("NODE"));
   }
 
   @Test

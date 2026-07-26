@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +20,7 @@ class DataModelPromptBuilderTest {
   }
 
   @Test
-  void buildsSectionWithFieldKeysAndAllowedValues() {
+  void buildsEdgeSectionWithFieldKeysAndAllowedValues() {
     DataModelConfig config =
         new DataModelConfig(
             List.of(
@@ -42,7 +43,8 @@ class DataModelPromptBuilderTest {
 
     String section = builder.buildPromptSection(config);
 
-    assertThat(section).contains("## Active Data Model");
+    assertThat(section).contains("## Active Data Model (edge enrichment)");
+    assertThat(section).doesNotContain("application node enrichment");
     assertThat(section).contains("Field key: product_line");
     assertThat(section).contains("Field key: flow_nature");
     assertThat(section).contains("ALPHA | BETA");
@@ -53,13 +55,75 @@ class DataModelPromptBuilderTest {
   }
 
   @Test
-  void threeFieldsIncludeAllKeys() {
+  void buildsNodeSectionOnly() {
     DataModelConfig config =
         new DataModelConfig(
             List.of(
-                field("a_key", "A"),
-                field("b_key", "B"),
-                field("c_key", "C")));
+                new DataModelField(
+                    "criticality",
+                    "Criticality",
+                    "Business criticality",
+                    "Look in README",
+                    List.of("HIGH", "LOW"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE)));
+
+    String section = builder.buildPromptSection(config);
+
+    assertThat(section).contains("## Active Data Model (application node enrichment)");
+    assertThat(section).doesNotContain("edge enrichment");
+    assertThat(section).contains("Field key: criticality");
+    assertThat(section).contains("node_attributes");
+    assertThat(section).contains("Do not put node fields into edge_attributes");
+  }
+
+  @Test
+  void buildsBothSectionsWhenMix() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "product_line",
+                    "Line",
+                    "",
+                    "",
+                    List.of("A"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.EDGE),
+                new DataModelField(
+                    "tier",
+                    "Tier",
+                    "",
+                    "",
+                    List.of("T1"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE)));
+
+    String section = builder.buildPromptSection(config);
+
+    assertThat(section).contains("## Active Data Model (edge enrichment)");
+    assertThat(section).contains("## Active Data Model (application node enrichment)");
+    assertThat(section).contains("Field key: product_line");
+    assertThat(section).contains("Field key: tier");
+    int edgeIdx = section.indexOf("edge enrichment");
+    int nodeIdx = section.indexOf("application node enrichment");
+    int productIdx = section.indexOf("product_line");
+    int tierIdx = section.indexOf("Field key: tier");
+    assertThat(productIdx).isGreaterThan(edgeIdx).isLessThan(nodeIdx);
+    assertThat(tierIdx).isGreaterThan(nodeIdx);
+  }
+
+  @Test
+  void threeFieldsIncludeAllKeys() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(field("a_key", "A"), field("b_key", "B"), field("c_key", "C")));
 
     String section = builder.buildPromptSection(config);
 
@@ -106,9 +170,53 @@ class DataModelPromptBuilderTest {
                 new DataModelField(
                     "a", "A", "", "", List.of(), false, true, DataModelDetection.MANUAL),
                 new DataModelField(
-                    "b", "B", "", "", List.of(), false, false, DataModelDetection.MANUAL)));
+                    "b",
+                    "B",
+                    "",
+                    "",
+                    List.of(),
+                    false,
+                    false,
+                    DataModelDetection.MANUAL,
+                    DataModelTarget.NODE)));
 
     assertThat(builder.buildPromptSection(config)).isEmpty();
+  }
+
+  @Test
+  void doesNotLeakKeysAcrossSections() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "edge_only",
+                    "E",
+                    "",
+                    "",
+                    List.of(),
+                    false,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.EDGE),
+                new DataModelField(
+                    "node_only",
+                    "N",
+                    "",
+                    "",
+                    List.of(),
+                    false,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE)));
+
+    String section = builder.buildPromptSection(config);
+    String edgePart =
+        section.substring(
+            section.indexOf("edge enrichment"), section.indexOf("application node enrichment"));
+    String nodePart = section.substring(section.indexOf("application node enrichment"));
+
+    assertThat(edgePart).contains("edge_only").doesNotContain("node_only");
+    assertThat(nodePart).contains("node_only").doesNotContain("edge_only");
   }
 
   private static DataModelField field(String key, String label) {

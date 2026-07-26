@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.datamodel.application;
 
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -14,10 +15,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
- * Validates and filters {@code edge_attributes} from the LLM against the active Data Model.
- *
- * <p>Only {@code AUTOMATIC_DETECTION} fields are accepted. Manual keys are stripped (defense in
- * depth). {@code required} applies only to automatic fields.
+ * Validates and filters LLM attribute maps against the active Data Model for a given {@link
+ * DataModelTarget}. Manual / wrong-target / unknown keys are stripped. {@code required} applies
+ * only to automatic fields of that target.
  */
 @Component
 public class DataModelAttributeResolver {
@@ -30,18 +30,27 @@ public class DataModelAttributeResolver {
       String skipReason,
       String skipDetail) {}
 
-  /**
-   * When no automatic fields exist, returns accepted with empty attributes (topology-only mode).
-   */
+  /** Edge attributes — automatic EDGE fields only. */
   public ValidationResult validate(
       DataModelConfig config, Map<String, String> rawAttributes) {
-    if (config == null || !config.hasAutomaticFields()) {
+    return validate(config, rawAttributes, DataModelTarget.EDGE);
+  }
+
+  public ValidationResult validate(
+      DataModelConfig config, Map<String, String> rawAttributes, DataModelTarget target) {
+    DataModelTarget effective = DataModelTarget.orDefault(target);
+    List<DataModelField> scope =
+        effective == DataModelTarget.NODE
+            ? (config != null ? config.automaticNodeFields() : List.of())
+            : (config != null ? config.automaticEdgeFields() : List.of());
+
+    if (scope.isEmpty()) {
       return new ValidationResult(true, Map.of(), null, null);
     }
 
-    Map<String, DataModelField> automaticByKey = new LinkedHashMap<>();
-    for (DataModelField field : config.automaticFields()) {
-      automaticByKey.put(field.key(), field);
+    Map<String, DataModelField> byKey = new LinkedHashMap<>();
+    for (DataModelField field : scope) {
+      byKey.put(field.key(), field);
     }
 
     Map<String, String> accepted = new LinkedHashMap<>();
@@ -53,19 +62,22 @@ public class DataModelAttributeResolver {
       if (!StringUtils.hasText(key) || !StringUtils.hasText(value)) {
         continue;
       }
-      DataModelField field = automaticByKey.get(key);
+      DataModelField field = byKey.get(key);
       if (field == null) {
-        log.debug("Data Model attribute stripped unknown or MANUAL key={}", key);
+        log.debug(
+            "Data Model attribute stripped unknown/manual/wrong-target key={} target={}",
+            key,
+            effective);
         continue;
       }
       if (field.enforceEnum() && field.allowedValues() != null && !field.allowedValues().isEmpty()) {
         String matched = matchAllowed(value, field.allowedValues());
         if (matched == null) {
-          return new ValidationResult(
-              false,
-              Map.of(),
-              "data_model_valeur_invalide",
-              key + "=" + value);
+          String reason =
+              effective == DataModelTarget.NODE
+                  ? "data_model_node_valeur_invalide"
+                  : "data_model_valeur_invalide";
+          return new ValidationResult(false, Map.of(), reason, key + "=" + value);
         }
         accepted.put(key, matched);
       } else {
@@ -73,23 +85,35 @@ public class DataModelAttributeResolver {
       }
     }
 
-    for (DataModelField field : config.automaticFields()) {
+    for (DataModelField field : scope) {
       if (field.required() && !accepted.containsKey(field.key())) {
-        return new ValidationResult(
-            false, Map.of(), "data_model_champ_manquant", field.key());
+        String reason =
+            effective == DataModelTarget.NODE
+                ? "data_model_node_champ_manquant"
+                : "data_model_champ_manquant";
+        return new ValidationResult(false, Map.of(), reason, field.key());
       }
     }
 
     return new ValidationResult(true, Map.copyOf(accepted), null, null);
   }
 
-  /** Keys the edge writer may persist — automatic fields only. */
+  /** Keys the edge writer may persist. */
   public Set<String> allowedKeys(DataModelConfig config) {
-    if (config == null || !config.hasAutomaticFields()) {
+    return allowedKeys(config, DataModelTarget.EDGE);
+  }
+
+  public Set<String> allowedKeys(DataModelConfig config, DataModelTarget target) {
+    DataModelTarget effective = DataModelTarget.orDefault(target);
+    List<DataModelField> scope =
+        effective == DataModelTarget.NODE
+            ? (config != null ? config.automaticNodeFields() : List.of())
+            : (config != null ? config.automaticEdgeFields() : List.of());
+    if (scope.isEmpty()) {
       return Set.of();
     }
     Set<String> keys = new LinkedHashSet<>();
-    for (DataModelField field : config.automaticFields()) {
+    for (DataModelField field : scope) {
       keys.add(field.key());
     }
     return Set.copyOf(keys);

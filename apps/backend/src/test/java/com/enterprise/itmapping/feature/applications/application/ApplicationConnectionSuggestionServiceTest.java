@@ -8,12 +8,14 @@ import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery.CatalogRow;
-import com.enterprise.itmapping.feature.applications.application.ConnectionDiscoveryAgent.DiscoveryResult;
 import com.enterprise.itmapping.feature.applications.application.ApplicationConnectionEdgeWriter.Outcome;
 import com.enterprise.itmapping.feature.applications.application.ApplicationConnectionEdgeWriter.WriteResult;
+import com.enterprise.itmapping.feature.applications.application.ConnectionDiscoveryAgent.DiscoveryResult;
 import com.enterprise.itmapping.feature.applications.application.dto.AiApplicationConnectionPayload;
 import com.enterprise.itmapping.feature.applications.application.dto.AiApplicationConnectionPayload.AiConnectionEntry;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationGraphNodeProjection;
@@ -24,12 +26,13 @@ import com.enterprise.itmapping.feature.datamodel.application.DataModelAttribute
 import com.enterprise.itmapping.feature.datamodel.application.DataModelPromptBuilder;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService;
 import com.enterprise.itmapping.feature.integrations.llm.ConnectionDiscoveryProperties;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,6 +55,7 @@ class ApplicationConnectionSuggestionServiceTest {
   @Mock ConnectionDiscoveryAgent agent;
   @Mock ApplicationCatalogQuery catalogQuery;
   @Mock ApplicationConnectionEdgeWriter edgeWriter;
+  @Mock ApplicationNodeAttributeWriter nodeAttributeWriter;
   @Mock DataModelService dataModelService;
   @Mock DataModelPromptBuilder dataModelPromptBuilder;
   @Mock DataModelAttributeResolver dataModelAttributeResolver;
@@ -70,6 +74,7 @@ class ApplicationConnectionSuggestionServiceTest {
             props,
             catalogQuery,
             edgeWriter,
+            nodeAttributeWriter,
             dataModelService,
             dataModelPromptBuilder,
             dataModelAttributeResolver);
@@ -81,7 +86,12 @@ class ApplicationConnectionSuggestionServiceTest {
         .thenReturn(List.of(new CatalogRow("id-b", "Service B", "desc")));
     lenient().when(dataModelService.loadConfig()).thenReturn(new DataModelConfig(List.of()));
     lenient().when(dataModelPromptBuilder.buildPromptSection(any())).thenReturn("");
-    lenient().when(dataModelAttributeResolver.allowedKeys(any())).thenReturn(Set.of());
+    lenient()
+        .when(dataModelAttributeResolver.allowedKeys(any(), eq(DataModelTarget.EDGE)))
+        .thenReturn(Set.of());
+    lenient()
+        .when(dataModelAttributeResolver.allowedKeys(any(), eq(DataModelTarget.NODE)))
+        .thenReturn(Set.of());
   }
 
   @Test
@@ -104,7 +114,7 @@ class ApplicationConnectionSuggestionServiceTest {
 
     ArgumentCaptor<String> src = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> tgt = ArgumentCaptor.forClass(String.class);
-    org.mockito.Mockito.verify(edgeWriter)
+    verify(edgeWriter)
         .createOrMerge(
             src.capture(),
             tgt.capture(),
@@ -119,6 +129,7 @@ class ApplicationConnectionSuggestionServiceTest {
     assertThat(tgt.getValue()).isEqualTo("id-b");
     assertThat(res.created()).hasSize(1);
     assertThat(res.created().get(0).direction()).isEqualTo("outbound");
+    verify(nodeAttributeWriter, never()).write(anyString(), any(), anySet());
   }
 
   @Test
@@ -140,7 +151,7 @@ class ApplicationConnectionSuggestionServiceTest {
 
     ArgumentCaptor<String> src = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> tgt = ArgumentCaptor.forClass(String.class);
-    org.mockito.Mockito.verify(edgeWriter)
+    verify(edgeWriter)
         .createOrMerge(
             src.capture(),
             tgt.capture(),
@@ -229,7 +240,7 @@ class ApplicationConnectionSuggestionServiceTest {
 
     service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
 
-    org.mockito.Mockito.verify(edgeWriter)
+    verify(edgeWriter)
         .createOrMerge(
             anyString(),
             anyString(),
@@ -255,9 +266,8 @@ class ApplicationConnectionSuggestionServiceTest {
                     List.of(),
                     false,
                     true,
-                    com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection.MANUAL)));
+                    DataModelDetection.MANUAL)));
     when(dataModelService.loadConfig()).thenReturn(config);
-    when(dataModelAttributeResolver.allowedKeys(config)).thenReturn(Set.of());
 
     AiConnectionEntry entry = connection("Service B", "outbound", "API", "x");
     entry.setEdgeAttributes(Map.of("owner_note", "should-ignore"));
@@ -276,7 +286,7 @@ class ApplicationConnectionSuggestionServiceTest {
 
     service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
 
-    org.mockito.Mockito.verify(edgeWriter)
+    verify(edgeWriter)
         .createOrMerge(
             anyString(),
             anyString(),
@@ -287,8 +297,8 @@ class ApplicationConnectionSuggestionServiceTest {
             anyString(),
             eq(Map.of()),
             eq(Set.of()));
-    org.mockito.Mockito.verify(dataModelAttributeResolver, org.mockito.Mockito.never())
-        .validate(any(), any());
+    verify(dataModelAttributeResolver, never()).validate(any(), any(), eq(DataModelTarget.EDGE));
+    verify(nodeAttributeWriter, never()).write(anyString(), any(), anySet());
   }
 
   @Test
@@ -300,8 +310,9 @@ class ApplicationConnectionSuggestionServiceTest {
                     "product_line", "Ligne", "", "", List.of("ALPHA"), true, false)));
     when(dataModelService.loadConfig()).thenReturn(config);
     when(dataModelPromptBuilder.buildPromptSection(config)).thenReturn("## Active Data Model");
-    when(dataModelAttributeResolver.allowedKeys(config)).thenReturn(Set.of("product_line"));
-    when(dataModelAttributeResolver.validate(eq(config), any()))
+    when(dataModelAttributeResolver.allowedKeys(config, DataModelTarget.EDGE))
+        .thenReturn(Set.of("product_line"));
+    when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.EDGE)))
         .thenReturn(
             new DataModelAttributeResolver.ValidationResult(
                 false, Map.of(), "data_model_valeur_invalide", "product_line=BAD"));
@@ -325,8 +336,9 @@ class ApplicationConnectionSuggestionServiceTest {
             List.of(new DataModelField("flow_nature", "Nature", "", "", List.of(), false, true)));
     when(dataModelService.loadConfig()).thenReturn(config);
     when(dataModelPromptBuilder.buildPromptSection(config)).thenReturn("## Active Data Model");
-    when(dataModelAttributeResolver.allowedKeys(config)).thenReturn(Set.of("flow_nature"));
-    when(dataModelAttributeResolver.validate(eq(config), any()))
+    when(dataModelAttributeResolver.allowedKeys(config, DataModelTarget.EDGE))
+        .thenReturn(Set.of("flow_nature"));
+    when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.EDGE)))
         .thenReturn(
             new DataModelAttributeResolver.ValidationResult(
                 false, Map.of(), "data_model_champ_manquant", "flow_nature"));
@@ -349,9 +361,10 @@ class ApplicationConnectionSuggestionServiceTest {
                     "product_line", "Ligne", "", "", List.of("ALPHA"), true, false)));
     when(dataModelService.loadConfig()).thenReturn(config);
     when(dataModelPromptBuilder.buildPromptSection(config)).thenReturn("## Active Data Model");
-    when(dataModelAttributeResolver.allowedKeys(config)).thenReturn(Set.of("product_line"));
+    when(dataModelAttributeResolver.allowedKeys(config, DataModelTarget.EDGE))
+        .thenReturn(Set.of("product_line"));
     Map<String, String> attrs = Map.of("product_line", "ALPHA");
-    when(dataModelAttributeResolver.validate(eq(config), any()))
+    when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.EDGE)))
         .thenReturn(new DataModelAttributeResolver.ValidationResult(true, attrs, null, null));
 
     AiConnectionEntry entry = connection("Service B", "outbound", "API", "x");
@@ -371,7 +384,7 @@ class ApplicationConnectionSuggestionServiceTest {
 
     service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
 
-    org.mockito.Mockito.verify(edgeWriter)
+    verify(edgeWriter)
         .createOrMerge(
             anyString(),
             anyString(),
@@ -382,6 +395,161 @@ class ApplicationConnectionSuggestionServiceTest {
             eq(APP_ID),
             eq(attrs),
             eq(Set.of("product_line")));
+  }
+
+  @Test
+  void withNodeAutomaticPersistsValidatedNodeAttributes() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "tier",
+                    "Tier",
+                    "",
+                    "",
+                    List.of("T1"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE)));
+    when(dataModelService.loadConfig()).thenReturn(config);
+    when(dataModelPromptBuilder.buildPromptSection(config))
+        .thenReturn("## Active Data Model (application node enrichment)");
+    when(dataModelAttributeResolver.allowedKeys(config, DataModelTarget.NODE))
+        .thenReturn(Set.of("tier"));
+    Map<String, String> nodeAttrs = Map.of("tier", "T1");
+    when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.NODE)))
+        .thenReturn(new DataModelAttributeResolver.ValidationResult(true, nodeAttrs, null, null));
+    when(nodeAttributeWriter.write(eq(APP_ID), eq(nodeAttrs), eq(Set.of("tier")))).thenReturn(1);
+
+    AiApplicationConnectionPayload payload = new AiApplicationConnectionPayload();
+    payload.setConnections(
+        new ArrayList<>(List.of(connection("Service B", "outbound", "API", "x"))));
+    payload.setNodeAttributes(nodeAttrs);
+    when(agent.discover(any(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(new DiscoveryResult(payload, List.of("README.md")));
+    when(edgeWriter.createOrMerge(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            any(),
+            anySet()))
+        .thenReturn(new WriteResult(Outcome.CREATED, "edge-1"));
+
+    SuggestConnectionsFromGithubResponse res =
+        service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
+
+    assertThat(res.created()).hasSize(1);
+    verify(nodeAttributeWriter).write(APP_ID, nodeAttrs, Set.of("tier"));
+    verify(dataModelAttributeResolver, never()).validate(any(), any(), eq(DataModelTarget.EDGE));
+  }
+
+  @Test
+  void withNodeManualIgnoresNodeAttributes() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "tier",
+                    "Tier",
+                    "",
+                    "",
+                    List.of("T1"),
+                    true,
+                    false,
+                    DataModelDetection.MANUAL,
+                    DataModelTarget.NODE)));
+    when(dataModelService.loadConfig()).thenReturn(config);
+
+    AiApplicationConnectionPayload payload = new AiApplicationConnectionPayload();
+    payload.setConnections(
+        new ArrayList<>(List.of(connection("Service B", "outbound", "API", "x"))));
+    payload.setNodeAttributes(Map.of("tier", "T1"));
+    when(agent.discover(any(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(new DiscoveryResult(payload, List.of()));
+    when(edgeWriter.createOrMerge(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            any(),
+            anySet()))
+        .thenReturn(new WriteResult(Outcome.CREATED, "edge-1"));
+
+    service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
+
+    verify(nodeAttributeWriter, never()).write(anyString(), any(), anySet());
+    verify(dataModelAttributeResolver, never()).validate(any(), any(), eq(DataModelTarget.NODE));
+  }
+
+  @Test
+  void nodeValidationFailureDoesNotBlockEdges() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "product_line",
+                    "Line",
+                    "",
+                    "",
+                    List.of("A"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.EDGE),
+                new DataModelField(
+                    "tier",
+                    "Tier",
+                    "",
+                    "",
+                    List.of("T1"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE)));
+    when(dataModelService.loadConfig()).thenReturn(config);
+    when(dataModelAttributeResolver.allowedKeys(config, DataModelTarget.EDGE))
+        .thenReturn(Set.of("product_line"));
+    when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.EDGE)))
+        .thenReturn(
+            new DataModelAttributeResolver.ValidationResult(
+                true, Map.of("product_line", "A"), null, null));
+    when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.NODE)))
+        .thenReturn(
+            new DataModelAttributeResolver.ValidationResult(
+                false, Map.of(), "data_model_node_valeur_invalide", "tier=BAD"));
+
+    AiConnectionEntry entry = connection("Service B", "outbound", "API", "x");
+    entry.setEdgeAttributes(Map.of("product_line", "A"));
+    AiApplicationConnectionPayload payload = new AiApplicationConnectionPayload();
+    payload.setConnections(new ArrayList<>(List.of(entry)));
+    payload.setNodeAttributes(Map.of("tier", "BAD"));
+    when(agent.discover(any(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(new DiscoveryResult(payload, List.of()));
+    when(edgeWriter.createOrMerge(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            any(),
+            anySet()))
+        .thenReturn(new WriteResult(Outcome.CREATED, "edge-1"));
+
+    SuggestConnectionsFromGithubResponse res =
+        service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
+
+    assertThat(res.created()).hasSize(1);
+    verify(nodeAttributeWriter, never()).write(anyString(), any(), anySet());
   }
 
   private void stubAgent(AiConnectionEntry... entries) {

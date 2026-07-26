@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.datamodel.application;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -18,9 +19,13 @@ public class DataModelValidator {
 
   private static final Pattern KEY_PATTERN = Pattern.compile("[a-z][a-z0-9_]{1,63}");
 
+  /** Reserved for both EDGE and NODE (union — simpler validation). */
   private static final Set<String> RESERVED_KEYS =
       Set.of(
           "id",
+          "name",
+          "description",
+          "year",
           "connection_kind",
           "channel",
           "direction",
@@ -54,6 +59,10 @@ public class DataModelValidator {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "detection manquante pour la cle: " + key);
       }
+      if (field.target() == null) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "target manquant pour la cle: " + key);
+      }
       List<String> allowed = field.allowedValues() != null ? field.allowedValues() : List.of();
       if (field.enforceEnum() && allowed.isEmpty()) {
         throw new ResponseStatusException(
@@ -82,7 +91,8 @@ public class DataModelValidator {
                             : List.of(),
                         f.enforceEnum(),
                         f.required(),
-                        DataModelDetection.orDefault(f.detection())))
+                        DataModelDetection.orDefault(f.detection()),
+                        DataModelTarget.orDefault(f.target())))
             .toList();
     return new DataModelConfig(normalized);
   }

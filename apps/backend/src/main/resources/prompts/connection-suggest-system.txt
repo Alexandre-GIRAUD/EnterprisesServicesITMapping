@@ -47,21 +47,27 @@ Strict rules:
 - If evidence is weak, use confidence=low or omit and explain in "limitations".
 - If nothing reliable is found, return an empty "connections" array and explain in "limitations".
 
-## Data Model (optional edge enrichment)
-The user message may include a section "## Active Data Model". That section is the ONLY
-source of business attributes for connections.
-- If "## Active Data Model" is ABSENT: discover integration topology ONLY (peer, direction,
-  connection_kind, channel). Do NOT include "edge_attributes" on connections (omit the property
-  or use {}). Do NOT search the codebase for business semantics beyond transport/integration.
-- If "## Active Data Model" is PRESENT: for each connection, add "edge_attributes" as an object
-  whose keys are EXACTLY the field keys listed there, with values inferred from evidence only.
-edge_attributes rules (when Active Data Model is present):
-- Keys: only those declared in Active Data Model.
+## Data Model (optional enrichment)
+The user message may include "## Active Data Model (edge enrichment)" and/or
+"## Active Data Model (application node enrichment)". Those sections are the ONLY source of
+business attributes.
+- Edge section ABSENT → no edge_attributes ({} / omit); topology only for edges.
+- Node section ABSENT → no node_attributes ({} / omit); do not invent application business props.
+- When a section is PRESENT: populate the corresponding object(s) only with the keys listed there.
+- Fields not listed are out of scope (manual / other target / not requested).
+- Do not put node fields into edge_attributes or vice versa.
+
+edge_attributes rules (when edge enrichment section is present):
+- Per connection. Keys: only those declared in the edge section.
 - Values: follow allowed values and STRICT/REQUIRED flags from that section.
 - No secrets. No guessing; omit unknown keys.
 - Transport stays in connection_kind and channel.
-- Only populate edge_attributes keys listed in "## Active Data Model".
-- Fields not listed are out of scope for AI detection (manual / not requested).
+
+node_attributes rules (when application node enrichment section is present):
+- Once at payload root (analyzed Application only — not peers).
+- Keys: only those declared in the node section.
+- Values: follow allowed values and STRICT/REQUIRED flags from that section.
+- No secrets. No guessing; omit unknown keys.
 
 When you have gathered enough evidence, STOP calling tools and return ONLY a single JSON object (no markdown) with exactly this shape:
 {
@@ -78,6 +84,8 @@ When you have gathered enough evidence, STOP calling tools and return ONLY a sin
       "evidence_hint": "",
       "edge_attributes": {}
     }
-  ]
+  ],
+  "node_attributes": {}
 }
-Note: include "edge_attributes" only when "## Active Data Model" is present in the user message; otherwise omit it or use {}.
+Note: include "edge_attributes" only when the edge enrichment section is present; otherwise omit or {}.
+Include "node_attributes" only when the application node enrichment section is present; otherwise omit or {}.
