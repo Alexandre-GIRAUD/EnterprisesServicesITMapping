@@ -2,6 +2,7 @@ import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import type { ApplicationResponse } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
+import { navigateToModuleGraph } from '../utils/mapNavigation';
 
 const DEBOUNCE_MS = 250;
 
@@ -88,11 +89,11 @@ export function ApplicationSearchBar({
     });
   }, [allApps, debouncedQuery]);
 
-  function openApplication(appId: string) {
+  function openApplication(app: ApplicationResponse) {
     setIsOpen(false);
     setQuery('');
     setDebouncedQuery('');
-    navigate(`/map/apps/${encodeURIComponent(appId)}`);
+    navigateToModuleGraph(navigate, app.id, app.name);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -102,7 +103,7 @@ export function ApplicationSearchBar({
     }
     if (event.key === 'Enter' && filteredApps.length > 0) {
       event.preventDefault();
-      openApplication(filteredApps[0].id);
+      openApplication(filteredApps[0]);
     }
   }
 
@@ -164,7 +165,7 @@ export function ApplicationSearchBar({
                 type="button"
                 className="application-search-item"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => openApplication(app.id)}
+                onClick={() => openApplication(app)}
               >
                 <span className="application-search-item-name">{app.name}</span>
                 <span className="application-search-item-id">{app.id.slice(0, 12)}...</span>

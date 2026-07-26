@@ -6,7 +6,7 @@ import {
   getDataModelRequest,
   putDataModelRequest,
 } from '@/features/datamodel/api/dataModelApi';
-import type { DataModelFieldDto } from '@/types/api';
+import type { DataModelDetection, DataModelFieldDto } from '@/types/api';
 
 const KEY_PATTERN = /^[a-z][a-z0-9_]{1,63}$/;
 const RESERVED_KEYS = new Set([
@@ -27,7 +27,12 @@ function emptyField(): DataModelFieldDto {
     allowedValues: [],
     enforceEnum: false,
     required: false,
+    detection: 'AUTOMATIC_DETECTION',
   };
+}
+
+function normalizeDetection(detection?: DataModelDetection): DataModelDetection {
+  return detection === 'MANUAL' ? 'MANUAL' : 'AUTOMATIC_DETECTION';
 }
 
 function validateFields(fields: DataModelFieldDto[]): string | null {
@@ -66,7 +71,11 @@ export function DataModelPage() {
 
   const reload = useCallback(async () => {
     const data = await getDataModelRequest();
-    setFields(data.fields.length > 0 ? data.fields : [emptyField()]);
+    setFields(
+      data.fields.length > 0
+        ? data.fields.map((f) => ({ ...f, detection: normalizeDetection(f.detection) }))
+        : [emptyField()]
+    );
     setUpdatedAt(data.updatedAt);
     const preview = await getDataModelPromptPreviewRequest();
     setPromptPreview(preview);
@@ -118,6 +127,7 @@ export function DataModelPage() {
         description: f.description?.trim() ?? '',
         promptHint: f.promptHint?.trim() ?? '',
         allowedValues: (f.allowedValues ?? []).map((v) => v.trim()).filter(Boolean),
+        detection: normalizeDetection(f.detection),
       }));
 
     const validationError = validateFields(payload);
@@ -129,7 +139,11 @@ export function DataModelPage() {
     setSaveBusy(true);
     try {
       const saved = await putDataModelRequest({ fields: payload });
-      setFields(saved.fields.length > 0 ? saved.fields : [emptyField()]);
+      setFields(
+        saved.fields.length > 0
+          ? saved.fields.map((f) => ({ ...f, detection: normalizeDetection(f.detection) }))
+          : [emptyField()]
+      );
       setUpdatedAt(saved.updatedAt);
       setPromptPreview(await getDataModelPromptPreviewRequest());
       setSaveMessage('Data Model saved.');
@@ -152,6 +166,9 @@ export function DataModelPage() {
   }
 
   const activeFieldCount = fields.filter((f) => f.key.trim()).length;
+  const automaticFieldCount = fields.filter(
+    (f) => f.key.trim() && normalizeDetection(f.detection) === 'AUTOMATIC_DETECTION'
+  ).length;
 
   return (
     <div className="data-model-page">
@@ -167,117 +184,147 @@ export function DataModelPage() {
         ) : null}
       </header>
 
-      {activeFieldCount === 0 ? (
+      {activeFieldCount === 0 || automaticFieldCount === 0 ? (
         <div className="data-model-banner" role="status">
-          No fields configured — connection suggestion will discover technical topology only (peer,
-          direction, connection_kind, channel).
+          {activeFieldCount === 0
+            ? 'No fields configured — connection suggestion will discover technical topology only (peer, direction, connection_kind, channel).'
+            : 'No automatic-detection fields — connection suggestion will discover technical topology only. Manual fields are not searched by AI.'}
         </div>
       ) : null}
 
       {!isAdmin ? (
-        <p className="data-model-readonly">Read-only view. Only administrators can edit the Data Model.</p>
+        <p className="data-model-readonly">
+          Read-only view. Only administrators can edit the Data Model.
+        </p>
       ) : null}
 
       <form className="data-model-form" onSubmit={onSave}>
         <div className="data-model-fields">
-          {fields.map((field, index) => (
-            <section key={index} className="data-model-field-card">
-              <div className="data-model-field-row">
+          {fields.map((field, index) => {
+            const detection = normalizeDetection(field.detection);
+            return (
+              <section key={index} className="data-model-field-card">
+                <div className="data-model-field-row">
+                  <label className="data-model-label">
+                    Key
+                    <input
+                      className="data-model-input"
+                      value={field.key}
+                      onChange={(e) => updateField(index, { key: e.target.value })}
+                      placeholder="product_line"
+                      disabled={!isAdmin}
+                      spellCheck={false}
+                    />
+                  </label>
+                  <label className="data-model-label">
+                    Label
+                    <input
+                      className="data-model-input"
+                      value={field.label}
+                      onChange={(e) => updateField(index, { label: e.target.value })}
+                      placeholder="Product line"
+                      disabled={!isAdmin}
+                    />
+                  </label>
+                </div>
+
                 <label className="data-model-label">
-                  Key
+                  Detection
+                  <select
+                    className="data-model-input"
+                    value={detection}
+                    onChange={(e) =>
+                      updateField(index, {
+                        detection: e.target.value as DataModelDetection,
+                      })
+                    }
+                    disabled={!isAdmin}
+                  >
+                    <option value="AUTOMATIC_DETECTION">Automatic detection</option>
+                    <option value="MANUAL">Manual</option>
+                  </select>
+                </label>
+                {detection === 'MANUAL' ? (
+                  <p className="data-model-field-hint" role="note">
+                    Not searched by AI connection suggestion. Required is ignored for AI when
+                    Manual.
+                  </p>
+                ) : null}
+
+                <label className="data-model-label">
+                  Description
+                  <textarea
+                    className="data-model-textarea"
+                    value={field.description ?? ''}
+                    onChange={(e) => updateField(index, { description: e.target.value })}
+                    rows={2}
+                    disabled={!isAdmin}
+                  />
+                </label>
+
+                <label className="data-model-label">
+                  Detection hint (prompt)
+                  <textarea
+                    className="data-model-textarea"
+                    value={field.promptHint ?? ''}
+                    onChange={(e) => updateField(index, { promptHint: e.target.value })}
+                    rows={2}
+                    disabled={!isAdmin || detection === 'MANUAL'}
+                  />
+                </label>
+
+                <label className="data-model-label">
+                  Allowed values (comma-separated)
                   <input
                     className="data-model-input"
-                    value={field.key}
-                    onChange={(e) => updateField(index, { key: e.target.value })}
-                    placeholder="product_line"
-                    disabled={!isAdmin}
-                    spellCheck={false}
-                  />
-                </label>
-                <label className="data-model-label">
-                  Label
-                  <input
-                    className="data-model-input"
-                    value={field.label}
-                    onChange={(e) => updateField(index, { label: e.target.value })}
-                    placeholder="Product line"
+                    value={(field.allowedValues ?? []).join(', ')}
+                    onChange={(e) =>
+                      updateField(index, {
+                        allowedValues: e.target.value
+                          .split(',')
+                          .map((v) => v.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                    placeholder="VALUE_A, VALUE_B"
                     disabled={!isAdmin}
                   />
                 </label>
-              </div>
 
-              <label className="data-model-label">
-                Description
-                <textarea
-                  className="data-model-textarea"
-                  value={field.description ?? ''}
-                  onChange={(e) => updateField(index, { description: e.target.value })}
-                  rows={2}
-                  disabled={!isAdmin}
-                />
-              </label>
+                <div className="data-model-checks">
+                  <label className="data-model-check">
+                    <input
+                      type="checkbox"
+                      checked={field.enforceEnum}
+                      onChange={(e) => updateField(index, { enforceEnum: e.target.checked })}
+                      disabled={!isAdmin}
+                    />
+                    Enforce enum (strict)
+                  </label>
+                  <label className="data-model-check">
+                    <input
+                      type="checkbox"
+                      checked={field.required}
+                      onChange={(e) => updateField(index, { required: e.target.checked })}
+                      disabled={!isAdmin || detection === 'MANUAL'}
+                    />
+                    Required
+                    {detection === 'MANUAL' ? ' (ignored when Manual)' : ''}
+                  </label>
+                </div>
 
-              <label className="data-model-label">
-                Detection hint (prompt)
-                <textarea
-                  className="data-model-textarea"
-                  value={field.promptHint ?? ''}
-                  onChange={(e) => updateField(index, { promptHint: e.target.value })}
-                  rows={2}
-                  disabled={!isAdmin}
-                />
-              </label>
-
-              <label className="data-model-label">
-                Allowed values (comma-separated)
-                <input
-                  className="data-model-input"
-                  value={(field.allowedValues ?? []).join(', ')}
-                  onChange={(e) =>
-                    updateField(index, {
-                      allowedValues: e.target.value
-                        .split(',')
-                        .map((v) => v.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                  placeholder="VALUE_A, VALUE_B"
-                  disabled={!isAdmin}
-                />
-              </label>
-
-              <div className="data-model-checks">
-                <label className="data-model-check">
-                  <input
-                    type="checkbox"
-                    checked={field.enforceEnum}
-                    onChange={(e) => updateField(index, { enforceEnum: e.target.checked })}
-                    disabled={!isAdmin}
-                  />
-                  Enforce enum (strict)
-                </label>
-                <label className="data-model-check">
-                  <input
-                    type="checkbox"
-                    checked={field.required}
-                    onChange={(e) => updateField(index, { required: e.target.checked })}
-                    disabled={!isAdmin}
-                  />
-                  Required
-                </label>
-              </div>
-
-              {isAdmin ? (
-                <button
-                  type="button"
-                  className="data-model-remove-btn"
-                  onClick={() => removeField(index)}
-                >
-                  Remove field
-                </button>
-              ) : null}
-            </section>
-          ))}
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    className="data-model-remove-btn"
+                    onClick={() => removeField(index)}
+                  >
+                    Remove field
+                  </button>
+                ) : null}
+              </section>
+            );
+          })}
         </div>
 
         {isAdmin ? (
@@ -305,7 +352,8 @@ export function DataModelPage() {
       <section className="data-model-panel">
         <h2>Prompt preview</h2>
         <p className="data-model-lead">
-          Section injected into the connection-discovery user message when fields are configured.
+          Section injected into the connection-discovery user message when automatic fields are
+          configured (manual fields are excluded).
         </p>
         <pre className="data-model-preview">
           {promptPreview.trim() || '(empty — topology-only mode)'}

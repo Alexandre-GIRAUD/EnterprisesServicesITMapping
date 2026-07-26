@@ -1,26 +1,16 @@
-import { Link, useParams } from 'react-router-dom';
-import { ApplicationModuleGraph } from '../components/ApplicationModuleGraph';
+import { Navigate, useParams } from 'react-router-dom';
+import { moduleGraphMapState } from '../utils/mapNavigation';
 
 /**
- * Drill-down: modules under one application (React Flow tree), route /map/apps/:applicationId.
+ * Legacy route: /map/apps/:applicationId redirects to in-map module drill-down on /map.
  */
 export function ApplicationModuleMapPage() {
   const { applicationId } = useParams<{ applicationId: string }>();
-  const id = applicationId ?? '';
+  const id = applicationId?.trim() ?? '';
 
-  return (
-    <div className="map-page module-map-page">
-      <div className="module-map-toolbar">
-        <Link to="/" className="module-map-back">
-          ← Back to application map
-        </Link>
-        {id ? (
-          <span className="module-map-title" title={id}>
-            Modules — application <code>{id.length > 12 ? `${id.slice(0, 8)}…` : id}</code>
-          </span>
-        ) : null}
-      </div>
-      {id ? <ApplicationModuleGraph applicationId={id} /> : <p>Application ID is missing.</p>}
-    </div>
-  );
+  if (!id) {
+    return <Navigate to="/map" replace />;
+  }
+
+  return <Navigate to="/map" replace state={moduleGraphMapState(id)} />;
 }

@@ -46,6 +46,7 @@ import { WorkspaceDrawer } from './WorkspaceDrawer';
 import { FilterDrawer } from './FilterDrawer';
 import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
 import { ApplicationsTablePanel } from './ApplicationsTablePanel';
+import { FeedsTablePanel } from './FeedsTablePanel';
 import { snapDraggedNodeForStraighterEdges } from './alignNodes';
 import { GraphLegend } from './GraphLegend';
 import { AppGraphNode } from './AppGraphNode';
@@ -176,6 +177,7 @@ export function GraphCanvas() {
     status,
     graphNodes,
     setGraphNodes,
+    graphEdges,
     setGraphEdges,
     colorPropertyKey,
     handleColorPropertyChange,
@@ -223,7 +225,7 @@ export function GraphCanvas() {
     } else if (state.graphMode === 'sandbox') {
       mode.setGraphMode('sandbox');
       mode.setSandboxDirty(false);
-      setMessage('Impact Sandbox — customize your graph, no changes saved.');
+      setMessage('Sandbox — customize your graph, no changes saved.');
       setWorkspacePanelOpen(true);
     } else if (state.graphMode === 'views') {
       mode.setGraphMode('views');
@@ -343,6 +345,15 @@ export function GraphCanvas() {
     },
     [clearPendingNodeClick]
   );
+
+  useEffect(() => {
+    const state = location.state as MapLocationState | null;
+    const appId = state?.openModuleGraphId?.trim();
+    if (!appId) return;
+
+    openModuleGraphById(appId, state?.openModuleGraphLabel?.trim() || undefined);
+    navigate('.', { replace: true, state: {} });
+  }, [location.state, navigate, openModuleGraphById]);
 
   const openModuleGraph = useCallback(
     (node: AppNode) => {
@@ -555,8 +566,8 @@ export function GraphCanvas() {
   const activeViewTitle = useMemo(() => {
     if (moduleGraphApp) return `Modules — ${moduleGraphApp.label}`;
     if (isViewsMode) return 'My views';
-    if (isSandbox) return 'Impact Sandbox';
-    return 'Information System Explorer';
+    if (isSandbox) return 'Sandbox';
+    return 'Production View';
   }, [moduleGraphApp, isViewsMode, isSandbox]);
 
   const tabDescription = useMemo(() => {
@@ -783,15 +794,36 @@ export function GraphCanvas() {
               </ReactFlow>
             </div>
             ) : (
-              <ApplicationsTablePanel
-                isOpen
-                variant="main"
-                status={status}
-                nodes={graphNodes}
-                applicationsCatalog={applications}
-                errorMessage={status === 'error' ? message : null}
-                onRowClick={openApplicationDetails}
-              />
+              <div className="graph-tables-view">
+                <section className="graph-table-section" aria-labelledby="graph-apps-table-heading">
+                  <h3 id="graph-apps-table-heading" className="graph-table-section-title">
+                    Applications
+                  </h3>
+                  <ApplicationsTablePanel
+                    isOpen
+                    variant="main"
+                    status={status}
+                    nodes={graphNodes}
+                    applicationsCatalog={applications}
+                    errorMessage={status === 'error' ? message : null}
+                    onRowClick={openApplicationDetails}
+                  />
+                </section>
+                <section className="graph-table-section" aria-labelledby="graph-feeds-table-heading">
+                  <h3 id="graph-feeds-table-heading" className="graph-table-section-title">
+                    Feeds
+                  </h3>
+                  <FeedsTablePanel
+                    isOpen
+                    variant="main"
+                    status={status}
+                    edges={graphEdges}
+                    nodes={graphNodes}
+                    errorMessage={status === 'error' ? message : null}
+                    onRowClick={openApplicationDetails}
+                  />
+                </section>
+              </div>
             )}
 
             <SaveSnapshotDialog

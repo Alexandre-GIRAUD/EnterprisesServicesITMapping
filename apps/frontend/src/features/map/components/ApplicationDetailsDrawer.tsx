@@ -17,6 +17,7 @@ import {
 } from '../api/applicationsApi';
 import { fetchRegions } from '../api/regionsApi';
 import { fetchBusinessUnits } from '../api/businessUnitsApi';
+import { moduleGraphMapState } from '../utils/mapNavigation';
 import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 import { isSandboxId } from '../utils/sandboxGraph';
 
@@ -656,7 +657,11 @@ export function ApplicationDetailsDrawer({
             {application?.id ? (
               <Link
                 className="github-import-inline-link"
-                to={`/map/apps/${encodeURIComponent(application.id)}`}
+                to="/map"
+                state={moduleGraphMapState(
+                  application.id,
+                  details?.name ?? application.label
+                )}
               >
                 View module graph
               </Link>

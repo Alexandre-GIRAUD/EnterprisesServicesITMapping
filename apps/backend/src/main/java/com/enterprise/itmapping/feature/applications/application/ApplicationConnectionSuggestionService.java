@@ -133,7 +133,9 @@ public class ApplicationConnectionSuggestionService {
 
     DataModelConfig dataModelConfig = dataModelService.loadConfig();
     String dataModelPromptSection =
-        dataModelConfig.isEmpty() ? "" : dataModelPromptBuilder.buildPromptSection(dataModelConfig);
+        dataModelConfig.hasAutomaticFields()
+            ? dataModelPromptBuilder.buildPromptSection(dataModelConfig)
+            : "";
     if (!dataModelPromptSection.isBlank()) {
       String preview =
           dataModelPromptSection.length() > 400
@@ -143,12 +145,13 @@ public class ApplicationConnectionSuggestionService {
     }
 
     log.info(
-        "Connection suggestion start applicationId={} repo={}/{} catalogSize={} dataModelFields={}",
+        "Connection suggestion start applicationId={} repo={}/{} catalogSize={} dataModelFields={} dataModelAutomaticFields={}",
         applicationId,
         owner,
         repo,
         catalog.entries().size(),
-        dataModelConfig.fields().size());
+        dataModelConfig.fields().size(),
+        dataModelConfig.automaticFields().size());
 
     Path workspace = cloneService.clone(owner, repo, properties.cloneTimeoutSeconds());
     try {
@@ -220,7 +223,7 @@ public class ApplicationConnectionSuggestionService {
       }
 
       Map<String, String> validatedAttributes = Map.of();
-      if (!dataModelConfig.isEmpty()) {
+      if (dataModelConfig.hasAutomaticFields()) {
         ValidationResult validation =
             dataModelAttributeResolver.validate(dataModelConfig, entry.getEdgeAttributes());
         if (!validation.accepted()) {
@@ -239,7 +242,7 @@ public class ApplicationConnectionSuggestionService {
         }
       } else if (!entry.getEdgeAttributes().isEmpty()) {
         log.debug(
-            "Ignoring edge_attributes from LLM (no Data Model configured) peer={} keys={}",
+            "Ignoring edge_attributes from LLM (no automatic Data Model fields) peer={} keys={}",
             peerName,
             entry.getEdgeAttributes().keySet());
       }

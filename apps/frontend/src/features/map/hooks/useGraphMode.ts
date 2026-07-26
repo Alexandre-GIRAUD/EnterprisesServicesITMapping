@@ -33,7 +33,7 @@ export function useGraphMode({
   function switchToSandboxMode() {
     setGraphMode('sandbox');
     setSandboxDirty(false);
-    setMessage('Impact Sandbox — customize your graph, no changes saved.');
+    setMessage('Sandbox — customize your graph, no changes saved.');
     setIsDrawerOpen(true);
   }
 

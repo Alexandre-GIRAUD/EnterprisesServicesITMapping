@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.datamodel.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,51 @@ class DataModelPromptBuilderTest {
     String section = builder.buildPromptSection(config);
 
     assertThat(section).contains("a_key").contains("b_key").contains("c_key");
+  }
+
+  @Test
+  void mixesAutomaticAndManual_listsOnlyAutomatic() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "auto_key",
+                    "Auto",
+                    "",
+                    "",
+                    List.of("X"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION),
+                new DataModelField(
+                    "manual_key",
+                    "Manual",
+                    "",
+                    "",
+                    List.of("Y"),
+                    false,
+                    true,
+                    DataModelDetection.MANUAL)));
+
+    String section = builder.buildPromptSection(config);
+
+    assertThat(section).contains("Field key: auto_key");
+    assertThat(section).contains("X");
+    assertThat(section).doesNotContain("manual_key");
+    assertThat(section).doesNotContain("Manual");
+  }
+
+  @Test
+  void allManualFields_returnsEmptySection() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "a", "A", "", "", List.of(), false, true, DataModelDetection.MANUAL),
+                new DataModelField(
+                    "b", "B", "", "", List.of(), false, false, DataModelDetection.MANUAL)));
+
+    assertThat(builder.buildPromptSection(config)).isEmpty();
   }
 
   private static DataModelField field(String key, String label) {

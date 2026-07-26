@@ -51,7 +51,14 @@ class DataModelControllerWebMvcTest {
             new DataModelResponse(
                 List.of(
                     new DataModelFieldDto(
-                        "flow_nature", "Nature", "d", "h", List.of(), false, true)),
+                        "flow_nature",
+                        "Nature",
+                        "d",
+                        "h",
+                        List.of(),
+                        false,
+                        true,
+                        com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection.MANUAL)),
                 Instant.parse("2026-01-02T00:00:00Z")));
 
     mockMvc
@@ -69,13 +76,15 @@ class DataModelControllerWebMvcTest {
                           "promptHint": "h",
                           "allowedValues": [],
                           "enforceEnum": false,
-                          "required": true
+                          "required": true,
+                          "detection": "MANUAL"
                         }
                       ]
                     }
                     """))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.fields[0].required").value(true));
+        .andExpect(jsonPath("$.fields[0].required").value(true))
+        .andExpect(jsonPath("$.fields[0].detection").value("MANUAL"));
   }
 
   @Test

@@ -8,6 +8,7 @@ import {
   suggestModulesFromGithub,
 } from '../api/applicationsApi';
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
+import { navigateToModuleGraph } from '../utils/mapNavigation';
 import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 
 function normalizeName(s: string): string {
@@ -237,11 +238,14 @@ export function GitHubImportPage() {
               <button
                 type="button"
                 className="github-import-inline-link"
-                onClick={() =>
-                  navigate(
-                    `/map/apps/${encodeURIComponent(lastSuggestApplicationId)}`
-                  )
-                }
+                onClick={() => {
+                  const app = applications.find((a) => a.id === lastSuggestApplicationId);
+                  navigateToModuleGraph(
+                    navigate,
+                    lastSuggestApplicationId,
+                    app?.name
+                  );
+                }}
               >
                 View module graph
               </button>

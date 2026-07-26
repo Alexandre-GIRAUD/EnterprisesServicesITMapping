@@ -24,7 +24,7 @@ export function Layout() {
                   state={{ graphMode: 'normal' } satisfies MapLocationState}
                   className="layout-header-link"
                 >
-                  Self Service
+                  Information System Studio
                 </Link>
                 <Link to="/data-model" className="layout-header-link">
                   Data Model

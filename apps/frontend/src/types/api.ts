@@ -216,6 +216,9 @@ export type GraphSnapshotDto = {
   updatedAt: string;
 };
 
+/** How AI connection suggestion treats this field. */
+export type DataModelDetection = 'AUTOMATIC_DETECTION' | 'MANUAL';
+
 /** Workspace Data Model field (dynamic edge enrichment). */
 export type DataModelFieldDto = {
   key: string;
@@ -225,6 +228,8 @@ export type DataModelFieldDto = {
   allowedValues?: string[];
   enforceEnum: boolean;
   required: boolean;
+  /** Defaults to AUTOMATIC_DETECTION when omitted (backend). */
+  detection?: DataModelDetection;
 };
 
 /** {@code GET/PUT /api/data-model} */

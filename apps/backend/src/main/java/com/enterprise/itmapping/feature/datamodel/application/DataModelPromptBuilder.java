@@ -2,28 +2,30 @@ package com.enterprise.itmapping.feature.datamodel.application;
 
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
+import java.util.List;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
  * Builds the dynamic "## Active Data Model" section injected into the connection-discovery user
- * prompt. Returns an empty string when the config has no fields — callers must not inject the
- * section in that case.
+ * prompt. Returns an empty string when there are no {@code AUTOMATIC_DETECTION} fields — callers
+ * must not inject the section in that case. Manual fields are never listed.
  */
 @Component
 public class DataModelPromptBuilder {
 
   public String buildPromptSection(DataModelConfig config) {
-    if (config == null || config.isEmpty()) {
+    if (config == null || !config.hasAutomaticFields()) {
       return "";
     }
+    List<DataModelField> automatic = config.automaticFields();
     StringBuilder sb = new StringBuilder();
     sb.append("## Active Data Model (edge enrichment)\n\n");
     sb.append(
         "For EACH connection, populate \"edge_attributes\" using ONLY the field keys listed"
             + " below.\n\n");
 
-    for (DataModelField field : config.fields()) {
+    for (DataModelField field : automatic) {
       sb.append("Field key: ").append(field.key()).append('\n');
       sb.append("  Label: ").append(field.label()).append('\n');
       if (StringUtils.hasText(field.description())) {
@@ -57,6 +59,7 @@ public class DataModelPromptBuilder {
         - Never invent values outside allowed lists when STRICT applies.
         - edge_attributes = what transits on the flow; connection_kind = how (API, KAFKA, ...).
         - Search the codebase using field labels, detection hints, and allowed value literals when grepping.
+        - Fields not listed here are out of scope for AI detection (manual / not requested).
         """);
     return sb.toString().trim();
   }

@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.datamodel.application;
 
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import java.util.HashSet;
 import java.util.List;
@@ -49,6 +50,10 @@ public class DataModelValidator {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Label manquant pour la cle: " + key);
       }
+      if (field.detection() == null) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "detection manquante pour la cle: " + key);
+      }
       List<String> allowed = field.allowedValues() != null ? field.allowedValues() : List.of();
       if (field.enforceEnum() && allowed.isEmpty()) {
         throw new ResponseStatusException(
@@ -76,7 +81,8 @@ public class DataModelValidator {
                                 .toList()
                             : List.of(),
                         f.enforceEnum(),
-                        f.required()))
+                        f.required(),
+                        DataModelDetection.orDefault(f.detection())))
             .toList();
     return new DataModelConfig(normalized);
   }

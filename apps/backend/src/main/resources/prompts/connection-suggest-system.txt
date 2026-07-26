@@ -60,6 +60,8 @@ edge_attributes rules (when Active Data Model is present):
 - Values: follow allowed values and STRICT/REQUIRED flags from that section.
 - No secrets. No guessing; omit unknown keys.
 - Transport stays in connection_kind and channel.
+- Only populate edge_attributes keys listed in "## Active Data Model".
+- Fields not listed are out of scope for AI detection (manual / not requested).
 
 When you have gathered enough evidence, STOP calling tools and return ONLY a single JSON object (no markdown) with exactly this shape:
 {
