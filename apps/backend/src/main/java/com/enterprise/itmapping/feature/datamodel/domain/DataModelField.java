@@ -11,16 +11,18 @@ public record DataModelField(
     List<String> allowedValues,
     boolean enforceEnum,
     boolean required,
-    DataModelDetection detection) {
+    DataModelDetection detection,
+    DataModelTarget target) {
 
   public DataModelField {
     description = description != null ? description : "";
     promptHint = promptHint != null ? promptHint : "";
     allowedValues = allowedValues != null ? List.copyOf(allowedValues) : List.of();
     detection = DataModelDetection.orDefault(detection);
+    target = DataModelTarget.orDefault(target);
   }
 
-  /** Convenience constructor — defaults to {@link DataModelDetection#AUTOMATIC_DETECTION}. */
+  /** Convenience — automatic detection, EDGE target. */
   public DataModelField(
       String key,
       String label,
@@ -37,11 +39,41 @@ public record DataModelField(
         allowedValues,
         enforceEnum,
         required,
-        DataModelDetection.AUTOMATIC_DETECTION);
+        DataModelDetection.AUTOMATIC_DETECTION,
+        DataModelTarget.EDGE);
   }
 
-  /** True when the AI connection pipeline should search for this field. */
+  /** Convenience — EDGE target with explicit detection. */
+  public DataModelField(
+      String key,
+      String label,
+      String description,
+      String promptHint,
+      List<String> allowedValues,
+      boolean enforceEnum,
+      boolean required,
+      DataModelDetection detection) {
+    this(
+        key,
+        label,
+        description,
+        promptHint,
+        allowedValues,
+        enforceEnum,
+        required,
+        detection,
+        DataModelTarget.EDGE);
+  }
+
   public boolean isAutomaticDetection() {
     return detection != DataModelDetection.MANUAL;
+  }
+
+  public boolean isEdgeTarget() {
+    return target == DataModelTarget.EDGE;
+  }
+
+  public boolean isNodeTarget() {
+    return target == DataModelTarget.NODE;
   }
 }

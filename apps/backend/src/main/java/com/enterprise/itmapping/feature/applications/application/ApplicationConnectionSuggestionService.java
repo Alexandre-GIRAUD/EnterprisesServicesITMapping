@@ -13,6 +13,7 @@ import com.enterprise.itmapping.feature.datamodel.application.DataModelAttribute
 import com.enterprise.itmapping.feature.datamodel.application.DataModelPromptBuilder;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
 import com.enterprise.itmapping.feature.integrations.github.GithubTreePathFilter;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService;
 import com.enterprise.itmapping.feature.integrations.llm.ConnectionDiscoveryProperties;
@@ -70,6 +71,7 @@ public class ApplicationConnectionSuggestionService {
   private final ConnectionDiscoveryProperties properties;
   private final ApplicationCatalogQuery catalogQuery;
   private final ApplicationConnectionEdgeWriter edgeWriter;
+  private final ApplicationNodeAttributeWriter nodeAttributeWriter;
   private final DataModelService dataModelService;
   private final DataModelPromptBuilder dataModelPromptBuilder;
   private final DataModelAttributeResolver dataModelAttributeResolver;
@@ -81,6 +83,7 @@ public class ApplicationConnectionSuggestionService {
       ConnectionDiscoveryProperties properties,
       ApplicationCatalogQuery catalogQuery,
       ApplicationConnectionEdgeWriter edgeWriter,
+      ApplicationNodeAttributeWriter nodeAttributeWriter,
       DataModelService dataModelService,
       DataModelPromptBuilder dataModelPromptBuilder,
       DataModelAttributeResolver dataModelAttributeResolver) {
@@ -90,6 +93,7 @@ public class ApplicationConnectionSuggestionService {
     this.properties = properties;
     this.catalogQuery = catalogQuery;
     this.edgeWriter = edgeWriter;
+    this.nodeAttributeWriter = nodeAttributeWriter;
     this.dataModelService = dataModelService;
     this.dataModelPromptBuilder = dataModelPromptBuilder;
     this.dataModelAttributeResolver = dataModelAttributeResolver;
@@ -145,13 +149,14 @@ public class ApplicationConnectionSuggestionService {
     }
 
     log.info(
-        "Connection suggestion start applicationId={} repo={}/{} catalogSize={} dataModelFields={} dataModelAutomaticFields={}",
+        "Connection suggestion start applicationId={} repo={}/{} catalogSize={} dataModelFields={} dataModelEdgeAutomatic={} dataModelNodeAutomatic={}",
         applicationId,
         owner,
         repo,
         catalog.entries().size(),
         dataModelConfig.fields().size(),
-        dataModelConfig.automaticFields().size());
+        dataModelConfig.automaticEdgeFields().size(),
+        dataModelConfig.automaticNodeFields().size());
 
     Path workspace = cloneService.clone(owner, repo, properties.cloneTimeoutSeconds());
     try {
@@ -179,7 +184,8 @@ public class ApplicationConnectionSuggestionService {
     List<SkippedItem> skipped = new ArrayList<>();
     int outbound = 0;
     int inbound = 0;
-    Set<String> allowedDataModelKeys = dataModelAttributeResolver.allowedKeys(dataModelConfig);
+    Set<String> allowedEdgeKeys =
+        dataModelAttributeResolver.allowedKeys(dataModelConfig, DataModelTarget.EDGE);
 
     for (AiConnectionEntry entry : discovery.payload().getConnections()) {
       String peerName = entry.getPeerApplicationName();
@@ -223,9 +229,10 @@ public class ApplicationConnectionSuggestionService {
       }
 
       Map<String, String> validatedAttributes = Map.of();
-      if (dataModelConfig.hasAutomaticFields()) {
+      if (dataModelConfig.hasAutomaticEdgeFields()) {
         ValidationResult validation =
-            dataModelAttributeResolver.validate(dataModelConfig, entry.getEdgeAttributes());
+            dataModelAttributeResolver.validate(
+                dataModelConfig, entry.getEdgeAttributes(), DataModelTarget.EDGE);
         if (!validation.accepted()) {
           skipped.add(
               new SkippedItem(
@@ -235,14 +242,14 @@ public class ApplicationConnectionSuggestionService {
         validatedAttributes = validation.attributes();
         for (Map.Entry<String, String> attr : validatedAttributes.entrySet()) {
           log.debug(
-              "Data Model attribute accepted peer={} key={} value={}",
+              "Data Model edge attribute accepted peer={} key={} value={}",
               peerName,
               attr.getKey(),
               attr.getValue());
         }
       } else if (!entry.getEdgeAttributes().isEmpty()) {
         log.debug(
-            "Ignoring edge_attributes from LLM (no automatic Data Model fields) peer={} keys={}",
+            "Ignoring edge_attributes from LLM (no automatic EDGE Data Model fields) peer={} keys={}",
             peerName,
             entry.getEdgeAttributes().keySet());
       }
@@ -267,7 +274,7 @@ public class ApplicationConnectionSuggestionService {
               confidence,
               applicationId,
               validatedAttributes,
-              allowedDataModelKeys);
+              allowedEdgeKeys);
 
       switch (result.outcome()) {
         case DUPLICATE ->
@@ -293,6 +300,8 @@ public class ApplicationConnectionSuggestionService {
       }
     }
 
+    persistNodeAttributes(applicationId, discovery, dataModelConfig);
+
     log.info(
         "Connection suggestion result applicationId={} created={} (outbound={} inbound={}) skipped={} analyzedFiles={}",
         applicationId,
@@ -311,6 +320,58 @@ public class ApplicationConnectionSuggestionService {
 
     return new SuggestConnectionsFromGithubResponse(
         List.copyOf(created), List.copyOf(skipped), List.copyOf(discovery.analyzedFiles()));
+  }
+
+  /**
+   * Validates and persists root-level {@code node_attributes} on the analyzed Application.
+   *
+   * <p>v1 policy: NODE validation soft-fails — WARN + skip node enrichment; edges already validated
+   * remain persisted.
+   */
+  private void persistNodeAttributes(
+      String applicationId, DiscoveryResult discovery, DataModelConfig dataModelConfig) {
+    Map<String, String> rawNodeAttrs = discovery.payload().getNodeAttributes();
+    if (!dataModelConfig.hasAutomaticNodeFields()) {
+      if (!rawNodeAttrs.isEmpty()) {
+        log.debug(
+            "Ignoring node_attributes from LLM (no automatic NODE Data Model fields) keys={}",
+            rawNodeAttrs.keySet());
+      }
+      return;
+    }
+
+    ValidationResult validation =
+        dataModelAttributeResolver.validate(dataModelConfig, rawNodeAttrs, DataModelTarget.NODE);
+    if (!validation.accepted()) {
+      log.warn(
+          "Skipping Application node Data Model enrichment applicationId={} reason={} detail={} (edges unaffected)",
+          applicationId,
+          validation.skipReason(),
+          validation.skipDetail());
+      return;
+    }
+
+    Map<String, String> attrs = validation.attributes();
+    if (attrs.isEmpty()) {
+      log.debug("No validated node_attributes to persist applicationId={}", applicationId);
+      return;
+    }
+
+    for (Map.Entry<String, String> attr : attrs.entrySet()) {
+      log.debug(
+          "Data Model node attribute accepted applicationId={} key={} value={}",
+          applicationId,
+          attr.getKey(),
+          attr.getValue());
+    }
+
+    Set<String> allowedNodeKeys =
+        dataModelAttributeResolver.allowedKeys(dataModelConfig, DataModelTarget.NODE);
+    int written = nodeAttributeWriter.write(applicationId, attrs, allowedNodeKeys);
+    log.debug(
+        "Application node Data Model write applicationId={} propsWritten={}",
+        applicationId,
+        written);
   }
 
   private Catalog loadCatalog(String excludeApplicationId) {

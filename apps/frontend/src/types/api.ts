@@ -219,7 +219,10 @@ export type GraphSnapshotDto = {
 /** How AI connection suggestion treats this field. */
 export type DataModelDetection = 'AUTOMATIC_DETECTION' | 'MANUAL';
 
-/** Workspace Data Model field (dynamic edge enrichment). */
+/** Where a Data Model field applies in the graph. */
+export type DataModelTarget = 'EDGE' | 'NODE';
+
+/** Workspace Data Model field (dynamic edge / application-node enrichment). */
 export type DataModelFieldDto = {
   key: string;
   label: string;
@@ -230,6 +233,8 @@ export type DataModelFieldDto = {
   required: boolean;
   /** Defaults to AUTOMATIC_DETECTION when omitted (backend). */
   detection?: DataModelDetection;
+  /** Defaults to EDGE when omitted (backend). */
+  target?: DataModelTarget;
 };
 
 /** {@code GET/PUT /api/data-model} */

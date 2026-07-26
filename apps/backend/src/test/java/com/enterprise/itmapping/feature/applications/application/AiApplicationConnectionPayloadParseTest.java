@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.enterprise.itmapping.feature.applications.application.dto.AiApplicationConnectionPayload;
 import com.enterprise.itmapping.feature.applications.application.dto.AiApplicationConnectionPayload.AiConnectionEntry;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class AiApplicationConnectionPayloadParseTest {
@@ -59,6 +60,23 @@ class AiApplicationConnectionPayloadParseTest {
     AiConnectionEntry second = payload.getConnections().get(1);
     assertThat(second.getDirection()).isEqualTo("inbound");
     assertThat(second.getConnectionKind()).isEqualTo("KAFKA");
+    assertThat(payload.getNodeAttributes()).isEmpty();
+  }
+
+  @Test
+  void parsesRootNodeAttributes() throws Exception {
+    String json =
+        """
+        {
+          "connections": [],
+          "node_attributes": { "tier": " T1 ", "empty": "" }
+        }
+        """;
+
+    AiApplicationConnectionPayload payload =
+        mapper.readValue(json, AiApplicationConnectionPayload.class);
+
+    assertThat(payload.getNodeAttributes()).containsExactly(Map.entry("tier", "T1"));
   }
 
   @Test
@@ -69,5 +87,6 @@ class AiApplicationConnectionPayloadParseTest {
 
     assertThat(payload.getConnections()).isEmpty();
     assertThat(payload.getLimitations()).containsExactly("nothing found");
+    assertThat(payload.getNodeAttributes()).isEmpty();
   }
 }

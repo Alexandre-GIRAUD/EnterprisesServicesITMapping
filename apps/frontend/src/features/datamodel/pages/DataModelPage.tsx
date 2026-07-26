@@ -6,11 +6,14 @@ import {
   getDataModelRequest,
   putDataModelRequest,
 } from '@/features/datamodel/api/dataModelApi';
-import type { DataModelDetection, DataModelFieldDto } from '@/types/api';
+import type { DataModelDetection, DataModelFieldDto, DataModelTarget } from '@/types/api';
 
 const KEY_PATTERN = /^[a-z][a-z0-9_]{1,63}$/;
 const RESERVED_KEYS = new Set([
   'id',
+  'name',
+  'description',
+  'year',
   'connection_kind',
   'channel',
   'direction',
@@ -28,11 +31,16 @@ function emptyField(): DataModelFieldDto {
     enforceEnum: false,
     required: false,
     detection: 'AUTOMATIC_DETECTION',
+    target: 'EDGE',
   };
 }
 
 function normalizeDetection(detection?: DataModelDetection): DataModelDetection {
   return detection === 'MANUAL' ? 'MANUAL' : 'AUTOMATIC_DETECTION';
+}
+
+function normalizeTarget(target?: DataModelTarget): DataModelTarget {
+  return target === 'NODE' ? 'NODE' : 'EDGE';
 }
 
 function validateFields(fields: DataModelFieldDto[]): string | null {
@@ -73,7 +81,11 @@ export function DataModelPage() {
     const data = await getDataModelRequest();
     setFields(
       data.fields.length > 0
-        ? data.fields.map((f) => ({ ...f, detection: normalizeDetection(f.detection) }))
+        ? data.fields.map((f) => ({
+            ...f,
+            detection: normalizeDetection(f.detection),
+            target: normalizeTarget(f.target),
+          }))
         : [emptyField()]
     );
     setUpdatedAt(data.updatedAt);
@@ -128,6 +140,7 @@ export function DataModelPage() {
         promptHint: f.promptHint?.trim() ?? '',
         allowedValues: (f.allowedValues ?? []).map((v) => v.trim()).filter(Boolean),
         detection: normalizeDetection(f.detection),
+        target: normalizeTarget(f.target),
       }));
 
     const validationError = validateFields(payload);
@@ -141,7 +154,11 @@ export function DataModelPage() {
       const saved = await putDataModelRequest({ fields: payload });
       setFields(
         saved.fields.length > 0
-          ? saved.fields.map((f) => ({ ...f, detection: normalizeDetection(f.detection) }))
+          ? saved.fields.map((f) => ({
+              ...f,
+              detection: normalizeDetection(f.detection),
+              target: normalizeTarget(f.target),
+            }))
           : [emptyField()]
       );
       setUpdatedAt(saved.updatedAt);
@@ -175,9 +192,9 @@ export function DataModelPage() {
       <header className="data-model-header">
         <h1>Data Model</h1>
         <p className="data-model-lead">
-          Define dynamic fields describing what transits on inter-application flows. These fields
-          enrich the connection-discovery AI prompt and are persisted on Neo4j{' '}
-          <code>DEPENDS_ON</code> edges.
+          Define dynamic fields for connection flows (edges) and for the analyzed Application
+          (node). Automatic fields enrich the connection-discovery AI prompt and are persisted on
+          Neo4j <code>DEPENDS_ON</code> relationships or the <code>Application</code> node.
         </p>
         {updatedAt ? (
           <p className="data-model-meta">Last updated: {new Date(updatedAt).toLocaleString()}</p>
@@ -202,6 +219,7 @@ export function DataModelPage() {
         <div className="data-model-fields">
           {fields.map((field, index) => {
             const detection = normalizeDetection(field.detection);
+            const target = normalizeTarget(field.target);
             return (
               <section key={index} className="data-model-field-card">
                 <div className="data-model-field-row">
@@ -227,6 +245,28 @@ export function DataModelPage() {
                     />
                   </label>
                 </div>
+
+                <label className="data-model-label">
+                  Target
+                  <select
+                    className="data-model-input"
+                    value={target}
+                    onChange={(e) =>
+                      updateField(index, {
+                        target: e.target.value as DataModelTarget,
+                      })
+                    }
+                    disabled={!isAdmin}
+                  >
+                    <option value="EDGE">Edge (connection)</option>
+                    <option value="NODE">Application (node)</option>
+                  </select>
+                </label>
+                {target === 'NODE' ? (
+                  <p className="data-model-field-hint" role="note">
+                    Applied to the analyzed Application during connection suggestion (AI).
+                  </p>
+                ) : null}
 
                 <label className="data-model-label">
                   Detection
@@ -352,8 +392,9 @@ export function DataModelPage() {
       <section className="data-model-panel">
         <h2>Prompt preview</h2>
         <p className="data-model-lead">
-          Section injected into the connection-discovery user message when automatic fields are
-          configured (manual fields are excluded).
+          Section(s) injected into the connection-discovery user message when automatic fields are
+          configured (manual fields are excluded). Edge and Application (node) fields appear in
+          separate sections.
         </p>
         <pre className="data-model-preview">
           {promptPreview.trim() || '(empty — topology-only mode)'}

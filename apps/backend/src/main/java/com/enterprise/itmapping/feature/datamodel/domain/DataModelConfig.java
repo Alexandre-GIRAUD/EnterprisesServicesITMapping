@@ -13,16 +13,34 @@ public record DataModelConfig(List<DataModelField> fields) {
     return fields.isEmpty();
   }
 
-  /** Fields the AI may discover (excludes {@link DataModelDetection#MANUAL}). */
+  /** All automatic fields (any target). */
   public List<DataModelField> automaticFields() {
     return fields.stream().filter(DataModelField::isAutomaticDetection).toList();
   }
 
-  /**
-   * True when at least one field is automatic — otherwise connection suggestion stays topology-only
-   * (same as an empty Data Model for AI enrichment).
-   */
+  public List<DataModelField> automaticEdgeFields() {
+    return fields.stream()
+        .filter(DataModelField::isAutomaticDetection)
+        .filter(DataModelField::isEdgeTarget)
+        .toList();
+  }
+
+  public List<DataModelField> automaticNodeFields() {
+    return fields.stream()
+        .filter(DataModelField::isAutomaticDetection)
+        .filter(DataModelField::isNodeTarget)
+        .toList();
+  }
+
   public boolean hasAutomaticFields() {
     return !automaticFields().isEmpty();
+  }
+
+  public boolean hasAutomaticEdgeFields() {
+    return !automaticEdgeFields().isEmpty();
+  }
+
+  public boolean hasAutomaticNodeFields() {
+    return !automaticNodeFields().isEmpty();
   }
 }

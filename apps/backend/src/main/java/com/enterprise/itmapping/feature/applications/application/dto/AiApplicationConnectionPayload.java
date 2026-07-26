@@ -26,6 +26,13 @@ public class AiApplicationConnectionPayload {
   @JsonProperty("connections")
   private List<AiConnectionEntry> connections = new ArrayList<>();
 
+  /**
+   * Business attributes for the analyzed Application (root-level, once per payload). Populated only
+   * when the user message includes "## Active Data Model (application node enrichment)".
+   */
+  @JsonProperty("node_attributes")
+  private Map<String, String> nodeAttributes = new LinkedHashMap<>();
+
   public List<String> getAssumptions() {
     return assumptions != null ? assumptions : List.of();
   }
@@ -48,6 +55,26 @@ public class AiApplicationConnectionPayload {
 
   public void setConnections(List<AiConnectionEntry> connections) {
     this.connections = connections != null ? connections : new ArrayList<>();
+  }
+
+  /** Trimmed keys and values; never null. */
+  public Map<String, String> getNodeAttributes() {
+    if (nodeAttributes == null || nodeAttributes.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, String> out = new LinkedHashMap<>();
+    for (Map.Entry<String, String> entry : nodeAttributes.entrySet()) {
+      String key = entry.getKey() != null ? entry.getKey().trim() : "";
+      String value = entry.getValue() != null ? entry.getValue().trim() : "";
+      if (!key.isEmpty() && !value.isEmpty()) {
+        out.put(key, value);
+      }
+    }
+    return out;
+  }
+
+  public void setNodeAttributes(Map<String, String> nodeAttributes) {
+    this.nodeAttributes = nodeAttributes != null ? nodeAttributes : new LinkedHashMap<>();
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)

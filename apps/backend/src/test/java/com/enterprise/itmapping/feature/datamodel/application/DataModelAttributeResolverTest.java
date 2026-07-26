@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -100,5 +101,88 @@ class DataModelAttributeResolverTest {
 
     assertThat(result.accepted()).isTrue();
     assertThat(result.attributes()).containsEntry("product_line", "A");
+  }
+
+  @Test
+  void filtersByTarget_edgeIgnoresNodeKeys() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "product_line",
+                    "Line",
+                    "",
+                    "",
+                    List.of("A"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.EDGE),
+                new DataModelField(
+                    "tier",
+                    "Tier",
+                    "",
+                    "",
+                    List.of("T1"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE)));
+
+    var edge =
+        resolver.validate(
+            config, Map.of("product_line", "A", "tier", "T1"), DataModelTarget.EDGE);
+    var node =
+        resolver.validate(
+            config, Map.of("product_line", "A", "tier", "T1"), DataModelTarget.NODE);
+
+    assertThat(edge.attributes()).containsExactly(Map.entry("product_line", "A"));
+    assertThat(node.attributes()).containsExactly(Map.entry("tier", "T1"));
+    assertThat(resolver.allowedKeys(config, DataModelTarget.EDGE)).isEqualTo(Set.of("product_line"));
+    assertThat(resolver.allowedKeys(config, DataModelTarget.NODE)).isEqualTo(Set.of("tier"));
+  }
+
+  @Test
+  void requiredNodeFieldMissingUsesNodeSkipReason() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "tier",
+                    "Tier",
+                    "",
+                    "",
+                    List.of(),
+                    false,
+                    true,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE)));
+
+    var result = resolver.validate(config, Map.of(), DataModelTarget.NODE);
+
+    assertThat(result.accepted()).isFalse();
+    assertThat(result.skipReason()).isEqualTo("data_model_node_champ_manquant");
+  }
+
+  @Test
+  void invalidNodeEnumUsesNodeSkipReason() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "tier",
+                    "Tier",
+                    "",
+                    "",
+                    List.of("T1"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE)));
+
+    var result = resolver.validate(config, Map.of("tier", "BAD"), DataModelTarget.NODE);
+
+    assertThat(result.accepted()).isFalse();
+    assertThat(result.skipReason()).isEqualTo("data_model_node_valeur_invalide");
   }
 }

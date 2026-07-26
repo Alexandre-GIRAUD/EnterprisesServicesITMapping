@@ -134,7 +134,8 @@ public class ConnectionDiscoveryAgent {
       sb.append(
           """
 
-          (No Data Model configured — discover integration topology only; do not populate edge_attributes.)
+          (No automatic Data Model configured — discover integration topology only; do not populate
+          edge_attributes or node_attributes.)
           """);
     }
 

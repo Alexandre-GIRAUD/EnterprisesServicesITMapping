@@ -42,4 +42,25 @@ class DataModelValidatorTest {
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("reservee");
   }
+
+  @Test
+  void rejectsReservedNodeKey() {
+    List<DataModelField> fields =
+        List.of(
+            new DataModelField(
+                "name",
+                "Name",
+                "",
+                "",
+                List.of(),
+                false,
+                false,
+                com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection
+                    .AUTOMATIC_DETECTION,
+                com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget.NODE));
+
+    assertThatThrownBy(() -> validator.validatePut(fields))
+        .isInstanceOf(ResponseStatusException.class)
+        .hasMessageContaining("reservee");
+  }
 }
