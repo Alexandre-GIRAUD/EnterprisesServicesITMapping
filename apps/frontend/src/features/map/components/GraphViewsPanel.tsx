@@ -32,7 +32,7 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
           {errorMessage}
         </p>
       ) : snapshots.length === 0 ? (
-        <p className="graph-views-state">No saved views yet. Pin a view from Production View.</p>
+        <p className="graph-views-state">No saved views yet. Pin a view from Production.</p>
       ) : (
         <ul className="graph-views-list" aria-label="Saved views">
           {snapshots.map((snapshot) => (

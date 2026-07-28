@@ -24,17 +24,17 @@ export function Layout() {
                   state={{ graphMode: 'normal' } satisfies MapLocationState}
                   className="layout-header-link"
                 >
-                  Information System Studio
+                  Cartography
                 </Link>
                 <Link to="/data-model" className="layout-header-link">
                   Data Model
                 </Link>
                 <Link to="/map/import-github" className="layout-header-link">
-                  Import repos
+                  Sources
                 </Link>
                 {isAdmin ? (
                   <Link to="/admin/users" className="layout-header-link">
-                    Users
+                    Admin
                   </Link>
                 ) : null}
                 <span className="layout-header-user" title={user.username}>

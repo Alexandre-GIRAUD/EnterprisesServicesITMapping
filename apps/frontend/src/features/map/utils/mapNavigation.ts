@@ -4,7 +4,7 @@ import type { GraphSnapshotFilters } from '@/types/api';
 
 export type MapLocationState = {
   applySnapshot?: GraphSnapshotFilters;
-  /** Switch the map graph tab when landing on /map (e.g. header Information System Studio link). */
+  /** Switch the map graph tab when landing on /map (e.g. header Cartography link). */
   graphMode?: GraphMode;
   /** Open the in-map module drill-down for this application id. */
   openModuleGraphId?: string;
@@ -24,7 +24,7 @@ export function moduleGraphMapState(
   return state;
 }
 
-/** Navigate to Information System Studio map and open the module graph for one application. */
+/** Navigate to Cartography map and open the module graph for one application. */
 export function navigateToModuleGraph(
   navigate: NavigateFunction,
   applicationId: string,

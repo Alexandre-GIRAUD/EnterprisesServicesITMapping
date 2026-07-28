@@ -52,24 +52,24 @@ export function GraphDisplayToggle({ displayMode, onChange }: GraphDisplayToggle
         role="tab"
         className={`graph-display-toggle-btn${displayMode === 'graph' ? ' is-active' : ''}`}
         aria-selected={displayMode === 'graph'}
-        aria-label="Graph view"
-        title="Graph view"
+        aria-label="Graphs view"
+        title="Graphs"
         onClick={() => onChange('graph')}
       >
         <GraphIcon />
-        <span className="graph-display-toggle-label">Graph</span>
+        <span className="graph-display-toggle-label">Graphs</span>
       </button>
       <button
         type="button"
         role="tab"
         className={`graph-display-toggle-btn${displayMode === 'table' ? ' is-active' : ''}`}
         aria-selected={displayMode === 'table'}
-        aria-label="Table view"
-        title="Table view"
+        aria-label="Tables view"
+        title="Tables"
         onClick={() => onChange('table')}
       >
         <TableIcon />
-        <span className="graph-display-toggle-label">Table</span>
+        <span className="graph-display-toggle-label">Tables</span>
       </button>
     </div>
   );

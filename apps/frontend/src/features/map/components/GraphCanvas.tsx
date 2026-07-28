@@ -734,7 +734,7 @@ export function GraphCanvas() {
     if (moduleGraphApp) return `Modules — ${moduleGraphApp.label}`;
     if (isViewsMode) return 'My views';
     if (isSandbox) return 'Sandbox';
-    return 'Production View';
+    return 'Production';
   }, [moduleGraphApp, isViewsMode, isSandbox]);
 
   const tabDescription = useMemo(() => {

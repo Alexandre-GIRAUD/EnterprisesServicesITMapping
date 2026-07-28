@@ -22,7 +22,7 @@ type SelfServiceSideMenuProps = {
 const VIEWS: { mode: GraphMode; label: string; tabId: string; accent: string }[] = [
   {
     mode: 'normal',
-    label: 'Production View',
+    label: 'Production',
     tabId: 'graph-mode-tab-normal',
     accent: 'explorer',
   },
@@ -88,10 +88,10 @@ export function SelfServiceSideMenu({
       <nav
         id="self-service-side-menu"
         className="self-service-side-menu"
-        aria-label="Information System Studio navigation"
+        aria-label="Cartography navigation"
       >
         <header className="self-service-side-menu-header">
-          <p className="graph-drawer-eyebrow">Information System Studio</p>
+          <p className="graph-drawer-eyebrow">Cartography</p>
           <button
             type="button"
             className="graph-drawer-close"
