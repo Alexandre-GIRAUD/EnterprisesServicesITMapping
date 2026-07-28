@@ -39,7 +39,7 @@ export function LoginPage() {
       <div className="auth-page-stack">
         <header className="auth-brand">
           <img src={flowraLogo} alt="" className="auth-brand-logo" aria-hidden />
-          <h1 className="auth-brand-title">Flowra.AI</h1>
+          <h1 className="auth-brand-title">admin</h1>
         </header>
 
         <div className="auth-card">

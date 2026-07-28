@@ -7,16 +7,31 @@ import type { MapLocationState } from '@/features/map/utils/mapNavigation';
 export function Layout() {
   const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
+  const roleLabel = user?.roles?.length ? user.roles.join(' · ') : null;
 
   return (
     <GraphSnapshotsProvider>
       <div className="layout">
         <header className="layout-header">
           <div className="layout-header-inner">
-            <Link to="/map" className="layout-brand layout-brand-link">
-              <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
-              <h1>Flowra.AI</h1>
-            </Link>
+            <div className="layout-header-brand-group">
+              <Link to="/map" className="layout-brand layout-brand-link">
+                <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
+                <h1>admin</h1>
+              </Link>
+              {user ? (
+                <span className="layout-header-user-meta">
+                  <span className="layout-header-user" title={user.username}>
+                    {user.username}
+                  </span>
+                  {roleLabel ? (
+                    <span className="layout-header-role" title={roleLabel}>
+                      {roleLabel}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+            </div>
             {user ? (
               <div className="layout-header-actions">
                 <Link
@@ -37,9 +52,6 @@ export function Layout() {
                     Admin
                   </Link>
                 ) : null}
-                <span className="layout-header-user" title={user.username}>
-                  {user.username}
-                </span>
                 <button
                   type="button"
                   className="layout-header-btn"

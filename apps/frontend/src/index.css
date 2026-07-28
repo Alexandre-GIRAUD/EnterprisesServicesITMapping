@@ -45,6 +45,20 @@ body {
   width: 100%;
 }
 
+.layout-header-brand-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.layout-header-user-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
 .layout-header-actions {
   display: flex;
   align-items: center;
@@ -72,6 +86,18 @@ body {
   max-width: 10rem;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-header-role {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid rgb(148 163 184 / 35%);
+  border-radius: 999px;
   white-space: nowrap;
 }
 
