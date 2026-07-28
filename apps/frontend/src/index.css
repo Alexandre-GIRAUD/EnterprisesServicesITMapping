@@ -815,6 +815,12 @@ body {
   color: #64748b;
 }
 
+.graph-table-section-heading {
+  display: flex;
+  align-items: center;
+  margin: 0 0 0.35rem 0.1rem;
+}
+
 .graph-table-row--static {
   cursor: default;
 }

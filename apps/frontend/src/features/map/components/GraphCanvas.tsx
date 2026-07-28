@@ -873,9 +873,6 @@ export function GraphCanvas() {
               ) : null}
             </div>
             <div className="graph-view-header-actions">
-              {showGraphDisplayToggle && displayMode === 'table' ? (
-                <TableContentToggle value={tableContent} onChange={setTableContent} />
-              ) : null}
               {showGraphDisplayToggle ? (
                 <GraphDisplayToggle displayMode={displayMode} onChange={setDisplayMode} />
               ) : null}
@@ -954,14 +951,14 @@ export function GraphCanvas() {
             </div>
             ) : (
               <div className="graph-tables-view">
-                {tableContent === 'apps' ? (
-                  <section
-                    className="graph-table-section graph-table-section--single"
-                    aria-labelledby="graph-apps-table-heading"
-                  >
-                    <h3 id="graph-apps-table-heading" className="graph-table-section-title">
-                      Apps
-                    </h3>
+                <section
+                  className="graph-table-section graph-table-section--single"
+                  aria-label={tableContent === 'apps' ? 'Apps' : 'Flows'}
+                >
+                  <div className="graph-table-section-heading">
+                    <TableContentToggle value={tableContent} onChange={setTableContent} />
+                  </div>
+                  {tableContent === 'apps' ? (
                     <ApplicationsTablePanel
                       isOpen
                       variant="main"
@@ -972,15 +969,7 @@ export function GraphCanvas() {
                       errorMessage={status === 'error' ? message : null}
                       onRowClick={openApplicationDetails}
                     />
-                  </section>
-                ) : (
-                  <section
-                    className="graph-table-section graph-table-section--single"
-                    aria-labelledby="graph-flows-table-heading"
-                  >
-                    <h3 id="graph-flows-table-heading" className="graph-table-section-title">
-                      Flows
-                    </h3>
+                  ) : (
                     <FeedsTablePanel
                       isOpen
                       variant="main"
@@ -990,8 +979,8 @@ export function GraphCanvas() {
                       errorMessage={status === 'error' ? message : null}
                       onRowClick={openApplicationDetails}
                     />
-                  </section>
-                )}
+                  )}
+                </section>
               </div>
             )}
 
