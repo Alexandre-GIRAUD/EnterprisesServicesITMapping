@@ -62,6 +62,7 @@ import { fitGraphView } from './fitGraphView';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
+import { HiddenAppsPicker } from './HiddenAppsPicker';
 import {
   layoutCollapsedAppGraph,
   type NodePositionsMap,
@@ -115,6 +116,9 @@ export function GraphCanvas() {
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
   /** Local-only collapse set; tables keep using the full graph DTOs. */
   const hiddenNodeIdsRef = useRef<Set<string>>(new Set());
+  /** Drives re-render of the global “+” when the hidden set changes. */
+  const [hiddenCount, setHiddenCount] = useState(0);
+  const [hiddenIdsSnapshot, setHiddenIdsSnapshot] = useState<string[]>([]);
   /** Queued restore from My views — applied after graph fetch reaches ready. */
   const pendingViewRestoreRef = useRef<PendingViewRestore | null>(null);
   const prevGraphStatusRef = useRef<'loading' | 'ready' | 'error'>('loading');
@@ -127,6 +131,11 @@ export function GraphCanvas() {
     hideNode: () => undefined,
     expandHidden: () => undefined,
   });
+
+  const syncHiddenUi = useCallback((next: Set<string>) => {
+    setHiddenCount(next.size);
+    setHiddenIdsSnapshot([...next]);
+  }, []);
 
   const setWorkspacePanelOpen = useCallback((value: SetStateAction<boolean>) => {
     if (typeof value === 'function') {
@@ -343,11 +352,12 @@ export function GraphCanvas() {
       const next = new Set(hiddenNodeIdsRef.current);
       next.add(nodeId);
       hiddenNodeIdsRef.current = next;
+      syncHiddenUi(next);
       setHoveredId((prev) => (prev === nodeId ? null : prev));
       setPinnedId((prev) => (prev === nodeId ? null : prev));
       void relayoutCollapsed(next);
     },
-    [relayoutCollapsed]
+    [relayoutCollapsed, syncHiddenUi]
   );
 
   const expandHidden = useCallback(
@@ -360,10 +370,25 @@ export function GraphCanvas() {
       }
       if (!changed) return;
       hiddenNodeIdsRef.current = next;
+      syncHiddenUi(next);
       void relayoutCollapsed(next);
     },
-    [relayoutCollapsed]
+    [relayoutCollapsed, syncHiddenUi]
   );
+
+  const hiddenAppOptions = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const node of graphNodes) {
+      labels.set(node.id, node.label);
+    }
+    for (const app of applications) {
+      if (!labels.has(app.id)) labels.set(app.id, app.name);
+    }
+    return hiddenIdsSnapshot.map((id) => ({
+      id,
+      label: labels.get(id) ?? id,
+    }));
+  }, [hiddenIdsSnapshot, graphNodes, applications]);
 
   collapseHandlersRef.current = { hideNode, expandHidden };
 
@@ -376,14 +401,16 @@ export function GraphCanvas() {
     collapseGenerationRef.current += 1;
     if (pendingViewRestoreRef.current != null) {
       hiddenNodeIdsRef.current = new Set();
+      syncHiddenUi(new Set());
       return;
     }
     const hadHidden = hiddenNodeIdsRef.current.size > 0;
     hiddenNodeIdsRef.current = new Set();
     if (hadHidden) {
+      syncHiddenUi(new Set());
       void relayoutCollapsed(new Set());
     }
-  }, [graphMode, graphReloadNonce, relayoutCollapsed]);
+  }, [graphMode, graphReloadNonce, relayoutCollapsed, syncHiddenUi]);
 
   // Apply queued My-views restore only on loading→ready (avoids applying to the stale graph).
   useEffect(() => {
@@ -413,11 +440,12 @@ export function GraphCanvas() {
     }
 
     hiddenNodeIdsRef.current = nextHidden;
+    syncHiddenUi(nextHidden);
     void relayoutCollapsed(
       nextHidden,
       Object.keys(nextPositions).length > 0 ? nextPositions : undefined
     );
-  }, [status, graphNodes, graphEdges, relayoutCollapsed]);
+  }, [status, graphNodes, graphEdges, relayoutCollapsed, syncHiddenUi]);
 
   // Focus neighborhood for hover/selection dimming (null = nothing focused).
   const focus = useMemo(
@@ -947,6 +975,15 @@ export function GraphCanvas() {
                     showIndirectFlow
                   />
                 </Panel>
+                {hiddenCount > 0 ? (
+                  <Panel position="top-right">
+                    <HiddenAppsPicker
+                      hiddenIds={hiddenIdsSnapshot}
+                      options={hiddenAppOptions}
+                      onShow={expandHidden}
+                    />
+                  </Panel>
+                ) : null}
               </ReactFlow>
             </div>
             ) : (
