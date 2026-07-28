@@ -116,6 +116,8 @@ export function GraphCanvas() {
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
   /** Local-only collapse set; tables keep using the full graph DTOs. */
   const hiddenNodeIdsRef = useRef<Set<string>>(new Set());
+  /** Last canvas position of each hidden app (used when restoring without moving others). */
+  const lastHiddenPositionsRef = useRef<NodePositionsMap>({});
   /** Drives re-render of the global “+” when the hidden set changes. */
   const [hiddenCount, setHiddenCount] = useState(0);
   const [hiddenIdsSnapshot, setHiddenIdsSnapshot] = useState<string[]>([]);
@@ -318,8 +320,21 @@ export function GraphCanvas() {
   const nodeTypes = useMemo<NodeTypes>(() => ({ app: AppGraphNode }), []);
   const edgeTypes = useMemo<EdgeTypes>(() => ({ oriented: OrientedEdge }), []);
 
+  const captureVisiblePositions = useCallback((): NodePositionsMap => {
+    const map: NodePositionsMap = {};
+    const source = rfRef.current?.getNodes() ?? nodes;
+    for (const n of source) {
+      map[n.id] = { x: n.position.x, y: n.position.y };
+    }
+    return map;
+  }, [nodes]);
+
   const relayoutCollapsed = useCallback(
-    async (nextHidden: ReadonlySet<string>, nodePositions?: NodePositionsMap) => {
+    async (
+      nextHidden: ReadonlySet<string>,
+      nodePositions?: NodePositionsMap,
+      options?: { fitView?: boolean }
+    ) => {
       if (status !== 'ready' || graphNodes.length === 0) return;
       const gen = ++collapseGenerationRef.current;
       const rect = containerRef.current?.getBoundingClientRect();
@@ -339,7 +354,7 @@ export function GraphCanvas() {
       if (gen !== collapseGenerationRef.current) return;
       setNodes(laid.nodes);
       setEdges(laid.edges);
-      if (nodePositions && Object.keys(nodePositions).length > 0) {
+      if (options?.fitView) {
         window.setTimeout(() => fitGraphView(rfRef.current, { duration: 200 }), 40);
       }
     },
@@ -349,15 +364,20 @@ export function GraphCanvas() {
   const hideNode = useCallback(
     (nodeId: string) => {
       if (hiddenNodeIdsRef.current.has(nodeId)) return;
+      const preserved = captureVisiblePositions();
+      const hidingPos = preserved[nodeId];
+      if (hidingPos) {
+        lastHiddenPositionsRef.current[nodeId] = hidingPos;
+      }
       const next = new Set(hiddenNodeIdsRef.current);
       next.add(nodeId);
       hiddenNodeIdsRef.current = next;
       syncHiddenUi(next);
       setHoveredId((prev) => (prev === nodeId ? null : prev));
       setPinnedId((prev) => (prev === nodeId ? null : prev));
-      void relayoutCollapsed(next);
+      void relayoutCollapsed(next, preserved);
     },
-    [relayoutCollapsed, syncHiddenUi]
+    [captureVisiblePositions, relayoutCollapsed, syncHiddenUi]
   );
 
   const expandHidden = useCallback(
@@ -369,11 +389,16 @@ export function GraphCanvas() {
         if (next.delete(id)) changed = true;
       }
       if (!changed) return;
+      const preserved = captureVisiblePositions();
+      for (const id of ids) {
+        const cached = lastHiddenPositionsRef.current[id];
+        if (cached) preserved[id] = cached;
+      }
       hiddenNodeIdsRef.current = next;
       syncHiddenUi(next);
-      void relayoutCollapsed(next);
+      void relayoutCollapsed(next, preserved);
     },
-    [relayoutCollapsed, syncHiddenUi]
+    [captureVisiblePositions, relayoutCollapsed, syncHiddenUi]
   );
 
   const hiddenAppOptions = useMemo(() => {
@@ -401,11 +426,13 @@ export function GraphCanvas() {
     collapseGenerationRef.current += 1;
     if (pendingViewRestoreRef.current != null) {
       hiddenNodeIdsRef.current = new Set();
+      lastHiddenPositionsRef.current = {};
       syncHiddenUi(new Set());
       return;
     }
     const hadHidden = hiddenNodeIdsRef.current.size > 0;
     hiddenNodeIdsRef.current = new Set();
+    lastHiddenPositionsRef.current = {};
     if (hadHidden) {
       syncHiddenUi(new Set());
       void relayoutCollapsed(new Set());
@@ -441,9 +468,11 @@ export function GraphCanvas() {
 
     hiddenNodeIdsRef.current = nextHidden;
     syncHiddenUi(nextHidden);
+    lastHiddenPositionsRef.current = {};
     void relayoutCollapsed(
       nextHidden,
-      Object.keys(nextPositions).length > 0 ? nextPositions : undefined
+      Object.keys(nextPositions).length > 0 ? nextPositions : undefined,
+      { fitView: true }
     );
   }, [status, graphNodes, graphEdges, relayoutCollapsed, syncHiddenUi]);
 

@@ -14,10 +14,103 @@ export type CollapseLayoutHandlers = {
 
 export type NodePositionsMap = Record<string, { x: number; y: number }>;
 
+const FALLBACK_OFFSET_X = NODE_WIDTH + 40;
+
+function buildAdjacency(edges: GraphEdgeDto[]): Map<string, Set<string>> {
+  const adj = new Map<string, Set<string>>();
+  const link = (a: string, b: string) => {
+    let set = adj.get(a);
+    if (!set) {
+      set = new Set();
+      adj.set(a, set);
+    }
+    set.add(b);
+  };
+  for (const e of edges) {
+    link(e.sourceId, e.targetId);
+    link(e.targetId, e.sourceId);
+  }
+  return adj;
+}
+
+function midpointFromPositions(positions: Array<{ x: number; y: number }>): { x: number; y: number } {
+  let cx = 0;
+  let cy = 0;
+  for (const p of positions) {
+    cx += p.x + NODE_WIDTH / 2;
+    cy += p.y + NODE_HEIGHT / 2;
+  }
+  const n = positions.length;
+  return {
+    x: cx / n - NODE_WIDTH / 2,
+    y: cy / n - NODE_HEIGHT / 2,
+  };
+}
+
+function offsetFromNeighbor(pos: { x: number; y: number }): { x: number; y: number } {
+  return { x: pos.x + FALLBACK_OFFSET_X, y: pos.y };
+}
+
 /**
- * Project the full graph through the hidden-node set, then run ELK (dagre fallback).
- * When {@link nodePositions} is provided, saved positions override the layout and
- * edge routes are left for OrientedEdge live recalculation.
+ * Resolve positions for every visible node without moving nodes that already
+ * have a known position. Missing nodes use midpoint of positioned neighbors,
+ * else an offset from a single neighbor, else the centroid of known positions.
+ */
+export function resolvePreservedPositions(
+  visibleIds: readonly string[],
+  graphEdges: GraphEdgeDto[],
+  known: NodePositionsMap
+): NodePositionsMap {
+  const result: NodePositionsMap = {};
+  for (const id of visibleIds) {
+    const saved = known[id];
+    if (saved) result[id] = { x: saved.x, y: saved.y };
+  }
+
+  const missing = visibleIds.filter((id) => result[id] == null);
+  if (missing.length === 0) return result;
+
+  const adj = buildAdjacency(graphEdges);
+  let progressed = true;
+  while (missing.length > 0 && progressed) {
+    progressed = false;
+    for (let i = missing.length - 1; i >= 0; i -= 1) {
+      const id = missing[i]!;
+      const neighborPositions: Array<{ x: number; y: number }> = [];
+      for (const nid of adj.get(id) ?? []) {
+        const p = result[nid];
+        if (p) neighborPositions.push(p);
+      }
+      if (neighborPositions.length >= 2) {
+        result[id] = midpointFromPositions(neighborPositions);
+        missing.splice(i, 1);
+        progressed = true;
+      } else if (neighborPositions.length === 1) {
+        result[id] = offsetFromNeighbor(neighborPositions[0]!);
+        missing.splice(i, 1);
+        progressed = true;
+      }
+    }
+  }
+
+  if (missing.length > 0) {
+    const knownList = Object.values(result);
+    const fallback =
+      knownList.length > 0 ? midpointFromPositions(knownList) : { x: 0, y: 0 };
+    for (const id of missing) {
+      result[id] = { ...fallback };
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Project the full graph through the hidden-node set, then layout.
+ * When {@link nodePositions} is provided, visible nodes keep those coordinates
+ * (with neighbor-based fallback for unknowns) and ELK is skipped so remaining
+ * apps do not jump — only edges change. Edge routes are left for OrientedEdge
+ * live recalculation.
  * Tables should keep using the unprojected `graphNodes` / `graphEdges`.
  */
 export async function layoutCollapsedAppGraph(params: {
@@ -27,7 +120,7 @@ export async function layoutCollapsedAppGraph(params: {
   colorPropertyKey: string;
   aspectRatio: number;
   handlers: CollapseLayoutHandlers;
-  /** Optional saved canvas positions (visible nodes only). */
+  /** Optional canvas positions to preserve (visible + newly restored). */
   nodePositions?: NodePositionsMap;
 }): Promise<{ nodes: AppNode[]; edges: OrientedEdgeType[] }> {
   const {
@@ -109,6 +202,19 @@ export async function layoutCollapsedAppGraph(params: {
     };
   });
 
+  if (hasSavedPositions && nodePositions) {
+    const resolved = resolvePreservedPositions(
+      projected.visibleNodeIds,
+      graphEdges,
+      nodePositions
+    );
+    const positioned = baseNodes.map((n) => ({
+      ...n,
+      position: resolved[n.id] ?? { x: 0, y: 0 },
+    }));
+    return { nodes: positioned, edges: builtEdges };
+  }
+
   let positioned: AppNode[];
   let routedEdges: OrientedEdgeType[];
 
@@ -121,12 +227,8 @@ export async function layoutCollapsedAppGraph(params: {
       aspectRatio,
     });
     positioned = laidOut;
-    if (hasSavedPositions) {
-      routedEdges = builtEdges;
-    } else {
-      const jumps = computeBridges(routes);
-      routedEdges = builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id)));
-    }
+    const jumps = computeBridges(routes);
+    routedEdges = builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id)));
   } catch {
     positioned = layoutGraph(baseNodes, builtEdges, {
       nodeWidth: NODE_WIDTH,
@@ -137,13 +239,6 @@ export async function layoutCollapsedAppGraph(params: {
       aspectRatio,
     });
     routedEdges = builtEdges;
-  }
-
-  if (hasSavedPositions && nodePositions) {
-    positioned = positioned.map((n) => {
-      const saved = nodePositions[n.id];
-      return saved ? { ...n, position: { x: saved.x, y: saved.y } } : n;
-    });
   }
 
   return { nodes: positioned, edges: routedEdges };
