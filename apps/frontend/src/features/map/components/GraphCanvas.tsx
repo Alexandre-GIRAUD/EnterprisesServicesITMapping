@@ -58,7 +58,7 @@ import type { ApplicationUpdatePatch } from './ApplicationDetailsDrawer';
 import { SelfServiceBurger, SelfServiceSideMenu, type SideMenuTool } from './SelfServiceSideMenu';
 import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle';
 import { TableContentToggle, type TableContentMode } from './TableContentToggle';
-import { fitGraphView } from './fitGraphView';
+import { fitGraphView, ensureNodesVisible } from './fitGraphView';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
@@ -333,7 +333,7 @@ export function GraphCanvas() {
     async (
       nextHidden: ReadonlySet<string>,
       nodePositions?: NodePositionsMap,
-      options?: { fitView?: boolean }
+      options?: { fitView?: boolean; ensureVisibleNodeIds?: string[] }
     ) => {
       if (status !== 'ready' || graphNodes.length === 0) return;
       const gen = ++collapseGenerationRef.current;
@@ -356,6 +356,12 @@ export function GraphCanvas() {
       setEdges(laid.edges);
       if (options?.fitView) {
         window.setTimeout(() => fitGraphView(rfRef.current, { duration: 200 }), 40);
+      } else if (options?.ensureVisibleNodeIds && options.ensureVisibleNodeIds.length > 0) {
+        const ids = options.ensureVisibleNodeIds;
+        const hints = laid.nodes.filter((n) => ids.includes(n.id));
+        window.setTimeout(() => {
+          ensureNodesVisible(rfRef.current, containerRef.current, ids, { nodeHints: hints });
+        }, 40);
       }
     },
     [status, graphNodes, graphEdges, colorPropertyKey, setNodes, setEdges]
@@ -384,19 +390,19 @@ export function GraphCanvas() {
     (ids: string[]) => {
       if (ids.length === 0) return;
       const next = new Set(hiddenNodeIdsRef.current);
-      let changed = false;
+      const restoredIds: string[] = [];
       for (const id of ids) {
-        if (next.delete(id)) changed = true;
+        if (next.delete(id)) restoredIds.push(id);
       }
-      if (!changed) return;
+      if (restoredIds.length === 0) return;
       const preserved = captureVisiblePositions();
-      for (const id of ids) {
+      for (const id of restoredIds) {
         const cached = lastHiddenPositionsRef.current[id];
         if (cached) preserved[id] = cached;
       }
       hiddenNodeIdsRef.current = next;
       syncHiddenUi(next);
-      void relayoutCollapsed(next, preserved);
+      void relayoutCollapsed(next, preserved, { ensureVisibleNodeIds: restoredIds });
     },
     [captureVisiblePositions, relayoutCollapsed, syncHiddenUi]
   );
