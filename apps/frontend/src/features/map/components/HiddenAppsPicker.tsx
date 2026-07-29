@@ -19,7 +19,7 @@ export function HiddenAppsPicker({ hiddenIds, options, onShow }: HiddenAppsPicke
 
   useEffect(() => {
     if (!open) return;
-    setSelected(new Set(hiddenIds));
+    setSelected(new Set());
     setFilter('');
   }, [open, hiddenIds]);
 
