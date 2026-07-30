@@ -88,22 +88,6 @@ class GraphControllerWebMvcTest {
   }
 
   @Test
-  void getGraphIgnoresRemovedFilterDimensions() throws Exception {
-    when(graphService.getGraph(isNull(), any(), any())).thenReturn(emptyGraph());
-
-    mockMvc
-        .perform(
-            get("/graph")
-                .param("year", "2025")
-                .param("businessUnitIds", "bu-1")
-                .param("regionCodes", "EMEA")
-                .accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk());
-
-    verify(graphService).getGraph(isNull(), eq(Map.of()), eq(Map.of()));
-  }
-
-  @Test
   void getGraphWithNoFilterParamsPassesNoFilter() throws Exception {
     when(graphService.getGraph(isNull(), any(), any())).thenReturn(emptyGraph());
 

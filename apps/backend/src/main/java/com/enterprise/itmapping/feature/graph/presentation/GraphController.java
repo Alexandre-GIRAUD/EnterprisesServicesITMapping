@@ -11,8 +11,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -27,16 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/graph")
 public class GraphController {
 
-  private static final Logger log = LoggerFactory.getLogger(GraphController.class);
-
   /** Prefix carrying one Data Model NODE attribute filter, e.g. {@code attr.tier=GOLD}. */
   static final String NODE_ATTRIBUTE_PARAM_PREFIX = "attr.";
 
   /** Prefix carrying one Data Model NODE_REF filter, e.g. {@code ref.tier_ref=<refId>}. */
   static final String NODE_REF_PARAM_PREFIX = "ref.";
-
-  private static final List<String> LEGACY_FILTER_PARAMS =
-      List.of("year", "businessUnitIds", "businessUnitId", "regionCodes", "regionCode");
 
   private final GraphService graphService;
   private final GraphNodeFilterFacetService nodeFilterFacetService;
@@ -62,7 +55,6 @@ public class GraphController {
       @RequestParam(required = false) String applicationId,
       @RequestParam MultiValueMap<String, String> allParams
   ) {
-    warnOnLegacyParams(allParams);
     return ResponseEntity.ok(
         graphService.getGraph(
             mergeFilterParams(applicationIds, applicationId),
@@ -118,17 +110,6 @@ public class GraphController {
       }
     }
     return out;
-  }
-
-  private static void warnOnLegacyParams(MultiValueMap<String, String> allParams) {
-    if (allParams == null) {
-      return;
-    }
-    List<String> present =
-        LEGACY_FILTER_PARAMS.stream().filter(allParams::containsKey).toList();
-    if (!present.isEmpty()) {
-      log.warn("Ignoring removed graph filter params: {}", present);
-    }
   }
 
   static List<String> mergeFilterParams(List<String> plural, String singular) {

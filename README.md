@@ -75,14 +75,14 @@ Dependencies point inward: presentation → application → domain; infrastructu
 ### Graph filtering (Data Model driven)
 
 - `GET /api/graph` filter axes:
-  - `applicationIds` (repeatable, legacy `applicationId` accepted): OR on application ids;
+  - `applicationIds` (repeatable; singular `applicationId` also accepted): OR on application ids;
   - `attr.<key>` (repeatable per key): flat NODE props — OR inside a key, AND across keys;
   - `ref.<key>` (repeatable per key): NODE_REF catalogue **ids** via `(:Application)-[:CLASSIFIED_AS {fieldKey}]->(:DataModelRef)`.
   Keys absent from the Data Model (or failing `KEY_PATTERN`) are ignored.
 - `GET /api/graph/node-filters` returns NODE + NODE_REF dimensions (`kind`, `multiple`, and for NODE_REF `options: [{id,name}]`).
 - `PATCH /api/applications/{id}/node-attributes` edits flat NODE props; `PATCH /api/applications/{id}/node-refs` replaces CLASSIFIED_AS links by ref ids (no free-text catalogue create).
 - Saving the Data Model upserts `:DataModelRef` for each NODE_REF `allowedValues` entry and soft-retires removed values (`active=false`).
-- **Breaking change:** `year`, `businessUnitIds` and `regionCodes` are no longer filter dimensions (they are accepted but ignored), the `:BusinessUnit`, `:Region` and `:Contributor` nodes and their APIs are gone, and graph snapshots store `{applicationIds, nodeAttributes, nodeRefs}`. To keep a flat attribute, declare a NODE field (`year` stays reserved, so use e.g. `reference_year`). For a catalogue of named nodes, declare a NODE_REF field. Existing legacy nodes are flattened when a matching NODE key exists and then deleted at startup (`app.legacy-graph-cleanup.enabled`).
+- Graph snapshots store `{applicationIds, nodeAttributes, nodeRefs}`. Flat attributes use Data Model `target=NODE` (`year` is reserved — use e.g. `reference_year`). Catalogue dimensions use `target=NODE_REF`.
 
 ### Scalability (Thousands of Nodes)
 

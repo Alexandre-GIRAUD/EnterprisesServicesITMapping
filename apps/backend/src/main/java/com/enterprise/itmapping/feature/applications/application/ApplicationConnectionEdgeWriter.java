@@ -29,8 +29,8 @@ import org.springframework.util.StringUtils;
  * </ul>
  *
  * <p>Technical integration kind is stored as {@code r.connection_kind}. User-defined Data Model
- * attributes are stored as dynamic relationship properties {@code r.<field_key>}. Legacy semantic
- * {@code r.data} is not written by this writer.
+ * attributes are stored as dynamic relationship properties {@code r.<field_key>}. This writer does
+ * not set {@code r.data}.
  */
 @Component
 public class ApplicationConnectionEdgeWriter {

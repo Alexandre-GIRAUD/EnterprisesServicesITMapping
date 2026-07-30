@@ -11,7 +11,7 @@ import org.springframework.util.StringUtils;
 @Component
 public class ApplicationNodeAttributeReader {
 
-  /** Identity / temporal / legacy properties never exposed as business attributes. */
+  /** Identity / system properties never exposed as business attributes. */
   private static final Set<String> NON_BUSINESS_KEYS =
       Set.of("id", "name", "description", "year", "validFrom", "validTo");
 

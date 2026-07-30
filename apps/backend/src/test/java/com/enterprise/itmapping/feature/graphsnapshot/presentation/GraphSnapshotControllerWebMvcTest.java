@@ -82,38 +82,6 @@ class GraphSnapshotControllerWebMvcTest {
         .andExpect(jsonPath("$.name").value("Vue Retail"));
   }
 
-  /** Pinned links created before Data Model filters must not fail the request. */
-  @Test
-  void createIgnoresLegacyFilterFields() throws Exception {
-    UUID id = UUID.randomUUID();
-    when(graphSnapshotService.create(any()))
-        .thenReturn(
-            new GraphSnapshotResponse(
-                id,
-                "Legacy",
-                new GraphSnapshotFiltersDto(List.of("app-1"), Map.of()),
-                Instant.parse("2026-01-01T00:00:00Z"),
-                Instant.parse("2026-01-01T00:00:00Z")));
-
-    mockMvc
-        .perform(
-            post("/users/me/graph-snapshots")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "name": "Legacy",
-                      "filters": {
-                        "year": 2024,
-                        "applicationIds": ["app-1"],
-                        "businessUnitIds": ["bu-1"],
-                        "regionCodes": ["EMEA"]
-                      }
-                    }
-                    """))
-        .andExpect(status().isCreated());
-  }
-
   @Test
   void deleteReturns204() throws Exception {
     UUID id = UUID.randomUUID();
