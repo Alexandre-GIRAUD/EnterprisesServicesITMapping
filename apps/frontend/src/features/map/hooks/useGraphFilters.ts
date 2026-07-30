@@ -1,13 +1,7 @@
-import {
-  useCallback,
-  useMemo,
-  useState,
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-} from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { GraphMode } from '../components/GraphModeTabs';
 import type { GraphSnapshotFilters } from '@/types/api';
+import type { MutableRefObject, Dispatch, SetStateAction } from 'react';
 
 type UseGraphFiltersParams = {
   graphModeRef: MutableRefObject<GraphMode>;
@@ -17,9 +11,9 @@ type UseGraphFiltersParams = {
 };
 
 /**
- * Owns the graph filter state (year + dimension id lists) and derived values.
- * `applyGraphFilters` also leaves any transient mode (sandbox / views) so that
- * applying a saved view always lands the user back on the normal graph.
+ * Active graph filter set (application ids + NODE attrs + NODE_REF catalogue ids).
+ * `applyGraphFilters` also leaves any transient mode (sandbox / views) so that applying a saved
+ * snapshot returns to the live filtered graph.
  */
 export function useGraphFilters({
   graphModeRef,
@@ -27,16 +21,14 @@ export function useGraphFilters({
   setSandboxDirty,
   setIsDrawerOpen,
 }: UseGraphFiltersParams) {
-  const [year, setYear] = useState<number | null>(null);
   const [applicationIds, setApplicationIds] = useState<string[]>([]);
-  const [businessUnitIds, setBusinessUnitIds] = useState<string[]>([]);
-  const [regionCodes, setRegionCodes] = useState<string[]>([]);
+  const [nodeAttributes, setNodeAttributes] = useState<Record<string, string[]>>({});
+  const [nodeRefs, setNodeRefs] = useState<Record<string, string[]>>({});
 
   const filtersActive =
-    year != null ||
     applicationIds.length > 0 ||
-    businessUnitIds.length > 0 ||
-    regionCodes.length > 0;
+    Object.keys(nodeAttributes).length > 0 ||
+    Object.keys(nodeRefs).length > 0;
 
   const applyGraphFilters = useCallback(
     (filters: GraphSnapshotFilters) => {
@@ -45,28 +37,25 @@ export function useGraphFilters({
         setSandboxDirty(false);
         setIsDrawerOpen(false);
       }
-      setYear(filters.year);
-      setApplicationIds(filters.applicationIds);
-      setBusinessUnitIds(filters.businessUnitIds);
-      setRegionCodes(filters.regionCodes);
+      setApplicationIds(filters.applicationIds ?? []);
+      setNodeAttributes(filters.nodeAttributes ?? {});
+      setNodeRefs(filters.nodeRefs ?? {});
     },
     [graphModeRef, setGraphMode, setSandboxDirty, setIsDrawerOpen]
   );
 
   const currentGraphFilters = useMemo<GraphSnapshotFilters>(
-    () => ({ year, applicationIds, businessUnitIds, regionCodes }),
-    [year, applicationIds, businessUnitIds, regionCodes]
+    () => ({ applicationIds, nodeAttributes, nodeRefs }),
+    [applicationIds, nodeAttributes, nodeRefs]
   );
 
   return {
-    year,
-    setYear,
     applicationIds,
     setApplicationIds,
-    businessUnitIds,
-    setBusinessUnitIds,
-    regionCodes,
-    setRegionCodes,
+    nodeAttributes,
+    setNodeAttributes,
+    nodeRefs,
+    setNodeRefs,
     filtersActive,
     applyGraphFilters,
     currentGraphFilters,

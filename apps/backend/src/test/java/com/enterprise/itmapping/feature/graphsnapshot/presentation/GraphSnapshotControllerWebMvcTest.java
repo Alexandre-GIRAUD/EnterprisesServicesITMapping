@@ -13,6 +13,7 @@ import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnap
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,8 @@ class GraphSnapshotControllerWebMvcTest {
                 new GraphSnapshotResponse(
                     id,
                     "Retail EMEA",
-                    new GraphSnapshotFiltersDto(2024, List.of("app-1"), List.of(), List.of("EMEA")),
+                    new GraphSnapshotFiltersDto(
+                        List.of("app-1"), Map.of("region", List.of("EMEA"))),
                     Instant.parse("2026-01-01T00:00:00Z"),
                     Instant.parse("2026-01-02T00:00:00Z"))));
 
@@ -46,7 +48,8 @@ class GraphSnapshotControllerWebMvcTest {
         .perform(get("/users/me/graph-snapshots"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].name").value("Retail EMEA"))
-        .andExpect(jsonPath("$[0].filters.year").value(2024));
+        .andExpect(jsonPath("$[0].filters.applicationIds[0]").value("app-1"))
+        .andExpect(jsonPath("$[0].filters.nodeAttributes.region[0]").value("EMEA"));
   }
 
   @Test
@@ -57,7 +60,7 @@ class GraphSnapshotControllerWebMvcTest {
             new GraphSnapshotResponse(
                 id,
                 "Vue Retail",
-                new GraphSnapshotFiltersDto(null, List.of("app-1"), List.of(), List.of()),
+                new GraphSnapshotFiltersDto(List.of("app-1"), Map.of()),
                 Instant.parse("2026-01-01T00:00:00Z"),
                 Instant.parse("2026-01-01T00:00:00Z")));
 
@@ -70,15 +73,45 @@ class GraphSnapshotControllerWebMvcTest {
                     {
                       "name": "Vue Retail",
                       "filters": {
-                        "year": null,
                         "applicationIds": ["app-1"],
-                        "businessUnitIds": [],
-                        "regionCodes": []
+                        "nodeAttributes": { "tier": ["GOLD"] }
                       }
                     }
                     """))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.name").value("Vue Retail"));
+  }
+
+  /** Pinned links created before Data Model filters must not fail the request. */
+  @Test
+  void createIgnoresLegacyFilterFields() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(graphSnapshotService.create(any()))
+        .thenReturn(
+            new GraphSnapshotResponse(
+                id,
+                "Legacy",
+                new GraphSnapshotFiltersDto(List.of("app-1"), Map.of()),
+                Instant.parse("2026-01-01T00:00:00Z"),
+                Instant.parse("2026-01-01T00:00:00Z")));
+
+    mockMvc
+        .perform(
+            post("/users/me/graph-snapshots")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "name": "Legacy",
+                      "filters": {
+                        "year": 2024,
+                        "applicationIds": ["app-1"],
+                        "businessUnitIds": ["bu-1"],
+                        "regionCodes": ["EMEA"]
+                      }
+                    }
+                    """))
+        .andExpect(status().isCreated());
   }
 
   @Test

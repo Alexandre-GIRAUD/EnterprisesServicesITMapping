@@ -13,6 +13,7 @@ import com.enterprise.itmapping.feature.datamodel.application.DataModelAttribute
 import com.enterprise.itmapping.feature.datamodel.application.DataModelPromptBuilder;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
 import com.enterprise.itmapping.feature.integrations.github.GithubTreePathFilter;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService;
@@ -72,6 +73,7 @@ public class ApplicationConnectionSuggestionService {
   private final ApplicationCatalogQuery catalogQuery;
   private final ApplicationConnectionEdgeWriter edgeWriter;
   private final ApplicationNodeAttributeWriter nodeAttributeWriter;
+  private final ApplicationNodeRefLinkWriter nodeRefLinkWriter;
   private final DataModelService dataModelService;
   private final DataModelPromptBuilder dataModelPromptBuilder;
   private final DataModelAttributeResolver dataModelAttributeResolver;
@@ -84,6 +86,7 @@ public class ApplicationConnectionSuggestionService {
       ApplicationCatalogQuery catalogQuery,
       ApplicationConnectionEdgeWriter edgeWriter,
       ApplicationNodeAttributeWriter nodeAttributeWriter,
+      ApplicationNodeRefLinkWriter nodeRefLinkWriter,
       DataModelService dataModelService,
       DataModelPromptBuilder dataModelPromptBuilder,
       DataModelAttributeResolver dataModelAttributeResolver) {
@@ -94,6 +97,7 @@ public class ApplicationConnectionSuggestionService {
     this.catalogQuery = catalogQuery;
     this.edgeWriter = edgeWriter;
     this.nodeAttributeWriter = nodeAttributeWriter;
+    this.nodeRefLinkWriter = nodeRefLinkWriter;
     this.dataModelService = dataModelService;
     this.dataModelPromptBuilder = dataModelPromptBuilder;
     this.dataModelAttributeResolver = dataModelAttributeResolver;
@@ -149,14 +153,15 @@ public class ApplicationConnectionSuggestionService {
     }
 
     log.info(
-        "Connection suggestion start applicationId={} repo={}/{} catalogSize={} dataModelFields={} dataModelEdgeAutomatic={} dataModelNodeAutomatic={}",
+        "Connection suggestion start applicationId={} repo={}/{} catalogSize={} dataModelFields={} dataModelEdgeAutomatic={} dataModelNodeAutomatic={} nodeRefKeys={}",
         applicationId,
         owner,
         repo,
         catalog.entries().size(),
         dataModelConfig.fields().size(),
         dataModelConfig.automaticEdgeFields().size(),
-        dataModelConfig.automaticNodeFields().size());
+        dataModelConfig.automaticNodeFields().size(),
+        dataModelConfig.automaticNodeRefFields().stream().map(DataModelField::key).toList());
 
     Path workspace = cloneService.clone(owner, repo, properties.cloneTimeoutSeconds());
     try {
@@ -301,6 +306,7 @@ public class ApplicationConnectionSuggestionService {
     }
 
     persistNodeAttributes(applicationId, discovery, dataModelConfig);
+    persistNodeRefs(applicationId, discovery, dataModelConfig);
 
     log.info(
         "Connection suggestion result applicationId={} created={} (outbound={} inbound={}) skipped={} analyzedFiles={}",
@@ -372,6 +378,78 @@ public class ApplicationConnectionSuggestionService {
         "Application node Data Model write applicationId={} propsWritten={}",
         applicationId,
         written);
+  }
+
+  /**
+   * Validates LLM {@code node_refs} against automatic NODE_REF fields, resolves catalogue values to
+   * existing {@code :DataModelRef} ids, and replaces {@code CLASSIFIED_AS} links. Never creates
+   * catalogue nodes. Soft-fails independently of edges.
+   */
+  private void persistNodeRefs(
+      String applicationId, DiscoveryResult discovery, DataModelConfig dataModelConfig) {
+    Map<String, List<String>> rawRefs = discovery.payload().getNodeRefs();
+    if (!dataModelConfig.hasAutomaticNodeRefFields()) {
+      if (!rawRefs.isEmpty()) {
+        log.debug(
+            "Ignoring node_refs from LLM (no automatic NODE_REF Data Model fields) keys={}",
+            rawRefs.keySet());
+      }
+      return;
+    }
+
+    var validation = dataModelAttributeResolver.validateNodeRefs(dataModelConfig, rawRefs);
+    if (!validation.accepted()) {
+      log.warn(
+          "Skipping Application NODE_REF enrichment applicationId={} reason={} detail={} (edges unaffected)",
+          applicationId,
+          validation.skipReason(),
+          validation.skipDetail());
+      return;
+    }
+
+    Map<String, List<String>> byFieldKey = new LinkedHashMap<>();
+    for (Map.Entry<String, List<String>> entry : validation.refs().entrySet()) {
+      String fieldKey = entry.getKey();
+      Map<String, String> valueToId =
+          nodeRefLinkWriter.resolveActiveRefIdsByValue(fieldKey, Set.copyOf(entry.getValue()));
+      List<String> refIds = new ArrayList<>();
+      for (String value : entry.getValue()) {
+        String id = findIgnoreCase(valueToId, value);
+        if (id == null) {
+          log.info(
+              "NODE_REF catalogue miss (no active DataModelRef) applicationId={} fieldKey={} value={}",
+              applicationId,
+              fieldKey,
+              value);
+          continue;
+        }
+        refIds.add(id);
+      }
+      byFieldKey.put(fieldKey, refIds);
+    }
+
+    if (byFieldKey.isEmpty()) {
+      log.debug("No validated node_refs to persist applicationId={}", applicationId);
+      return;
+    }
+
+    nodeRefLinkWriter.replaceLinks(applicationId, byFieldKey);
+    log.debug(
+        "Application NODE_REF links written applicationId={} fields={}",
+        applicationId,
+        byFieldKey.keySet());
+  }
+
+  private static String findIgnoreCase(Map<String, String> valueToId, String value) {
+    if (valueToId.containsKey(value)) {
+      return valueToId.get(value);
+    }
+    for (Map.Entry<String, String> e : valueToId.entrySet()) {
+      if (e.getKey().equalsIgnoreCase(value)) {
+        return e.getValue();
+      }
+    }
+    return null;
   }
 
   private Catalog loadCatalog(String excludeApplicationId) {

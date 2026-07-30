@@ -106,13 +106,6 @@ public class SampleGraphDataSeeder implements ApplicationRunner {
     String modUi = UUID.randomUUID().toString();
     String modApi = UUID.randomUUID().toString();
     String modPkg = UUID.randomUUID().toString();
-    String buRetail = UUID.randomUUID().toString();
-    String buPlatform = UUID.randomUUID().toString();
-    String contribAlice = UUID.randomUUID().toString();
-    String contribBob = UUID.randomUUID().toString();
-    String regionEmea = UUID.randomUUID().toString();
-    String regionApac = UUID.randomUUID().toString();
-    String regionAmericas = UUID.randomUUID().toString();
 
     String createApps;
     try (InputStream in = new ClassPathResource("seed/sample-graph.cypher").getInputStream()) {
@@ -130,13 +123,6 @@ public class SampleGraphDataSeeder implements ApplicationRunner {
     params.put("modUiId", modUi);
     params.put("modApiId", modApi);
     params.put("modPkgId", modPkg);
-    params.put("buRetailId", buRetail);
-    params.put("buPlatformId", buPlatform);
-    params.put("contribAliceId", contribAlice);
-    params.put("contribBobId", contribBob);
-    params.put("regionEmeaId", regionEmea);
-    params.put("regionApacId", regionApac);
-    params.put("regionAmericasId", regionAmericas);
     neo4jClient.query(createApps).bindAll(params).run();
   }
 }

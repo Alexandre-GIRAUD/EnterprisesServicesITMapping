@@ -13,7 +13,7 @@ public interface ApplicationRepository extends Neo4jRepository<Application, Stri
    */
   @Query("""
       MATCH (a:Application)
-      RETURN a.id AS id, a.name AS name, a.description AS description, a.year AS year
+      RETURN a.id AS id, a.name AS name, a.description AS description
       ORDER BY name
       """)
   List<ApplicationGraphNodeProjection> findAllForGraph();
@@ -21,14 +21,14 @@ public interface ApplicationRepository extends Neo4jRepository<Application, Stri
   @Query("""
       MATCH (a:Application)
       WHERE a.id = $id
-      RETURN a.id AS id, a.name AS name, a.description AS description, a.year AS year
+      RETURN a.id AS id, a.name AS name, a.description AS description
       LIMIT 1
       """)
   java.util.Optional<ApplicationGraphNodeProjection> findByIdForGraph(@Param("id") String id);
 
   @Query("""
       MATCH (a:Application {id: $id})
-      RETURN a.id AS id, a.name AS name, a.description AS description, a.year AS year
+      RETURN a.id AS id, a.name AS name, a.description AS description
       LIMIT 1
       """)
   java.util.Optional<ApplicationGraphNodeProjection> findProjectionById(@Param("id") String id);

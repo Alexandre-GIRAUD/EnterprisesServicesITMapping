@@ -15,16 +15,13 @@ export function createSandboxEdgeId(): string {
 export function buildSandboxApplicationResponse(input: {
   name: string;
   description?: string;
-  year?: number;
 }): ApplicationResponse {
   return {
     id: createSandboxApplicationId(),
     name: input.name,
     description: input.description,
-    year: input.year ?? null,
-    businessUnit: null,
-    regions: [],
-    contributors: [],
+    nodeAttributes: {},
+    nodeRefs: {},
   };
 }
 
@@ -45,15 +42,12 @@ export function applicationResponseFromGraphNode(node: {
   id: string;
   label: string;
   description?: string | null;
-  year?: number;
+  properties?: Record<string, string>;
 }): ApplicationResponse {
   return {
     id: node.id,
     name: node.label,
     description: node.description ?? undefined,
-    year: node.year ?? null,
-    businessUnit: null,
-    regions: [],
-    contributors: [],
+    nodeAttributes: node.properties ?? {},
   };
 }

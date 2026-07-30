@@ -117,14 +117,14 @@ public class ModuleSuggestionService {
     Path workspace = cloneService.clone(owner, repo, properties.cloneTimeoutSeconds());
     try {
       DiscoveryResult discovery = moduleDiscoveryAgent.discover(workspace, owner, repo);
-      return persist(applicationId, appRow.getYear(), discovery);
+      return persist(applicationId, discovery);
     } finally {
       cloneService.deleteQuietly(workspace);
     }
   }
 
   private SuggestModulesFromGithubResponse persist(
-      String applicationId, Integer moduleYear, DiscoveryResult discovery) {
+      String applicationId, DiscoveryResult discovery) {
 
     var payload = discovery.payload();
     List<CreatedItem> created = new ArrayList<>();
@@ -200,9 +200,8 @@ public class ModuleSuggestionService {
       params.put("id", neoId);
       params.put("name", e.getValue().getBusinessName());
       params.put("desc", desc);
-      params.put("year", moduleYear);
       neo4jClient
-          .query("CREATE (m:Module {id: $id, name: $name, description: $desc, year: $year})")
+          .query("CREATE (m:Module {id: $id, name: $name, description: $desc})")
           .bindAll(params)
           .run();
 

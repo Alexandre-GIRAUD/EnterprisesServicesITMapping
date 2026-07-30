@@ -69,7 +69,7 @@ public class ModuleGraphLoader {
     return """
         MATCH (a:Application)
         WHERE a.id = $appId
-        RETURN a.id AS id, a.name AS name, a.description AS description, a.year AS year, 'Application' AS nodeType
+        RETURN a.id AS id, a.name AS name, a.description AS description, 'Application' AS nodeType
         UNION
         MATCH (a:Application)
         WHERE a.id = $appId
@@ -77,7 +77,7 @@ public class ModuleGraphLoader {
         + d
         + """
         ]->(m:Module)
-        RETURN DISTINCT m.id AS id, m.name AS name, m.description AS description, m.year AS year, 'Module' AS nodeType
+        RETURN DISTINCT m.id AS id, m.name AS name, m.description AS description, 'Module' AS nodeType
         """;
   }
 
@@ -86,7 +86,6 @@ public class ModuleGraphLoader {
         Neo4jValueMapping.asString(map.get("id")),
         Neo4jValueMapping.asString(map.get("name")),
         Neo4jValueMapping.asString(map.get("description")),
-        Neo4jValueMapping.asInteger(map.get("year")),
         Neo4jValueMapping.asString(map.get("nodeType")));
   }
 

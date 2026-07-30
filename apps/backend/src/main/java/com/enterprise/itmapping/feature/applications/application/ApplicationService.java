@@ -5,8 +5,6 @@ import com.enterprise.itmapping.feature.applications.infrastructure.persistence.
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
-import com.enterprise.itmapping.feature.contributors.presentation.dto.ContributorSummaryDto;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,23 +20,20 @@ public class ApplicationService {
   private final ApplicationRepository applicationRepository;
   private final Neo4jClient neo4jClient;
   private final ApplicationModuleSubtreeQuery moduleSubtreeQuery;
-  private final ApplicationBusinessUnitLookup applicationBusinessUnitLookup;
-  private final ApplicationContributorLookup applicationContributorLookup;
-  private final ApplicationRegionLookup applicationRegionLookup;
+  private final ApplicationNodeAttributeReader nodeAttributeReader;
+  private final ApplicationNodeRefLinkReader nodeRefLinkReader;
 
   public ApplicationService(
       ApplicationRepository applicationRepository,
       Neo4jClient neo4jClient,
       ApplicationModuleSubtreeQuery moduleSubtreeQuery,
-      ApplicationBusinessUnitLookup applicationBusinessUnitLookup,
-      ApplicationContributorLookup applicationContributorLookup,
-      ApplicationRegionLookup applicationRegionLookup) {
+      ApplicationNodeAttributeReader nodeAttributeReader,
+      ApplicationNodeRefLinkReader nodeRefLinkReader) {
     this.applicationRepository = applicationRepository;
     this.neo4jClient = neo4jClient;
     this.moduleSubtreeQuery = moduleSubtreeQuery;
-    this.applicationBusinessUnitLookup = applicationBusinessUnitLookup;
-    this.applicationContributorLookup = applicationContributorLookup;
-    this.applicationRegionLookup = applicationRegionLookup;
+    this.nodeAttributeReader = nodeAttributeReader;
+    this.nodeRefLinkReader = nodeRefLinkReader;
   }
 
   @Transactional(readOnly = true)
@@ -48,13 +43,20 @@ public class ApplicationService {
         moduleSubtreeQuery.hasAnyModuleViaContainsBatch(
             rows.stream().map(ApplicationGraphNodeProjection::getId).collect(Collectors.toList()));
     return rows.stream()
-        .map(p -> graphProjectionToResponse(p, flags.getOrDefault(p.getId(), false)))
+        .map(
+            p ->
+                new ApplicationResponse(
+                    p.getId(),
+                    p.getName(),
+                    p.getDescription(),
+                    flags.getOrDefault(p.getId(), false),
+                    Map.of()))
         .collect(Collectors.toList());
   }
 
   @Transactional(readOnly = true)
   public Optional<ApplicationResponse> findById(String id) {
-    return applicationRepository.findByIdForGraph(id).map(this::toResponseWithBusinessUnit);
+    return applicationRepository.findByIdForGraph(id).map(this::toDetailResponse);
   }
 
   @Transactional
@@ -62,12 +64,19 @@ public class ApplicationService {
     Application entity = new Application();
     entity.setName(request.name());
     entity.setDescription(request.description());
-    entity.setYear(request.year());
     Application saved = applicationRepository.save(entity);
-    return toResponse(saved);
+    return new ApplicationResponse(
+        saved.getId(),
+        saved.getName(),
+        saved.getDescription(),
+        moduleSubtreeQuery.hasAnyModuleViaContains(saved.getId()),
+        nodeAttributeReader.read(saved.getId()));
   }
 
-  /** In-place update of {@code name}, {@code description}, {@code year}. */
+  /**
+   * In-place update of the identity fields {@code name} and {@code description}. Data Model NODE
+   * attributes are updated separately (see {@link ApplicationNodeAttributePatchService}).
+   */
   @Transactional
   public Optional<ApplicationResponse> update(String id, ApplicationRequest request) {
     if (applicationRepository.findProjectionById(id).isEmpty()) {
@@ -77,16 +86,15 @@ public class ApplicationService {
     params.put("id", id);
     params.put("name", request.name());
     params.put("desc", request.description() != null ? request.description() : "");
-    params.put("year", request.year());
     neo4jClient
         .query(
             """
             MATCH (a:Application {id: $id})
-            SET a.name = $name, a.description = $desc, a.year = $year
+            SET a.name = $name, a.description = $desc
             """)
         .bindAll(params)
         .run();
-    return applicationRepository.findByIdForGraph(id).map(this::toResponseWithBusinessUnit);
+    return applicationRepository.findByIdForGraph(id).map(this::toDetailResponse);
   }
 
   /**
@@ -129,44 +137,34 @@ public class ApplicationService {
     return true;
   }
 
-  private ApplicationResponse toResponse(Application a) {
-    List<ContributorSummaryDto> contributors =
-        applicationContributorLookup.findForApplication(a.getId());
-    return new ApplicationResponse(
-        a.getId(),
-        a.getName(),
-        a.getDescription(),
-        a.getYear(),
-        moduleSubtreeQuery.hasAnyModuleViaContains(a.getId()),
-        applicationBusinessUnitLookup.findForApplication(a.getId()).orElse(null),
-        contributors,
-        applicationRegionLookup.findForApplication(a.getId()));
-  }
-
-  private ApplicationResponse toResponseWithBusinessUnit(ApplicationGraphNodeProjection p) {
-    List<ContributorSummaryDto> contributors =
-        applicationContributorLookup.findForApplication(p.getId());
+  private ApplicationResponse toDetailResponse(ApplicationGraphNodeProjection p) {
+    Map<String, List<ApplicationResponse.NodeRefSummary>> refs = toNodeRefs(p.getId());
     return new ApplicationResponse(
         p.getId(),
         p.getName(),
         p.getDescription(),
-        p.getYear(),
         moduleSubtreeQuery.hasAnyModuleViaContains(p.getId()),
-        applicationBusinessUnitLookup.findForApplication(p.getId()).orElse(null),
-        contributors,
-        applicationRegionLookup.findForApplication(p.getId()));
+        nodeAttributeReader.read(p.getId()),
+        refs);
   }
 
-  private ApplicationResponse graphProjectionToResponse(
-      ApplicationGraphNodeProjection p, boolean hasModuleSubtree) {
-    return new ApplicationResponse(
-        p.getId(),
-        p.getName(),
-        p.getDescription(),
-        p.getYear(),
-        hasModuleSubtree,
-        null,
-        Collections.emptyList(),
-        Collections.emptyList());
+  private Map<String, List<ApplicationResponse.NodeRefSummary>> toNodeRefs(String applicationId) {
+    Map<String, List<ApplicationNodeRefLinkReader.RefSummary>> raw =
+        nodeRefLinkReader.read(applicationId);
+    if (raw.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, List<ApplicationResponse.NodeRefSummary>> out = new HashMap<>();
+    for (var entry : raw.entrySet()) {
+      out.put(
+          entry.getKey(),
+          entry.getValue().stream()
+              .map(
+                  r ->
+                      new ApplicationResponse.NodeRefSummary(
+                          r.id(), r.name(), r.value()))
+              .toList());
+    }
+    return Map.copyOf(out);
   }
 }

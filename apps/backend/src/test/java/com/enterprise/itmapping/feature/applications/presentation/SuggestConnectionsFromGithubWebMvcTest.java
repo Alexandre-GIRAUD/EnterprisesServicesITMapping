@@ -8,14 +8,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationConnectionSuggestionService;
-import com.enterprise.itmapping.feature.applications.application.ApplicationRegionLinkService;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeAttributePatchService;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeRefPatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse.CreatedConnectionItem;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse.SkippedItem;
-import com.enterprise.itmapping.feature.businessunit.application.BusinessUnitApplicationLinkService;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -41,9 +41,9 @@ class SuggestConnectionsFromGithubWebMvcTest {
 
   @MockBean ApplicationConnectionSuggestionService connectionSuggestionService;
 
-  @MockBean BusinessUnitApplicationLinkService businessUnitApplicationLinkService;
+  @MockBean ApplicationNodeAttributePatchService nodeAttributePatchService;
 
-  @MockBean ApplicationRegionLinkService applicationRegionLinkService;
+  @MockBean ApplicationNodeRefPatchService nodeRefPatchService;
 
   @Test
   void postSuggestConnectionsReturnsCreatedWithBody() throws Exception {

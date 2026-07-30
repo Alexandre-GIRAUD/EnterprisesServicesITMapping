@@ -11,6 +11,4 @@ public interface ApplicationGraphNodeProjection {
   String getName();
 
   String getDescription();
-
-  Integer getYear();
 }

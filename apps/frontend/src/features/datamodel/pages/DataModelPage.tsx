@@ -32,6 +32,7 @@ function emptyField(): DataModelFieldDto {
     required: false,
     detection: 'AUTOMATIC_DETECTION',
     target: 'EDGE',
+    multiple: false,
   };
 }
 
@@ -40,7 +41,9 @@ function normalizeDetection(detection?: DataModelDetection): DataModelDetection 
 }
 
 function normalizeTarget(target?: DataModelTarget): DataModelTarget {
-  return target === 'NODE' ? 'NODE' : 'EDGE';
+  if (target === 'NODE') return 'NODE';
+  if (target === 'NODE_REF') return 'NODE_REF';
+  return 'EDGE';
 }
 
 function validateFields(fields: DataModelFieldDto[]): string | null {
@@ -59,6 +62,10 @@ function validateFields(fields: DataModelFieldDto[]): string | null {
     seen.add(key);
     if (!field.label.trim()) {
       return `Label required for key: ${key}`;
+    }
+    const target = normalizeTarget(field.target);
+    if (target === 'NODE_REF' && (!field.allowedValues || field.allowedValues.length === 0)) {
+      return `Allowed values required for Application (reference) fields (${key})`;
     }
     if (field.enforceEnum && (!field.allowedValues || field.allowedValues.length === 0)) {
       return `Allowed values required when enforce enum is on (${key})`;
@@ -85,6 +92,7 @@ export function DataModelPage() {
             ...f,
             detection: normalizeDetection(f.detection),
             target: normalizeTarget(f.target),
+            multiple: Boolean(f.multiple),
           }))
         : [emptyField()]
     );
@@ -141,6 +149,9 @@ export function DataModelPage() {
         allowedValues: (f.allowedValues ?? []).map((v) => v.trim()).filter(Boolean),
         detection: normalizeDetection(f.detection),
         target: normalizeTarget(f.target),
+        multiple: normalizeTarget(f.target) === 'NODE_REF' ? Boolean(f.multiple) : false,
+        enforceEnum:
+          normalizeTarget(f.target) === 'NODE_REF' ? true : Boolean(f.enforceEnum),
       }));
 
     const validationError = validateFields(payload);
@@ -158,6 +169,7 @@ export function DataModelPage() {
               ...f,
               detection: normalizeDetection(f.detection),
               target: normalizeTarget(f.target),
+              multiple: Boolean(f.multiple),
             }))
           : [emptyField()]
       );
@@ -195,6 +207,11 @@ export function DataModelPage() {
           Define dynamic fields for connection flows (edges) and for the analyzed Application
           (node). Automatic fields enrich the connection-discovery AI prompt and are persisted on
           Neo4j <code>DEPENDS_ON</code> relationships or the <code>Application</code> node.
+        </p>
+        <p className="data-model-lead">
+          Application (node) fields also drive the map: they are the dimensions of the filter menu
+          (next to the Applications filter, which always stays available) and the editable
+          attributes of the application details drawer. Edge fields never appear there.
         </p>
         {updatedAt ? (
           <p className="data-model-meta">Last updated: {new Date(updatedAt).toLocaleString()}</p>
@@ -251,20 +268,33 @@ export function DataModelPage() {
                   <select
                     className="data-model-input"
                     value={target}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const next = e.target.value as DataModelTarget;
                       updateField(index, {
-                        target: e.target.value as DataModelTarget,
-                      })
-                    }
+                        target: next,
+                        enforceEnum: next === 'NODE_REF' ? true : field.enforceEnum,
+                        multiple: next === 'NODE_REF' ? Boolean(field.multiple) : false,
+                      });
+                    }}
                     disabled={!isAdmin}
                   >
                     <option value="EDGE">Edge (connection)</option>
                     <option value="NODE">Application (node)</option>
+                    <option value="NODE_REF">Application (reference)</option>
                   </select>
                 </label>
                 {target === 'NODE' ? (
                   <p className="data-model-field-hint" role="note">
-                    Applied to the analyzed Application during connection suggestion (AI).
+                    Stored as a flat property on the Application node: applied during connection
+                    suggestion (AI), filterable on the map, and editable in the details drawer.
+                    Allowed values become the picker choices.
+                  </p>
+                ) : null}
+                {target === 'NODE_REF' ? (
+                  <p className="data-model-field-hint" role="note">
+                    Declared values become Neo4j catalogue nodes (:DataModelRef), filter options, and
+                    closed choices for AI / the details drawer. Links use CLASSIFIED_AS — values are
+                    created only here, never by AI or free text in the drawer.
                   </p>
                 ) : null}
 
@@ -326,7 +356,7 @@ export function DataModelPage() {
                           .filter(Boolean),
                       })
                     }
-                    placeholder="VALUE_A, VALUE_B"
+                    placeholder={target === 'NODE_REF' ? 'VALUE_A, VALUE_B' : 'VALUE_A, VALUE_B'}
                     disabled={!isAdmin}
                   />
                 </label>
@@ -335,12 +365,24 @@ export function DataModelPage() {
                   <label className="data-model-check">
                     <input
                       type="checkbox"
-                      checked={field.enforceEnum}
+                      checked={target === 'NODE_REF' ? true : field.enforceEnum}
                       onChange={(e) => updateField(index, { enforceEnum: e.target.checked })}
-                      disabled={!isAdmin}
+                      disabled={!isAdmin || target === 'NODE_REF'}
                     />
                     Enforce enum (strict)
+                    {target === 'NODE_REF' ? ' (always on for references)' : ''}
                   </label>
+                  {target === 'NODE_REF' ? (
+                    <label className="data-model-check">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(field.multiple)}
+                        onChange={(e) => updateField(index, { multiple: e.target.checked })}
+                        disabled={!isAdmin}
+                      />
+                      Allow multiple values
+                    </label>
+                  ) : null}
                   <label className="data-model-check">
                     <input
                       type="checkbox"
@@ -393,8 +435,8 @@ export function DataModelPage() {
         <h2>Prompt preview</h2>
         <p className="data-model-lead">
           Section(s) injected into the connection-discovery user message when automatic fields are
-          configured (manual fields are excluded). Edge and Application (node) fields appear in
-          separate sections.
+          configured (manual fields are excluded). Edge, Application (node), and Application
+          (reference) fields appear in separate sections.
         </p>
         <pre className="data-model-preview">
           {promptPreview.trim() || '(empty — topology-only mode)'}

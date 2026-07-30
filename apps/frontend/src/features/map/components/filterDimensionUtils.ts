@@ -1,4 +1,16 @@
-export type FilterView = 'root' | 'year' | 'applications' | 'businessUnits' | 'regions';
+/**
+ * Filter menu navigation target: the root list, the Applications identity dimension, or one Data
+ * Model `target=NODE` dimension addressed by its key (`attr:<key>`).
+ */
+export type FilterView = 'root' | 'applications' | `attr:${string}`;
+
+export function nodeAttributeView(key: string): FilterView {
+  return `attr:${key}`;
+}
+
+export function nodeAttributeKeyFromView(view: FilterView): string | null {
+  return view.startsWith('attr:') ? view.slice('attr:'.length) : null;
+}
 
 export type DimensionMode = 'none' | 'all' | 'some';
 
@@ -57,10 +69,6 @@ export function dimensionStatusLabel(
   if (mode === 'all') return `All ${entityNamePlural}`;
   if (mode === 'some') return `${selectedCount} of ${catalogCount} selected`;
   return 'None selected';
-}
-
-export function yearFilterLabel(year: number | null): string {
-  return year != null ? `Year ${year}` : 'All years';
 }
 
 export function hasInvalidDimensionSelection(modes: DimensionMode[]): boolean {

@@ -1,15 +1,15 @@
 package com.enterprise.itmapping.feature.applications.presentation;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationConnectionSuggestionService;
-import com.enterprise.itmapping.feature.applications.application.ApplicationRegionLinkService;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeAttributePatchService;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeRefPatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
-import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationBusinessUnitPatchRequest;
+import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationNodeAttributesPatchRequest;
+import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationNodeRefsPatchRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
-import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRegionsPatchRequest;
-import com.enterprise.itmapping.feature.businessunit.application.BusinessUnitApplicationLinkService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubRequest;
@@ -17,6 +17,7 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestMod
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,7 +28,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -38,22 +38,22 @@ public class ApplicationController {
   private final ModuleGraphService moduleGraphService;
   private final ModuleSuggestionService moduleSuggestionService;
   private final ApplicationConnectionSuggestionService connectionSuggestionService;
-  private final BusinessUnitApplicationLinkService businessUnitApplicationLinkService;
-  private final ApplicationRegionLinkService applicationRegionLinkService;
+  private final ApplicationNodeAttributePatchService nodeAttributePatchService;
+  private final ApplicationNodeRefPatchService nodeRefPatchService;
 
   public ApplicationController(
       ApplicationService applicationService,
       ModuleGraphService moduleGraphService,
       ModuleSuggestionService moduleSuggestionService,
       ApplicationConnectionSuggestionService connectionSuggestionService,
-      BusinessUnitApplicationLinkService businessUnitApplicationLinkService,
-      ApplicationRegionLinkService applicationRegionLinkService) {
+      ApplicationNodeAttributePatchService nodeAttributePatchService,
+      ApplicationNodeRefPatchService nodeRefPatchService) {
     this.applicationService = applicationService;
     this.moduleGraphService = moduleGraphService;
     this.moduleSuggestionService = moduleSuggestionService;
     this.connectionSuggestionService = connectionSuggestionService;
-    this.businessUnitApplicationLinkService = businessUnitApplicationLinkService;
-    this.applicationRegionLinkService = applicationRegionLinkService;
+    this.nodeAttributePatchService = nodeAttributePatchService;
+    this.nodeRefPatchService = nodeRefPatchService;
   }
 
   @GetMapping
@@ -127,17 +127,19 @@ public class ApplicationController {
   }
 
   /**
-   * Sets or clears the {@code HAS_APPLICATION} link from a {@code BusinessUnit} to this
-   * application node. {@code businessUnitId} {@code null} removes any existing link.
+   * Partially updates the Data Model {@code target=NODE} attributes stored as flat properties on the
+   * Application node. Submitted keys that are not Data Model NODE fields are ignored; a blank value
+   * clears the property.
    */
-  @PatchMapping("/{id}/business-unit")
-  public ResponseEntity<ApplicationResponse> patchBusinessUnit(
+  @PatchMapping("/{id}/node-attributes")
+  public ResponseEntity<ApplicationResponse> patchNodeAttributes(
       @PathVariable String id,
-      @RequestBody(required = false) ApplicationBusinessUnitPatchRequest body) {
-    String buId = body != null ? body.businessUnitId() : null;
-    if (!businessUnitApplicationLinkService.setBusinessUnitForApplication(id, buId)) {
+      @RequestBody(required = false) ApplicationNodeAttributesPatchRequest body) {
+    if (applicationService.findById(id).isEmpty()) {
       return ResponseEntity.notFound().build();
     }
+    Map<String, String> attributes = body != null ? body.attributes() : Map.of();
+    nodeAttributePatchService.patch(id, attributes);
     return applicationService
         .findById(id)
         .map(ResponseEntity::ok)
@@ -145,18 +147,18 @@ public class ApplicationController {
   }
 
   /**
-   * Replaces all {@code IS_USED_IN} links from this application to {@link
-   * com.enterprise.itmapping.domain.Region} nodes (full replacement). Omitting {@code regionCodes}
-   * or sending {@code []} clears all regions.
+   * Replaces {@code CLASSIFIED_AS} links for submitted Data Model {@code NODE_REF} keys. Values are
+   * catalogue ref ids; an empty list clears that key.
    */
-  @PatchMapping("/{id}/regions")
-  public ResponseEntity<ApplicationResponse> patchRegions(
+  @PatchMapping("/{id}/node-refs")
+  public ResponseEntity<ApplicationResponse> patchNodeRefs(
       @PathVariable String id,
-      @RequestBody(required = false) ApplicationRegionsPatchRequest body) {
-    List<String> codes = body != null ? body.regionCodes() : null;
-    if (!applicationRegionLinkService.setRegionsForApplication(id, codes)) {
+      @RequestBody(required = false) ApplicationNodeRefsPatchRequest body) {
+    if (applicationService.findById(id).isEmpty()) {
       return ResponseEntity.notFound().build();
     }
+    Map<String, List<String>> refs = body != null ? body.refs() : Map.of();
+    nodeRefPatchService.patch(id, refs);
     return applicationService
         .findById(id)
         .map(ResponseEntity::ok)

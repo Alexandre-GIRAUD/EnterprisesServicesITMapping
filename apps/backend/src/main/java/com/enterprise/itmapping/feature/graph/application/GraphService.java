@@ -1,20 +1,21 @@
 package com.enterprise.itmapping.feature.graph.application;
 
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
-import com.enterprise.itmapping.feature.businessunit.infrastructure.persistence.BusinessUnitRepository;
-import com.enterprise.itmapping.feature.region.infrastructure.persistence.RegionRepository;
+import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeRequestDto;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeResponseDto;
-import com.enterprise.itmapping.feature.graph.infrastructure.persistence.GraphLoader;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphEdgeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
+import com.enterprise.itmapping.feature.graph.infrastructure.persistence.GraphLoader;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.List;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -24,67 +25,74 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class GraphService {
 
+  private static final Logger log = LoggerFactory.getLogger(GraphService.class);
+
   private static final Set<String> ALLOWED_EDGE_TYPES = Set.of("DEPENDS_ON", "CONTAINS");
 
   private final GraphLoader graphLoader;
   private final Neo4jClient neo4jClient;
-  private final BusinessUnitRepository businessUnitRepository;
-  private final RegionRepository regionRepository;
   private final ApplicationRepository applicationRepository;
+  private final DataModelService dataModelService;
+  private final GraphNodeFilterResolver nodeFilterResolver;
 
   public GraphService(
       GraphLoader graphLoader,
       Neo4jClient neo4jClient,
-      BusinessUnitRepository businessUnitRepository,
-      RegionRepository regionRepository,
-      ApplicationRepository applicationRepository
+      ApplicationRepository applicationRepository,
+      DataModelService dataModelService,
+      GraphNodeFilterResolver nodeFilterResolver
   ) {
     this.graphLoader = graphLoader;
     this.neo4jClient = neo4jClient;
-    this.businessUnitRepository = businessUnitRepository;
-    this.regionRepository = regionRepository;
     this.applicationRepository = applicationRepository;
+    this.dataModelService = dataModelService;
+    this.nodeFilterResolver = nodeFilterResolver;
   }
 
   /**
-   * @param year optional; when non-null, only applications with {@code year == value}.
    * @param applicationIds optional; when non-empty, only listed application ids (OR).
-   * @param businessUnitIds optional; when non-empty, applications under any listed BU (OR).
-   * @param regionCodes optional; when non-empty, applications used in any listed region (OR,
-   *     case-insensitive). Active dimensions combine with AND.
+   * @param nodeAttributeFilters optional; Data Model {@code target=NODE} key → accepted values.
+   * @param nodeRefFilters optional; Data Model {@code target=NODE_REF} key → ref ids.
    */
   @Transactional(readOnly = true)
   public GraphResponseDto getGraph(
-      Integer year,
       List<String> applicationIds,
-      List<String> businessUnitIds,
-      List<String> regionCodes) {
+      Map<String, List<String>> nodeAttributeFilters,
+      Map<String, List<String>> nodeRefFilters) {
     List<String> appIds = resolveExistingApplicationIds(applicationIds);
-    List<String> buIds = resolveExistingBusinessUnitIds(businessUnitIds);
-    List<String> regions = resolveExistingRegionCodes(regionCodes);
+    GraphNodeFilterResolver.Resolved resolved =
+        nodeFilterResolver.resolve(
+            dataModelService.loadConfig(), nodeAttributeFilters, nodeRefFilters);
+
+    log.info(
+        "Graph load: applicationIds={} nodeFilterKeys={} nodeRefKeys={}",
+        appIds != null ? appIds.size() : 0,
+        resolved.nodeAttributes().keySet(),
+        resolved.nodeRefs().keySet());
+    if (!resolved.rejectedKeys().isEmpty()) {
+      log.debug(
+          "Graph load ignored filter keys (not in Data Model NODE/NODE_REF fields): {}",
+          resolved.rejectedKeys());
+    }
+
     if (appIds != null && appIds.isEmpty()) {
       return new GraphResponseDto(List.of(), List.of());
     }
-    if (buIds != null && buIds.isEmpty()) {
-      return new GraphResponseDto(List.of(), List.of());
-    }
-    if (regions != null && regions.isEmpty()) {
-      return new GraphResponseDto(List.of(), List.of());
-    }
 
-    List<GraphEdgeProjection> edges =
-        graphLoader.loadEdges(year, appIds, buIds, regions);
+    Map<String, List<String>> attrFilters = resolved.nodeAttributes();
+    Map<String, List<String>> refFilters = resolved.nodeRefs();
+    List<GraphEdgeProjection> edges = graphLoader.loadEdges(appIds, attrFilters, refFilters);
 
     List<GraphNodeDto> nodes =
-        graphLoader.loadNodes(year, appIds, buIds, regions).stream()
+        graphLoader.loadNodes(appIds, attrFilters, refFilters).stream()
             .map(
                 a ->
                     new GraphNodeDto(
                         a.id(),
                         a.name() != null ? a.name() : a.id(),
                         "Application",
-                        a.year(),
-                        null))
+                        null,
+                        a.properties()))
             .collect(Collectors.toList());
 
     List<GraphEdgeDto> edgeDtos = new ArrayList<>();
@@ -102,6 +110,13 @@ public class GraphService {
     return new GraphResponseDto(nodes, edgeDtos);
   }
 
+  /** Backward-compatible overload (no NODE_REF filters). */
+  @Transactional(readOnly = true)
+  public GraphResponseDto getGraph(
+      List<String> applicationIds, Map<String, List<String>> nodeAttributeFilters) {
+    return getGraph(applicationIds, nodeAttributeFilters, Map.of());
+  }
+
   /** {@code null} = no filter; empty list after validation = empty graph. */
   private List<String> resolveExistingApplicationIds(List<String> raw) {
     List<String> ids = normalizeIds(raw);
@@ -110,32 +125,6 @@ public class GraphService {
     }
     List<String> existing =
         ids.stream().filter(applicationRepository::existsById).distinct().toList();
-    return existing.isEmpty() ? List.of() : existing;
-  }
-
-  /** {@code null} = no filter; empty list after validation = empty graph. */
-  private List<String> resolveExistingBusinessUnitIds(List<String> raw) {
-    List<String> ids = normalizeIds(raw);
-    if (ids == null) {
-      return null;
-    }
-    List<String> existing =
-        ids.stream().filter(businessUnitRepository::existsById).distinct().toList();
-    return existing.isEmpty() ? List.of() : existing;
-  }
-
-  /** {@code null} = no filter; codes uppercased for Cypher {@code IN}. */
-  private List<String> resolveExistingRegionCodes(List<String> raw) {
-    List<String> codes = normalizeIds(raw);
-    if (codes == null) {
-      return null;
-    }
-    List<String> existing =
-        codes.stream()
-            .filter(regionRepository::existsByCodeIgnoreCase)
-            .map(c -> c.toUpperCase())
-            .distinct()
-            .toList();
     return existing.isEmpty() ? List.of() : existing;
   }
 

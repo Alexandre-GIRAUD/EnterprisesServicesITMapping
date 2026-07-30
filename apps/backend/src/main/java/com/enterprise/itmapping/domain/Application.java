@@ -5,6 +5,10 @@ import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 import org.springframework.data.neo4j.core.support.UUIDStringGenerator;
 
+/**
+ * Identity of an application node. Business attributes are not mapped here: they are declared in
+ * the Data Model ({@code target=NODE}) and stored as dynamic Neo4j properties.
+ */
 @Node("Application")
 public class Application {
 
@@ -14,7 +18,6 @@ public class Application {
 
   private String name;
   private String description;
-  private Integer year;
 
   public String getId() {
     return id;
@@ -38,13 +41,5 @@ public class Application {
 
   public void setDescription(String description) {
     this.description = description;
-  }
-
-  public Integer getYear() {
-    return year;
-  }
-
-  public void setYear(Integer year) {
-    this.year = year;
   }
 }

@@ -56,6 +56,7 @@ class ApplicationConnectionSuggestionServiceTest {
   @Mock ApplicationCatalogQuery catalogQuery;
   @Mock ApplicationConnectionEdgeWriter edgeWriter;
   @Mock ApplicationNodeAttributeWriter nodeAttributeWriter;
+  @Mock ApplicationNodeRefLinkWriter nodeRefLinkWriter;
   @Mock DataModelService dataModelService;
   @Mock DataModelPromptBuilder dataModelPromptBuilder;
   @Mock DataModelAttributeResolver dataModelAttributeResolver;
@@ -75,6 +76,7 @@ class ApplicationConnectionSuggestionServiceTest {
             catalogQuery,
             edgeWriter,
             nodeAttributeWriter,
+            nodeRefLinkWriter,
             dataModelService,
             dataModelPromptBuilder,
             dataModelAttributeResolver);
@@ -585,11 +587,6 @@ class ApplicationConnectionSuggestionServiceTest {
       @Override
       public String getDescription() {
         return null;
-      }
-
-      @Override
-      public Integer getYear() {
-        return 2024;
       }
     };
   }

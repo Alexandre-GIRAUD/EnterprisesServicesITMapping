@@ -28,6 +28,7 @@ class DataModelServiceTest {
   @Mock DataModelValidator validator;
   @Mock DataModelPromptBuilder promptBuilder;
   @Mock CurrentUserResolver currentUserResolver;
+  @Mock DataModelRefSyncService refSyncService;
   @Mock UserEntity user;
 
   @InjectMocks DataModelService dataModelService;
@@ -78,5 +79,6 @@ class DataModelServiceTest {
 
     verify(validator).validatePut(any());
     verify(dataModelRepository).save(entity);
+    verify(refSyncService).sync(any());
   }
 }

@@ -1,12 +1,19 @@
 /**
  * Graph API client. Fetches graph data for React Flow (nodes + edges).
- * Supports filtering by year via query param year (integer).
+ *
+ * Filtering axes: application ids, Data Model `target=NODE` (`attr.<key>`), and `target=NODE_REF`
+ * (`ref.<key>` catalogue ids).
  *
  * - Relative `/api/...` : same origin (Vite proxy en dev, nginx en prod Docker).
  * - VITE_API_BASE_URL=http://127.0.0.1:8081: direct call (CORS enabled server-side).
  */
 
-import type { GraphEdgeCreateRequest, GraphEdgeCreateResponse, GraphResponseDto } from '@/types/api';
+import type {
+  GraphEdgeCreateRequest,
+  GraphEdgeCreateResponse,
+  GraphNodeFilterDto,
+  GraphResponseDto,
+} from '@/types/api';
 import { authenticatedFetch, resolveApiUrl } from '@/config/api';
 
 function graphUrl(search: string): string {
@@ -34,26 +41,40 @@ async function fetchGraphJson(
 }
 
 export async function fetchGraph(params?: {
-  year?: number;
   applicationIds?: string[];
-  businessUnitIds?: string[];
-  regionCodes?: string[];
+  nodeAttributes?: Record<string, string[]>;
+  nodeRefs?: Record<string, string[]>;
 }): Promise<GraphResponseDto> {
   const sp = new URLSearchParams();
-  if (params?.year != null) {
-    sp.set('year', String(params.year));
-  }
   for (const id of params?.applicationIds ?? []) {
     if (id) sp.append('applicationIds', id);
   }
-  for (const id of params?.businessUnitIds ?? []) {
-    if (id) sp.append('businessUnitIds', id);
+  for (const [key, values] of Object.entries(params?.nodeAttributes ?? {})) {
+    for (const value of values) {
+      if (key && value) sp.append(`attr.${key}`, value);
+    }
   }
-  for (const code of params?.regionCodes ?? []) {
-    if (code) sp.append('regionCodes', code);
+  for (const [key, values] of Object.entries(params?.nodeRefs ?? {})) {
+    for (const value of values) {
+      if (key && value) sp.append(`ref.${key}`, value);
+    }
   }
   const search = sp.toString() ? `?${sp.toString()}` : '';
   return fetchGraphJson(graphUrl(search), 'Graph API');
+}
+
+/** Filterable dimensions: Data Model NODE + NODE_REF fields. */
+export async function fetchGraphNodeFilters(): Promise<GraphNodeFilterDto[]> {
+  const res = await authenticatedFetch(resolveApiUrl('/api/graph/node-filters'), {
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Node filters API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+  return res.json();
 }
 
 /**

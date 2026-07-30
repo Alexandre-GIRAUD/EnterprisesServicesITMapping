@@ -5,46 +5,40 @@ import com.enterprise.itmapping.feature.graph.application.GraphNodeRow;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Repository;
 
 /**
  * Loads graph structure via Neo4jClient (no Spring Data entity hydration).
  *
- * <p>Filtering is applied per dimension (year / application ids / business unit ids / region codes);
- * active dimensions combine with AND. {@code null}/empty dimension = no filter on that axis.
+ * <p>Filtering axes: application ids, Data Model {@code NODE} flat props ({@code attr.*}), and Data
+ * Model {@code NODE_REF} catalogue links ({@code ref.*} → {@code CLASSIFIED_AS}).
  */
 @Repository
 public class GraphLoader {
 
-  private static final String NODES_CYPHER_FILTERED = """
+  private static final Logger log = LoggerFactory.getLogger(GraphLoader.class);
+
+  private static final Set<String> NON_BUSINESS_NODE_KEYS =
+      Set.of("id", "name", "description", "year", "validFrom", "validTo");
+
+  private static final String NODE_MATCH_AND_FILTER =
+      """
       MATCH (a:Application)
-      WHERE ($filterYear = false OR a.year = $year)
-        AND ($filterApplicationIds = false OR a.id IN $applicationIds)
-        AND ($filterBusinessUnitIds = false OR EXISTS {
-          MATCH (bu:BusinessUnit)-[:HAS_APPLICATION]->(a)
-          WHERE bu.id IN $businessUnitIds
-        })
-        AND ($filterRegionCodes = false OR EXISTS {
-          MATCH (a)-[:IS_USED_IN]->(reg:Region)
-          WHERE toUpper(reg.code) IN $regionCodes
-        })
-      WITH DISTINCT a ORDER BY a.name
-      RETURN a.id AS id, a.name AS name, a.description AS description, a.year AS year
+      WHERE ($filterApplicationIds = false OR a.id IN $applicationIds)
       """;
 
-  private static final String EDGES_CYPHER_FILTERED = """
-      MATCH (a:Application)
-      WHERE ($filterYear = false OR a.year = $year)
-        AND ($filterApplicationIds = false OR a.id IN $applicationIds)
-        AND ($filterBusinessUnitIds = false OR EXISTS {
-          MATCH (bu:BusinessUnit)-[:HAS_APPLICATION]->(a)
-          WHERE bu.id IN $businessUnitIds
-        })
-        AND ($filterRegionCodes = false OR EXISTS {
-          MATCH (a)-[:IS_USED_IN]->(reg:Region)
-          WHERE toUpper(reg.code) IN $regionCodes
-        })
+  private static final String NODES_RETURN =
+      """
+      WITH DISTINCT a ORDER BY a.name
+      RETURN a.id AS id, a.name AS name, a.description AS description, properties(a) AS props
+      """;
+
+  private static final String EDGES_RETURN =
+      """
       WITH collect(DISTINCT a.id) AS appIds
       MATCH (x:Application)-[r:DEPENDS_ON]->(y:Application)
       WHERE x.id IN appIds AND y.id IN appIds
@@ -58,40 +52,23 @@ public class GraphLoader {
     this.neo4jClient = neo4jClient;
   }
 
-  public List<GraphNodeRow> loadNodes(Integer year) {
-    return loadNodes(year, null, null, null);
+  public List<GraphNodeRow> loadNodes() {
+    return loadNodes(null, Map.of(), Map.of());
   }
 
-  /**
-   * @param year when non-null, only applications with {@code a.year = year}.
-   * @param applicationIds when non-empty, only these application ids (OR).
-   * @param businessUnitIds when non-empty, apps linked to any listed BU (OR).
-   * @param regionCodes when non-empty, apps used in any listed region code (OR). Codes uppercased.
-   *     Dimensions combine with AND when multiple are active.
-   */
   public List<GraphNodeRow> loadNodes(
-      Integer year,
+      List<String> applicationIds, Map<String, List<String>> nodeAttributeFilters) {
+    return loadNodes(applicationIds, nodeAttributeFilters, Map.of());
+  }
+
+  public List<GraphNodeRow> loadNodes(
       List<String> applicationIds,
-      List<String> businessUnitIds,
-      List<String> regionCodes) {
+      Map<String, List<String>> nodeAttributeFilters,
+      Map<String, List<String>> nodeRefFilters) {
+    String cypher = buildCypher(NODES_RETURN, nodeAttributeFilters, nodeRefFilters);
     return neo4jClient
-        .query(NODES_CYPHER_FILTERED)
-        .bind(year != null)
-        .to("filterYear")
-        .bind(year != null ? year : -1)
-        .to("year")
-        .bind(hasFilter(applicationIds))
-        .to("filterApplicationIds")
-        .bind(hasFilter(businessUnitIds))
-        .to("filterBusinessUnitIds")
-        .bind(hasFilter(regionCodes))
-        .to("filterRegionCodes")
-        .bind(hasFilter(applicationIds) ? applicationIds : List.of("__none__"))
-        .to("applicationIds")
-        .bind(hasFilter(businessUnitIds) ? businessUnitIds : List.of("__none__"))
-        .to("businessUnitIds")
-        .bind(hasFilter(regionCodes) ? regionCodes : List.of("__none__"))
-        .to("regionCodes")
+        .query(cypher)
+        .bindAll(params(applicationIds, nodeAttributeFilters, nodeRefFilters))
         .fetch()
         .all()
         .stream()
@@ -100,41 +77,23 @@ public class GraphLoader {
         .toList();
   }
 
-  private static GraphNodeRow mapNodeRow(Map<String, Object> map) {
-    return new GraphNodeRow(
-        Neo4jValueMapping.asString(map.get("id")),
-        Neo4jValueMapping.asString(map.get("name")),
-        Neo4jValueMapping.asString(map.get("description")),
-        Neo4jValueMapping.asInteger(map.get("year")));
-  }
-
-  public List<GraphEdgeProjection> loadEdges(Integer year) {
-    return loadEdges(year, null, null, null);
+  public List<GraphEdgeProjection> loadEdges() {
+    return loadEdges(null, Map.of(), Map.of());
   }
 
   public List<GraphEdgeProjection> loadEdges(
-      Integer year,
+      List<String> applicationIds, Map<String, List<String>> nodeAttributeFilters) {
+    return loadEdges(applicationIds, nodeAttributeFilters, Map.of());
+  }
+
+  public List<GraphEdgeProjection> loadEdges(
       List<String> applicationIds,
-      List<String> businessUnitIds,
-      List<String> regionCodes) {
+      Map<String, List<String>> nodeAttributeFilters,
+      Map<String, List<String>> nodeRefFilters) {
+    String cypher = buildCypher(EDGES_RETURN, nodeAttributeFilters, nodeRefFilters);
     return neo4jClient
-        .query(EDGES_CYPHER_FILTERED)
-        .bind(year != null)
-        .to("filterYear")
-        .bind(year != null ? year : -1)
-        .to("year")
-        .bind(hasFilter(applicationIds))
-        .to("filterApplicationIds")
-        .bind(hasFilter(businessUnitIds))
-        .to("filterBusinessUnitIds")
-        .bind(hasFilter(regionCodes))
-        .to("filterRegionCodes")
-        .bind(hasFilter(applicationIds) ? applicationIds : List.of("__none__"))
-        .to("applicationIds")
-        .bind(hasFilter(businessUnitIds) ? businessUnitIds : List.of("__none__"))
-        .to("businessUnitIds")
-        .bind(hasFilter(regionCodes) ? regionCodes : List.of("__none__"))
-        .to("regionCodes")
+        .query(cypher)
+        .bindAll(params(applicationIds, nodeAttributeFilters, nodeRefFilters))
         .fetch()
         .all()
         .stream()
@@ -147,19 +106,92 @@ public class GraphLoader {
                     Neo4jValueMapping.asString(map.get("relType")),
                     Neo4jValueMapping.asString(map.get("data")),
                     Neo4jValueMapping.asString(map.get("relId")),
-                    colorableEdgeProperties(map.get("props"))))
+                    stringProperties(map.get("props"), Set.of("validFrom", "validTo"))))
         .toList();
   }
 
-  /** Neo4j relationship props minus temporal/internal keys, stringified for the API. */
-  private static Map<String, String> colorableEdgeProperties(Object raw) {
+  private static String buildCypher(
+      String returnClause,
+      Map<String, List<String>> nodeFilters,
+      Map<String, List<String>> nodeRefFilters) {
+    StringBuilder sb = new StringBuilder(NODE_MATCH_AND_FILTER);
+    if (nodeFilters != null) {
+      for (String key : nodeFilters.keySet()) {
+        sb.append("  AND toString(a.`")
+            .append(key)
+            .append("`) IN $")
+            .append(valuesParam(key))
+            .append('\n');
+      }
+    }
+    if (nodeRefFilters != null) {
+      int i = 0;
+      for (String key : nodeRefFilters.keySet()) {
+        String fieldParam = "nodeRefField_" + i;
+        String idsParam = "nodeRefIds_" + i;
+        sb.append("  AND EXISTS {\n")
+            .append("    MATCH (a)-[:CLASSIFIED_AS {fieldKey: $")
+            .append(fieldParam)
+            .append("}]->(ref:DataModelRef)\n")
+            .append("    WHERE ref.id IN $")
+            .append(idsParam)
+            .append('\n')
+            .append("  }\n");
+        i++;
+      }
+    }
+    String cypher = sb.append(returnClause).toString();
+    log.debug(
+        "Graph Cypher node filters keys={} nodeRefKeys={}",
+        nodeFilters != null ? nodeFilters.keySet() : Set.of(),
+        nodeRefFilters != null ? nodeRefFilters.keySet() : Set.of());
+    return cypher;
+  }
+
+  private static Map<String, Object> params(
+      List<String> applicationIds,
+      Map<String, List<String>> nodeFilters,
+      Map<String, List<String>> nodeRefFilters) {
+    boolean filterApplicationIds = applicationIds != null && !applicationIds.isEmpty();
+    Map<String, Object> params = new LinkedHashMap<>();
+    params.put("filterApplicationIds", filterApplicationIds);
+    params.put("applicationIds", filterApplicationIds ? applicationIds : List.of("__none__"));
+    if (nodeFilters != null) {
+      for (Map.Entry<String, List<String>> entry : nodeFilters.entrySet()) {
+        params.put(valuesParam(entry.getKey()), entry.getValue());
+      }
+    }
+    if (nodeRefFilters != null) {
+      int i = 0;
+      for (Map.Entry<String, List<String>> entry : nodeRefFilters.entrySet()) {
+        params.put("nodeRefField_" + i, entry.getKey());
+        params.put("nodeRefIds_" + i, entry.getValue());
+        i++;
+      }
+    }
+    return params;
+  }
+
+  private static String valuesParam(String key) {
+    return "nodeAttr_" + key;
+  }
+
+  private static GraphNodeRow mapNodeRow(Map<String, Object> map) {
+    return new GraphNodeRow(
+        Neo4jValueMapping.asString(map.get("id")),
+        Neo4jValueMapping.asString(map.get("name")),
+        Neo4jValueMapping.asString(map.get("description")),
+        stringProperties(map.get("props"), NON_BUSINESS_NODE_KEYS));
+  }
+
+  private static Map<String, String> stringProperties(Object raw, Set<String> excludedKeys) {
     if (!(raw instanceof Map<?, ?> map)) {
       return Map.of();
     }
     Map<String, String> out = new LinkedHashMap<>();
     for (Map.Entry<?, ?> entry : map.entrySet()) {
       String key = String.valueOf(entry.getKey());
-      if ("validFrom".equals(key) || "validTo".equals(key)) {
+      if (excludedKeys.contains(key)) {
         continue;
       }
       String value = Neo4jValueMapping.asString(entry.getValue());
@@ -168,9 +200,5 @@ public class GraphLoader {
       }
     }
     return out;
-  }
-
-  private static boolean hasFilter(List<String> values) {
-    return values != null && !values.isEmpty();
   }
 }

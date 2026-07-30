@@ -185,4 +185,75 @@ class DataModelAttributeResolverTest {
     assertThat(result.accepted()).isFalse();
     assertThat(result.skipReason()).isEqualTo("data_model_node_valeur_invalide");
   }
+
+  @Test
+  void validateNodeRefsKeepsCatalogueMatchesAndSoftSkipsUnknown() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "tier_ref",
+                    "Tier",
+                    "",
+                    "",
+                    List.of("GOLD", "SILVER"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE_REF,
+                    true)));
+
+    var result =
+        resolver.validateNodeRefs(
+            config, Map.of("tier_ref", List.of("gold", "PLATINUM", "SILVER")));
+
+    assertThat(result.accepted()).isTrue();
+    assertThat(result.refs()).containsExactly(Map.entry("tier_ref", List.of("GOLD", "SILVER")));
+  }
+
+  @Test
+  void validateNodeRefsHonoursMultipleFalse() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "tier_ref",
+                    "Tier",
+                    "",
+                    "",
+                    List.of("GOLD", "SILVER"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE_REF,
+                    false)));
+
+    var result =
+        resolver.validateNodeRefs(config, Map.of("tier_ref", List.of("GOLD", "SILVER")));
+
+    assertThat(result.accepted()).isTrue();
+    assertThat(result.refs().get("tier_ref")).containsExactly("GOLD");
+  }
+
+  @Test
+  void validateNodeRefsIgnoresManualFields() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "zone_x",
+                    "Zone",
+                    "",
+                    "",
+                    List.of("A"),
+                    true,
+                    false,
+                    DataModelDetection.MANUAL,
+                    DataModelTarget.NODE_REF)));
+
+    var result = resolver.validateNodeRefs(config, Map.of("zone_x", List.of("A")));
+
+    assertThat(result.accepted()).isTrue();
+    assertThat(result.refs()).isEmpty();
+  }
 }

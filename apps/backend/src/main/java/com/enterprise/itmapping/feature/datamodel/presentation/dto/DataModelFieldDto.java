@@ -20,7 +20,8 @@ public record DataModelFieldDto(
     boolean enforceEnum,
     boolean required,
     DataModelDetection detection,
-    DataModelTarget target) {
+    DataModelTarget target,
+    boolean multiple) {
 
   public DataModelFieldDto {
     detection = DataModelDetection.orDefault(detection);
@@ -45,7 +46,8 @@ public record DataModelFieldDto(
         enforceEnum,
         required,
         DataModelDetection.AUTOMATIC_DETECTION,
-        DataModelTarget.EDGE);
+        DataModelTarget.EDGE,
+        false);
   }
 
   /** Backward-compatible constructor with detection (EDGE target). */
@@ -67,7 +69,32 @@ public record DataModelFieldDto(
         enforceEnum,
         required,
         detection,
-        DataModelTarget.EDGE);
+        DataModelTarget.EDGE,
+        false);
+  }
+
+  /** Backward-compatible constructor with detection + target. */
+  public DataModelFieldDto(
+      String key,
+      String label,
+      String description,
+      String promptHint,
+      List<String> allowedValues,
+      boolean enforceEnum,
+      boolean required,
+      DataModelDetection detection,
+      DataModelTarget target) {
+    this(
+        key,
+        label,
+        description,
+        promptHint,
+        allowedValues,
+        enforceEnum,
+        required,
+        detection,
+        target,
+        false);
   }
 
   public DataModelField toDomain() {
@@ -84,7 +111,8 @@ public record DataModelFieldDto(
         enforceEnum,
         required,
         detection,
-        target);
+        target,
+        multiple);
   }
 
   public static DataModelFieldDto fromDomain(DataModelField field) {
@@ -97,6 +125,7 @@ public record DataModelFieldDto(
         field.enforceEnum(),
         field.required(),
         field.detection(),
-        field.target());
+        field.target(),
+        field.multiple());
   }
 }

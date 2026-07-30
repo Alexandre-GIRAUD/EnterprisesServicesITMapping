@@ -80,6 +80,10 @@ app:
   # Max CONTAINS hops for GET /applications/{id}/module-graph (capped in code at 50).
   module-graph:
     max-depth: ${APP_MODULE_GRAPH_MAX_DEPTH:10}
+  # One-shot removal of the :BusinessUnit / :Region / :Contributor nodes replaced by Data Model
+  # NODE properties. Values are flattened onto :Application first when a matching key exists.
+  legacy-graph-cleanup:
+    enabled: ${APP_LEGACY_GRAPH_CLEANUP_ENABLED:true}
   security:
     jwt:
       secret: ${JWT_SECRET:}

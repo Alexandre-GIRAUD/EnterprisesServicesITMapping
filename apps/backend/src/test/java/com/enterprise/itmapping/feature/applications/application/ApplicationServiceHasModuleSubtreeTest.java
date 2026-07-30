@@ -9,8 +9,8 @@ import static org.mockito.Mockito.when;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationGraphNodeProjection;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,11 +26,8 @@ class ApplicationServiceHasModuleSubtreeTest {
   @Mock ApplicationRepository applicationRepository;
   @Mock Neo4jClient neo4jClient;
   @Mock ApplicationModuleSubtreeQuery moduleSubtreeQuery;
-  @Mock ApplicationBusinessUnitLookup applicationBusinessUnitLookup;
-
-  @Mock ApplicationContributorLookup applicationContributorLookup;
-
-  @Mock ApplicationRegionLookup applicationRegionLookup;
+  @Mock ApplicationNodeAttributeReader nodeAttributeReader;
+  @Mock ApplicationNodeRefLinkReader nodeRefLinkReader;
 
   @InjectMocks ApplicationService applicationService;
 
@@ -38,15 +35,8 @@ class ApplicationServiceHasModuleSubtreeTest {
 
   @BeforeEach
   void setUp() {
-    lenient()
-        .when(applicationBusinessUnitLookup.findForApplication(any()))
-        .thenReturn(Optional.empty());
-    lenient()
-        .when(applicationContributorLookup.findForApplication(any()))
-        .thenReturn(Collections.emptyList());
-    lenient()
-        .when(applicationRegionLookup.findForApplication(any()))
-        .thenReturn(Collections.emptyList());
+    lenient().when(nodeAttributeReader.read(any())).thenReturn(Map.of());
+    lenient().when(nodeRefLinkReader.read(any())).thenReturn(Map.of());
     projection =
         new ApplicationGraphNodeProjection() {
           @Override
@@ -63,11 +53,6 @@ class ApplicationServiceHasModuleSubtreeTest {
           public String getDescription() {
             return "";
           }
-
-          @Override
-          public Integer getYear() {
-            return 2025;
-          }
         };
   }
 
@@ -82,11 +67,21 @@ class ApplicationServiceHasModuleSubtreeTest {
   }
 
   @Test
+  void findByIdExposesNodeAttributes() {
+    when(applicationRepository.findByIdForGraph(eq("app-1")))
+        .thenReturn(Optional.of(projection));
+    when(nodeAttributeReader.read("app-1")).thenReturn(Map.of("tier", "GOLD"));
+
+    var res = applicationService.findById("app-1").orElseThrow();
+    assertThat(res.nodeAttributes()).containsEntry("tier", "GOLD");
+  }
+
+  @Test
   void findAllPassesBatchFlagsIntoResponse() {
     when(applicationRepository.findAllForGraph())
         .thenReturn(List.of(projection));
     when(moduleSubtreeQuery.hasAnyModuleViaContainsBatch(any()))
-        .thenReturn(java.util.Map.of("app-1", true));
+        .thenReturn(Map.of("app-1", true));
 
     List<ApplicationResponse> rows = applicationService.findAll();
     assertThat(rows).singleElement().satisfies(r -> assertThat(r.hasModuleSubtree()).isTrue());

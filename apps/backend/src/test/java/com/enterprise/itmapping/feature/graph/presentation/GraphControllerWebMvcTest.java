@@ -1,15 +1,20 @@
 package com.enterprise.itmapping.feature.graph.presentation;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetService;
 import com.enterprise.itmapping.feature.graph.application.GraphService;
+import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
@@ -24,101 +29,104 @@ class GraphControllerWebMvcTest {
   @Autowired MockMvc mockMvc;
 
   @MockBean GraphService graphService;
+  @MockBean GraphNodeFilterFacetService nodeFilterFacetService;
 
   @Test
   void getGraphForwardsApplicationIds() throws Exception {
-    when(graphService.getGraph(isNull(), eq(List.of("app-1")), isNull(), isNull()))
-        .thenReturn(new GraphResponseDto(List.of(), List.of()));
+    when(graphService.getGraph(eq(List.of("app-1")), any(), any())).thenReturn(emptyGraph());
+
+    mockMvc
+        .perform(get("/graph").param("applicationIds", "app-1").accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk());
+
+    verify(graphService).getGraph(eq(List.of("app-1")), eq(Map.of()), eq(Map.of()));
+  }
+
+  @Test
+  void getGraphForwardsLegacyApplicationIdQueryParam() throws Exception {
+    when(graphService.getGraph(eq(List.of("app-9")), any(), any())).thenReturn(emptyGraph());
+
+    mockMvc
+        .perform(get("/graph").param("applicationId", "app-9").accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk());
+
+    verify(graphService).getGraph(eq(List.of("app-9")), eq(Map.of()), eq(Map.of()));
+  }
+
+  @Test
+  void getGraphForwardsNodeAttributeFiltersGroupedByKey() throws Exception {
+    when(graphService.getGraph(isNull(), any(), any())).thenReturn(emptyGraph());
 
     mockMvc
         .perform(
             get("/graph")
-                .param("applicationIds", "app-1")
+                .param("attr.tier", "GOLD", "SILVER")
+                .param("attr.zone_x", "EMEA")
                 .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk());
 
-    verify(graphService).getGraph(isNull(), eq(List.of("app-1")), isNull(), isNull());
+    verify(graphService)
+        .getGraph(
+            isNull(),
+            eq(Map.of("tier", List.of("GOLD", "SILVER"), "zone_x", List.of("EMEA"))),
+            eq(Map.of()));
   }
 
   @Test
-  void getGraphForwardsLegacyBusinessUnitIdQueryParam() throws Exception {
-    when(graphService.getGraph(isNull(), isNull(), eq(List.of("bu-abc")), isNull()))
-        .thenReturn(new GraphResponseDto(List.of(), List.of()));
+  void getGraphForwardsNodeRefFiltersGroupedByKey() throws Exception {
+    when(graphService.getGraph(isNull(), any(), any())).thenReturn(emptyGraph());
 
     mockMvc
         .perform(
             get("/graph")
-                .param("businessUnitId", "bu-abc")
+                .param("ref.tier_ref", "id-a", "id-b")
                 .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk());
 
-    verify(graphService).getGraph(isNull(), isNull(), eq(List.of("bu-abc")), isNull());
+    verify(graphService)
+        .getGraph(isNull(), eq(Map.of()), eq(Map.of("tier_ref", List.of("id-a", "id-b"))));
   }
 
   @Test
-  void getGraphForwardsMultipleBusinessUnitIds() throws Exception {
-    when(graphService.getGraph(isNull(), isNull(), eq(List.of("bu-1", "bu-2")), isNull()))
-        .thenReturn(new GraphResponseDto(List.of(), List.of()));
+  void getGraphIgnoresRemovedFilterDimensions() throws Exception {
+    when(graphService.getGraph(isNull(), any(), any())).thenReturn(emptyGraph());
 
     mockMvc
         .perform(
             get("/graph")
-                .param("businessUnitIds", "bu-1", "bu-2")
+                .param("year", "2025")
+                .param("businessUnitIds", "bu-1")
+                .param("regionCodes", "EMEA")
                 .accept(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk());
 
-    verify(graphService).getGraph(isNull(), isNull(), eq(List.of("bu-1", "bu-2")), isNull());
+    verify(graphService).getGraph(isNull(), eq(Map.of()), eq(Map.of()));
   }
 
   @Test
-  void getGraphForwardsLegacyRegionCodeQueryParam() throws Exception {
-    when(graphService.getGraph(isNull(), isNull(), isNull(), eq(List.of("EMEA"))))
-        .thenReturn(new GraphResponseDto(List.of(), List.of()));
+  void getGraphWithNoFilterParamsPassesNoFilter() throws Exception {
+    when(graphService.getGraph(isNull(), any(), any())).thenReturn(emptyGraph());
 
-    mockMvc
-        .perform(
-            get("/graph").param("regionCode", "EMEA").accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk());
+    mockMvc.perform(get("/graph").accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk());
 
-    verify(graphService).getGraph(isNull(), isNull(), isNull(), eq(List.of("EMEA")));
+    verify(graphService).getGraph(isNull(), eq(Map.of()), eq(Map.of()));
   }
 
   @Test
-  void getGraphForwardsMultipleRegionCodes() throws Exception {
-    when(graphService.getGraph(isNull(), isNull(), isNull(), eq(List.of("EMEA", "APAC"))))
-        .thenReturn(new GraphResponseDto(List.of(), List.of()));
+  void nodeFiltersExposesDataModelDimensions() throws Exception {
+    when(nodeFilterFacetService.listNodeFilters())
+        .thenReturn(List.of(new GraphNodeFilterDto("tier", "Tier", List.of("GOLD"), true)));
 
     mockMvc
-        .perform(
-            get("/graph")
-                .param("regionCodes", "EMEA", "APAC")
-                .accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk());
-
-    verify(graphService).getGraph(isNull(), isNull(), isNull(), eq(List.of("EMEA", "APAC")));
+        .perform(get("/graph/node-filters").accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].key").value("tier"))
+        .andExpect(jsonPath("$[0].label").value("Tier"))
+        .andExpect(jsonPath("$[0].values[0]").value("GOLD"))
+        .andExpect(jsonPath("$[0].fromAllowedValues").value(true));
   }
 
-  @Test
-  void getGraphWithNoFilterParamsPassesNullLists() throws Exception {
-    when(graphService.getGraph(isNull(), isNull(), isNull(), isNull()))
-        .thenReturn(new GraphResponseDto(List.of(), List.of()));
-
-    mockMvc
-        .perform(get("/graph").accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk());
-
-    verify(graphService).getGraph(isNull(), isNull(), isNull(), isNull());
-  }
-
-  @Test
-  void getGraphForwardsYear() throws Exception {
-    when(graphService.getGraph(eq(2025), isNull(), isNull(), isNull()))
-        .thenReturn(new GraphResponseDto(List.of(), List.of()));
-
-    mockMvc
-        .perform(get("/graph").param("year", "2025").accept(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk());
-
-    verify(graphService).getGraph(eq(2025), isNull(), isNull(), isNull());
+  private static GraphResponseDto emptyGraph() {
+    return new GraphResponseDto(List.of(), List.of());
   }
 }

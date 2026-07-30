@@ -4,7 +4,6 @@ import { createApplication } from '../api/applicationsApi';
 type CreateNodeInput = {
   name: string;
   description?: string;
-  year?: number;
 };
 
 export function useCreateApplicationNode() {
@@ -18,7 +17,6 @@ export function useCreateApplicationNode() {
       const created = await createApplication({
         name: input.name,
         description: input.description,
-        year: input.year,
       });
       return created;
     } catch (e) {
