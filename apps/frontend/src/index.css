@@ -3081,9 +3081,29 @@ body {
   margin: 0;
 }
 
-.graph-details-region-list {
+.graph-details-attribute-list {
   margin: 0;
-  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.graph-details-attribute-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.graph-details-attribute-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.graph-details-attribute-row dd {
+  margin: 0;
 }
 
 .graph-drawer-region-checkboxes {

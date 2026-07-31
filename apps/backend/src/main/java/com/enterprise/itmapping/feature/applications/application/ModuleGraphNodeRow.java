@@ -5,6 +5,5 @@ public record ModuleGraphNodeRow(
     String id,
     String name,
     String description,
-    Integer year,
     String nodeType
 ) {}

@@ -63,4 +63,62 @@ class DataModelValidatorTest {
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("reservee");
   }
+
+  @Test
+  void rejectsNodeRefWithoutAllowedValues() {
+    List<DataModelField> fields =
+        List.of(
+            new DataModelField(
+                "tier_ref",
+                "Tier",
+                "",
+                "",
+                List.of(),
+                false,
+                false,
+                com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection
+                    .AUTOMATIC_DETECTION,
+                com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget.NODE_REF));
+
+    assertThatThrownBy(() -> validator.validatePut(fields))
+        .isInstanceOf(ResponseStatusException.class)
+        .hasMessageContaining("NODE_REF");
+  }
+
+  @Test
+  void normalizeForcesEnforceEnumAndDropsMultipleForNonNodeRef() {
+    var config =
+        validator.normalize(
+            List.of(
+                new DataModelField(
+                    "tier_ref",
+                    "Tier",
+                    "",
+                    "",
+                    List.of("GOLD"),
+                    false,
+                    false,
+                    com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection
+                        .AUTOMATIC_DETECTION,
+                    com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget.NODE_REF,
+                    true),
+                new DataModelField(
+                    "tier",
+                    "Tier flat",
+                    "",
+                    "",
+                    List.of("GOLD"),
+                    false,
+                    false,
+                    com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection
+                        .AUTOMATIC_DETECTION,
+                    com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget.NODE,
+                    true)));
+
+    var nodeRef = config.fields().stream().filter(f -> f.key().equals("tier_ref")).findFirst().orElseThrow();
+    var node = config.fields().stream().filter(f -> f.key().equals("tier")).findFirst().orElseThrow();
+    org.assertj.core.api.Assertions.assertThat(nodeRef.enforceEnum()).isTrue();
+    org.assertj.core.api.Assertions.assertThat(nodeRef.multiple()).isTrue();
+    org.assertj.core.api.Assertions.assertThat(node.multiple()).isFalse();
+  }
 }

@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.applications.application;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.neo4j.core.Neo4jClient;
@@ -13,8 +14,8 @@ import org.springframework.util.StringUtils;
  * Persists Data Model {@code NODE} attributes on the analyzed {@code :Application} node.
  *
  * <p>Uses {@code SET a += $dynamicProps} with a whitelist of keys from the active Data Model.
- * Values overwrite previous ones (AI refresh). Does not touch SDN entity fields ({@code name},
- * {@code description}, {@code year}, {@code id}).
+ * Values overwrite previous ones (AI refresh). Does not touch identity fields ({@code id},
+ * {@code name}, {@code description}).
  */
 @Component
 public class ApplicationNodeAttributeWriter {
@@ -59,6 +60,34 @@ public class ApplicationNodeAttributeWriter {
         applicationId,
         dynamicProps.keySet());
     return dynamicProps.size();
+  }
+
+  /**
+   * Clears dynamic properties on the Application node.
+   *
+   * @param validatedKeys keys already validated against the Data Model (they become Cypher
+   *     identifiers)
+   * @return number of properties removed (0 if nothing to do)
+   */
+  public int remove(String applicationId, Set<String> validatedKeys) {
+    if (!StringUtils.hasText(applicationId) || validatedKeys == null || validatedKeys.isEmpty()) {
+      return 0;
+    }
+    String removals =
+        validatedKeys.stream().map(key -> "a.`" + key + "`").collect(Collectors.joining(", "));
+    neo4jClient
+        .query(
+            """
+            MATCH (a:Application {id: $id})
+            REMOVE %s
+            """
+                .formatted(removals))
+        .bind(applicationId)
+        .to("id")
+        .run();
+
+    log.debug("Application node Data Model props removed id={} keys={}", applicationId, validatedKeys);
+    return validatedKeys.size();
   }
 
   private static Map<String, String> filterDynamicProps(

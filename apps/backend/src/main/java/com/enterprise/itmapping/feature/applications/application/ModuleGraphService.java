@@ -49,7 +49,6 @@ public class ModuleGraphService {
                         r.id(),
                         r.name() != null && !r.name().isEmpty() ? r.name() : r.id(),
                         r.nodeType() != null ? r.nodeType() : "Module",
-                        r.year(),
                         normalizedDescription(r.description())))
             .collect(Collectors.toList());
 

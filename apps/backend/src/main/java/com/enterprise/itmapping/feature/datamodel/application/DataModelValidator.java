@@ -19,7 +19,7 @@ public class DataModelValidator {
 
   private static final Pattern KEY_PATTERN = Pattern.compile("[a-z][a-z0-9_]{1,63}");
 
-  /** Reserved for both EDGE and NODE (union — simpler validation). */
+  /** Reserved for EDGE, NODE and NODE_REF (union — simpler validation). */
   private static final Set<String> RESERVED_KEYS =
       Set.of(
           "id",
@@ -64,6 +64,12 @@ public class DataModelValidator {
             HttpStatus.BAD_REQUEST, "target manquant pour la cle: " + key);
       }
       List<String> allowed = field.allowedValues() != null ? field.allowedValues() : List.of();
+      boolean isNodeRef = field.target() == DataModelTarget.NODE_REF;
+      if (isNodeRef && allowed.isEmpty()) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "allowedValues requis (catalogue non vide) pour NODE_REF: " + key);
+      }
       if (field.enforceEnum() && allowed.isEmpty()) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST,
@@ -76,23 +82,31 @@ public class DataModelValidator {
     List<DataModelField> normalized =
         fields.stream()
             .map(
-                f ->
-                    new DataModelField(
-                        normalizeKey(f.key()),
-                        f.label().trim(),
-                        f.description() != null ? f.description().trim() : "",
-                        f.promptHint() != null ? f.promptHint().trim() : "",
-                        f.allowedValues() != null
-                            ? f.allowedValues().stream()
-                                .map(String::trim)
-                                .filter(StringUtils::hasText)
-                                .distinct()
-                                .toList()
-                            : List.of(),
-                        f.enforceEnum(),
-                        f.required(),
-                        DataModelDetection.orDefault(f.detection()),
-                        DataModelTarget.orDefault(f.target())))
+                f -> {
+                  DataModelTarget target = DataModelTarget.orDefault(f.target());
+                  List<String> allowed =
+                      f.allowedValues() != null
+                          ? f.allowedValues().stream()
+                              .map(String::trim)
+                              .filter(StringUtils::hasText)
+                              .distinct()
+                              .toList()
+                          : List.of();
+                  boolean enforceEnum =
+                      target == DataModelTarget.NODE_REF ? true : f.enforceEnum();
+                  boolean multiple = target == DataModelTarget.NODE_REF && f.multiple();
+                  return new DataModelField(
+                      normalizeKey(f.key()),
+                      f.label().trim(),
+                      f.description() != null ? f.description().trim() : "",
+                      f.promptHint() != null ? f.promptHint().trim() : "",
+                      allowed,
+                      enforceEnum,
+                      f.required(),
+                      DataModelDetection.orDefault(f.detection()),
+                      target,
+                      multiple);
+                })
             .toList();
     return new DataModelConfig(normalized);
   }

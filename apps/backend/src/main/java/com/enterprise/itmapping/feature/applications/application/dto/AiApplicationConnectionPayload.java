@@ -33,6 +33,13 @@ public class AiApplicationConnectionPayload {
   @JsonProperty("node_attributes")
   private Map<String, String> nodeAttributes = new LinkedHashMap<>();
 
+  /**
+   * Catalogue classifications for the analyzed Application. Each key maps to a list of catalogue
+   * value strings (or a single string, coerced to a one-element list).
+   */
+  @JsonProperty("node_refs")
+  private Map<String, Object> nodeRefs = new LinkedHashMap<>();
+
   public List<String> getAssumptions() {
     return assumptions != null ? assumptions : List.of();
   }
@@ -75,6 +82,54 @@ public class AiApplicationConnectionPayload {
 
   public void setNodeAttributes(Map<String, String> nodeAttributes) {
     this.nodeAttributes = nodeAttributes != null ? nodeAttributes : new LinkedHashMap<>();
+  }
+
+  /** Normalized key → catalogue values; never null. */
+  public Map<String, List<String>> getNodeRefs() {
+    if (nodeRefs == null || nodeRefs.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, List<String>> out = new LinkedHashMap<>();
+    for (Map.Entry<String, Object> entry : nodeRefs.entrySet()) {
+      String key = entry.getKey() != null ? entry.getKey().trim() : "";
+      if (key.isEmpty()) {
+        continue;
+      }
+      List<String> values = coerceStringList(entry.getValue());
+      if (!values.isEmpty()) {
+        out.put(key, values);
+      }
+    }
+    return out;
+  }
+
+  public void setNodeRefs(Map<String, Object> nodeRefs) {
+    this.nodeRefs = nodeRefs != null ? nodeRefs : new LinkedHashMap<>();
+  }
+
+  private static List<String> coerceStringList(Object raw) {
+    if (raw == null) {
+      return List.of();
+    }
+    if (raw instanceof String s) {
+      String t = s.trim();
+      return t.isEmpty() ? List.of() : List.of(t);
+    }
+    if (raw instanceof List<?> list) {
+      List<String> out = new ArrayList<>();
+      for (Object item : list) {
+        if (item == null) {
+          continue;
+        }
+        String t = String.valueOf(item).trim();
+        if (!t.isEmpty()) {
+          out.add(t);
+        }
+      }
+      return out;
+    }
+    String t = String.valueOf(raw).trim();
+    return t.isEmpty() ? List.of() : List.of(t);
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)

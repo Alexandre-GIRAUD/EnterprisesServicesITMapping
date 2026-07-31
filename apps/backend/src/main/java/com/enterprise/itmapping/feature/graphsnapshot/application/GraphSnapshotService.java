@@ -8,7 +8,10 @@ import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.CreateGra
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotFiltersDto;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -49,10 +52,9 @@ public class GraphSnapshotService {
     GraphSnapshotEntity entity = new GraphSnapshotEntity();
     entity.setUser(user);
     entity.setName(name);
-    entity.setYear(filters.year());
     entity.setApplicationIds(filters.applicationIds());
-    entity.setBusinessUnitIds(filters.businessUnitIds());
-    entity.setRegionCodes(filters.regionCodes());
+    entity.setNodeAttributes(new LinkedHashMap<>(filters.nodeAttributes()));
+    entity.setNodeRefs(new LinkedHashMap<>(filters.nodeRefs()));
 
     return toResponse(graphSnapshotRepository.save(entity));
   }
@@ -80,11 +82,31 @@ public class GraphSnapshotService {
   }
 
   private static GraphSnapshotFiltersDto normalizeFilters(GraphSnapshotFiltersDto filters) {
+    if (filters == null) {
+      return new GraphSnapshotFiltersDto(List.of(), Map.of(), Map.of());
+    }
     return new GraphSnapshotFiltersDto(
-        filters.year(),
         normalizeIdList(filters.applicationIds()),
-        normalizeIdList(filters.businessUnitIds()),
-        normalizeIdList(filters.regionCodes()));
+        normalizeKeyedLists(filters.nodeAttributes()),
+        normalizeKeyedLists(filters.nodeRefs()));
+  }
+
+  /** Drops blank keys/values and keys left without any value; Data Model keys are lower-case. */
+  private static Map<String, List<String>> normalizeKeyedLists(Map<String, List<String>> raw) {
+    if (raw == null || raw.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, List<String>> out = new LinkedHashMap<>();
+    for (Map.Entry<String, List<String>> entry : raw.entrySet()) {
+      if (!StringUtils.hasText(entry.getKey())) {
+        continue;
+      }
+      List<String> values = normalizeIdList(entry.getValue());
+      if (!values.isEmpty()) {
+        out.put(entry.getKey().trim().toLowerCase(Locale.ROOT), values);
+      }
+    }
+    return Map.copyOf(out);
   }
 
   private static List<String> normalizeIdList(List<String> values) {
@@ -100,15 +122,25 @@ public class GraphSnapshotService {
     return List.copyOf(out);
   }
 
+  private static Map<String, List<String>> copyKeyedLists(Map<String, List<String>> raw) {
+    if (raw == null || raw.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, List<String>> out = new LinkedHashMap<>();
+    for (Map.Entry<String, List<String>> entry : raw.entrySet()) {
+      out.put(entry.getKey(), List.copyOf(entry.getValue()));
+    }
+    return Map.copyOf(out);
+  }
+
   private GraphSnapshotResponse toResponse(GraphSnapshotEntity entity) {
     return new GraphSnapshotResponse(
         entity.getId(),
         entity.getName(),
         new GraphSnapshotFiltersDto(
-            entity.getYear(),
             List.copyOf(entity.getApplicationIds()),
-            List.copyOf(entity.getBusinessUnitIds()),
-            List.copyOf(entity.getRegionCodes())),
+            copyKeyedLists(entity.getNodeAttributes()),
+            copyKeyedLists(entity.getNodeRefs())),
         entity.getCreatedAt(),
         entity.getUpdatedAt());
   }

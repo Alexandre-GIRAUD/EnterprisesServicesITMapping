@@ -9,7 +9,9 @@ import org.springframework.stereotype.Component;
 
 /**
  * Creates indexes for graph queries. Run once at startup (idempotent with IF NOT EXISTS).
- * Optimizes id lookups and {@code year} filters for large graphs.
+ *
+ * <p>Only identity lookups are indexed: business attributes are Data Model driven, so their
+ * property names are not known at build time.
  */
 @Component
 public class Neo4jIndexConfig implements ApplicationRunner {
@@ -18,9 +20,9 @@ public class Neo4jIndexConfig implements ApplicationRunner {
 
   private static final String[] INDEX_STATEMENTS = {
       "CREATE RANGE INDEX application_id IF NOT EXISTS FOR (n:Application) ON (n.id)",
-      "CREATE RANGE INDEX application_year IF NOT EXISTS FOR (n:Application) ON (n.year)",
       "CREATE RANGE INDEX module_id IF NOT EXISTS FOR (n:Module) ON (n.id)",
-      "CREATE RANGE INDEX module_year IF NOT EXISTS FOR (n:Module) ON (n.year)",
+      "CREATE RANGE INDEX data_model_ref_id IF NOT EXISTS FOR (n:DataModelRef) ON (n.id)",
+      "CREATE RANGE INDEX data_model_ref_field_key IF NOT EXISTS FOR (n:DataModelRef) ON (n.fieldKey)",
   };
 
   private final Neo4jClient neo4jClient;

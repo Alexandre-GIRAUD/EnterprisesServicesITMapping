@@ -27,10 +27,8 @@ class ModuleGraphServiceTest {
     when(moduleGraphLoader.loadNodes(eq("app-1")))
         .thenReturn(
             List.of(
-                new ModuleGraphNodeRow(
-                    "app-1", "Portail", "Interface web B2B", 2025, "Application"),
-                new ModuleGraphNodeRow(
-                    "mod-1", "UI SPA", "Interface utilisateur", 2025, "Module")));
+                new ModuleGraphNodeRow("app-1", "Portail", "Interface web B2B", "Application"),
+                new ModuleGraphNodeRow("mod-1", "UI SPA", "Interface utilisateur", "Module")));
     when(moduleGraphLoader.loadEdges(eq("app-1")))
         .thenReturn(List.of(new GraphEdgeProjection("app-1", "mod-1", "CONTAINS")));
 
@@ -51,7 +49,7 @@ class ModuleGraphServiceTest {
     when(moduleGraphLoader.loadNodes(any()))
         .thenReturn(
             List.of(
-                new ModuleGraphNodeRow("m1", "M", "  ", 2025, "Module")));
+                new ModuleGraphNodeRow("m1", "M", "  ", "Module")));
     when(moduleGraphLoader.loadEdges(any())).thenReturn(List.of());
 
     var mod =

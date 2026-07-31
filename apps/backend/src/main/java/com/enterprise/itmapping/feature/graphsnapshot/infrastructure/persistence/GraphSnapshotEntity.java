@@ -12,7 +12,9 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -32,20 +34,19 @@ public class GraphSnapshotEntity {
   @Column(nullable = false, length = 80)
   private String name;
 
-  @Column(name = "year")
-  private Integer year;
-
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "application_ids", nullable = false, columnDefinition = "jsonb")
   private List<String> applicationIds = new ArrayList<>();
 
+  /** Data Model {@code target=NODE} key → selected values. */
   @JdbcTypeCode(SqlTypes.JSON)
-  @Column(name = "business_unit_ids", nullable = false, columnDefinition = "jsonb")
-  private List<String> businessUnitIds = new ArrayList<>();
+  @Column(name = "node_attributes", nullable = false, columnDefinition = "jsonb")
+  private Map<String, List<String>> nodeAttributes = new LinkedHashMap<>();
 
+  /** Data Model {@code target=NODE_REF} key → selected catalogue ref ids. */
   @JdbcTypeCode(SqlTypes.JSON)
-  @Column(name = "region_codes", nullable = false, columnDefinition = "jsonb")
-  private List<String> regionCodes = new ArrayList<>();
+  @Column(name = "node_refs", nullable = false, columnDefinition = "jsonb")
+  private Map<String, List<String>> nodeRefs = new LinkedHashMap<>();
 
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
@@ -92,14 +93,6 @@ public class GraphSnapshotEntity {
     this.name = name;
   }
 
-  public Integer getYear() {
-    return year;
-  }
-
-  public void setYear(Integer year) {
-    this.year = year;
-  }
-
   public List<String> getApplicationIds() {
     return applicationIds;
   }
@@ -108,20 +101,20 @@ public class GraphSnapshotEntity {
     this.applicationIds = applicationIds != null ? applicationIds : new ArrayList<>();
   }
 
-  public List<String> getBusinessUnitIds() {
-    return businessUnitIds;
+  public Map<String, List<String>> getNodeAttributes() {
+    return nodeAttributes;
   }
 
-  public void setBusinessUnitIds(List<String> businessUnitIds) {
-    this.businessUnitIds = businessUnitIds != null ? businessUnitIds : new ArrayList<>();
+  public void setNodeAttributes(Map<String, List<String>> nodeAttributes) {
+    this.nodeAttributes = nodeAttributes != null ? nodeAttributes : new LinkedHashMap<>();
   }
 
-  public List<String> getRegionCodes() {
-    return regionCodes;
+  public Map<String, List<String>> getNodeRefs() {
+    return nodeRefs;
   }
 
-  public void setRegionCodes(List<String> regionCodes) {
-    this.regionCodes = regionCodes != null ? regionCodes : new ArrayList<>();
+  public void setNodeRefs(Map<String, List<String>> nodeRefs) {
+    this.nodeRefs = nodeRefs != null ? nodeRefs : new LinkedHashMap<>();
   }
 
   public Instant getCreatedAt() {

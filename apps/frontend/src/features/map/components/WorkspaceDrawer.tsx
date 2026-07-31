@@ -1,10 +1,5 @@
 import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useState } from 'react';
-import type {
-  ApplicationResponse,
-  BusinessUnitCreateRequest,
-  GraphEdgeCreateResponse,
-} from '@/types/api';
-import { createBusinessUnit } from '../api/businessUnitsApi';
+import type { ApplicationResponse, GraphEdgeCreateResponse } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
 import { useCreateApplicationNode } from '../hooks/useCreateApplicationNode';
 import { useCreateGraphEdge } from '../hooks/useCreateGraphEdge';
@@ -22,22 +17,18 @@ type WorkspaceDrawerProps = {
   extraApplications?: ApplicationResponse[];
   onNodeCreated?: (application: ApplicationResponse) => void;
   onEdgeCreated?: (edge: GraphEdgeCreateResponse) => string | null;
-  /** After creating a BU, refresh lists (e.g. map filter dropdown). */
-  onBusinessUnitsChanged?: () => void | Promise<void>;
 };
 
-type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-bu-form';
+type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form';
 
 type AddNodeFormState = {
   name: string;
   description: string;
-  year: string;
 };
 
 const DEFAULT_FORM_STATE: AddNodeFormState = {
   name: '',
   description: '',
-  year: '',
 };
 
 type AddEdgeFormState = {
@@ -52,19 +43,7 @@ const DEFAULT_EDGE_FORM_STATE: AddEdgeFormState = {
   type: 'DEPENDS_ON',
 };
 
-type AddBuFormState = {
-  name: string;
-  code: string;
-  description: string;
-};
-
-const DEFAULT_BU_FORM_STATE: AddBuFormState = {
-  name: '',
-  code: '',
-  description: '',
-};
-
-type DrawerActionId = 'add-node' | 'add-edge' | 'edit-object-props' | 'edit-flow-props' | 'add-icons';
+type DrawerActionId = 'add-node' | 'add-edge' | 'edit-flow-props' | 'add-icons';
 
 type DrawerActionItem = {
   id: DrawerActionId;
@@ -74,7 +53,6 @@ type DrawerActionItem = {
 const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
   { id: 'add-node', label: 'Add object' },
   { id: 'add-edge', label: 'Add flow' },
-  { id: 'edit-object-props', label: 'Edit object properties' },
   { id: 'edit-flow-props', label: 'Edit flow properties' },
 ];
 
@@ -89,12 +67,10 @@ function actionHandler(
   handlers: {
     openAddNodeForm: () => void;
     openAddEdgeForm: () => void;
-    openAddBuForm: () => void;
   }
 ): (() => void) | undefined {
   if (id === 'add-node') return handlers.openAddNodeForm;
   if (id === 'add-edge') return handlers.openAddEdgeForm;
-  if (id === 'edit-object-props') return handlers.openAddBuForm;
   return undefined;
 }
 
@@ -106,7 +82,6 @@ export function WorkspaceDrawer({
   extraApplications = [],
   onNodeCreated,
   onEdgeCreated,
-  onBusinessUnitsChanged,
 }: WorkspaceDrawerProps) {
   const [view, setView] = useState<DrawerView>('menu');
   const [nodeFormState, setNodeFormState] = useState<AddNodeFormState>(DEFAULT_FORM_STATE);
@@ -120,8 +95,6 @@ export function WorkspaceDrawer({
   const [isTargetSuggestionsOpen, setIsTargetSuggestionsOpen] = useState(false);
   const [debouncedSourceQuery, setDebouncedSourceQuery] = useState('');
   const [debouncedTargetQuery, setDebouncedTargetQuery] = useState('');
-  const [buFormState, setBuFormState] = useState<AddBuFormState>(DEFAULT_BU_FORM_STATE);
-  const [isBuSubmitting, setIsBuSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const {
@@ -134,7 +107,7 @@ export function WorkspaceDrawer({
     isSubmitting: isEdgeSubmitting,
     error: edgeError,
   } = useCreateGraphEdge();
-  const isSubmitting = isNodeSubmitting || isEdgeSubmitting || isBuSubmitting;
+  const isSubmitting = isNodeSubmitting || isEdgeSubmitting;
   const backendError = nodeError ?? edgeError ?? searchError;
 
   const feedback = localError ?? backendError ?? feedbackMessage;
@@ -178,46 +151,6 @@ export function WorkspaceDrawer({
     setFeedbackMessage(null);
   }
 
-  function openAddBuForm() {
-    setView('add-bu-form');
-    setLocalError(null);
-    setFeedbackMessage(null);
-  }
-
-  function updateBuField(field: keyof AddBuFormState, value: string) {
-    setBuFormState((prev) => ({ ...prev, [field]: value }));
-    setLocalError(null);
-    setFeedbackMessage(null);
-  }
-
-  async function onSubmitBu(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const normalizedName = buFormState.name.trim();
-    if (!normalizedName) {
-      setLocalError('Business unit name is required.');
-      return;
-    }
-    const payload: BusinessUnitCreateRequest = {
-      name: normalizedName,
-      ...(buFormState.code.trim() ? { code: buFormState.code.trim() } : {}),
-      ...(buFormState.description.trim() ? { description: buFormState.description.trim() } : {}),
-    };
-    try {
-      setIsBuSubmitting(true);
-      setLocalError(null);
-      setFeedbackMessage(null);
-      await createBusinessUnit(payload);
-      setBuFormState(DEFAULT_BU_FORM_STATE);
-      setFeedbackMessage(`Business unit "${normalizedName}" created.`);
-      await onBusinessUnitsChanged?.();
-      setView('menu');
-    } catch (e) {
-      setLocalError(e instanceof Error ? e.message : 'Unable to create the business unit.');
-    } finally {
-      setIsBuSubmitting(false);
-    }
-  }
-
   function closeDrawer() {
     setView('menu');
     setLocalError(null);
@@ -236,7 +169,6 @@ export function WorkspaceDrawer({
     setSelectedSourceApp(null);
     setSelectedTargetApp(null);
     setEdgeFormState(DEFAULT_EDGE_FORM_STATE);
-    setBuFormState(DEFAULT_BU_FORM_STATE);
   }
 
   useEffect(() => {
@@ -358,29 +290,16 @@ export function WorkspaceDrawer({
       return;
     }
 
-    const yearTrimmed = nodeFormState.year.trim();
-    let yearValue: number | undefined;
-    if (yearTrimmed) {
-      const parsed = Number(yearTrimmed);
-      if (!Number.isInteger(parsed) || parsed < 1970 || parsed > 2100) {
-        setLocalError('Year must be a valid integer (1970–2100).');
-        return;
-      }
-      yearValue = parsed;
-    }
-
     let created: ApplicationResponse | null;
     if (sandboxMode) {
       created = buildSandboxApplicationResponse({
         name: normalizedName,
         description: nodeFormState.description.trim() || undefined,
-        year: yearValue,
       });
     } else {
       created = await createNode({
         name: normalizedName,
         description: nodeFormState.description.trim() || undefined,
-        year: yearValue,
       });
     }
 
@@ -456,18 +375,12 @@ export function WorkspaceDrawer({
             {view !== 'menu' ? (
               <div>
                 <h2 className="graph-drawer-title">
-                  {view === 'add-node-form'
-                    ? 'Create Node'
-                    : view === 'add-edge-form'
-                      ? 'Create Edge'
-                      : 'New business unit'}
+                  {view === 'add-node-form' ? 'Create Node' : 'Create Edge'}
                 </h2>
                 <p className="graph-drawer-description">
                   {view === 'add-node-form'
-                    ? 'Create an Application node (name, description, year).'
-                    : view === 'add-edge-form'
-                      ? 'Create a typed relationship between two nodes already visible in the graph.'
-                      : 'Create a business unit (grouping above applications).'}
+                    ? 'Create an Application node (name, description). Business attributes are edited from the node details.'
+                    : 'Create a typed relationship between two nodes already visible in the graph.'}
                 </p>
               </div>
             ) : (
@@ -499,7 +412,6 @@ export function WorkspaceDrawer({
             const onClick = actionHandler(action.id, {
               openAddNodeForm,
               openAddEdgeForm,
-              openAddBuForm,
             });
             return (
               <button
@@ -540,20 +452,6 @@ export function WorkspaceDrawer({
             />
           </label>
 
-          <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">Year</span>
-            <input
-              className="graph-drawer-input"
-              type="number"
-              inputMode="numeric"
-              min={1970}
-              max={2100}
-              placeholder="Ex: 2025"
-              value={nodeFormState.year}
-              onChange={(e) => updateNodeField('year', e.target.value)}
-            />
-          </label>
-
           <div className="graph-drawer-form-actions">
             <button
               type="submit"
@@ -565,56 +463,6 @@ export function WorkspaceDrawer({
               </span>
             </button>
             <button type="button" className="graph-drawer-action" onClick={cancelForm}>
-              <span className="graph-drawer-action-title">Cancel</span>
-            </button>
-          </div>
-        </form>
-      ) : view === 'add-bu-form' ? (
-        <form className="graph-drawer-form" onSubmit={onSubmitBu}>
-          <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">Name</span>
-            <input
-              className="graph-drawer-input"
-              type="text"
-              value={buFormState.name}
-              onChange={(e) => updateBuField('name', e.target.value)}
-              required
-              placeholder="Ex: Retail France"
-              disabled={isBuSubmitting}
-            />
-          </label>
-          <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">Code (optional)</span>
-            <input
-              className="graph-drawer-input"
-              type="text"
-              value={buFormState.code}
-              onChange={(e) => updateBuField('code', e.target.value)}
-              placeholder="Ex: RETAIL-FR"
-              disabled={isBuSubmitting}
-            />
-          </label>
-          <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">Description (optional)</span>
-            <textarea
-              className="graph-drawer-input graph-drawer-textarea"
-              value={buFormState.description}
-              onChange={(e) => updateBuField('description', e.target.value)}
-              rows={3}
-              disabled={isBuSubmitting}
-            />
-          </label>
-          <div className="graph-drawer-form-actions">
-            <button
-              type="submit"
-              className="graph-drawer-action graph-drawer-action-primary"
-              disabled={isBuSubmitting}
-            >
-              <span className="graph-drawer-action-title">
-                {isBuSubmitting ? 'Creating…' : 'Create business unit'}
-              </span>
-            </button>
-            <button type="button" className="graph-drawer-action" onClick={cancelForm} disabled={isBuSubmitting}>
               <span className="graph-drawer-action-title">Cancel</span>
             </button>
           </div>

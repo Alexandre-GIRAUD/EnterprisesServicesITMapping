@@ -20,14 +20,12 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import type {
   ApplicationResponse,
-  BusinessUnitListItem,
   GraphEdgeCreateResponse,
   GraphEdgeDto,
-  RegionSummary,
+  GraphNodeFilterDto,
 } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
-import { fetchBusinessUnits } from '../api/businessUnitsApi';
-import { fetchRegions } from '../api/regionsApi';
+import { fetchGraphNodeFilters } from '../api/graphApi';
 import { createGraphSnapshot } from '../api/graphSnapshotsApi';
 import { useGraphSnapshotsRefresh } from '../context/GraphSnapshotsContext';
 import type { MapLocationState } from '../utils/mapNavigation';
@@ -90,8 +88,7 @@ export function GraphCanvas() {
   const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
-  const [businessUnits, setBusinessUnits] = useState<BusinessUnitListItem[]>([]);
-  const [regions, setRegions] = useState<RegionSummary[]>([]);
+  const [nodeFilters, setNodeFilters] = useState<GraphNodeFilterDto[]>([]);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   // Hover takes priority; if no hover, the pinned node keeps the highlight.
@@ -144,20 +141,18 @@ export function GraphCanvas() {
     setIsDrawerOpen: setWorkspacePanelOpen,
   });
   const {
-    year,
     applicationIds,
-    businessUnitIds,
-    regionCodes,
+    nodeAttributes,
+    nodeRefs,
     filtersActive,
     applyGraphFilters,
     currentGraphFilters,
   } = filters;
 
   const data = useGraphData({
-    year,
     applicationIds,
-    businessUnitIds,
-    regionCodes,
+    nodeAttributes,
+    nodeRefs,
     filtersActive,
     graphReloadNonce,
     graphModeRef,
@@ -284,19 +279,9 @@ export function GraphCanvas() {
     }
   }, []);
 
-  const refreshBusinessUnits = useCallback(async () => {
+  const refreshNodeFilters = useCallback(async () => {
     try {
-      const rows = await fetchBusinessUnits();
-      setBusinessUnits(rows);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const refreshRegions = useCallback(async () => {
-    try {
-      const rows = await fetchRegions();
-      setRegions(rows);
+      setNodeFilters(await fetchGraphNodeFilters());
     } catch {
       /* ignore */
     }
@@ -304,9 +289,8 @@ export function GraphCanvas() {
 
   useEffect(() => {
     void refreshApplications();
-    void refreshBusinessUnits();
-    void refreshRegions();
-  }, [refreshApplications, refreshBusinessUnits, refreshRegions]);
+    void refreshNodeFilters();
+  }, [refreshApplications, refreshNodeFilters]);
 
   // Escape closes the application details drawer.
   useEffect(() => {
@@ -486,8 +470,8 @@ export function GraphCanvas() {
           id: created.id,
           label: created.name,
           type: 'Application',
-          year: created.year ?? undefined,
           description: created.description ?? null,
+          properties: created.nodeAttributes ?? {},
         },
       ];
     });
@@ -545,7 +529,6 @@ export function GraphCanvas() {
               ...n,
               label: patch.name,
               description: patch.description ?? n.description,
-              year: patch.year ?? undefined,
             }
           : n
       )
@@ -633,21 +616,18 @@ export function GraphCanvas() {
             isOpen
             onClose={noopClose}
             applications={applications}
-            businessUnits={businessUnits}
-            regions={regions}
-            initialYear={year}
+            nodeFilters={nodeFilters}
             initialApplicationIds={applicationIds}
-            initialBusinessUnitIds={businessUnitIds}
-            initialRegionCodes={regionCodes}
-            onApply={({ year: y, applicationIds: appIds, businessUnitIds: buIds, regionCodes: codes }) => {
+            initialNodeAttributes={nodeAttributes}
+            initialNodeRefs={nodeRefs}
+            onApply={({ applicationIds: appIds, nodeAttributes: attrs, nodeRefs: refs }) => {
               if (isSandbox) {
                 mode.setSandboxDirty(false);
                 setPendingSandboxFilterHint(true);
               }
-              filters.setYear(y);
               filters.setApplicationIds(appIds);
-              filters.setBusinessUnitIds(buIds);
-              filters.setRegionCodes(codes);
+              filters.setNodeAttributes(attrs);
+              filters.setNodeRefs(refs);
             }}
             showPinView={isExplorer}
             pinViewDisabled={!filtersActive}
@@ -665,7 +645,6 @@ export function GraphCanvas() {
             extraApplications={graphAppsForDrawer}
             onNodeCreated={onNodeCreatedHandler}
             onEdgeCreated={onEdgeCreatedHandler}
-            onBusinessUnitsChanged={refreshBusinessUnits}
           />
         );
       default:
@@ -675,19 +654,16 @@ export function GraphCanvas() {
     graphMode,
     activeSideMenuTool,
     applications,
-    businessUnits,
-    regions,
-    year,
+    nodeFilters,
     applicationIds,
-    businessUnitIds,
-    regionCodes,
+    nodeAttributes,
+    nodeRefs,
     isSandbox,
     mode,
     filters,
     graphAppsForDrawer,
     onNodeCreatedHandler,
     onEdgeCreatedHandler,
-    refreshBusinessUnits,
     filtersActive,
     noopClose,
   ]);
@@ -805,6 +781,7 @@ export function GraphCanvas() {
                     status={status}
                     nodes={graphNodes}
                     applicationsCatalog={applications}
+                    nodeFilters={nodeFilters}
                     errorMessage={status === 'error' ? message : null}
                     onRowClick={openApplicationDetails}
                   />

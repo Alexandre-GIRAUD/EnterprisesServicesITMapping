@@ -20,16 +20,19 @@ public class DataModelService {
   private final DataModelValidator validator;
   private final DataModelPromptBuilder promptBuilder;
   private final CurrentUserResolver currentUserResolver;
+  private final DataModelRefSyncService refSyncService;
 
   public DataModelService(
       DataModelRepository dataModelRepository,
       DataModelValidator validator,
       DataModelPromptBuilder promptBuilder,
-      CurrentUserResolver currentUserResolver) {
+      CurrentUserResolver currentUserResolver,
+      DataModelRefSyncService refSyncService) {
     this.dataModelRepository = dataModelRepository;
     this.validator = validator;
     this.promptBuilder = promptBuilder;
     this.currentUserResolver = currentUserResolver;
+    this.refSyncService = refSyncService;
   }
 
   @Transactional(readOnly = true)
@@ -58,7 +61,9 @@ public class DataModelService {
     UserEntity user = currentUserResolver.requireCurrentUser();
     entity.setFields(config.fields());
     entity.setUpdatedBy(user);
-    return toResponse(dataModelRepository.save(entity));
+    DataModelResponse response = toResponse(dataModelRepository.save(entity));
+    refSyncService.sync(config);
+    return response;
   }
 
   private DataModelEntity loadEntity() {

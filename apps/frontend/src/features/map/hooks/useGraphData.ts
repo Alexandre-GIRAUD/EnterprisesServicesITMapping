@@ -72,10 +72,9 @@ export function buildAppEdge(
 }
 
 type UseGraphDataParams = {
-  year: number | null;
   applicationIds: string[];
-  businessUnitIds: string[];
-  regionCodes: string[];
+  nodeAttributes: Record<string, string[]>;
+  nodeRefs: Record<string, string[]>;
   filtersActive: boolean;
   graphReloadNonce: number;
   graphModeRef: MutableRefObject<GraphMode>;
@@ -92,10 +91,9 @@ type UseGraphDataParams = {
  * laid-out graph plus the color-property legend state.
  */
 export function useGraphData({
-  year,
   applicationIds,
-  businessUnitIds,
-  regionCodes,
+  nodeAttributes,
+  nodeRefs,
   filtersActive,
   graphReloadNonce,
   graphModeRef,
@@ -155,10 +153,9 @@ export function useGraphData({
         setStatus('loading');
         setMessage(null);
         const data = await fetchGraph({
-          year: year ?? undefined,
           applicationIds: applicationIds.length > 0 ? applicationIds : undefined,
-          businessUnitIds: businessUnitIds.length > 0 ? businessUnitIds : undefined,
-          regionCodes: regionCodes.length > 0 ? regionCodes : undefined,
+          nodeAttributes: Object.keys(nodeAttributes).length > 0 ? nodeAttributes : undefined,
+          nodeRefs: Object.keys(nodeRefs).length > 0 ? nodeRefs : undefined,
         });
         if (cancelled) return;
 
@@ -215,7 +212,7 @@ export function useGraphData({
           const emptyHint =
             data.nodes.length === 0
               ? filtersActive
-                ? 'No applications match these filters (year / business unit / location). Change criteria or reset.'
+                ? 'No applications match these filters. Change criteria or reset.'
                 : 'No nodes. Start the backend with Neo4j to load demo data.'
               : graphModeRef.current === 'sandbox'
                 ? 'Sandbox — customize your graph, no changes saved.'
@@ -244,10 +241,9 @@ export function useGraphData({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-fetch only on filters / reload nonce
   }, [
-    year,
     applicationIds,
-    businessUnitIds,
-    regionCodes,
+    nodeAttributes,
+    nodeRefs,
     filtersActive,
     graphReloadNonce,
     setNodes,

@@ -1,20 +1,16 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import type {
-  ApplicationResponse,
-  BusinessUnitListItem,
-  GraphFilters,
-  RegionSummary,
-} from '@/types/api';
+import type { ApplicationResponse, GraphFilters, GraphNodeFilterDto } from '@/types/api';
 import {
   type FilterView,
   dimensionMode,
   dimensionStatusLabel,
   hasInvalidDimensionSelection,
+  nodeAttributeKeyFromView,
+  nodeAttributeView,
   rootCheckboxState,
   selectAllCatalog,
   toApiFilterList,
   toggleSortedValue,
-  yearFilterLabel,
 } from './filterDimensionUtils';
 
 export type { GraphFilters };
@@ -24,48 +20,24 @@ type FilterDrawerProps = {
   onClose: () => void;
   variant?: 'overlay' | 'embedded';
   applications: ApplicationResponse[];
-  businessUnits: BusinessUnitListItem[];
-  regions: RegionSummary[];
-  initialYear: number | null;
+  /** Dimensions derived from the Data Model NODE + NODE_REF fields. */
+  nodeFilters: GraphNodeFilterDto[];
   initialApplicationIds: string[];
-  initialBusinessUnitIds: string[];
-  initialRegionCodes: string[];
+  initialNodeAttributes: Record<string, string[]>;
+  initialNodeRefs?: Record<string, string[]>;
   onApply: (filters: GraphFilters) => void;
   showPinView?: boolean;
   pinViewDisabled?: boolean;
   onPinView?: () => void;
 };
 
-type DimensionKey = 'applications' | 'businessUnits' | 'regions';
-
-const DIMENSION_META: Record<
-  DimensionKey,
-  { view: FilterView; rootLabel: string; detailTitle: string; plural: string }
-> = {
-  applications: {
-    view: 'applications',
-    rootLabel: 'Application',
-    detailTitle: 'Applications',
-    plural: 'applications',
-  },
-  businessUnits: {
-    view: 'businessUnits',
-    rootLabel: 'Business unit',
-    detailTitle: 'Business units',
-    plural: 'business units',
-  },
-  regions: {
-    view: 'regions',
-    rootLabel: 'Region',
-    detailTitle: 'Regions',
-    plural: 'regions',
-  },
-};
-
+/**
+ * "All selected" and "none selected" both mean "no filter on this axis" for the API, but only
+ * "all" is a valid resting state — an empty dimension would yield an empty graph, so Apply is
+ * blocked until the user picks something or clears back to all.
+ */
 function applyRootToggle(catalog: string[], selected: string[]): string[] {
-  const mode = dimensionMode(selected, catalog);
-  if (mode === 'none') return selectAllCatalog(catalog);
-  return [];
+  return dimensionMode(selected, catalog) === 'none' ? selectAllCatalog(catalog) : [];
 }
 
 function statusClass(mode: ReturnType<typeof dimensionMode>): string {
@@ -74,27 +46,43 @@ function statusClass(mode: ReturnType<typeof dimensionMode>): string {
   return 'graph-filter-status';
 }
 
+function isNodeRefDimension(dimension: GraphNodeFilterDto): boolean {
+  return dimension.kind === 'NODE_REF';
+}
+
+function optionLabel(dimension: GraphNodeFilterDto, id: string): string {
+  const fromOptions = dimension.options?.find((o) => o.id === id)?.name;
+  return fromOptions && fromOptions.trim() ? fromOptions : id;
+}
+
+function initialForDimension(
+  dimension: GraphNodeFilterDto,
+  initialNodeAttributes: Record<string, string[]>,
+  initialNodeRefs: Record<string, string[]>
+): string[] {
+  if (isNodeRefDimension(dimension)) {
+    return initialNodeRefs[dimension.key] ?? [];
+  }
+  return initialNodeAttributes[dimension.key] ?? [];
+}
+
 export function FilterDrawer({
   isOpen,
   onClose,
   variant = 'overlay',
   applications,
-  businessUnits,
-  regions,
-  initialYear,
+  nodeFilters,
   initialApplicationIds,
-  initialBusinessUnitIds,
-  initialRegionCodes,
+  initialNodeAttributes,
+  initialNodeRefs = {},
   onApply,
   showPinView = false,
   pinViewDisabled = false,
   onPinView,
 }: FilterDrawerProps) {
   const [view, setView] = useState<FilterView>('root');
-  const [year, setYear] = useState<number | null>(initialYear);
   const [selectedApplicationIds, setSelectedApplicationIds] = useState(initialApplicationIds);
-  const [selectedBusinessUnitIds, setSelectedBusinessUnitIds] = useState(initialBusinessUnitIds);
-  const [selectedRegionCodes, setSelectedRegionCodes] = useState(initialRegionCodes);
+  const [selectedNodeValues, setSelectedNodeValues] = useState<Record<string, string[]>>({});
   const [detailError, setDetailError] = useState<string | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
 
@@ -105,58 +93,67 @@ export function FilterDrawer({
         .map((a) => a.id),
     [applications]
   );
-  const buCatalog = useMemo(
-    () =>
-      [...businessUnits]
-        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
-        .map((bu) => bu.id),
-    [businessUnits]
-  );
-  const regionCatalog = useMemo(
-    () =>
-      [...regions]
-        .sort((a, b) => a.code.localeCompare(b.code, undefined, { sensitivity: 'base' }))
-        .map((r) => r.code),
-    [regions]
-  );
+
+  const nodeCatalogs = useMemo(() => {
+    const out: Record<string, string[]> = {};
+    for (const dimension of nodeFilters) {
+      out[dimension.key] = selectAllCatalog(dimension.values);
+    }
+    return out;
+  }, [nodeFilters]);
 
   const appMode = dimensionMode(selectedApplicationIds, appCatalog);
-  const buMode = dimensionMode(selectedBusinessUnitIds, buCatalog);
-  const regionMode = dimensionMode(selectedRegionCodes, regionCatalog);
-  const dimensionModes = [appMode, buMode, regionMode];
-  const applyBlocked = hasInvalidDimensionSelection(dimensionModes);
+  const nodeModes = useMemo(
+    () =>
+      nodeFilters.map((dimension) =>
+        dimensionMode(selectedNodeValues[dimension.key] ?? [], nodeCatalogs[dimension.key] ?? [])
+      ),
+    [nodeFilters, selectedNodeValues, nodeCatalogs]
+  );
+  const applyBlocked = hasInvalidDimensionSelection([appMode, ...nodeModes]);
 
   const detailSelectAllRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setView('root');
-      setYear(initialYear);
-      setDetailError(null);
-      setApplyError(null);
-      setSelectedApplicationIds(
-        initialApplicationIds.length > 0 ? initialApplicationIds : selectAllCatalog(appCatalog)
-      );
-      setSelectedBusinessUnitIds(
-        initialBusinessUnitIds.length > 0 ? initialBusinessUnitIds : selectAllCatalog(buCatalog)
-      );
-      setSelectedRegionCodes(
-        initialRegionCodes.length > 0 ? initialRegionCodes : selectAllCatalog(regionCatalog)
-      );
-    }
+    if (!isOpen) return;
+    setView('root');
+    setDetailError(null);
+    setApplyError(null);
+    setSelectedApplicationIds(
+      initialApplicationIds.length > 0 ? initialApplicationIds : selectAllCatalog(appCatalog)
+    );
+    setSelectedNodeValues(
+      Object.fromEntries(
+        nodeFilters.map((dimension) => {
+          const initial = initialForDimension(dimension, initialNodeAttributes, initialNodeRefs);
+          return [
+            dimension.key,
+            initial.length > 0 ? initial : selectAllCatalog(nodeCatalogs[dimension.key] ?? []),
+          ];
+        })
+      )
+    );
   }, [
     isOpen,
-    initialYear,
     initialApplicationIds,
-    initialBusinessUnitIds,
-    initialRegionCodes,
+    initialNodeAttributes,
+    initialNodeRefs,
     appCatalog,
-    buCatalog,
-    regionCatalog,
+    nodeFilters,
+    nodeCatalogs,
   ]);
 
+  const detailKey = nodeAttributeKeyFromView(view);
+  const detailDimension = nodeFilters.find((dimension) => dimension.key === detailKey) ?? null;
   const detailMode =
-    view === 'applications' ? appMode : view === 'businessUnits' ? buMode : view === 'regions' ? regionMode : 'none';
+    view === 'applications'
+      ? appMode
+      : detailDimension
+        ? dimensionMode(
+            selectedNodeValues[detailDimension.key] ?? [],
+            nodeCatalogs[detailDimension.key] ?? []
+          )
+        : 'none';
 
   useEffect(() => {
     const el = detailSelectAllRef.current;
@@ -170,22 +167,45 @@ export function FilterDrawer({
     setView(next);
   }
 
-  function clearDetailDimension(key: DimensionKey) {
+  function clearDetailDimension() {
     setDetailError(null);
-    if (key === 'applications') setSelectedApplicationIds(selectAllCatalog(appCatalog));
-    if (key === 'businessUnits') setSelectedBusinessUnitIds(selectAllCatalog(buCatalog));
-    if (key === 'regions') setSelectedRegionCodes(selectAllCatalog(regionCatalog));
+    if (view === 'applications') {
+      setSelectedApplicationIds(selectAllCatalog(appCatalog));
+      return;
+    }
+    if (detailDimension) {
+      setSelectedNodeValues((prev) => ({
+        ...prev,
+        [detailDimension.key]: selectAllCatalog(nodeCatalogs[detailDimension.key] ?? []),
+      }));
+    }
   }
 
-  function confirmDetailDimension(key: DimensionKey) {
-    const mode =
-      key === 'applications' ? appMode : key === 'businessUnits' ? buMode : regionMode;
-    if (mode === 'none') {
+  function confirmDetailDimension() {
+    if (detailMode === 'none') {
       setDetailError('Select at least one, or tap Clear to include all.');
       return;
     }
     setDetailError(null);
     setView('root');
+  }
+
+  function filtersForApi(): Pick<GraphFilters, 'nodeAttributes' | 'nodeRefs'> {
+    const nodeAttributes: Record<string, string[]> = {};
+    const nodeRefs: Record<string, string[]> = {};
+    for (const dimension of nodeFilters) {
+      const selected = toApiFilterList(
+        selectedNodeValues[dimension.key] ?? [],
+        nodeCatalogs[dimension.key] ?? []
+      );
+      if (!selected || selected.length === 0) continue;
+      if (isNodeRefDimension(dimension)) {
+        nodeRefs[dimension.key] = selected;
+      } else {
+        nodeAttributes[dimension.key] = selected;
+      }
+    }
+    return { nodeAttributes, nodeRefs };
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -197,29 +217,29 @@ export function FilterDrawer({
       return;
     }
     setApplyError(null);
+    const { nodeAttributes, nodeRefs } = filtersForApi();
     onApply({
-      year,
       applicationIds: toApiFilterList(selectedApplicationIds, appCatalog) ?? [],
-      businessUnitIds: toApiFilterList(selectedBusinessUnitIds, buCatalog) ?? [],
-      regionCodes: toApiFilterList(selectedRegionCodes, regionCatalog) ?? [],
+      nodeAttributes,
+      nodeRefs,
     });
     onClose();
   }
 
   function onReset() {
-    setYear(null);
     setSelectedApplicationIds(selectAllCatalog(appCatalog));
-    setSelectedBusinessUnitIds(selectAllCatalog(buCatalog));
-    setSelectedRegionCodes(selectAllCatalog(regionCatalog));
+    setSelectedNodeValues(
+      Object.fromEntries(
+        nodeFilters.map((dimension) => [
+          dimension.key,
+          selectAllCatalog(nodeCatalogs[dimension.key] ?? []),
+        ])
+      )
+    );
     setView('root');
     setDetailError(null);
     setApplyError(null);
-    onApply({
-      year: null,
-      applicationIds: [],
-      businessUnitIds: [],
-      regionCodes: [],
-    });
+    onApply({ applicationIds: [], nodeAttributes: {}, nodeRefs: {} });
   }
 
   function renderRootActions() {
@@ -257,271 +277,155 @@ export function FilterDrawer({
   }
 
   function renderDetailViewActions() {
-    if (view === 'year') {
-      const doneLabel = year != null ? `Done (${year})` : 'Done';
-      return (
-        <div className="graph-filter-compact-actions">
-          <button
-            type="button"
-            className="graph-filter-compact-btn"
-            onClick={() => {
-              setApplyError(null);
-              setYear(null);
-            }}
-          >
-            Clear
-          </button>
-          <button
-            type="button"
-            className="graph-filter-compact-btn graph-filter-compact-btn--primary"
-            onClick={() => setView('root')}
-          >
-            {doneLabel}
-          </button>
-        </div>
-      );
-    }
+    const selectedCount =
+      view === 'applications'
+        ? selectedApplicationIds.length
+        : detailDimension
+          ? (selectedNodeValues[detailDimension.key] ?? []).length
+          : 0;
+    const doneLabel = detailMode === 'some' ? `Done (${selectedCount})` : 'Done';
 
-    if (view === 'applications' || view === 'businessUnits' || view === 'regions') {
-      const key = view;
-      const mode =
-        key === 'applications' ? appMode : key === 'businessUnits' ? buMode : regionMode;
-      const selectedCount =
-        key === 'applications'
-          ? selectedApplicationIds.length
-          : key === 'businessUnits'
-            ? selectedBusinessUnitIds.length
-            : selectedRegionCodes.length;
-      const doneLabel =
-        mode === 'all' ? 'Done' : mode === 'some' ? `Done (${selectedCount})` : 'Done';
-
-      return (
-        <div className="graph-filter-compact-actions">
-          <button
-            type="button"
-            className="graph-filter-compact-btn"
-            onClick={() => clearDetailDimension(key)}
-          >
-            Clear
-          </button>
-          <button
-            type="button"
-            className="graph-filter-compact-btn graph-filter-compact-btn--primary"
-            onClick={() => confirmDetailDimension(key)}
-          >
-            {doneLabel}
-          </button>
-        </div>
-      );
-    }
-
-    return null;
+    return (
+      <div className="graph-filter-compact-actions">
+        <button type="button" className="graph-filter-compact-btn" onClick={clearDetailDimension}>
+          Clear
+        </button>
+        <button
+          type="button"
+          className="graph-filter-compact-btn graph-filter-compact-btn--primary"
+          onClick={confirmDetailDimension}
+        >
+          {doneLabel}
+        </button>
+      </div>
+    );
   }
 
-  function renderDetail() {
-    if (view === 'applications') {
-      return (
-        <div className="graph-filter-detail-panel">
-          {detailError ? (
-            <p className="graph-filter-warning" role="alert">
-              {detailError}
-            </p>
-          ) : null}
-          <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
-            <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
-              <input
-                ref={detailSelectAllRef}
-                type="checkbox"
-                checked={rootCheckboxState(appMode) === 'checked'}
-                onChange={() =>
-                  setSelectedApplicationIds(applyRootToggle(appCatalog, selectedApplicationIds))
-                }
-              />
-              <span>Select all</span>
-            </label>
-            {applications.map((app) => (
-              <label key={app.id} className="graph-drawer-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={selectedApplicationIds.includes(app.id)}
-                  onChange={() => {
-                    setDetailError(null);
-                    setSelectedApplicationIds((prev) => toggleSortedValue(prev, app.id));
-                  }}
-                />
-                <span>{app.name ?? app.id}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    if (view === 'businessUnits') {
-      return (
-        <div className="graph-filter-detail-panel">
-          {detailError ? (
-            <p className="graph-filter-warning" role="alert">
-              {detailError}
-            </p>
-          ) : null}
-          <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
-            <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
-              <input
-                ref={detailSelectAllRef}
-                type="checkbox"
-                checked={rootCheckboxState(buMode) === 'checked'}
-                onChange={() =>
-                  setSelectedBusinessUnitIds(applyRootToggle(buCatalog, selectedBusinessUnitIds))
-                }
-              />
-              <span>Select all</span>
-            </label>
-            {businessUnits.map((bu) => (
-              <label key={bu.id} className="graph-drawer-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={selectedBusinessUnitIds.includes(bu.id)}
-                  onChange={() => {
-                    setDetailError(null);
-                    setSelectedBusinessUnitIds((prev) => toggleSortedValue(prev, bu.id));
-                  }}
-                />
-                <span>{bu.name}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    if (view === 'regions') {
-      return (
-        <div className="graph-filter-detail-panel">
-          {detailError ? (
-            <p className="graph-filter-warning" role="alert">
-              {detailError}
-            </p>
-          ) : null}
-          <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
-            <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
-              <input
-                ref={detailSelectAllRef}
-                type="checkbox"
-                checked={rootCheckboxState(regionMode) === 'checked'}
-                onChange={() =>
-                  setSelectedRegionCodes(applyRootToggle(regionCatalog, selectedRegionCodes))
-                }
-              />
-              <span>Select all</span>
-            </label>
-            {regions.map((r) => (
-              <label key={r.id} className="graph-drawer-checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={selectedRegionCodes.includes(r.code)}
-                  onChange={() => {
-                    setDetailError(null);
-                    setSelectedRegionCodes((prev) => toggleSortedValue(prev, r.code));
-                  }}
-                />
-                <span>
-                  {r.code}
-                  {r.name ? ` — ${r.name}` : ''}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    return null;
-  }
-
-  function renderYearDetail() {
+  function renderApplicationsDetail() {
     return (
       <div className="graph-filter-detail-panel">
-        <div className="graph-filter-year-detail">
-          <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">Year</span>
+        {detailError ? (
+          <p className="graph-filter-warning" role="alert">
+            {detailError}
+          </p>
+        ) : null}
+        <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
+          <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
             <input
-              className="graph-drawer-input"
-              type="number"
-              inputMode="numeric"
-              placeholder="All years"
-              value={year ?? ''}
-              min={1970}
-              max={2100}
-              onChange={(e) => {
-                setApplyError(null);
-                const v = e.target.value.trim();
-                setYear(v === '' ? null : Number(v));
-              }}
+              ref={detailSelectAllRef}
+              type="checkbox"
+              checked={rootCheckboxState(appMode) === 'checked'}
+              onChange={() =>
+                setSelectedApplicationIds(applyRootToggle(appCatalog, selectedApplicationIds))
+              }
             />
-            <span className={`graph-filter-status${year != null ? ' is-active' : ''}`}>
-              {yearFilterLabel(year)}
-            </span>
+            <span>Select all</span>
           </label>
+          {applications.map((app) => (
+            <label key={app.id} className="graph-drawer-checkbox-row">
+              <input
+                type="checkbox"
+                checked={selectedApplicationIds.includes(app.id)}
+                onChange={() => {
+                  setDetailError(null);
+                  setSelectedApplicationIds((prev) => toggleSortedValue(prev, app.id));
+                }}
+              />
+              <span>{app.name ?? app.id}</span>
+            </label>
+          ))}
         </div>
       </div>
     );
   }
 
-  function renderYearRootRow() {
+  function renderNodeAttributeDetail(dimension: GraphNodeFilterDto) {
+    const catalog = nodeCatalogs[dimension.key] ?? [];
+    const selected = selectedNodeValues[dimension.key] ?? [];
+    const mode = dimensionMode(selected, catalog);
+
     return (
-      <div className="graph-filter-root-row">
-        <button
-          type="button"
-          className="graph-filter-root-row-main"
-          onClick={() => openDetail('year')}
-        >
-          <span className="graph-filter-root-row-title">Year</span>
-          <span className={`graph-filter-status${year != null ? ' is-active' : ''}`}>
-            {yearFilterLabel(year)}
-          </span>
-        </button>
-        <button
-          type="button"
-          className="graph-filter-drill-btn"
-          onClick={() => openDetail('year')}
-          aria-label="Choose year"
-        >
-          Choose
-        </button>
+      <div className="graph-filter-detail-panel">
+        {detailError ? (
+          <p className="graph-filter-warning" role="alert">
+            {detailError}
+          </p>
+        ) : null}
+        {catalog.length === 0 ? (
+          <p className="graph-filter-hint">
+            {isNodeRefDimension(dimension)
+              ? 'No active catalogue value for this reference. Add values in the Data Model, then save.'
+              : 'No value recorded yet for this attribute. Values appear once applications carry it.'}
+          </p>
+        ) : (
+          <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
+            <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
+              <input
+                ref={detailSelectAllRef}
+                type="checkbox"
+                checked={rootCheckboxState(mode) === 'checked'}
+                onChange={() =>
+                  setSelectedNodeValues((prev) => ({
+                    ...prev,
+                    [dimension.key]: applyRootToggle(catalog, selected),
+                  }))
+                }
+              />
+              <span>Select all</span>
+            </label>
+            {catalog.map((value) => (
+              <label key={value} className="graph-drawer-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(value)}
+                  onChange={() => {
+                    setDetailError(null);
+                    setSelectedNodeValues((prev) => ({
+                      ...prev,
+                      [dimension.key]: toggleSortedValue(prev[dimension.key] ?? [], value),
+                    }));
+                  }}
+                />
+                <span>{optionLabel(dimension, value)}</span>
+              </label>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
 
-  function renderRootDimensionRow(key: DimensionKey) {
-    const meta = DIMENSION_META[key];
-    const mode = key === 'applications' ? appMode : key === 'businessUnits' ? buMode : regionMode;
-    const catalog =
-      key === 'applications' ? appCatalog : key === 'businessUnits' ? buCatalog : regionCatalog;
-    const selected =
-      key === 'applications'
-        ? selectedApplicationIds
-        : key === 'businessUnits'
-          ? selectedBusinessUnitIds
-          : selectedRegionCodes;
-
+  function renderRootRow(options: {
+    key: string;
+    view: FilterView;
+    label: string;
+    plural: string;
+    selected: string[];
+    catalog: string[];
+  }) {
+    const mode = dimensionMode(options.selected, options.catalog);
     return (
-      <div className="graph-filter-root-row" key={key}>
+      <div className="graph-filter-root-row" key={options.key}>
         <button
           type="button"
           className="graph-filter-root-row-main"
-          onClick={() => openDetail(meta.view)}
+          onClick={() => openDetail(options.view)}
         >
-          <span className="graph-filter-root-row-title">{meta.rootLabel}</span>
+          <span className="graph-filter-root-row-title">{options.label}</span>
           <span className={statusClass(mode)}>
-            {dimensionStatusLabel(mode, selected.length, catalog.length, meta.plural)}
+            {dimensionStatusLabel(
+              mode,
+              options.selected.length,
+              options.catalog.length,
+              options.plural
+            )}
           </span>
         </button>
         <button
           type="button"
           className="graph-filter-drill-btn"
-          onClick={() => openDetail(meta.view)}
-          aria-label={`Choose ${meta.plural}`}
+          onClick={() => openDetail(options.view)}
+          aria-label={`Choose ${options.plural}`}
         >
           Choose
         </button>
@@ -532,9 +436,9 @@ export function FilterDrawer({
   const headerTitle =
     view === 'root'
       ? 'Filters'
-      : view === 'year'
-        ? 'Year'
-        : DIMENSION_META[view as DimensionKey]?.detailTitle ?? 'Filters';
+      : view === 'applications'
+        ? 'Applications'
+        : (detailDimension?.label ?? 'Filters');
 
   const isEmbedded = variant === 'embedded';
   const showHeader = !isEmbedded || view !== 'root';
@@ -585,10 +489,33 @@ export function FilterDrawer({
               Narrow the graph. Each dimension combines with AND (all conditions must match).
             </p>
 
-            {renderYearRootRow()}
-            {renderRootDimensionRow('applications')}
-            {renderRootDimensionRow('businessUnits')}
-            {renderRootDimensionRow('regions')}
+            {renderRootRow({
+              key: 'applications',
+              view: 'applications',
+              label: 'Application',
+              plural: 'applications',
+              selected: selectedApplicationIds,
+              catalog: appCatalog,
+            })}
+
+            {nodeFilters.map((dimension) =>
+              renderRootRow({
+                key: dimension.key,
+                view: nodeAttributeView(dimension.key),
+                label: dimension.label,
+                plural: 'values',
+                selected: selectedNodeValues[dimension.key] ?? [],
+                catalog: nodeCatalogs[dimension.key] ?? [],
+              })
+            )}
+
+            {nodeFilters.length === 0 ? (
+              <p className="graph-filter-hint" role="status">
+                No application attributes configured. Add Data Model fields with target
+                &quot;Application (node)&quot; or &quot;Application (reference)&quot; to filter on
+                them.
+              </p>
+            ) : null}
 
             {applyError ? (
               <p className="graph-filter-warning" role="alert">
@@ -600,11 +527,11 @@ export function FilterDrawer({
               </p>
             ) : null}
           </div>
-        ) : view === 'year' ? (
-          renderYearDetail()
-        ) : (
-          renderDetail()
-        )}
+        ) : view === 'applications' ? (
+          renderApplicationsDetail()
+        ) : detailDimension ? (
+          renderNodeAttributeDetail(detailDimension)
+        ) : null}
       </form>
     </aside>
   );

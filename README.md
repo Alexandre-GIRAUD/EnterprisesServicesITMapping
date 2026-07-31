@@ -1,6 +1,6 @@
 # Enterprise IT Mapping Platform
 
-Production-ready SaaS monorepo for mapping enterprise applications, their dependencies, and internal structure, with year-based filtering and scalability to thousands of nodes.
+Production-ready SaaS monorepo for mapping enterprise applications, their dependencies, and internal structure, with Data Model driven filtering and scalability to thousands of nodes.
 
 ## Tech Stack
 
@@ -69,13 +69,20 @@ Dependencies point inward: presentation → application → domain; infrastructu
 
 - Applications and dependencies map naturally to nodes and relationships.
 - Cypher supports complex traversals and aggregations for drill-down and “subgraph” views.
-- A single integer `year` property on `Application` and `Module` nodes enables simple year-based filtering.
+- Flat business attributes are properties on `Application` nodes (`Data Model` `target=NODE`).
+- Catalogue classifications are `:DataModelRef` nodes linked with `CLASSIFIED_AS` (`target=NODE_REF`). There is **no** seed of business fields (region, BU, …): admins declare NODE_REF fields and values in `/data-model` when needed.
 
-### Year filtering (`year`)
+### Graph filtering (Data Model driven)
 
-- `Application` and `Module` nodes carry an optional integer `year` (e.g. `2025`).
-- `GET /api/graph?year=2025` returns only the applications whose `year == 2025` (and the edges between them); omitting `year` returns the full graph.
-- The `year` filter combines (AND) with the existing `applicationIds` / `businessUnitIds` / `regionCodes` filters.
+- `GET /api/graph` filter axes:
+  - `applicationIds` (repeatable; singular `applicationId` also accepted): OR on application ids;
+  - `attr.<key>` (repeatable per key): flat NODE props — OR inside a key, AND across keys;
+  - `ref.<key>` (repeatable per key): NODE_REF catalogue **ids** via `(:Application)-[:CLASSIFIED_AS {fieldKey}]->(:DataModelRef)`.
+  Keys absent from the Data Model (or failing `KEY_PATTERN`) are ignored.
+- `GET /api/graph/node-filters` returns NODE + NODE_REF dimensions (`kind`, `multiple`, and for NODE_REF `options: [{id,name}]`).
+- `PATCH /api/applications/{id}/node-attributes` edits flat NODE props; `PATCH /api/applications/{id}/node-refs` replaces CLASSIFIED_AS links by ref ids (no free-text catalogue create).
+- Saving the Data Model upserts `:DataModelRef` for each NODE_REF `allowedValues` entry and soft-retires removed values (`active=false`).
+- Graph snapshots store `{applicationIds, nodeAttributes, nodeRefs}`. Flat attributes use Data Model `target=NODE` (`year` is reserved — use e.g. `reference_year`). Catalogue dimensions use `target=NODE_REF`.
 
 ### Scalability (Thousands of Nodes)
 
@@ -154,12 +161,10 @@ docker-compose up -d
 - API: `GET /api/applications/{id}/module-graph`. Same JSON shape as `GET /api/graph` (`GraphResponseDto`). **404** if the application is unknown; **200** with the application root only if there are no modules.
 - Optional env (backend): **`APP_MODULE_GRAPH_MAX_DEPTH`** (default **10**) — max `CONTAINS` hops in Cypher (hard-capped at 50 in code).
 
-### Regions (application detail)
+### Application attributes (application detail)
 
-- Neo4j: `(:Application)-[:IS_USED_IN]->(:Region)`. Main map graph can be filtered with **`GET /api/graph?regionCode=...`** (regions are not nodes in that JSON).
-- **Catalogue:** `GET /api/regions` (sorted by `code`) for UI pickers.
-- **Application detail:** `GET /api/applications/{id}` includes **`regions`** (`id`, `code`, `name`) when non-empty.
-- **Edit links (replace all):** `PATCH /api/applications/{id}/regions` with body `{"regionCodes":["EMEA","APAC"]}`; `[]` clears. Unknown codes → **400**.
+- **Application detail:** `GET /api/applications/{id}` includes **`nodeAttributes`** (flat NODE props) and **`nodeRefs`** (CLASSIFIED_AS links) when non-empty; the list endpoint omits them.
+- The details drawer renders one input per Data Model `target=NODE` field and a select / multi-select per `target=NODE_REF` field (options = synced catalogue). Saves go through `PATCH .../node-attributes` and `PATCH .../node-refs`.
 
 ## What’s Not Included (By Design)
 

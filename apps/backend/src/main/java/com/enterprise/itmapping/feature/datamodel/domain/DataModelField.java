@@ -12,7 +12,9 @@ public record DataModelField(
     boolean enforceEnum,
     boolean required,
     DataModelDetection detection,
-    DataModelTarget target) {
+    DataModelTarget target,
+    /** When {@code true} and {@code target=NODE_REF}, an Application may link to several refs. */
+    boolean multiple) {
 
   public DataModelField {
     description = description != null ? description : "";
@@ -22,7 +24,7 @@ public record DataModelField(
     target = DataModelTarget.orDefault(target);
   }
 
-  /** Convenience — automatic detection, EDGE target. */
+  /** Convenience — automatic detection, EDGE target, not multiple. */
   public DataModelField(
       String key,
       String label,
@@ -40,7 +42,8 @@ public record DataModelField(
         enforceEnum,
         required,
         DataModelDetection.AUTOMATIC_DETECTION,
-        DataModelTarget.EDGE);
+        DataModelTarget.EDGE,
+        false);
   }
 
   /** Convenience — EDGE target with explicit detection. */
@@ -62,7 +65,32 @@ public record DataModelField(
         enforceEnum,
         required,
         detection,
-        DataModelTarget.EDGE);
+        DataModelTarget.EDGE,
+        false);
+  }
+
+  /** Convenience — explicit detection + target, not multiple. */
+  public DataModelField(
+      String key,
+      String label,
+      String description,
+      String promptHint,
+      List<String> allowedValues,
+      boolean enforceEnum,
+      boolean required,
+      DataModelDetection detection,
+      DataModelTarget target) {
+    this(
+        key,
+        label,
+        description,
+        promptHint,
+        allowedValues,
+        enforceEnum,
+        required,
+        detection,
+        target,
+        false);
   }
 
   public boolean isAutomaticDetection() {
@@ -75,5 +103,9 @@ public record DataModelField(
 
   public boolean isNodeTarget() {
     return target == DataModelTarget.NODE;
+  }
+
+  public boolean isNodeRefTarget() {
+    return target == DataModelTarget.NODE_REF;
   }
 }

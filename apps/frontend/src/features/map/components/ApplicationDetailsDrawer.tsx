@@ -3,20 +3,20 @@ import { Link } from 'react-router-dom';
 import type {
   ApplicationRequest,
   ApplicationResponse,
-  BusinessUnitListItem,
-  RegionSummary,
+  DataModelFieldDto,
+  GraphNodeFilterDto,
 } from '@/types/api';
+import { getDataModelRequest } from '@/features/datamodel/api/dataModelApi';
 import {
   deleteApplicationById,
   fetchApplicationById,
-  patchApplicationBusinessUnit,
-  patchApplicationRegions,
+  patchApplicationNodeAttributes,
+  patchApplicationNodeRefs,
   suggestConnectionsFromGithub,
   suggestModulesFromGithub,
   updateApplicationById,
 } from '../api/applicationsApi';
-import { fetchRegions } from '../api/regionsApi';
-import { fetchBusinessUnits } from '../api/businessUnitsApi';
+import { fetchGraphNodeFilters } from '../api/graphApi';
 import { moduleGraphMapState } from '../utils/mapNavigation';
 import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 import { isSandboxId } from '../utils/sandboxGraph';
@@ -29,7 +29,6 @@ type ApplicationDetails = {
 export type ApplicationUpdatePatch = {
   name: string;
   description?: string;
-  year?: number | null;
 };
 
 type ApplicationDetailsDrawerProps = {
@@ -44,6 +43,22 @@ type ApplicationDetailsDrawerProps = {
   /** Invoked after backend delete succeeds; parent should remove the node from the graph and close UI. */
   onApplicationDeleted: (applicationId: string) => void;
 };
+
+function attributeValues(
+  fields: DataModelFieldDto[],
+  attributes: Record<string, string> | undefined
+): Record<string, string> {
+  return Object.fromEntries(fields.map((f) => [f.key, attributes?.[f.key] ?? '']));
+}
+
+function refIdValues(
+  fields: DataModelFieldDto[],
+  nodeRefs: ApplicationResponse['nodeRefs'] | undefined
+): Record<string, string[]> {
+  return Object.fromEntries(
+    fields.map((f) => [f.key, (nodeRefs?.[f.key] ?? []).map((r) => r.id)])
+  );
+}
 
 export function ApplicationDetailsDrawer({
   isOpen,
@@ -71,15 +86,40 @@ export function ApplicationDetailsDrawer({
   const [connBusy, setConnBusy] = useState(false);
   const [connErrorMessage, setConnErrorMessage] = useState<string | null>(null);
   const [connSuccessMessage, setConnSuccessMessage] = useState<string | null>(null);
-  const [formState, setFormState] = useState({
-    name: '',
-    description: '',
-    year: '',
-    businessUnitId: '',
-    regionCodes: [] as string[],
-  });
-  const [businessUnitsCatalog, setBusinessUnitsCatalog] = useState<BusinessUnitListItem[]>([]);
-  const [regionsCatalog, setRegionsCatalog] = useState<RegionSummary[]>([]);
+  const [nodeFields, setNodeFields] = useState<DataModelFieldDto[]>([]);
+  const [nodeRefFields, setNodeRefFields] = useState<DataModelFieldDto[]>([]);
+  const [nodeRefOptions, setNodeRefOptions] = useState<Record<string, GraphNodeFilterDto>>({});
+  const [formState, setFormState] = useState({ name: '', description: '' });
+  const [attributeForm, setAttributeForm] = useState<Record<string, string>>({});
+  const [refForm, setRefForm] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    void Promise.all([getDataModelRequest(), fetchGraphNodeFilters()])
+      .then(([data, filters]) => {
+        if (cancelled) return;
+        setNodeFields(data.fields.filter((f) => f.target === 'NODE'));
+        setNodeRefFields(data.fields.filter((f) => f.target === 'NODE_REF'));
+        const byKey: Record<string, GraphNodeFilterDto> = {};
+        for (const filter of filters) {
+          if (filter.kind === 'NODE_REF') {
+            byKey[filter.key] = filter;
+          }
+        }
+        setNodeRefOptions(byKey);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setNodeFields([]);
+          setNodeRefFields([]);
+          setNodeRefOptions({});
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || !application?.id) return;
@@ -101,13 +141,7 @@ export function ApplicationDetailsDrawer({
         return;
       }
       setDetails(local);
-      setFormState({
-        name: local.name ?? '',
-        description: local.description ?? '',
-        year: local.year != null ? String(local.year) : '',
-        businessUnitId: '',
-        regionCodes: [],
-      });
+      setFormState({ name: local.name ?? '', description: local.description ?? '' });
       setStatus('ready');
       return;
     }
@@ -116,13 +150,7 @@ export function ApplicationDetailsDrawer({
       .then((data) => {
         if (cancelled) return;
         setDetails(data);
-        setFormState({
-          name: data.name ?? '',
-          description: data.description ?? '',
-          year: data.year != null ? String(data.year) : '',
-          businessUnitId: data.businessUnit?.id ?? '',
-          regionCodes: regionCodesFromDetail(data),
-        });
+        setFormState({ name: data.name ?? '', description: data.description ?? '' });
         setStatus('ready');
       })
       .catch((e) => {
@@ -135,28 +163,6 @@ export function ApplicationDetailsDrawer({
       cancelled = true;
     };
   }, [application?.id, isOpen, resolveSandboxApplication, sandboxMode]);
-
-  useEffect(() => {
-    if (!isEditing || !isOpen || sandboxMode) return;
-    let cancelled = false;
-    void fetchBusinessUnits()
-      .then((rows) => {
-        if (!cancelled) setBusinessUnitsCatalog(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setBusinessUnitsCatalog([]);
-      });
-    void fetchRegions()
-      .then((rows) => {
-        if (!cancelled) setRegionsCatalog(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setRegionsCatalog([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isEditing, isOpen, sandboxMode]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -181,10 +187,42 @@ export function ApplicationDetailsDrawer({
       ? details.description
       : 'No description provided.';
 
-  const yearText = useMemo(
-    () => (details?.year != null ? String(details.year) : 'Not provided'),
-    [details?.year]
-  );
+  /** Data Model NODE fields plus any stored attribute whose field was since removed. */
+  const readOnlyAttributes = useMemo(() => {
+    const stored = details?.nodeAttributes ?? {};
+    const rows = nodeFields.map((field) => ({
+      key: field.key,
+      label: field.label || field.key,
+      value: stored[field.key] ?? '',
+    }));
+    const known = new Set(nodeFields.map((f) => f.key));
+    for (const [key, value] of Object.entries(stored)) {
+      if (!known.has(key)) {
+        rows.push({ key, label: key, value });
+      }
+    }
+    return rows;
+  }, [details?.nodeAttributes, nodeFields]);
+
+  const readOnlyRefs = useMemo(() => {
+    const stored = details?.nodeRefs ?? {};
+    return nodeRefFields.map((field) => ({
+      key: field.key,
+      label: field.label || field.key,
+      value: (stored[field.key] ?? []).map((r) => r.name || r.value || r.id).join(', '),
+    }));
+  }, [details?.nodeRefs, nodeRefFields]);
+
+  function startEditing(source: ApplicationResponse) {
+    setFormErrorMessage(null);
+    setSaveSuccessMessage(null);
+    setShowDeleteConfirm(false);
+    setDeleteErrorMessage(null);
+    setFormState({ name: source.name ?? '', description: source.description ?? '' });
+    setAttributeForm(attributeValues(nodeFields, source.nodeAttributes));
+    setRefForm(refIdValues(nodeRefFields, source.nodeRefs));
+    setIsEditing(true);
+  }
 
   async function onSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -196,22 +234,31 @@ export function ApplicationDetailsDrawer({
       return;
     }
 
-    const yearTrimmed = formState.year.trim();
-    let yearValue: number | undefined;
-    if (yearTrimmed) {
-      const parsed = Number(yearTrimmed);
-      if (!Number.isInteger(parsed) || parsed < 1970 || parsed > 2100) {
-        setFormErrorMessage('Year must be a valid integer (1970–2100).');
-        return;
-      }
-      yearValue = parsed;
+    const missing = nodeFields.find(
+      (field) => field.required && !(attributeForm[field.key] ?? '').trim()
+    );
+    if (missing) {
+      setFormErrorMessage(`${missing.label || missing.key} is required.`);
+      return;
+    }
+    const missingRef = nodeRefFields.find(
+      (field) => field.required && (refForm[field.key] ?? []).length === 0
+    );
+    if (missingRef) {
+      setFormErrorMessage(`${missingRef.label || missingRef.key} is required.`);
+      return;
     }
 
     const payload: ApplicationRequest = {
       name,
       description: formState.description.trim() || '',
-      year: yearValue,
     };
+    const attributes = Object.fromEntries(
+      nodeFields.map((field) => [field.key, (attributeForm[field.key] ?? '').trim()])
+    );
+    const refs = Object.fromEntries(
+      nodeRefFields.map((field) => [field.key, refForm[field.key] ?? []])
+    );
 
     if (sandboxMode) {
       try {
@@ -219,29 +266,32 @@ export function ApplicationDetailsDrawer({
         setFormErrorMessage(null);
         setSaveSuccessMessage(null);
         const updated: ApplicationResponse = {
-          ...(details ?? {
-            id: application.id,
-            name,
-            year: yearValue ?? null,
-          }),
+          ...details,
           id: application.id,
           name,
           description: payload.description,
-          year: yearValue ?? null,
+          nodeAttributes: Object.fromEntries(
+            Object.entries(attributes).filter(([, value]) => value.length > 0)
+          ),
+          nodeRefs: Object.fromEntries(
+            nodeRefFields
+              .map((field) => {
+                const ids = refs[field.key] ?? [];
+                const options = nodeRefOptions[field.key]?.options ?? [];
+                return [
+                  field.key,
+                  ids.map((id) => {
+                    const opt = options.find((o) => o.id === id);
+                    return { id, name: opt?.name ?? id, value: opt?.name ?? id };
+                  }),
+                ] as const;
+              })
+              .filter(([, list]) => list.length > 0)
+          ),
         };
         setDetails(updated);
-        setFormState({
-          name: updated.name ?? '',
-          description: updated.description ?? '',
-          year: updated.year != null ? String(updated.year) : '',
-          businessUnitId: formState.businessUnitId,
-          regionCodes: formState.regionCodes,
-        });
-        onApplicationUpdated?.(application.id, {
-          name,
-          description: payload.description,
-          year: yearValue ?? null,
-        });
+        setFormState({ name: updated.name ?? '', description: updated.description ?? '' });
+        onApplicationUpdated?.(application.id, { name, description: payload.description });
         setSaveSuccessMessage('Application updated (sandbox, not saved).');
         setIsEditing(false);
       } finally {
@@ -250,31 +300,30 @@ export function ApplicationDetailsDrawer({
       return;
     }
 
-    const buIdTrimmed = formState.businessUnitId.trim();
-    const businessUnitIdPatch: string | null = buIdTrimmed.length > 0 ? buIdTrimmed : null;
-
     try {
       setIsSaving(true);
       setFormErrorMessage(null);
       setSaveSuccessMessage(null);
       await updateApplicationById(application.id, payload);
-      await patchApplicationBusinessUnit(application.id, businessUnitIdPatch);
-      await patchApplicationRegions(application.id, formState.regionCodes);
+      if (nodeFields.length > 0) {
+        await patchApplicationNodeAttributes(application.id, attributes);
+      }
+      if (nodeRefFields.length > 0) {
+        await patchApplicationNodeRefs(application.id, refs);
+      }
       const refreshed = await fetchApplicationById(application.id);
       setDetails(refreshed);
-      setFormState({
-        name: refreshed.name ?? '',
-        description: refreshed.description ?? '',
-        year: refreshed.year != null ? String(refreshed.year) : '',
-        businessUnitId: refreshed.businessUnit?.id ?? '',
-        regionCodes: regionCodesFromDetail(refreshed),
+      setFormState({ name: refreshed.name ?? '', description: refreshed.description ?? '' });
+      setAttributeForm(attributeValues(nodeFields, refreshed.nodeAttributes));
+      setRefForm(refIdValues(nodeRefFields, refreshed.nodeRefs));
+      onApplicationUpdated?.(application.id, {
+        name: refreshed.name ?? name,
+        description: refreshed.description,
       });
       setSaveSuccessMessage('Application updated.');
       setIsEditing(false);
     } catch (e) {
-      setFormErrorMessage(
-        e instanceof Error ? e.message : 'Unable to save changes.'
-      );
+      setFormErrorMessage(e instanceof Error ? e.message : 'Unable to save changes.');
     } finally {
       setIsSaving(false);
     }
@@ -285,13 +334,9 @@ export function ApplicationDetailsDrawer({
       setIsEditing(false);
       return;
     }
-    setFormState({
-      name: details.name ?? '',
-      description: details.description ?? '',
-      year: details.year != null ? String(details.year) : '',
-      businessUnitId: details.businessUnit?.id ?? '',
-      regionCodes: regionCodesFromDetail(details),
-    });
+    setFormState({ name: details.name ?? '', description: details.description ?? '' });
+    setAttributeForm(attributeValues(nodeFields, details.nodeAttributes));
+    setRefForm(refIdValues(nodeRefFields, details.nodeRefs));
     setFormErrorMessage(null);
     setSaveSuccessMessage(null);
     setShowDeleteConfirm(false);
@@ -312,9 +357,7 @@ export function ApplicationDetailsDrawer({
         `${res.created.length} module(s) created. ${res.skipped.length} entry(ies) skipped.`
       );
     } catch (e) {
-      setSuggestErrorMessage(
-        e instanceof Error ? e.message : 'AI module suggestion failed.'
-      );
+      setSuggestErrorMessage(e instanceof Error ? e.message : 'AI module suggestion failed.');
     } finally {
       setSuggestBusy(false);
     }
@@ -333,10 +376,9 @@ export function ApplicationDetailsDrawer({
       setConnSuccessMessage(
         `${res.created.length} connexion(s) créée(s) (${outbound} sortante(s), ${inbound} entrante(s)). ${res.skipped.length} ignorée(s).`
       );
+      setDetails(await fetchApplicationById(id));
     } catch (e) {
-      setConnErrorMessage(
-        e instanceof Error ? e.message : 'AI connection suggestion failed.'
-      );
+      setConnErrorMessage(e instanceof Error ? e.message : 'AI connection suggestion failed.');
     } finally {
       setConnBusy(false);
     }
@@ -360,6 +402,126 @@ export function ApplicationDetailsDrawer({
     } finally {
       setIsDeleting(false);
     }
+  }
+
+  function renderAttributeInput(field: DataModelFieldDto) {
+    const value = attributeForm[field.key] ?? '';
+    const allowed = field.allowedValues ?? [];
+    const onChange = (next: string) =>
+      setAttributeForm((prev) => ({ ...prev, [field.key]: next }));
+
+    return (
+      <label className="graph-drawer-field" key={field.key}>
+        <span className="graph-drawer-field-label">{field.label || field.key}</span>
+        {allowed.length > 0 ? (
+          <select
+            className="graph-drawer-input"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={isSaving || isDeleting}
+          >
+            <option value="">Not set</option>
+            {allowed.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+            {value && !allowed.includes(value) ? (
+              <option value={value}>{value} (current)</option>
+            ) : null}
+          </select>
+        ) : (
+          <input
+            className="graph-drawer-input"
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={isSaving || isDeleting}
+          />
+        )}
+        {field.description ? (
+          <span className="graph-drawer-field-hint">{field.description}</span>
+        ) : null}
+      </label>
+    );
+  }
+
+  function renderRefInput(field: DataModelFieldDto) {
+    const selected = refForm[field.key] ?? [];
+    const options = nodeRefOptions[field.key]?.options ?? [];
+    const multiple = Boolean(field.multiple);
+
+    if (multiple) {
+      return (
+        <fieldset className="graph-drawer-field graph-drawer-fieldset" key={field.key}>
+          <legend className="graph-drawer-field-label">{field.label || field.key}</legend>
+          {options.length === 0 ? (
+            <p className="graph-drawer-field-hint">
+              No active catalogue value. Add values in the Data Model, then save.
+            </p>
+          ) : (
+            <div className="graph-drawer-region-checkboxes">
+              {options.map((option) => {
+                const checked = selected.includes(option.id);
+                return (
+                  <label key={option.id} className="graph-drawer-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={isSaving || isDeleting}
+                      onChange={() => {
+                        setRefForm((prev) => {
+                          const current = prev[field.key] ?? [];
+                          const next = checked
+                            ? current.filter((id) => id !== option.id)
+                            : [...current, option.id];
+                          return { ...prev, [field.key]: next };
+                        });
+                      }}
+                    />
+                    <span>{option.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          {field.description ? (
+            <span className="graph-drawer-field-hint">{field.description}</span>
+          ) : null}
+        </fieldset>
+      );
+    }
+
+    const value = selected[0] ?? '';
+    return (
+      <label className="graph-drawer-field" key={field.key}>
+        <span className="graph-drawer-field-label">{field.label || field.key}</span>
+        <select
+          className="graph-drawer-input"
+          value={value}
+          onChange={(e) =>
+            setRefForm((prev) => ({
+              ...prev,
+              [field.key]: e.target.value ? [e.target.value] : [],
+            }))
+          }
+          disabled={isSaving || isDeleting}
+        >
+          <option value="">Not set</option>
+          {options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
+          {value && !options.some((o) => o.id === value) ? (
+            <option value={value}>{value} (current)</option>
+          ) : null}
+        </select>
+        {field.description ? (
+          <span className="graph-drawer-field-hint">{field.description}</span>
+        ) : null}
+      </label>
+    );
   }
 
   return (
@@ -399,246 +561,194 @@ export function ApplicationDetailsDrawer({
           </p>
         )}
         {status === 'ready' && (
-        <>
-          {!isEditing ? (
-            <>
-              {saveSuccessMessage && (
-                <p className="graph-drawer-feedback graph-drawer-feedback-success" role="status">
-                  {saveSuccessMessage}
-                </p>
-              )}
-              <section className="graph-details-section">
-                <h3 className="graph-details-section-title">Description</h3>
-                <p className="graph-details-text">{description}</p>
-              </section>
-
-              <section className="graph-details-section">
-                <h3 className="graph-details-section-title">Business unit</h3>
-                <p className="graph-details-text">
-                  {details && details.businessUnit
-                    ? `${details.businessUnit.name ?? '—'}${
-                        details.businessUnit.code ? ` (${details.businessUnit.code})` : ''
-                      }`
-                    : 'Not linked to a business unit.'}
-                </p>
-              </section>
-
-              <section className="graph-details-section">
-                <h3 className="graph-details-section-title">Regions</h3>
-                {details?.regions && details.regions.length > 0 ? (
-                  <ul className="graph-details-region-list">
-                    {details.regions.map((r) => (
-                      <li key={r.id} className="graph-details-text">
-                        <strong>{r.code}</strong>
-                        {r.name ? ` — ${r.name}` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="graph-details-text">No regions provided.</p>
-                )}
-              </section>
-
-              <section className="graph-details-section">
-                <h3 className="graph-details-section-title">Year</h3>
-                <p className="graph-details-text">{yearText}</p>
-              </section>
-            </>
-          ) : (
-            <form className="graph-drawer-form" onSubmit={onSave}>
-              <label className="graph-drawer-field">
-                <span className="graph-drawer-field-label">Name</span>
-                <input
-                  className="graph-drawer-input"
-                  type="text"
-                  value={formState.name}
-                  onChange={(e) =>
-                    setFormState((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  disabled={isSaving || isDeleting}
-                  required
-                />
-              </label>
-              <label className="graph-drawer-field">
-                <span className="graph-drawer-field-label">Description</span>
-                <textarea
-                  className="graph-drawer-input graph-drawer-textarea"
-                  value={formState.description}
-                  onChange={(e) =>
-                    setFormState((prev) => ({ ...prev, description: e.target.value }))
-                  }
-                  rows={3}
-                  disabled={isSaving || isDeleting}
-                />
-              </label>
-              <label className="graph-drawer-field">
-                <span className="graph-drawer-field-label">Business unit</span>
-                <select
-                  className="graph-drawer-input"
-                  value={formState.businessUnitId}
-                  onChange={(e) =>
-                    setFormState((prev) => ({ ...prev, businessUnitId: e.target.value }))
-                  }
-                  disabled={isSaving || isDeleting || sandboxMode}
-                  aria-label="Application business unit"
-                >
-                  <option value="">None / not linked</option>
-                  {businessUnitsCatalog.map((bu) => (
-                    <option key={bu.id} value={bu.id}>
-                      {bu.name}
-                    </option>
-                  ))}
-                </select>
-                {sandboxMode && (
-                  <span className="graph-drawer-field-hint">Not editable in sandbox.</span>
-                )}
-              </label>
-              <fieldset className="graph-drawer-field graph-drawer-fieldset" disabled={sandboxMode}>
-                <legend className="graph-drawer-field-label">Regions</legend>
-                {sandboxMode ? (
-                  <p className="graph-details-text">Not editable in sandbox.</p>
-                ) : regionsCatalog.length === 0 ? (
-                  <p className="graph-details-text">Loading catalog…</p>
-                ) : (
-                  <div className="graph-drawer-region-checkboxes">
-                    {regionsCatalog.map((r) => (
-                      <label key={r.id} className="graph-drawer-checkbox-row">
-                        <input
-                          type="checkbox"
-                          checked={formState.regionCodes.includes(r.code)}
-                          onChange={() =>
-                            setFormState((prev) => ({
-                              ...prev,
-                              regionCodes: toggleSortedCode(prev.regionCodes, r.code),
-                            }))
-                          }
-                          disabled={isSaving || isDeleting}
-                        />
-                        <span>
-                          {r.code}
-                          {r.name ? ` — ${r.name}` : ''}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </fieldset>
-              <label className="graph-drawer-field">
-                <span className="graph-drawer-field-label">Year</span>
-                <input
-                  className="graph-drawer-input"
-                  type="number"
-                  inputMode="numeric"
-                  min={1970}
-                  max={2100}
-                  placeholder="Ex: 2025"
-                  value={formState.year}
-                  onChange={(e) =>
-                    setFormState((prev) => ({ ...prev, year: e.target.value }))
-                  }
-                  disabled={isSaving || isDeleting}
-                />
-              </label>
-              {formErrorMessage && (
-                <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
-                  {formErrorMessage}
-                </p>
-              )}
-              <div className="graph-drawer-form-actions">
-                <button
-                  type="submit"
-                  className="graph-drawer-action graph-drawer-action-primary"
-                  disabled={isSaving || isDeleting}
-                >
-                  <span className="graph-drawer-action-title">
-                    {isSaving ? 'Saving…' : 'Save'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="graph-drawer-action"
-                  onClick={onCancelEdit}
-                  disabled={isSaving || isDeleting}
-                >
-                  <span className="graph-drawer-action-title">Cancel</span>
-                </button>
-              </div>
-              {!showDeleteConfirm ? (
-                <button
-                  type="button"
-                  className="graph-drawer-action graph-drawer-action-danger"
-                  disabled={isSaving || isDeleting}
-                  onClick={() => {
-                    setDeleteErrorMessage(null);
-                    setShowDeleteConfirm(true);
-                  }}
-                >
-                  <span className="graph-drawer-action-title">Delete application</span>
-                  <span className="graph-drawer-action-meta" aria-hidden="true">
-                    {sandboxMode ? 'Local' : 'Neo4j'}
-                  </span>
-                </button>
-              ) : (
-                <div
-                  className="graph-details-delete-confirm"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby="graph-delete-confirm-title"
-                >
-                  <p id="graph-delete-confirm-title" className="graph-details-delete-confirm-title">
-                    {sandboxMode
-                      ? 'Remove this application from the sandbox graph? No database data will be changed.'
-                      : 'Delete this application? Modules linked via CONTAINS and attached edges will be permanently removed.'}
+          <>
+            {!isEditing ? (
+              <>
+                {saveSuccessMessage && (
+                  <p className="graph-drawer-feedback graph-drawer-feedback-success" role="status">
+                    {saveSuccessMessage}
                   </p>
-                  <div className="graph-details-delete-confirm-actions">
-                    <button
-                      type="button"
-                      className="graph-drawer-action graph-drawer-action-danger-solid"
-                      disabled={isDeleting}
-                      onClick={() => void onConfirmDelete()}
-                    >
-                      <span className="graph-drawer-action-title">
-                        {isDeleting ? 'Deleting…' : 'Confirm deletion'}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="graph-drawer-action"
-                      disabled={isDeleting}
-                      onClick={() => {
-                        setShowDeleteConfirm(false);
-                        setDeleteErrorMessage(null);
-                      }}
-                    >
-                      <span className="graph-drawer-action-title">Cancel</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-              {deleteErrorMessage && (
-                <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
-                  {deleteErrorMessage}
-                </p>
-              )}
-            </form>
-          )}
-        </>
-        )}
+                )}
+                <section className="graph-details-section">
+                  <h3 className="graph-details-section-title">Description</h3>
+                  <p className="graph-details-text">{description}</p>
+                </section>
 
-        <section className="graph-details-section">
-          <h3 className="graph-details-section-title">Contributors</h3>
-          {details?.contributors && details.contributors.length > 0 ? (
-            <>
-              {details.contributors.map((c) => (
-                <p key={c.id} className="graph-details-text">
-                  {[c.firstName, c.lastName].filter(Boolean).join(' ').trim() || '—'}
-                </p>
-              ))}
-            </>
-          ) : (
-            <p className="graph-details-text">No contributors linked to this application.</p>
-          )}
-        </section>
+                <section className="graph-details-section">
+                  <h3 className="graph-details-section-title">Attributes</h3>
+                  {readOnlyAttributes.length === 0 ? (
+                    <p className="graph-details-text">
+                      No application attribute configured. Add Data Model fields targeting
+                      Application (node) to describe this application.
+                    </p>
+                  ) : (
+                    <dl className="graph-details-attribute-list">
+                      {readOnlyAttributes.map((row) => (
+                        <div className="graph-details-attribute-row" key={row.key}>
+                          <dt className="graph-details-attribute-label">{row.label}</dt>
+                          <dd className="graph-details-text">
+                            {row.value.trim() ? row.value : 'Not provided'}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </section>
+
+                {nodeRefFields.length > 0 ? (
+                  <section className="graph-details-section">
+                    <h3 className="graph-details-section-title">References</h3>
+                    <dl className="graph-details-attribute-list">
+                      {readOnlyRefs.map((row) => (
+                        <div className="graph-details-attribute-row" key={row.key}>
+                          <dt className="graph-details-attribute-label">{row.label}</dt>
+                          <dd className="graph-details-text">
+                            {row.value.trim() ? row.value : 'Not provided'}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </section>
+                ) : null}
+              </>
+            ) : (
+              <form className="graph-drawer-form" onSubmit={onSave}>
+                <label className="graph-drawer-field">
+                  <span className="graph-drawer-field-label">Name</span>
+                  <input
+                    className="graph-drawer-input"
+                    type="text"
+                    value={formState.name}
+                    onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
+                    disabled={isSaving || isDeleting}
+                    required
+                  />
+                </label>
+                <label className="graph-drawer-field">
+                  <span className="graph-drawer-field-label">Description</span>
+                  <textarea
+                    className="graph-drawer-input graph-drawer-textarea"
+                    value={formState.description}
+                    onChange={(e) =>
+                      setFormState((prev) => ({ ...prev, description: e.target.value }))
+                    }
+                    rows={3}
+                    disabled={isSaving || isDeleting}
+                  />
+                </label>
+
+                {nodeFields.length > 0 ? (
+                  <fieldset className="graph-drawer-field graph-drawer-fieldset">
+                    <legend className="graph-drawer-field-label">Attributes</legend>
+                    {nodeFields.map((field) => renderAttributeInput(field))}
+                    <p className="graph-drawer-field-hint">
+                      Defined in the Data Model. Leave empty to clear the value.
+                    </p>
+                  </fieldset>
+                ) : (
+                  <p className="graph-details-text">
+                    No application attribute configured in the Data Model.
+                  </p>
+                )}
+
+                {nodeRefFields.length > 0 ? (
+                  <fieldset className="graph-drawer-field graph-drawer-fieldset">
+                    <legend className="graph-drawer-field-label">References</legend>
+                    {nodeRefFields.map((field) => renderRefInput(field))}
+                    <p className="graph-drawer-field-hint">
+                      Catalogue values from the Data Model. Clear selection to remove links.
+                    </p>
+                  </fieldset>
+                ) : null}
+
+                {formErrorMessage && (
+                  <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
+                    {formErrorMessage}
+                  </p>
+                )}
+                <div className="graph-drawer-form-actions">
+                  <button
+                    type="submit"
+                    className="graph-drawer-action graph-drawer-action-primary"
+                    disabled={isSaving || isDeleting}
+                  >
+                    <span className="graph-drawer-action-title">
+                      {isSaving ? 'Saving…' : 'Save'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="graph-drawer-action"
+                    onClick={onCancelEdit}
+                    disabled={isSaving || isDeleting}
+                  >
+                    <span className="graph-drawer-action-title">Cancel</span>
+                  </button>
+                </div>
+                {!showDeleteConfirm ? (
+                  <button
+                    type="button"
+                    className="graph-drawer-action graph-drawer-action-danger"
+                    disabled={isSaving || isDeleting}
+                    onClick={() => {
+                      setDeleteErrorMessage(null);
+                      setShowDeleteConfirm(true);
+                    }}
+                  >
+                    <span className="graph-drawer-action-title">Delete application</span>
+                    <span className="graph-drawer-action-meta" aria-hidden="true">
+                      {sandboxMode ? 'Local' : 'Neo4j'}
+                    </span>
+                  </button>
+                ) : (
+                  <div
+                    className="graph-details-delete-confirm"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="graph-delete-confirm-title"
+                  >
+                    <p
+                      id="graph-delete-confirm-title"
+                      className="graph-details-delete-confirm-title"
+                    >
+                      {sandboxMode
+                        ? 'Remove this application from the sandbox graph? No database data will be changed.'
+                        : 'Delete this application? Modules linked via CONTAINS and attached edges will be permanently removed.'}
+                    </p>
+                    <div className="graph-details-delete-confirm-actions">
+                      <button
+                        type="button"
+                        className="graph-drawer-action graph-drawer-action-danger-solid"
+                        disabled={isDeleting}
+                        onClick={() => void onConfirmDelete()}
+                      >
+                        <span className="graph-drawer-action-title">
+                          {isDeleting ? 'Deleting…' : 'Confirm deletion'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="graph-drawer-action"
+                        disabled={isDeleting}
+                        onClick={() => {
+                          setShowDeleteConfirm(false);
+                          setDeleteErrorMessage(null);
+                        }}
+                      >
+                        <span className="graph-drawer-action-title">Cancel</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {deleteErrorMessage && (
+                  <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
+                    {deleteErrorMessage}
+                  </p>
+                )}
+              </form>
+            )}
+          </>
+        )}
       </div>
 
       <div className="graph-details-actions">
@@ -658,10 +768,7 @@ export function ApplicationDetailsDrawer({
               <Link
                 className="github-import-inline-link"
                 to="/map"
-                state={moduleGraphMapState(
-                  application.id,
-                  details?.name ?? application.label
-                )}
+                state={moduleGraphMapState(application.id, details?.name ?? application.label)}
               >
                 View module graph
               </Link>
@@ -677,9 +784,7 @@ export function ApplicationDetailsDrawer({
             <button
               type="button"
               className="graph-drawer-action"
-              disabled={
-                suggestBusy || isDeleting || Boolean(details.hasModuleSubtree)
-              }
+              disabled={suggestBusy || isDeleting || Boolean(details.hasModuleSubtree)}
               title={
                 details.hasModuleSubtree
                   ? 'Modules are already linked to this application. AI suggestion cannot be run again.'
@@ -746,18 +851,7 @@ export function ApplicationDetailsDrawer({
             className="graph-drawer-action"
             onClick={() => {
               if (!details) return;
-              setFormErrorMessage(null);
-              setSaveSuccessMessage(null);
-              setShowDeleteConfirm(false);
-              setDeleteErrorMessage(null);
-              setFormState({
-                name: details.name ?? '',
-                description: details.description ?? '',
-                year: details.year != null ? String(details.year) : '',
-                businessUnitId: details.businessUnit?.id ?? '',
-                regionCodes: regionCodesFromDetail(details),
-              });
-              setIsEditing(true);
+              startEditing(details);
             }}
           >
             <span className="graph-drawer-action-title">Edit</span>
@@ -766,17 +860,4 @@ export function ApplicationDetailsDrawer({
       </div>
     </aside>
   );
-}
-
-function regionCodesFromDetail(data: ApplicationResponse): string[] {
-  if (!data.regions?.length) return [];
-  return [...data.regions.map((r) => r.code).filter(Boolean)].sort((a, b) =>
-    a.localeCompare(b, undefined, { sensitivity: 'base' })
-  );
-}
-
-function toggleSortedCode(codes: string[], code: string): string[] {
-  const next = codes.includes(code) ? codes.filter((c) => c !== code) : [...codes, code];
-  next.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-  return next;
 }

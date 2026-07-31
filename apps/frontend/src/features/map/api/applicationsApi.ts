@@ -62,12 +62,16 @@ export async function fetchApplicationById(applicationId: string): Promise<Appli
   return res.json();
 }
 
-export async function patchApplicationBusinessUnit(
+/**
+ * Updates the Data Model `target=NODE` attributes of an application. Only the submitted keys are
+ * touched; a blank value clears the property.
+ */
+export async function patchApplicationNodeAttributes(
   applicationId: string,
-  businessUnitId: string | null
+  attributes: Record<string, string>
 ): Promise<ApplicationResponse> {
   const url = resolveApiUrl(
-    `/api/applications/${encodeURIComponent(applicationId)}/business-unit`
+    `/api/applications/${encodeURIComponent(applicationId)}/node-attributes`
   );
   const res = await authenticatedFetch(url, {
     method: 'PATCH',
@@ -75,39 +79,40 @@ export async function patchApplicationBusinessUnit(
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ businessUnitId }),
+    body: JSON.stringify({ attributes }),
   });
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(
-      `Business unit link ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+      `Node attributes ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
     );
   }
 
   return res.json();
 }
 
-export async function patchApplicationRegions(
+/**
+ * Replaces CLASSIFIED_AS links for Data Model `target=NODE_REF` fields (catalogue ref ids).
+ */
+export async function patchApplicationNodeRefs(
   applicationId: string,
-  regionCodes: string[]
+  refs: Record<string, string[]>
 ): Promise<ApplicationResponse> {
-  const url = resolveApiUrl(
-    `/api/applications/${encodeURIComponent(applicationId)}/regions`
-  );
+  const url = resolveApiUrl(`/api/applications/${encodeURIComponent(applicationId)}/node-refs`);
   const res = await authenticatedFetch(url, {
     method: 'PATCH',
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ regionCodes }),
+    body: JSON.stringify({ refs }),
   });
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(
-      `Regions link ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+      `Node refs ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
     );
   }
 

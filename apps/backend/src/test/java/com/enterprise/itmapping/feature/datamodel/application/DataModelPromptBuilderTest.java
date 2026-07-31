@@ -219,6 +219,32 @@ class DataModelPromptBuilderTest {
     assertThat(nodePart).contains("node_only").doesNotContain("edge_only");
   }
 
+  @Test
+  void buildsNodeRefSectionWithClosedCatalogue() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "tier_ref",
+                    "Tier ref",
+                    "",
+                    "Pick from catalogue",
+                    List.of("GOLD", "SILVER"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE_REF,
+                    true)));
+
+    String section = builder.buildPromptSection(config);
+
+    assertThat(section).contains("NODE_REF");
+    assertThat(section).contains("node_refs");
+    assertThat(section).contains("tier_ref");
+    assertThat(section).contains("GOLD");
+    assertThat(section).contains("SILVER");
+  }
+
   private static DataModelField field(String key, String label) {
     return new DataModelField(key, label, "", "", List.of(), false, false);
   }

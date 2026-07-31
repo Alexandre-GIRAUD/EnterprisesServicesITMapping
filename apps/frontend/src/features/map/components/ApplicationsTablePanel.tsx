@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { ApplicationResponse, GraphNodeDto } from '@/types/api';
+import type { ApplicationResponse, GraphNodeDto, GraphNodeFilterDto } from '@/types/api';
 import { isSandboxId } from '../utils/sandboxGraph';
 
 type ApplicationsTablePanelProps = {
@@ -8,13 +8,11 @@ type ApplicationsTablePanelProps = {
   status: 'loading' | 'ready' | 'error';
   nodes: GraphNodeDto[];
   applicationsCatalog: ApplicationResponse[];
+  /** Data Model target=NODE dimensions; one extra column per field. */
+  nodeFilters: GraphNodeFilterDto[];
   errorMessage?: string | null;
   onRowClick: (id: string, label: string) => void;
 };
-
-function formatYear(value: number | null | undefined): string {
-  return value != null ? String(value) : '—';
-}
 
 function dash(value: string | null | undefined): string {
   const t = value?.trim();
@@ -27,6 +25,7 @@ export function ApplicationsTablePanel({
   status,
   nodes,
   applicationsCatalog,
+  nodeFilters,
   errorMessage,
   onRowClick,
 }: ApplicationsTablePanelProps) {
@@ -43,15 +42,11 @@ export function ApplicationsTablePanel({
       .filter((n) => n.type === 'Application')
       .map((n) => {
         const detail = catalogById.get(n.id);
-        const regions =
-          detail?.regions?.map((r) => r.code).filter(Boolean).join(', ') ?? '';
         return {
           id: n.id,
           name: n.label || n.id,
           description: n.description ?? detail?.description,
-          year: n.year ?? detail?.year,
-          businessUnit: detail?.businessUnit?.name ?? detail?.businessUnit?.code,
-          regions,
+          attributes: n.properties ?? detail?.nodeAttributes ?? {},
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
@@ -92,9 +87,11 @@ export function ApplicationsTablePanel({
                 <th scope="col">Name</th>
                 <th scope="col">ID</th>
                 <th scope="col">Description</th>
-                <th scope="col">Business unit</th>
-                <th scope="col">Regions</th>
-                <th scope="col">Year</th>
+                {nodeFilters.map((dimension) => (
+                  <th scope="col" key={dimension.key}>
+                    {dimension.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -120,9 +117,9 @@ export function ApplicationsTablePanel({
                     </code>
                   </td>
                   <td>{dash(row.description)}</td>
-                  <td>{dash(row.businessUnit)}</td>
-                  <td>{dash(row.regions)}</td>
-                  <td>{formatYear(row.year)}</td>
+                  {nodeFilters.map((dimension) => (
+                    <td key={dimension.key}>{dash(row.attributes[dimension.key])}</td>
+                  ))}
                 </tr>
               ))}
             </tbody>
