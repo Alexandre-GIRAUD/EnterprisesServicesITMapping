@@ -79,7 +79,7 @@ export function FeedsTablePanel({
       id="graph-feeds-table-panel"
       className={panelClass}
       role="region"
-      aria-label="Graph feeds table"
+      aria-label="Flows table"
     >
       {status === 'loading' && (
         <p className="graph-table-message" role="status">
@@ -92,11 +92,11 @@ export function FeedsTablePanel({
         </p>
       )}
       {status === 'ready' && rows.length === 0 && (
-        <p className="graph-table-message">No feeds to display.</p>
+        <p className="graph-table-message">No flows to display.</p>
       )}
       {status === 'ready' && rows.length > 0 && (
         <div className="graph-table-scroll">
-          <table className="graph-table" aria-label="Graph feeds">
+          <table className="graph-table" aria-label="Flows">
             <thead>
               <tr>
                 <th scope="col">Source</th>

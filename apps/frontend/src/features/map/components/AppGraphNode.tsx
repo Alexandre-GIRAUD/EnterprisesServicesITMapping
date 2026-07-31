@@ -4,6 +4,8 @@ import { ZOOM_THRESHOLDS, nodeColorForType } from './graphTheme';
 export type AppGraphNodeData = {
   label: string;
   nodeType: string;
+  /** Collapse this application into an indirect flow (application graph only). */
+  onHide?: () => void;
 };
 
 export type AppGraphNodeType = Node<AppGraphNodeData, 'app'>;
@@ -26,6 +28,24 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
       <Handle type="target" position={Position.Left}   id="left-t"   className="graph-node-handle" isConnectable={false} />
       <Handle type="source" position={Position.Right}  id="right-s"  className="graph-node-handle" isConnectable={false} />
       <Handle type="target" position={Position.Right}  id="right-t"  className="graph-node-handle" isConnectable={false} />
+      {data.onHide ? (
+        <button
+          type="button"
+          className="graph-node-hide nodrag nopan"
+          aria-label="Hide application"
+          title="Hide application"
+          onMouseDown={(event) => {
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            data.onHide?.();
+          }}
+        >
+          −
+        </button>
+      ) : null}
       <span
         className={`graph-node-card__label${labelVisible ? '' : ' is-hidden'}`}
         title={data.label}

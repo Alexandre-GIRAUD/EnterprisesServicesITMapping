@@ -139,11 +139,12 @@ export function useGraphData({
     });
   }, [colorPropertyKey, status, setEdges]);
 
-  // Fit the full diagram once nodes are rendered (double rAF inside fitGraphView).
+  // Fit the full diagram after an initial/reload layout only — not when
+  // nodes.length changes due to hide/restore (those must keep the viewport).
   useEffect(() => {
-    if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
+    if (status !== 'ready' || layoutRevision === 0) return;
     fitGraphView(rfRef.current);
-  }, [status, nodes.length, layoutRevision, rfRef]);
+  }, [status, layoutRevision, rfRef]);
 
   useEffect(() => {
     let cancelled = false;

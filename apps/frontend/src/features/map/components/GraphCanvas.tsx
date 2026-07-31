@@ -23,6 +23,8 @@ import type {
   GraphEdgeCreateResponse,
   GraphEdgeDto,
   GraphNodeFilterDto,
+  GraphNodePosition,
+  GraphSnapshotFilters,
 } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
 import { fetchGraphNodeFilters } from '../api/graphApi';
@@ -55,10 +57,21 @@ import { ApplicationModuleGraph } from './ApplicationModuleGraph';
 import type { ApplicationUpdatePatch } from './ApplicationDetailsDrawer';
 import { SelfServiceBurger, SelfServiceSideMenu, type SideMenuTool } from './SelfServiceSideMenu';
 import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle';
-import { fitGraphView } from './fitGraphView';
+import { TableContentToggle, type TableContentMode } from './TableContentToggle';
+import { fitGraphView, ensureNodesVisible } from './fitGraphView';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
+import { HiddenAppsPicker } from './HiddenAppsPicker';
+import {
+  layoutCollapsedAppGraph,
+  type NodePositionsMap,
+} from './layoutCollapsedAppGraph';
+
+type PendingViewRestore = {
+  hiddenApplicationIds: string[];
+  nodePositions: NodePositionsMap;
+};
 
 type SelectedApplication = {
   id: string;
@@ -98,8 +111,33 @@ export function GraphCanvas() {
   const [isSaveSnapshotOpen, setIsSaveSnapshotOpen] = useState(false);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [displayMode, setDisplayMode] = useState<GraphDisplayMode>('graph');
+  const [tableContent, setTableContent] = useState<TableContentMode>('apps');
   const [moduleGraphApp, setModuleGraphApp] = useState<{ id: string; label: string } | null>(null);
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
+  /** Local-only collapse set; tables keep using the full graph DTOs. */
+  const hiddenNodeIdsRef = useRef<Set<string>>(new Set());
+  /** Last canvas position of each hidden app (used when restoring without moving others). */
+  const lastHiddenPositionsRef = useRef<NodePositionsMap>({});
+  /** Drives re-render of the global “+” when the hidden set changes. */
+  const [hiddenCount, setHiddenCount] = useState(0);
+  const [hiddenIdsSnapshot, setHiddenIdsSnapshot] = useState<string[]>([]);
+  /** Queued restore from My views — applied after graph fetch reaches ready. */
+  const pendingViewRestoreRef = useRef<PendingViewRestore | null>(null);
+  const prevGraphStatusRef = useRef<'loading' | 'ready' | 'error'>('loading');
+  const collapseGenerationRef = useRef(0);
+  const skipCollapseResetRef = useRef(true);
+  const collapseHandlersRef = useRef<{
+    hideNode: (nodeId: string) => void;
+    expandHidden: (ids: string[]) => void;
+  }>({
+    hideNode: () => undefined,
+    expandHidden: () => undefined,
+  });
+
+  const syncHiddenUi = useCallback((next: Set<string>) => {
+    setHiddenCount(next.size);
+    setHiddenIdsSnapshot([...next]);
+  }, []);
 
   const setWorkspacePanelOpen = useCallback((value: SetStateAction<boolean>) => {
     if (typeof value === 'function') {
@@ -202,7 +240,9 @@ export function GraphCanvas() {
     if (!state?.applySnapshot && !state?.graphMode) return;
 
     if (state.applySnapshot) {
+      queueViewRestore(state.applySnapshot);
       applyGraphFilters(state.applySnapshot);
+      reloadGraph();
     }
 
     if (state.graphMode === 'normal') {
@@ -234,14 +274,213 @@ export function GraphCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- react to navigation state only
   }, [location.state, applyGraphFilters, navigate, sandboxDirty]);
 
+  function queueViewRestore(snapshot: GraphSnapshotFilters) {
+    const positions: NodePositionsMap = {};
+    const rawPositions = snapshot.nodePositions ?? {};
+    for (const [id, pos] of Object.entries(rawPositions)) {
+      if (
+        pos &&
+        typeof pos.x === 'number' &&
+        typeof pos.y === 'number' &&
+        Number.isFinite(pos.x) &&
+        Number.isFinite(pos.y)
+      ) {
+        positions[id] = { x: pos.x, y: pos.y };
+      }
+    }
+    pendingViewRestoreRef.current = {
+      hiddenApplicationIds: [...(snapshot.hiddenApplicationIds ?? [])],
+      nodePositions: positions,
+    };
+  }
+
   async function handleSaveSnapshot(name: string) {
-    await createGraphSnapshot(name, currentGraphFilters);
+    const nodePositions: Record<string, GraphNodePosition> = {};
+    for (const n of nodes) {
+      nodePositions[n.id] = { x: n.position.x, y: n.position.y };
+    }
+    await createGraphSnapshot(name, {
+      ...currentGraphFilters,
+      hiddenApplicationIds: [...hiddenNodeIdsRef.current],
+      nodePositions,
+    });
     refreshSnapshots();
     setMessage(`View "${name}" saved.`);
   }
 
+  const applySavedView = useCallback(
+    (snapshotFilters: GraphSnapshotFilters) => {
+      queueViewRestore(snapshotFilters);
+      applyGraphFilters(snapshotFilters);
+      reloadGraph();
+    },
+    [applyGraphFilters, reloadGraph]
+  );
+
   const nodeTypes = useMemo<NodeTypes>(() => ({ app: AppGraphNode }), []);
   const edgeTypes = useMemo<EdgeTypes>(() => ({ oriented: OrientedEdge }), []);
+
+  const captureVisiblePositions = useCallback((): NodePositionsMap => {
+    const map: NodePositionsMap = {};
+    const source = rfRef.current?.getNodes() ?? nodes;
+    for (const n of source) {
+      map[n.id] = { x: n.position.x, y: n.position.y };
+    }
+    return map;
+  }, [nodes]);
+
+  const relayoutCollapsed = useCallback(
+    async (
+      nextHidden: ReadonlySet<string>,
+      nodePositions?: NodePositionsMap,
+      options?: { fitView?: boolean; ensureVisibleNodeIds?: string[] }
+    ) => {
+      if (status !== 'ready' || graphNodes.length === 0) return;
+      const gen = ++collapseGenerationRef.current;
+      const rect = containerRef.current?.getBoundingClientRect();
+      const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
+      const laid = await layoutCollapsedAppGraph({
+        graphNodes,
+        graphEdges,
+        hiddenNodeIds: nextHidden,
+        colorPropertyKey,
+        aspectRatio,
+        nodePositions,
+        handlers: {
+          onHideNode: (id) => collapseHandlersRef.current.hideNode(id),
+          onExpandHidden: (ids) => collapseHandlersRef.current.expandHidden(ids),
+        },
+      });
+      if (gen !== collapseGenerationRef.current) return;
+      setNodes(laid.nodes);
+      setEdges(laid.edges);
+      if (options?.fitView) {
+        window.setTimeout(() => fitGraphView(rfRef.current, { duration: 200 }), 40);
+      } else if (options?.ensureVisibleNodeIds && options.ensureVisibleNodeIds.length > 0) {
+        const ids = options.ensureVisibleNodeIds;
+        const hints = laid.nodes.filter((n) => ids.includes(n.id));
+        window.setTimeout(() => {
+          ensureNodesVisible(rfRef.current, containerRef.current, ids, { nodeHints: hints });
+        }, 40);
+      }
+    },
+    [status, graphNodes, graphEdges, colorPropertyKey, setNodes, setEdges]
+  );
+
+  const hideNode = useCallback(
+    (nodeId: string) => {
+      if (hiddenNodeIdsRef.current.has(nodeId)) return;
+      const preserved = captureVisiblePositions();
+      const hidingPos = preserved[nodeId];
+      if (hidingPos) {
+        lastHiddenPositionsRef.current[nodeId] = hidingPos;
+      }
+      const next = new Set(hiddenNodeIdsRef.current);
+      next.add(nodeId);
+      hiddenNodeIdsRef.current = next;
+      syncHiddenUi(next);
+      setHoveredId((prev) => (prev === nodeId ? null : prev));
+      setPinnedId((prev) => (prev === nodeId ? null : prev));
+      void relayoutCollapsed(next, preserved);
+    },
+    [captureVisiblePositions, relayoutCollapsed, syncHiddenUi]
+  );
+
+  const expandHidden = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return;
+      const next = new Set(hiddenNodeIdsRef.current);
+      const restoredIds: string[] = [];
+      for (const id of ids) {
+        if (next.delete(id)) restoredIds.push(id);
+      }
+      if (restoredIds.length === 0) return;
+      const preserved = captureVisiblePositions();
+      for (const id of restoredIds) {
+        const cached = lastHiddenPositionsRef.current[id];
+        if (cached) preserved[id] = cached;
+      }
+      hiddenNodeIdsRef.current = next;
+      syncHiddenUi(next);
+      void relayoutCollapsed(next, preserved, { ensureVisibleNodeIds: restoredIds });
+    },
+    [captureVisiblePositions, relayoutCollapsed, syncHiddenUi]
+  );
+
+  const hiddenAppOptions = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const node of graphNodes) {
+      labels.set(node.id, node.label);
+    }
+    for (const app of applications) {
+      if (!labels.has(app.id)) labels.set(app.id, app.name);
+    }
+    return hiddenIdsSnapshot.map((id) => ({
+      id,
+      label: labels.get(id) ?? id,
+    }));
+  }, [hiddenIdsSnapshot, graphNodes, applications]);
+
+  collapseHandlersRef.current = { hideNode, expandHidden };
+
+  // Reset collapse on mode change / graph reload — but keep a pending view restore.
+  useEffect(() => {
+    if (skipCollapseResetRef.current) {
+      skipCollapseResetRef.current = false;
+      return;
+    }
+    collapseGenerationRef.current += 1;
+    if (pendingViewRestoreRef.current != null) {
+      hiddenNodeIdsRef.current = new Set();
+      lastHiddenPositionsRef.current = {};
+      syncHiddenUi(new Set());
+      return;
+    }
+    const hadHidden = hiddenNodeIdsRef.current.size > 0;
+    hiddenNodeIdsRef.current = new Set();
+    lastHiddenPositionsRef.current = {};
+    if (hadHidden) {
+      syncHiddenUi(new Set());
+      void relayoutCollapsed(new Set());
+    }
+  }, [graphMode, graphReloadNonce, relayoutCollapsed, syncHiddenUi]);
+
+  // Apply queued My-views restore only on loading→ready (avoids applying to the stale graph).
+  useEffect(() => {
+    const prevStatus = prevGraphStatusRef.current;
+    prevGraphStatusRef.current = status;
+
+    if (status === 'error' && pendingViewRestoreRef.current != null) {
+      pendingViewRestoreRef.current = null;
+      return;
+    }
+
+    if (status !== 'ready' || prevStatus !== 'loading') return;
+
+    const pending = pendingViewRestoreRef.current;
+    if (pending == null) return;
+    pendingViewRestoreRef.current = null;
+
+    const existing = new Set(graphNodes.map((n) => n.id));
+    const nextHidden = new Set(
+      pending.hiddenApplicationIds.filter((id) => existing.has(id))
+    );
+    const nextPositions: NodePositionsMap = {};
+    for (const [id, pos] of Object.entries(pending.nodePositions)) {
+      if (existing.has(id) && !nextHidden.has(id)) {
+        nextPositions[id] = pos;
+      }
+    }
+
+    hiddenNodeIdsRef.current = nextHidden;
+    syncHiddenUi(nextHidden);
+    lastHiddenPositionsRef.current = {};
+    void relayoutCollapsed(
+      nextHidden,
+      Object.keys(nextPositions).length > 0 ? nextPositions : undefined,
+      { fitView: true }
+    );
+  }, [status, graphNodes, graphEdges, relayoutCollapsed, syncHiddenUi]);
 
   // Focus neighborhood for hover/selection dimming (null = nothing focused).
   const focus = useMemo(
@@ -250,10 +489,18 @@ export function GraphCanvas() {
   );
 
   const displayNodes = useMemo(() => {
-    if (!focus) return nodes;
     return nodes.map((n) => ({
       ...n,
-      className: `graph-node ${focus.nodeIds.has(n.id) ? 'is-focus' : 'is-faded'}`,
+      data: {
+        ...n.data,
+        onHide:
+          n.data.nodeType === 'Application'
+            ? () => collapseHandlersRef.current.hideNode(n.id)
+            : undefined,
+      },
+      className: focus
+        ? `graph-node ${focus.nodeIds.has(n.id) ? 'is-focus' : 'is-faded'}`
+        : n.className,
     }));
   }, [nodes, focus]);
 
@@ -550,7 +797,7 @@ export function GraphCanvas() {
     if (moduleGraphApp) return `Modules — ${moduleGraphApp.label}`;
     if (isViewsMode) return 'My views';
     if (isSandbox) return 'Sandbox';
-    return 'Production View';
+    return 'Production';
   }, [moduleGraphApp, isViewsMode, isSandbox]);
 
   const tabDescription = useMemo(() => {
@@ -558,7 +805,7 @@ export function GraphCanvas() {
       return 'Module dependency tree for this application. Double-click a module to explore further.';
     }
     if (isViewsMode) {
-      return 'Pinned filter sets. Select a view to apply it to the graph.';
+      return 'Saved views (filters, hidden apps, layout). Select a view to apply it to the graph.';
     }
     if (status === 'loading') return 'Loading graph…';
     if (status === 'error') return message;
@@ -630,7 +877,7 @@ export function GraphCanvas() {
               filters.setNodeRefs(refs);
             }}
             showPinView={isExplorer}
-            pinViewDisabled={!filtersActive}
+            pinViewDisabled={status !== 'ready'}
             onPinView={() => setIsSaveSnapshotOpen(true)}
           />
         );
@@ -699,12 +946,7 @@ export function GraphCanvas() {
         <div className="map-graph-body">
           <div className="graph-stage">
             {isViewsMode ? (
-              <GraphViewsPanel
-                onApply={(snapshotFilters) => {
-                  applyGraphFilters(snapshotFilters);
-                  reloadGraph();
-                }}
-              />
+              <GraphViewsPanel onApply={applySavedView} />
             ) : moduleGraphApp ? (
             <div className="graph-module-drilldown" role="tabpanel" aria-label="Application module graph">
               <div className="module-map-toolbar">
@@ -765,40 +1007,51 @@ export function GraphCanvas() {
                     colorPropertyOptions={legendColorPropertyOptions}
                     onColorPropertyChange={handleColorPropertyChange}
                     colorValues={legendColorValues}
+                    showIndirectFlow
                   />
                 </Panel>
+                {hiddenCount > 0 ? (
+                  <Panel position="top-right">
+                    <HiddenAppsPicker
+                      hiddenIds={hiddenIdsSnapshot}
+                      options={hiddenAppOptions}
+                      onShow={expandHidden}
+                    />
+                  </Panel>
+                ) : null}
               </ReactFlow>
             </div>
             ) : (
               <div className="graph-tables-view">
-                <section className="graph-table-section" aria-labelledby="graph-apps-table-heading">
-                  <h3 id="graph-apps-table-heading" className="graph-table-section-title">
-                    Applications
-                  </h3>
-                  <ApplicationsTablePanel
-                    isOpen
-                    variant="main"
-                    status={status}
-                    nodes={graphNodes}
-                    applicationsCatalog={applications}
-                    nodeFilters={nodeFilters}
-                    errorMessage={status === 'error' ? message : null}
-                    onRowClick={openApplicationDetails}
-                  />
-                </section>
-                <section className="graph-table-section" aria-labelledby="graph-feeds-table-heading">
-                  <h3 id="graph-feeds-table-heading" className="graph-table-section-title">
-                    Feeds
-                  </h3>
-                  <FeedsTablePanel
-                    isOpen
-                    variant="main"
-                    status={status}
-                    edges={graphEdges}
-                    nodes={graphNodes}
-                    errorMessage={status === 'error' ? message : null}
-                    onRowClick={openApplicationDetails}
-                  />
+                <section
+                  className="graph-table-section graph-table-section--single"
+                  aria-label={tableContent === 'apps' ? 'Apps' : 'Flows'}
+                >
+                  <div className="graph-table-section-heading">
+                    <TableContentToggle value={tableContent} onChange={setTableContent} />
+                  </div>
+                  {tableContent === 'apps' ? (
+                    <ApplicationsTablePanel
+                      isOpen
+                      variant="main"
+                      status={status}
+                      nodes={graphNodes}
+                      applicationsCatalog={applications}
+                      nodeFilters={nodeFilters}
+                      errorMessage={status === 'error' ? message : null}
+                      onRowClick={openApplicationDetails}
+                    />
+                  ) : (
+                    <FeedsTablePanel
+                      isOpen
+                      variant="main"
+                      status={status}
+                      edges={graphEdges}
+                      nodes={graphNodes}
+                      errorMessage={status === 'error' ? message : null}
+                      onRowClick={openApplicationDetails}
+                    />
+                  )}
                 </section>
               </div>
             )}

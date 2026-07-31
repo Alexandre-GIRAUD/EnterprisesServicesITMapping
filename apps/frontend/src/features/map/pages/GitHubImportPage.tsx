@@ -206,7 +206,7 @@ export function GitHubImportPage() {
       <header className="github-import-header">
         <div>
           <p className="github-import-eyebrow">Integrations</p>
-          <h1 className="github-import-title">Import</h1>
+          <h1 className="github-import-title">Sources</h1>
           <p className="github-import-subtitle">
             Repositories are listed via the backend (token{' '}
             <code className="github-import-code">GITHUB_TOKEN</code>). Check the
