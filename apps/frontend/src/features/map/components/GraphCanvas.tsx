@@ -213,10 +213,33 @@ export function GraphCanvas() {
     graphEdges,
     setGraphEdges,
     colorPropertyKey,
+    labelPropertyKey,
+    appFillKey,
+    appBorderKey,
     handleColorPropertyChange,
+    handleLabelPropertyChange,
+    handleAppFillChange,
+    handleAppBorderChange,
     legendColorPropertyOptions,
+    legendLabelPropertyOptions,
+    legendAppPropertyOptions,
     legendColorValues,
+    legendFillValues,
+    legendBorderValues,
   } = data;
+
+  const legendCodingRef = useRef({
+    colorPropertyKey,
+    labelPropertyKey,
+    appFillKey,
+    appBorderKey,
+  });
+  legendCodingRef.current = {
+    colorPropertyKey,
+    labelPropertyKey,
+    appFillKey,
+    appBorderKey,
+  };
 
   const graphAppsForDrawer = useMemo(
     () =>
@@ -339,11 +362,14 @@ export function GraphCanvas() {
       const gen = ++collapseGenerationRef.current;
       const rect = containerRef.current?.getBoundingClientRect();
       const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
+      const coding = legendCodingRef.current;
       const laid = await layoutCollapsedAppGraph({
         graphNodes,
         graphEdges,
         hiddenNodeIds: nextHidden,
-        colorPropertyKey,
+        colorPropertyKey: coding.colorPropertyKey,
+        labelPropertyKey: coding.labelPropertyKey,
+        nodeCoding: { appFillKey: coding.appFillKey, appBorderKey: coding.appBorderKey },
         aspectRatio,
         nodePositions,
         handlers: {
@@ -364,7 +390,7 @@ export function GraphCanvas() {
         }, 40);
       }
     },
-    [status, graphNodes, graphEdges, colorPropertyKey, setNodes, setEdges]
+    [status, graphNodes, graphEdges, setNodes, setEdges]
   );
 
   const hideNode = useCallback(
@@ -703,7 +729,15 @@ export function GraphCanvas() {
       return [
         ...prev,
         {
-          ...buildAppNode({ id: created.id, label: created.name, type: 'Application' }),
+          ...buildAppNode(
+            {
+              id: created.id,
+              label: created.name,
+              type: 'Application',
+              properties: created.nodeAttributes ?? {},
+            },
+            { appFillKey, appBorderKey }
+          ),
           position,
         },
       ];
@@ -744,7 +778,7 @@ export function GraphCanvas() {
     setGraphEdges((prev) => (prev.some((e) => e.id === created.id) ? prev : [...prev, createdEdge]));
     setEdges((prev) => {
       if (prev.some((e) => e.id === created.id)) return prev;
-      return [...prev, buildAppEdge(createdEdge, typeById, colorPropertyKey)];
+      return [...prev, buildAppEdge(createdEdge, typeById, colorPropertyKey, labelPropertyKey)];
     });
     return null;
   }
@@ -1007,6 +1041,17 @@ export function GraphCanvas() {
                     colorPropertyOptions={legendColorPropertyOptions}
                     onColorPropertyChange={handleColorPropertyChange}
                     colorValues={legendColorValues}
+                    labelPropertyKey={labelPropertyKey}
+                    labelPropertyOptions={legendLabelPropertyOptions}
+                    onLabelPropertyChange={handleLabelPropertyChange}
+                    appFillKey={appFillKey}
+                    appFillOptions={legendAppPropertyOptions}
+                    onAppFillChange={handleAppFillChange}
+                    fillValues={legendFillValues}
+                    appBorderKey={appBorderKey}
+                    appBorderOptions={legendAppPropertyOptions}
+                    onAppBorderChange={handleAppBorderChange}
+                    borderValues={legendBorderValues}
                     showIndirectFlow
                   />
                 </Panel>

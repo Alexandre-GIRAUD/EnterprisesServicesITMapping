@@ -22,10 +22,21 @@ import { elkLayout } from '../components/elkLayout';
 import { computeBridges } from '../components/bridges';
 import {
   collectLegendColorValues,
+  collectNodeLegendValues,
   colorPropertyOptions,
+  loadStoredAppBorderKey,
+  loadStoredAppFillKey,
   loadStoredColorPropertyKey,
+  loadStoredLabelPropertyKey,
+  nodeBorderColor,
+  nodeFillColor,
+  nodePropertyOptions,
   resolveColorPropertyKey,
+  resolveNodePropertyKey,
+  storeAppBorderKey,
+  storeAppFillKey,
   storeColorPropertyKey,
+  storeLabelPropertyKey,
 } from '../components/edgeColorProperty';
 import type { AppGraphNodeType } from '../components/AppGraphNode';
 import {
@@ -43,12 +54,27 @@ export const NODE_WIDTH = 160;
 export const NODE_HEIGHT = 48;
 export const GRID = 16;
 
-export function buildAppNode(node: GraphNodeDto): AppNode {
+export type NodeCodingKeys = {
+  appFillKey: string;
+  appBorderKey: string;
+};
+
+/** Build RF node with visual-only fill/border (reads DTO; never writes properties). */
+export function buildAppNode(node: GraphNodeDto, coding?: NodeCodingKeys): AppNode {
   return {
     id: node.id,
     type: 'app',
     position: { x: 0, y: 0 },
-    data: { label: node.label, nodeType: node.type },
+    data: {
+      label: node.label,
+      nodeType: node.type,
+      ...(coding
+        ? {
+            fillColor: nodeFillColor(node, coding.appFillKey),
+            borderColor: nodeBorderColor(node, coding.appBorderKey),
+          }
+        : {}),
+    },
     className: 'graph-node',
   };
 }
@@ -56,7 +82,8 @@ export function buildAppNode(node: GraphNodeDto): AppNode {
 export function buildAppEdge(
   edge: GraphEdgeDto,
   typeById: Map<string, string>,
-  colorPropertyKey: string
+  colorPropertyKey: string,
+  labelPropertyKey = 'data'
 ) {
   return buildOrientedEdge({
     id: edge.id,
@@ -65,9 +92,30 @@ export function buildAppEdge(
     relationType: edge.type,
     dataLabel: edge.data,
     colorPropertyKey,
+    labelPropertyKey,
     properties: edge.properties,
     sourceNodeType: typeById.get(edge.sourceId) ?? 'Application',
     targetNodeType: typeById.get(edge.targetId) ?? 'Application',
+  });
+}
+
+function applyNodeCoding(
+  nodes: AppNode[],
+  graphNodes: GraphNodeDto[],
+  coding: NodeCodingKeys
+): AppNode[] {
+  const byId = new Map(graphNodes.map((n) => [n.id, n]));
+  return nodes.map((node) => {
+    const dto = byId.get(node.id);
+    if (!dto) return node;
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        fillColor: nodeFillColor(dto, coding.appFillKey),
+        borderColor: nodeBorderColor(dto, coding.appBorderKey),
+      },
+    };
   });
 }
 
@@ -86,9 +134,7 @@ type UseGraphDataParams = {
 };
 
 /**
- * Owns the React Flow node/edge state and the data pipeline: fetch graph for
- * the active filters, run ELK (with a dagre fallback) layout, then expose the
- * laid-out graph plus the color-property legend state.
+ * Graph fetch + layout + legend coding (display-only; never mutates DTO properties).
  */
 export function useGraphData({
   applicationIds,
@@ -110,37 +156,79 @@ export function useGraphData({
   const [graphEdges, setGraphEdges] = useState<GraphEdgeDto[]>([]);
   const graphEdgesRef = useRef(graphEdges);
   graphEdgesRef.current = graphEdges;
+  const graphNodesRef = useRef(graphNodes);
+  graphNodesRef.current = graphNodes;
+
   const [colorPropertyKey, setColorPropertyKey] = useState(loadStoredColorPropertyKey);
+  const [labelPropertyKey, setLabelPropertyKey] = useState(loadStoredLabelPropertyKey);
+  const [appFillKey, setAppFillKey] = useState(loadStoredAppFillKey);
+  const [appBorderKey, setAppBorderKey] = useState(loadStoredAppBorderKey);
   const [layoutRevision, setLayoutRevision] = useState(0);
 
   const legendColorPropertyOptions = useMemo(
     () => colorPropertyOptions(graphEdges),
     [graphEdges]
   );
+  const legendLabelPropertyOptions = legendColorPropertyOptions;
+  const legendAppPropertyOptions = useMemo(
+    () => nodePropertyOptions(graphNodes),
+    [graphNodes]
+  );
+
   const legendColorValues = useMemo(
     () => collectLegendColorValues(graphEdges, colorPropertyKey),
     [graphEdges, colorPropertyKey]
+  );
+  const legendFillValues = useMemo(
+    () => collectNodeLegendValues(graphNodes, appFillKey),
+    [graphNodes, appFillKey]
+  );
+  const legendBorderValues = useMemo(
+    () => collectNodeLegendValues(graphNodes, appBorderKey),
+    [graphNodes, appBorderKey]
   );
 
   const handleColorPropertyChange = useCallback((key: string) => {
     setColorPropertyKey(key);
     storeColorPropertyKey(key);
   }, []);
+  const handleLabelPropertyChange = useCallback((key: string) => {
+    setLabelPropertyKey(key);
+    storeLabelPropertyKey(key);
+  }, []);
+  const handleAppFillChange = useCallback((key: string) => {
+    setAppFillKey(key);
+    storeAppFillKey(key);
+  }, []);
+  const handleAppBorderChange = useCallback((key: string) => {
+    setAppBorderKey(key);
+    storeAppBorderKey(key);
+  }, []);
 
-  // Re-stroke edges when the user picks another color property (keep ELK routes).
   useEffect(() => {
     if (status !== 'ready') return;
     setEdges((prev) => {
       if (prev.length === 0) return prev;
       const byId = new Map(graphEdgesRef.current.map((edge) => [edge.id, edge]));
       return prev.map((edge) =>
-        restyleEdgeColorProperty(edge as OrientedEdgeType, colorPropertyKey, byId.get(edge.id))
+        restyleEdgeColorProperty(
+          edge as OrientedEdgeType,
+          colorPropertyKey,
+          byId.get(edge.id),
+          labelPropertyKey
+        )
       );
     });
-  }, [colorPropertyKey, status, setEdges]);
+  }, [colorPropertyKey, labelPropertyKey, status, setEdges]);
 
-  // Fit the full diagram after an initial/reload layout only — not when
-  // nodes.length changes due to hide/restore (those must keep the viewport).
+  useEffect(() => {
+    if (status !== 'ready') return;
+    setNodes((prev) => {
+      if (prev.length === 0) return prev;
+      return applyNodeCoding(prev, graphNodesRef.current, { appFillKey, appBorderKey });
+    });
+  }, [appFillKey, appBorderKey, status, setNodes]);
+
   useEffect(() => {
     if (status !== 'ready' || layoutRevision === 0) return;
     fitGraphView(rfRef.current);
@@ -162,20 +250,42 @@ export function useGraphData({
 
         setGraphNodes(data.nodes);
         setGraphEdges(data.edges);
+
         const effectiveColorKey = resolveColorPropertyKey(colorPropertyKey, data.edges);
+        const effectiveLabelKey = resolveColorPropertyKey(labelPropertyKey, data.edges);
+        const effectiveFillKey = resolveNodePropertyKey(appFillKey, data.nodes);
+        const effectiveBorderKey = resolveNodePropertyKey(appBorderKey, data.nodes);
+
         if (effectiveColorKey !== colorPropertyKey) {
           setColorPropertyKey(effectiveColorKey);
           storeColorPropertyKey(effectiveColorKey);
         }
+        if (effectiveLabelKey !== labelPropertyKey) {
+          setLabelPropertyKey(effectiveLabelKey);
+          storeLabelPropertyKey(effectiveLabelKey);
+        }
+        if (effectiveFillKey !== appFillKey) {
+          setAppFillKey(effectiveFillKey);
+          storeAppFillKey(effectiveFillKey);
+        }
+        if (effectiveBorderKey !== appBorderKey) {
+          setAppBorderKey(effectiveBorderKey);
+          storeAppBorderKey(effectiveBorderKey);
+        }
 
         const typeById = new Map(data.nodes.map((n) => [n.id, n.type]));
-        const baseNodes = data.nodes.map(buildAppNode);
-        const builtEdges = data.edges.map((e) => buildAppEdge(e, typeById, effectiveColorKey));
+        const nodeCoding: NodeCodingKeys = {
+          appFillKey: effectiveFillKey,
+          appBorderKey: effectiveBorderKey,
+        };
+        const baseNodes = data.nodes.map((n) => buildAppNode(n, nodeCoding));
+        const builtEdges = data.edges.map((e) =>
+          buildAppEdge(e, typeById, effectiveColorKey, effectiveLabelKey)
+        );
         const rect = containerRef.current?.getBoundingClientRect();
         const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
 
         try {
-          // Preferred: ELK layered layout with node-avoiding orthogonal routing.
           const { nodes: laidOut, routes } = await elkLayout(baseNodes, builtEdges, {
             nodeWidth: NODE_WIDTH,
             nodeHeight: NODE_HEIGHT,
@@ -188,7 +298,6 @@ export function useGraphData({
           setNodes(laidOut);
           setEdges(builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id))));
         } catch {
-          // Fallback: dagre layout + smoothstep edges if ELK fails.
           if (cancelled) return;
           setNodes(
             layoutGraph(baseNodes, builtEdges, {
@@ -264,9 +373,18 @@ export function useGraphData({
     graphEdges,
     setGraphEdges,
     colorPropertyKey,
-    setColorPropertyKey,
+    labelPropertyKey,
+    appFillKey,
+    appBorderKey,
     handleColorPropertyChange,
+    handleLabelPropertyChange,
+    handleAppFillChange,
+    handleAppBorderChange,
     legendColorPropertyOptions,
+    legendLabelPropertyOptions,
+    legendAppPropertyOptions,
     legendColorValues,
+    legendFillValues,
+    legendBorderValues,
   };
 }

@@ -7,33 +7,47 @@ import {
 import {
   labelForColorProperty,
   legendLabelForColorValue,
+  NODE_TYPE_COLOR_KEY,
+  nodeBorderColorForValue,
+  nodeFillColorForValue,
   strokeColorForLegendSwatch,
+  type AttributeOption,
 } from './edgeColorProperty';
 
-type ColorPropertyOption = {
-  key: string;
-  label: string;
-};
-
 type Props = {
-  /** Node types to document (in display order). */
   nodeTypes: NodeTypeKey[];
-  /** Relation types when links have no property selector (e.g. module graph). */
   relationTypes?: EdgeTypeKey[];
-  /** Active edge property used for link colors (application graph). */
   colorPropertyKey?: string;
-  /** Available properties for the color selector. */
-  colorPropertyOptions?: ColorPropertyOption[];
+  colorPropertyOptions?: AttributeOption[];
   onColorPropertyChange?: (key: string) => void;
-  /** Distinct values for the active color property. */
   colorValues?: string[];
-  /** Document dashed edges as indirect flows (application graph collapse). */
+  labelPropertyKey?: string;
+  labelPropertyOptions?: AttributeOption[];
+  onLabelPropertyChange?: (key: string) => void;
+  appFillKey?: string;
+  appFillOptions?: AttributeOption[];
+  onAppFillChange?: (key: string) => void;
+  fillValues?: string[];
+  appBorderKey?: string;
+  appBorderOptions?: AttributeOption[];
+  onAppBorderChange?: (key: string) => void;
+  borderValues?: string[];
   showIndirectFlow?: boolean;
 };
 
+function nodeValueLabel(propertyKey: string, value: string): string {
+  if (propertyKey === NODE_TYPE_COLOR_KEY) {
+    return (
+      (NODE_TYPE_STYLES as Record<string, { legendLabel: string } | undefined>)[value]
+        ?.legendLabel ?? value
+    );
+  }
+  return value;
+}
+
 /**
- * Static, non-interactive legend explaining node colors and link data types.
- * Colors come from {@link graphTheme} so the legend always matches the graph.
+ * Legend: display coding for link color/label and app fill/border.
+ * Does not mutate graph attributes — only chooses how to paint.
  */
 export function GraphLegend({
   nodeTypes,
@@ -42,16 +56,30 @@ export function GraphLegend({
   colorPropertyOptions = [],
   onColorPropertyChange,
   colorValues = [],
+  labelPropertyKey,
+  labelPropertyOptions = [],
+  onLabelPropertyChange,
+  appFillKey,
+  appFillOptions = [],
+  onAppFillChange,
+  fillValues = [],
+  appBorderKey,
+  appBorderOptions = [],
+  onAppBorderChange,
+  borderValues = [],
   showIndirectFlow = false,
 }: Props) {
-  const showColorSelector =
-    colorPropertyOptions.length > 0 && colorPropertyKey != null && onColorPropertyChange != null;
+  const showCoding =
+    colorPropertyOptions.length > 0 &&
+    colorPropertyKey != null &&
+    onColorPropertyChange != null;
+
   const colorGroupTitle =
     colorPropertyKey != null ? labelForColorProperty(colorPropertyKey) : 'Links';
 
   return (
     <div className="graph-legend" role="note" aria-label="Graph legend">
-      {showColorSelector && (
+      {showCoding && (
         <div className="graph-legend__group graph-legend__group--control">
           <label className="graph-legend__control">
             <span className="graph-legend__title">Link color</span>
@@ -68,10 +96,68 @@ export function GraphLegend({
               ))}
             </select>
           </label>
+
+          {labelPropertyOptions.length > 0 &&
+            labelPropertyKey != null &&
+            onLabelPropertyChange != null && (
+              <label className="graph-legend__control">
+                <span className="graph-legend__title">Link label</span>
+                <select
+                  className="graph-legend__select"
+                  value={labelPropertyKey}
+                  onChange={(event) => onLabelPropertyChange(event.target.value)}
+                  aria-label="Edge property used for link label"
+                >
+                  {labelPropertyOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+          {appFillOptions.length > 0 && appFillKey != null && onAppFillChange != null && (
+            <label className="graph-legend__control">
+              <span className="graph-legend__title">App fill</span>
+              <select
+                className="graph-legend__select"
+                value={appFillKey}
+                onChange={(event) => onAppFillChange(event.target.value)}
+                aria-label="App property used for node fill"
+              >
+                {appFillOptions.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {appBorderOptions.length > 0 &&
+            appBorderKey != null &&
+            onAppBorderChange != null && (
+              <label className="graph-legend__control">
+                <span className="graph-legend__title">App border</span>
+                <select
+                  className="graph-legend__select"
+                  value={appBorderKey}
+                  onChange={(event) => onAppBorderChange(event.target.value)}
+                  aria-label="App property used for node border"
+                >
+                  {appBorderOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
         </div>
       )}
 
-      {nodeTypes.length > 0 && (
+      {!showCoding && nodeTypes.length > 0 && (
         <div className="graph-legend__group">
           <p className="graph-legend__title">Nodes</p>
           <ul className="graph-legend__list">
@@ -84,6 +170,56 @@ export function GraphLegend({
                 />
                 <span className="graph-legend__label">
                   {NODE_TYPE_STYLES[key].legendLabel}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {fillValues.length > 0 && appFillKey != null && (
+        <div className="graph-legend__group">
+          <p className="graph-legend__title">
+            Fill · {labelForColorProperty(appFillKey)}
+          </p>
+          <ul className="graph-legend__list">
+            {fillValues.map((value) => (
+              <li key={`fill-${value}`} className="graph-legend__item">
+                <span
+                  className="graph-legend__swatch graph-legend__swatch--node"
+                  style={{
+                    backgroundColor: nodeFillColorForValue(appFillKey, value),
+                    borderColor: '#94a3b8',
+                  }}
+                  aria-hidden="true"
+                />
+                <span className="graph-legend__label">
+                  {nodeValueLabel(appFillKey, value)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {borderValues.length > 0 && appBorderKey != null && (
+        <div className="graph-legend__group">
+          <p className="graph-legend__title">
+            Border · {labelForColorProperty(appBorderKey)}
+          </p>
+          <ul className="graph-legend__list">
+            {borderValues.map((value) => (
+              <li key={`border-${value}`} className="graph-legend__item">
+                <span
+                  className="graph-legend__swatch graph-legend__swatch--node"
+                  style={{
+                    backgroundColor: '#ffffff',
+                    borderColor: nodeBorderColorForValue(appBorderKey, value),
+                  }}
+                  aria-hidden="true"
+                />
+                <span className="graph-legend__label">
+                  {nodeValueLabel(appBorderKey, value)}
                 </span>
               </li>
             ))}

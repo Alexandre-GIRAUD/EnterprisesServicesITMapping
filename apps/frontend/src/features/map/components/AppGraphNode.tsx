@@ -4,6 +4,10 @@ import { ZOOM_THRESHOLDS, nodeColorForType } from './graphTheme';
 export type AppGraphNodeData = {
   label: string;
   nodeType: string;
+  /** Visual-only fill from legend (not a stored attribute). */
+  fillColor?: string;
+  /** Visual-only border from legend (not a stored attribute). */
+  borderColor?: string;
   /** Collapse this application into an indirect flow (application graph only). */
   onHide?: () => void;
 };
@@ -12,22 +16,23 @@ export type AppGraphNodeType = Node<AppGraphNodeData, 'app'>;
 
 export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
   const zoom = useStore((s) => s.transform[2]);
-  const color = nodeColorForType(data.nodeType);
+  const borderColor = data.borderColor ?? nodeColorForType(data.nodeType);
+  const fillColor = data.fillColor ?? '#ffffff';
   const labelVisible = zoom >= ZOOM_THRESHOLDS.primaryLabel;
 
   return (
-    <div className="graph-node-card" style={{ borderColor: color }}>
-      {/* 4-side handle pairs: both source and target at every position so React
-          Flow can correctly resolve handle coords regardless of which side ELK
-          or bestSides() chose for a given edge. isConnectable=false: read-only. */}
-      <Handle type="source" position={Position.Top}    id="top-s"    className="graph-node-handle" isConnectable={false} />
-      <Handle type="target" position={Position.Top}    id="top-t"    className="graph-node-handle" isConnectable={false} />
+    <div
+      className="graph-node-card"
+      style={{ borderColor, backgroundColor: fillColor }}
+    >
+      <Handle type="source" position={Position.Top} id="top-s" className="graph-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Top} id="top-t" className="graph-node-handle" isConnectable={false} />
       <Handle type="source" position={Position.Bottom} id="bottom-s" className="graph-node-handle" isConnectable={false} />
       <Handle type="target" position={Position.Bottom} id="bottom-t" className="graph-node-handle" isConnectable={false} />
-      <Handle type="source" position={Position.Left}   id="left-s"   className="graph-node-handle" isConnectable={false} />
-      <Handle type="target" position={Position.Left}   id="left-t"   className="graph-node-handle" isConnectable={false} />
-      <Handle type="source" position={Position.Right}  id="right-s"  className="graph-node-handle" isConnectable={false} />
-      <Handle type="target" position={Position.Right}  id="right-t"  className="graph-node-handle" isConnectable={false} />
+      <Handle type="source" position={Position.Left} id="left-s" className="graph-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Left} id="left-t" className="graph-node-handle" isConnectable={false} />
+      <Handle type="source" position={Position.Right} id="right-s" className="graph-node-handle" isConnectable={false} />
+      <Handle type="target" position={Position.Right} id="right-t" className="graph-node-handle" isConnectable={false} />
       {data.onHide ? (
         <button
           type="button"
