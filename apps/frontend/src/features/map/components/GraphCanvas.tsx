@@ -25,6 +25,7 @@ import type {
   GraphNodeFilterDto,
   GraphNodePosition,
   GraphSnapshotFilters,
+  GraphSnapshotLegend,
 } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
 import { fetchGraphNodeFilters } from '../api/graphApi';
@@ -71,6 +72,7 @@ import {
 type PendingViewRestore = {
   hiddenApplicationIds: string[];
   nodePositions: NodePositionsMap;
+  legend?: GraphSnapshotLegend;
 };
 
 type SelectedApplication = {
@@ -224,11 +226,15 @@ export function GraphCanvas() {
     appFillKey,
     appBorderKey,
     legendColors,
+    hideEdgeLabels,
     handleColorPropertyChange,
     handleLabelPropertyChange,
     handleAppFillChange,
     handleAppBorderChange,
     handleValueColorChange,
+    handleHideEdgeLabelsChange,
+    getLegendSnapshot,
+    applyLegendSnapshot,
     legendColorPropertyOptions,
     legendLabelPropertyOptions,
     legendAppPropertyOptions,
@@ -248,6 +254,7 @@ export function GraphCanvas() {
     appFillKey,
     appBorderKey,
     legendColors,
+    hideEdgeLabels,
   });
   legendCodingRef.current = {
     colorPropertyKey,
@@ -255,7 +262,13 @@ export function GraphCanvas() {
     appFillKey,
     appBorderKey,
     legendColors,
+    hideEdgeLabels,
   };
+
+  const showIndirectFlow = useMemo(
+    () => edges.some((e) => Boolean((e as { data?: { indirect?: boolean } }).data?.indirect)),
+    [edges]
+  );
 
   const graphAppsForDrawer = useMemo(
     () =>
@@ -330,6 +343,7 @@ export function GraphCanvas() {
     pendingViewRestoreRef.current = {
       hiddenApplicationIds: [...(snapshot.hiddenApplicationIds ?? [])],
       nodePositions: positions,
+      legend: snapshot.legend,
     };
   }
 
@@ -342,6 +356,7 @@ export function GraphCanvas() {
       ...currentGraphFilters,
       hiddenApplicationIds: [...hiddenNodeIdsRef.current],
       nodePositions,
+      legend: getLegendSnapshot(),
     });
     refreshSnapshots();
     setMessage(`View "${name}" saved.`);
@@ -391,6 +406,7 @@ export function GraphCanvas() {
           colors: coding.legendColors,
         },
         colors: coding.legendColors,
+        hideEdgeLabels: coding.hideEdgeLabels,
         aspectRatio,
         nodePositions,
         handlers: {
@@ -522,12 +538,24 @@ export function GraphCanvas() {
     hiddenNodeIdsRef.current = nextHidden;
     syncHiddenUi(nextHidden);
     lastHiddenPositionsRef.current = {};
+    if (pending.legend) {
+      applyLegendSnapshot(pending.legend);
+      // Keep collapse layout in sync — React state from apply is not committed yet.
+      legendCodingRef.current = {
+        colorPropertyKey: pending.legend.edgeColorKey || legendCodingRef.current.colorPropertyKey,
+        labelPropertyKey: pending.legend.edgeLabelKey || legendCodingRef.current.labelPropertyKey,
+        appFillKey: pending.legend.appFillKey || legendCodingRef.current.appFillKey,
+        appBorderKey: pending.legend.appBorderKey || legendCodingRef.current.appBorderKey,
+        legendColors: pending.legend.colors ?? {},
+        hideEdgeLabels: Boolean(pending.legend.hideEdgeLabels),
+      };
+    }
     void relayoutCollapsed(
       nextHidden,
       Object.keys(nextPositions).length > 0 ? nextPositions : undefined,
       { fitView: true }
     );
-  }, [status, graphNodes, graphEdges, relayoutCollapsed, syncHiddenUi]);
+  }, [status, graphNodes, graphEdges, relayoutCollapsed, syncHiddenUi, applyLegendSnapshot]);
 
   // Focus neighborhood for hover/selection dimming (null = nothing focused).
   const focus = useMemo(
@@ -801,7 +829,14 @@ export function GraphCanvas() {
       if (prev.some((e) => e.id === created.id)) return prev;
       return [
         ...prev,
-        buildAppEdge(createdEdge, typeById, colorPropertyKey, labelPropertyKey, legendColors),
+        buildAppEdge(
+          createdEdge,
+          typeById,
+          colorPropertyKey,
+          labelPropertyKey,
+          legendColors,
+          hideEdgeLabels
+        ),
       ];
     });
     return null;
@@ -1080,11 +1115,13 @@ export function GraphCanvas() {
                     borderValues={legendBorderValues}
                     legendColors={legendColors}
                     onValueColorChange={handleValueColorChange}
+                    hideEdgeLabels={hideEdgeLabels}
+                    onHideEdgeLabelsChange={handleHideEdgeLabelsChange}
                     legendSetups={legendSetups}
                     onSaveLegendSetup={saveLegendSetup}
                     onApplyLegendSetup={applyLegendSetup}
                     onDeleteLegendSetup={deleteLegendSetup}
-                    showIndirectFlow
+                    showIndirectFlow={showIndirectFlow}
                   />
                 </Panel>
                 {hiddenCount > 0 ? (

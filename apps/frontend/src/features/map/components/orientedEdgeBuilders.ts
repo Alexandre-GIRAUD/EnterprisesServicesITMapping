@@ -4,8 +4,8 @@ import { edgeDashedForRelation } from './graphTheme';
 import {
   edgeColorValue,
   edgeLabelText,
-  paintEdgeLabelColor,
   paintEdgeStrokeColor,
+  resolveSharedEdgeLabelColor,
   type LegendColorMaps,
 } from './edgeColorProperty';
 import type { OrientedEdgeType } from './OrientedEdge';
@@ -14,15 +14,6 @@ import type { Point } from './elkLayout';
 export function orientedMarkerEnd(color: string) {
   return { type: MarkerType.ArrowClosed, color, width: 16, height: 16 };
 }
-
-export type EdgePaintOptions = {
-  colorPropertyKey?: string;
-  labelPropertyKey?: string;
-  colorValue?: string | null;
-  /** When true, keep Indirect / + (no attribute label coding). */
-  forceIndirect?: boolean;
-  colors?: LegendColorMaps;
-};
 
 /** Build an OrientedEdge; reads existing fields only. Never mutates DTO properties. */
 export function buildOrientedEdge(params: {
@@ -38,6 +29,7 @@ export function buildOrientedEdge(params: {
   colorValue?: string | null;
   properties?: GraphEdgeDto['properties'];
   colors?: LegendColorMaps;
+  hideEdgeLabels?: boolean;
 }): OrientedEdgeType {
   const dataKey = params.dataLabel?.trim() || null;
   const colorPropertyKey = params.colorPropertyKey ?? 'data';
@@ -63,11 +55,12 @@ export function buildOrientedEdge(params: {
   const dashed = edgeDashedForRelation(params.relationType);
   const label = edgeLabelText(dto, labelPropertyKey);
   const labelValue = edgeColorValue(dto, labelPropertyKey);
-  const labelColor = paintEdgeLabelColor(
+  const labelColor = resolveSharedEdgeLabelColor(
+    colorPropertyKey,
+    labelPropertyKey,
     labelValue,
     params.relationType,
-    labelPropertyKey,
-    params.colors?.edgeLabel,
+    params.colors,
     edgeColor
   );
 
@@ -89,6 +82,7 @@ export function buildOrientedEdge(params: {
       colorPropertyKey,
       colorValue,
       properties: params.properties,
+      hideEdgeLabels: params.hideEdgeLabels,
     },
   };
 }
@@ -99,7 +93,8 @@ export function restyleEdgeColorProperty(
   colorPropertyKey: string,
   raw?: GraphEdgeDto,
   labelPropertyKey?: string,
-  colors?: LegendColorMaps
+  colors?: LegendColorMaps,
+  hideEdgeLabels?: boolean
 ): OrientedEdgeType {
   const relationType = raw?.type ?? (edge.data?.relation as string | undefined) ?? 'DEPENDS_ON';
   const dto: GraphEdgeDto =
@@ -127,6 +122,7 @@ export function restyleEdgeColorProperty(
         colorValue: null,
         dataLabel: 'Indirect',
         properties: dto.properties ?? edge.data?.properties,
+        hideEdgeLabels,
       },
     };
   }
@@ -141,11 +137,12 @@ export function restyleEdgeColorProperty(
   const labelKey = labelPropertyKey ?? 'data';
   const label = edgeLabelText(dto, labelKey);
   const labelValue = edgeColorValue(dto, labelKey);
-  const labelColor = paintEdgeLabelColor(
+  const labelColor = resolveSharedEdgeLabelColor(
+    colorPropertyKey,
+    labelKey,
     labelValue,
     relationType,
-    labelKey,
-    colors?.edgeLabel,
+    colors,
     edgeColor
   );
   return {
@@ -161,6 +158,7 @@ export function restyleEdgeColorProperty(
       colorValue,
       dataLabel: label,
       properties: dto.properties ?? edge.data?.properties,
+      hideEdgeLabels,
     },
   };
 }

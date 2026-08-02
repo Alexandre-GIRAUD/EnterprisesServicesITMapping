@@ -19,6 +19,7 @@ export const APP_FILL_PROPERTY_STORAGE_KEY = 'flowra.graph.appFillProperty';
 export const APP_BORDER_PROPERTY_STORAGE_KEY = 'flowra.graph.appBorderProperty';
 export const LEGEND_COLORS_STORAGE_KEY = 'flowra.graph.legendColors';
 export const LEGEND_SETUPS_STORAGE_KEY = 'flowra.graph.legendSetups';
+export const HIDE_EDGE_LABELS_STORAGE_KEY = 'flowra.graph.hideEdgeLabels';
 
 const KNOWN_PROPERTY_ORDER = ['data', 'connection_kind', 'asset_class', 'frequency', 'creation_date'] as const;
 const INTERNAL_PROPERTY_KEYS = new Set(['validFrom', 'validTo', 'id', 'name', 'description', 'year']);
@@ -53,6 +54,13 @@ export type LegendSetup = LegendCodingKeys & {
   id: string;
   name: string;
   colors: LegendColorMaps;
+  hideEdgeLabels?: boolean;
+};
+
+/** Snapshot of active legend coding (pin view / apply view). */
+export type GraphLegendSnapshot = LegendCodingKeys & {
+  colors?: LegendColorMaps;
+  hideEdgeLabels?: boolean;
 };
 
 export function labelForColorProperty(key: string): string {
@@ -124,6 +132,60 @@ export function storeLegendColorMaps(colors: LegendColorMaps): void {
   } catch {
     /* ignore */
   }
+}
+
+export function loadHideEdgeLabels(): boolean {
+  try {
+    return localStorage.getItem(HIDE_EDGE_LABELS_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function storeHideEdgeLabels(hide: boolean): void {
+  try {
+    localStorage.setItem(HIDE_EDGE_LABELS_STORAGE_KEY, hide ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Slightly darker shade of a CSS hex/rgb color (~18%). */
+export function darkenColor(color: string, amount = 0.18): string {
+  const rgb = parseCssColor(color);
+  if (!rgb) return color;
+  const f = 1 - amount;
+  const r = Math.max(0, Math.min(255, Math.round(rgb.r * f)));
+  const g = Math.max(0, Math.min(255, Math.round(rgb.g * f)));
+  const b = Math.max(0, Math.min(255, Math.round(rgb.b * f)));
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function toHex(n: number): string {
+  return n.toString(16).padStart(2, '0');
+}
+
+function parseCssColor(color: string): { r: number; g: number; b: number } | null {
+  const hex = color.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    return {
+      r: parseInt(hex.slice(1, 3), 16),
+      g: parseInt(hex.slice(3, 5), 16),
+      b: parseInt(hex.slice(5, 7), 16),
+    };
+  }
+  if (/^#[0-9a-fA-F]{3}$/.test(hex)) {
+    return {
+      r: parseInt(hex[1]! + hex[1]!, 16),
+      g: parseInt(hex[2]! + hex[2]!, 16),
+      b: parseInt(hex[3]! + hex[3]!, 16),
+    };
+  }
+  const m = hex.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (m) {
+    return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]) };
+  }
+  return null;
 }
 
 export function loadLegendSetups(): LegendSetup[] {
@@ -310,6 +372,27 @@ export function paintEdgeLabelColor(
   return defaultEdgeStrokeColor(value, relationType, propertyKey);
 }
 
+/**
+ * When stroke + label share the same attribute, use one color (stroke) for both.
+ */
+export function resolveSharedEdgeLabelColor(
+  colorKey: string,
+  labelKey: string,
+  labelValue: string | null,
+  relationType: string,
+  colors: LegendColorMaps | undefined,
+  strokeColor: string
+): string {
+  if (colorKey === labelKey) return strokeColor;
+  return paintEdgeLabelColor(
+    labelValue,
+    relationType,
+    labelKey,
+    colors?.edgeLabel,
+    strokeColor
+  );
+}
+
 export function nodeFillColor(
   node: GraphNodeDto,
   propertyKey: string,
@@ -325,11 +408,26 @@ export function nodeFillColor(
   return overrideOr(colorMap, value, fallback);
 }
 
+/**
+ * Border color. When {@link fillKey} equals border key, border is a darker shade of fill
+ * (except default App/type sentinel with no custom fill → keep type border color).
+ */
 export function nodeBorderColor(
   node: GraphNodeDto,
   propertyKey: string,
-  colorMap?: Record<string, string>
+  colorMap?: Record<string, string>,
+  fillKey?: string,
+  fillColorMap?: Record<string, string>
 ): string {
+  if (fillKey && fillKey === propertyKey) {
+    const value = nodePropValue(node, fillKey);
+    const fill = nodeFillColor(node, fillKey, fillColorMap);
+    const hasCustom = Boolean(value && fillColorMap?.[value]);
+    if (fillKey === NODE_TYPE_COLOR_KEY && !hasCustom) {
+      return nodeColorForType(node.type);
+    }
+    return darkenColor(fill);
+  }
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     const value = nodePropValue(node, propertyKey);
     const fallback = nodeColorForType(node.type);
@@ -356,13 +454,53 @@ export function nodeFillColorForValue(
 export function nodeBorderColorForValue(
   propertyKey: string,
   value: string,
-  colorMap?: Record<string, string>
+  colorMap?: Record<string, string>,
+  fillKey?: string,
+  fillColorMap?: Record<string, string>
 ): string {
+  if (fillKey && fillKey === propertyKey) {
+    const fill = nodeFillColorForValue(fillKey, value, fillColorMap);
+    const hasCustom = Boolean(fillColorMap?.[value]);
+    if (fillKey === NODE_TYPE_COLOR_KEY && !hasCustom) {
+      return nodeColorForType(value);
+    }
+    return darkenColor(fill);
+  }
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     return overrideOr(colorMap, value, nodeColorForType(value));
   }
   const fallback = edgeColorForProperty(value, 'Application', propertyKey);
   return overrideOr(colorMap, value, fallback);
+}
+
+/** Persist a color for a channel; mirror stroke↔label or fill→(derived border) when shared. */
+export function setRationalizedColorInMaps(
+  colors: LegendColorMaps,
+  channel: keyof LegendColorMaps,
+  value: string,
+  color: string,
+  edgeColorKey: string,
+  edgeLabelKey: string,
+  appFillKey: string,
+  appBorderKey: string
+): LegendColorMaps {
+  let next = setColorInMaps(colors, channel, value, color);
+  if (
+    (channel === 'edgeStroke' || channel === 'edgeLabel') &&
+    edgeColorKey === edgeLabelKey
+  ) {
+    next = setColorInMaps(next, 'edgeStroke', value, color);
+    next = setColorInMaps(next, 'edgeLabel', value, color);
+  }
+  if (channel === 'appFill' && appFillKey === appBorderKey) {
+    next = setColorInMaps(next, 'appFill', value, color);
+    // border derived at paint time — clear stale explicit border override
+    if (next.appBorder?.[value]) {
+      const { [value]: _, ...rest } = next.appBorder;
+      next = { ...next, appBorder: rest };
+    }
+  }
+  return next;
 }
 
 export function collectLegendColorValues(

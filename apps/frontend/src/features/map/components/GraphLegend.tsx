@@ -39,6 +39,8 @@ type Props = {
   borderValues?: string[];
   legendColors?: LegendColorMaps;
   onValueColorChange?: (channel: keyof LegendColorMaps, value: string, color: string) => void;
+  hideEdgeLabels?: boolean;
+  onHideEdgeLabelsChange?: (hide: boolean) => void;
   legendSetups?: LegendSetup[];
   onSaveLegendSetup?: (name: string) => void;
   onApplyLegendSetup?: (setup: LegendSetup) => void;
@@ -61,11 +63,13 @@ function ColorValueRow({
   color,
   onChange,
   kind,
+  borderColor,
 }: {
   label: string;
   color: string;
   onChange?: (color: string) => void;
-  kind: 'edge' | 'fill' | 'border';
+  kind: 'edge' | 'fill' | 'border' | 'app';
+  borderColor?: string;
 }) {
   return (
     <li className="graph-legend__item">
@@ -77,10 +81,12 @@ function ColorValueRow({
         />
       ) : (
         <span
-          className="graph-legend__swatch graph-legend__swatch--node"
+          className={`graph-legend__swatch graph-legend__swatch--node${
+            kind === 'app' ? ' graph-legend__swatch--mini-app' : ''
+          }`}
           style={{
-            backgroundColor: kind === 'fill' ? color : '#ffffff',
-            borderColor: kind === 'border' ? color : '#94a3b8',
+            backgroundColor: kind === 'border' ? '#ffffff' : color,
+            borderColor: kind === 'fill' ? '#94a3b8' : (borderColor ?? color),
           }}
           aria-hidden="true"
         />
@@ -112,8 +118,8 @@ function normalizeHex(color: string): string {
 }
 
 /**
- * Compact read mode by default; Edit reveals attribute/color/save controls.
- * Never mutates graph attributes.
+ * Compact read mode by default; Edit reveals controls.
+ * Rationalizes shared edge/app channels. Never mutates graph attributes.
  */
 export function GraphLegend({
   nodeTypes,
@@ -137,6 +143,8 @@ export function GraphLegend({
   borderValues = [],
   legendColors = {},
   onValueColorChange,
+  hideEdgeLabels = false,
+  onHideEdgeLabelsChange,
   legendSetups = [],
   onSaveLegendSetup,
   onApplyLegendSetup,
@@ -157,6 +165,16 @@ export function GraphLegend({
     Boolean(onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup);
 
   const colorChange = isEditing ? onValueColorChange : undefined;
+  const sharedEdge =
+    !simpleMode &&
+    colorPropertyKey != null &&
+    labelPropertyKey != null &&
+    colorPropertyKey === labelPropertyKey;
+  const sharedApp =
+    !simpleMode &&
+    appFillKey != null &&
+    appBorderKey != null &&
+    appFillKey === appBorderKey;
 
   return (
     <div
@@ -179,7 +197,6 @@ export function GraphLegend({
         ) : null}
       </header>
 
-      {/* Edit: Save / use saved legend first */}
       {isEditing && onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup && (
         <div className="graph-legend__group graph-legend__group--control">
           <label className="graph-legend__control">
@@ -248,7 +265,17 @@ export function GraphLegend({
         </div>
       )}
 
-      {/* Edit: attribute selectors (full mode only) */}
+      {isEditing && onHideEdgeLabelsChange && (
+        <label className="graph-legend__check">
+          <input
+            type="checkbox"
+            checked={hideEdgeLabels}
+            onChange={(e) => onHideEdgeLabelsChange(e.target.checked)}
+          />
+          <span>Hide all labels</span>
+        </label>
+      )}
+
       {isEditing && showCoding && !simpleMode && (
         <div className="graph-legend__group graph-legend__group--control">
           <label className="graph-legend__control">
@@ -267,7 +294,8 @@ export function GraphLegend({
             </select>
           </label>
 
-          {labelPropertyOptions.length > 0 &&
+          {!hideEdgeLabels &&
+            labelPropertyOptions.length > 0 &&
             labelPropertyKey != null &&
             onLabelPropertyChange != null && (
               <label className="graph-legend__control">
@@ -327,7 +355,6 @@ export function GraphLegend({
         </div>
       )}
 
-      {/* Read (and edit): active coding swatches — pickers only while editing */}
       {!showCoding && nodeTypes.length > 0 && (
         <div className="graph-legend__group">
           <p className="graph-legend__title">App</p>
@@ -353,19 +380,27 @@ export function GraphLegend({
           <p className="graph-legend__title">App</p>
           <ul className="graph-legend__list">
             {borderValues.map((value) => {
-              const color = nodeBorderColorForValue(
+              const fill = nodeFillColorForValue(
+                appFillKey ?? appBorderKey,
+                value,
+                legendColors.appFill
+              );
+              const border = nodeBorderColorForValue(
                 appBorderKey,
                 value,
-                legendColors.appBorder
+                legendColors.appBorder,
+                appFillKey,
+                legendColors.appFill
               );
               return (
                 <ColorValueRow
                   key={`app-${value}`}
                   label={nodeValueLabel(appBorderKey, value)}
-                  color={color}
-                  kind="border"
+                  color={fill}
+                  borderColor={border}
+                  kind="app"
                   onChange={
-                    colorChange ? (c) => colorChange('appBorder', value, c) : undefined
+                    colorChange ? (c) => colorChange('appFill', value, c) : undefined
                   }
                 />
               );
@@ -401,7 +436,40 @@ export function GraphLegend({
         </div>
       )}
 
-      {!simpleMode && fillValues.length > 0 && appFillKey != null && (
+      {/* Full mode — shared app channel → mini-app once */}
+      {!simpleMode && sharedApp && fillValues.length > 0 && appFillKey != null && (
+        <div className="graph-legend__group">
+          <p className="graph-legend__title">
+            App · {labelForColorProperty(appFillKey)}
+          </p>
+          <ul className="graph-legend__list">
+            {fillValues.map((value) => {
+              const fill = nodeFillColorForValue(appFillKey, value, legendColors.appFill);
+              const border = nodeBorderColorForValue(
+                appBorderKey!,
+                value,
+                legendColors.appBorder,
+                appFillKey,
+                legendColors.appFill
+              );
+              return (
+                <ColorValueRow
+                  key={`mini-app-${value}`}
+                  label={nodeValueLabel(appFillKey, value)}
+                  color={fill}
+                  borderColor={border}
+                  kind="app"
+                  onChange={
+                    colorChange ? (c) => colorChange('appFill', value, c) : undefined
+                  }
+                />
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {!simpleMode && !sharedApp && fillValues.length > 0 && appFillKey != null && (
         <div className="graph-legend__group">
           <p className="graph-legend__title">
             Fill · {labelForColorProperty(appFillKey)}
@@ -425,7 +493,7 @@ export function GraphLegend({
         </div>
       )}
 
-      {!simpleMode && borderValues.length > 0 && appBorderKey != null && (
+      {!simpleMode && !sharedApp && borderValues.length > 0 && appBorderKey != null && (
         <div className="graph-legend__group">
           <p className="graph-legend__title">
             Border · {labelForColorProperty(appBorderKey)}
@@ -453,60 +521,100 @@ export function GraphLegend({
         </div>
       )}
 
-      {!simpleMode && colorValues.length > 0 && colorPropertyKey != null && (
-        <div className="graph-legend__group">
-          <p className="graph-legend__title">
-            Stroke · {labelForColorProperty(colorPropertyKey)}
-          </p>
-          <ul className="graph-legend__list">
-            {colorValues.map((value) => {
-              const color = strokeColorForLegendSwatch(
-                colorPropertyKey,
-                value,
-                'DEPENDS_ON',
-                legendColors.edgeStroke
-              );
-              return (
-                <ColorValueRow
-                  key={`stroke-${value}`}
-                  label={legendLabelForColorValue(colorPropertyKey, value)}
-                  color={color}
-                  kind="edge"
-                  onChange={
-                    colorChange ? (c) => colorChange('edgeStroke', value, c) : undefined
-                  }
-                />
-              );
-            })}
-          </ul>
-        </div>
-      )}
+      {/* Full mode — shared edge channel → one stroke+label entry */}
+      {!simpleMode &&
+        sharedEdge &&
+        colorValues.length > 0 &&
+        colorPropertyKey != null && (
+          <div className="graph-legend__group">
+            <p className="graph-legend__title">
+              Flow · {labelForColorProperty(colorPropertyKey)}
+            </p>
+            <ul className="graph-legend__list">
+              {colorValues.map((value) => {
+                const color = strokeColorForLegendSwatch(
+                  colorPropertyKey,
+                  value,
+                  'DEPENDS_ON',
+                  legendColors.edgeStroke
+                );
+                return (
+                  <ColorValueRow
+                    key={`shared-edge-${value}`}
+                    label={legendLabelForColorValue(colorPropertyKey, value)}
+                    color={color}
+                    kind="edge"
+                    onChange={
+                      colorChange ? (c) => colorChange('edgeStroke', value, c) : undefined
+                    }
+                  />
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
-      {!simpleMode && labelValues.length > 0 && labelPropertyKey != null && (
-        <div className="graph-legend__group">
-          <p className="graph-legend__title">
-            Label · {labelForColorProperty(labelPropertyKey)}
-          </p>
-          <ul className="graph-legend__list">
-            {labelValues.map((value) => {
-              const color =
-                legendColors.edgeLabel?.[value] ??
-                strokeColorForLegendSwatch(labelPropertyKey, value);
-              return (
-                <ColorValueRow
-                  key={`label-${value}`}
-                  label={legendLabelForColorValue(labelPropertyKey, value)}
-                  color={color}
-                  kind="edge"
-                  onChange={
-                    colorChange ? (c) => colorChange('edgeLabel', value, c) : undefined
-                  }
-                />
-              );
-            })}
-          </ul>
-        </div>
-      )}
+      {!simpleMode &&
+        !sharedEdge &&
+        colorValues.length > 0 &&
+        colorPropertyKey != null && (
+          <div className="graph-legend__group">
+            <p className="graph-legend__title">
+              Stroke · {labelForColorProperty(colorPropertyKey)}
+            </p>
+            <ul className="graph-legend__list">
+              {colorValues.map((value) => {
+                const color = strokeColorForLegendSwatch(
+                  colorPropertyKey,
+                  value,
+                  'DEPENDS_ON',
+                  legendColors.edgeStroke
+                );
+                return (
+                  <ColorValueRow
+                    key={`stroke-${value}`}
+                    label={legendLabelForColorValue(colorPropertyKey, value)}
+                    color={color}
+                    kind="edge"
+                    onChange={
+                      colorChange ? (c) => colorChange('edgeStroke', value, c) : undefined
+                    }
+                  />
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+      {!simpleMode &&
+        !hideEdgeLabels &&
+        !sharedEdge &&
+        labelValues.length > 0 &&
+        labelPropertyKey != null && (
+          <div className="graph-legend__group">
+            <p className="graph-legend__title">
+              Label · {labelForColorProperty(labelPropertyKey)}
+            </p>
+            <ul className="graph-legend__list">
+              {labelValues.map((value) => {
+                const color =
+                  legendColors.edgeLabel?.[value] ??
+                  strokeColorForLegendSwatch(labelPropertyKey, value);
+                return (
+                  <ColorValueRow
+                    key={`label-${value}`}
+                    label={legendLabelForColorValue(labelPropertyKey, value)}
+                    color={color}
+                    kind="edge"
+                    onChange={
+                      colorChange ? (c) => colorChange('edgeLabel', value, c) : undefined
+                    }
+                  />
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
       {relationTypes.length > 0 && (
         <div className="graph-legend__group">

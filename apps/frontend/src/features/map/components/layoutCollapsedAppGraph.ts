@@ -129,6 +129,7 @@ export async function layoutCollapsedAppGraph(params: {
   labelPropertyKey?: string;
   nodeCoding?: NodeCodingKeys;
   colors?: LegendColorMaps;
+  hideEdgeLabels?: boolean;
   aspectRatio: number;
   handlers: CollapseLayoutHandlers;
   /** Optional canvas positions to preserve (visible + newly restored). */
@@ -142,6 +143,7 @@ export async function layoutCollapsedAppGraph(params: {
     labelPropertyKey = 'data',
     nodeCoding,
     colors,
+    hideEdgeLabels,
     aspectRatio,
     handlers,
     nodePositions,
@@ -184,9 +186,17 @@ export async function layoutCollapsedAppGraph(params: {
           colorPropertyKey,
           labelPropertyKey,
           colors,
+          hideEdgeLabels,
         });
       }
-      return buildAppEdge(dto, typeById, colorPropertyKey, labelPropertyKey, colors);
+      return buildAppEdge(
+        dto,
+        typeById,
+        colorPropertyKey,
+        labelPropertyKey,
+        colors,
+        hideEdgeLabels
+      );
     }
 
     const hiddenNodeIdsForEdge = [...pe.hiddenNodeIds];
@@ -202,6 +212,7 @@ export async function layoutCollapsedAppGraph(params: {
       labelPropertyKey,
       colorValue: null,
       colors,
+      hideEdgeLabels,
     });
 
     const data: OrientedEdgeData = {

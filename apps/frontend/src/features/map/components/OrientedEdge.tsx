@@ -20,6 +20,8 @@ export type OrientedEdgeData = {
   targetColor: string;
   /** Optional distinct color for the edge label pill (falls back to sourceColor). */
   labelColor?: string;
+  /** When true, hide business edge labels (indirect + control still shown). */
+  hideEdgeLabels?: boolean;
   dashed?: boolean;
   relation?: string;
   /** Label shown on the link (data type when available). */
@@ -551,7 +553,12 @@ export function OrientedEdge({
   const labelColor = data?.labelColor ?? sourceColor;
   const gradientId  = `oriented-edge-gradient-${id}`;
   const isIndirect  = Boolean(data?.indirect);
-  const showLabel   = !isIndirect && Boolean(label) && zoom >= ZOOM_THRESHOLDS.secondaryDetail;
+  const hideLabels = Boolean(data?.hideEdgeLabels);
+  const showLabel =
+    !isIndirect &&
+    !hideLabels &&
+    Boolean(label) &&
+    zoom >= ZOOM_THRESHOLDS.secondaryDetail;
 
   return (
     <>

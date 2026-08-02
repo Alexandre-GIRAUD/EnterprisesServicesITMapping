@@ -2978,6 +2978,28 @@ body {
   min-width: 0;
 }
 
+.graph-legend__swatch--mini-app {
+  width: 18px;
+  height: 14px;
+  border-radius: 3px;
+  border-width: 2px;
+}
+
+.graph-legend__check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.graph-legend__check input {
+  margin: 0;
+  accent-color: #2563eb;
+}
+
 .graph-legend__control {
   display: flex;
   flex-direction: column;
