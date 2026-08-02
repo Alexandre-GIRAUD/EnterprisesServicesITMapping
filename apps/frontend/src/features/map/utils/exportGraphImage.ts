@@ -12,6 +12,7 @@ type ExportGraphImageOptions = {
 };
 
 function shouldIncludeNode(domNode: HTMLElement): boolean {
+  if (domNode.classList?.contains('react-flow__background')) return false;
   if (domNode.classList?.contains('react-flow__controls')) return false;
   if (domNode.classList?.contains('react-flow__attribution')) return false;
   if (domNode.classList?.contains('hidden-apps-picker')) return false;
@@ -25,9 +26,18 @@ function triggerDownload(dataUrl: string, fileName: string) {
   link.click();
 }
 
+/** Clear pane chrome so it is not baked into the PNG alpha. */
+const TRANSPARENT_PANE_STYLE: Partial<CSSStyleDeclaration> = {
+  background: 'transparent',
+  backgroundImage: 'none',
+  border: 'none',
+  boxShadow: 'none',
+};
+
 /**
  * Capture the visible application graph as PNG or JPEG and download it.
- * Controls / attribution / hidden-apps picker are excluded; legend is kept.
+ * Dotted Background, Controls, attribution, and hidden-apps picker are excluded.
+ * PNG keeps a transparent canvas; JPEG uses a solid white fill (no alpha).
  */
 export async function exportGraphImage({
   element,
@@ -35,17 +45,24 @@ export async function exportGraphImage({
   fileName,
   pixelRatio = 2,
 }: ExportGraphImageOptions): Promise<void> {
-  const options = {
+  const filter = (domNode: HTMLElement) => shouldIncludeNode(domNode);
+  const shared = {
     cacheBust: true,
     pixelRatio,
-    backgroundColor: '#f8fafc',
-    filter: (domNode: HTMLElement) => shouldIncludeNode(domNode),
+    filter,
   };
 
   const dataUrl =
     format === 'jpeg'
-      ? await toJpeg(element, { ...options, quality: 0.95 })
-      : await toPng(element, options);
+      ? await toJpeg(element, {
+          ...shared,
+          backgroundColor: '#ffffff',
+          quality: 0.95,
+        })
+      : await toPng(element, {
+          ...shared,
+          style: TRANSPARENT_PANE_STYLE,
+        });
 
   triggerDownload(dataUrl, fileName);
 }

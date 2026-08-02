@@ -57,6 +57,7 @@ export function GraphExportMenu({ disabled = false, busy = false, onExport }: Gr
             type="button"
             role="menuitem"
             className="graph-export-menu-item"
+            title="Transparent background"
             onClick={() => void handleExport('png')}
           >
             Export PNG
@@ -65,6 +66,7 @@ export function GraphExportMenu({ disabled = false, busy = false, onExport }: Gr
             type="button"
             role="menuitem"
             className="graph-export-menu-item"
+            title="White background"
             onClick={() => void handleExport('jpeg')}
           >
             Export JPEG
