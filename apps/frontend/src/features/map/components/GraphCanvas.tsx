@@ -187,12 +187,18 @@ export function GraphCanvas() {
     currentGraphFilters,
   } = filters;
 
+  const hiddenNodeIdsForLegend = useMemo(
+    () => new Set(hiddenIdsSnapshot),
+    [hiddenIdsSnapshot]
+  );
+
   const data = useGraphData({
     applicationIds,
     nodeAttributes,
     nodeRefs,
     filtersActive,
     graphReloadNonce,
+    hiddenNodeIds: hiddenNodeIdsForLegend,
     graphModeRef,
     pendingSandboxFilterHint,
     setPendingSandboxFilterHint,
@@ -212,20 +218,28 @@ export function GraphCanvas() {
     setGraphNodes,
     graphEdges,
     setGraphEdges,
+    simpleMode,
     colorPropertyKey,
     labelPropertyKey,
     appFillKey,
     appBorderKey,
+    legendColors,
     handleColorPropertyChange,
     handleLabelPropertyChange,
     handleAppFillChange,
     handleAppBorderChange,
+    handleValueColorChange,
     legendColorPropertyOptions,
     legendLabelPropertyOptions,
     legendAppPropertyOptions,
     legendColorValues,
+    legendLabelValues,
     legendFillValues,
     legendBorderValues,
+    legendSetups,
+    saveLegendSetup,
+    applyLegendSetup,
+    deleteLegendSetup,
   } = data;
 
   const legendCodingRef = useRef({
@@ -233,12 +247,14 @@ export function GraphCanvas() {
     labelPropertyKey,
     appFillKey,
     appBorderKey,
+    legendColors,
   });
   legendCodingRef.current = {
     colorPropertyKey,
     labelPropertyKey,
     appFillKey,
     appBorderKey,
+    legendColors,
   };
 
   const graphAppsForDrawer = useMemo(
@@ -369,7 +385,12 @@ export function GraphCanvas() {
         hiddenNodeIds: nextHidden,
         colorPropertyKey: coding.colorPropertyKey,
         labelPropertyKey: coding.labelPropertyKey,
-        nodeCoding: { appFillKey: coding.appFillKey, appBorderKey: coding.appBorderKey },
+        nodeCoding: {
+          appFillKey: coding.appFillKey,
+          appBorderKey: coding.appBorderKey,
+          colors: coding.legendColors,
+        },
+        colors: coding.legendColors,
         aspectRatio,
         nodePositions,
         handlers: {
@@ -736,7 +757,7 @@ export function GraphCanvas() {
               type: 'Application',
               properties: created.nodeAttributes ?? {},
             },
-            { appFillKey, appBorderKey }
+            { appFillKey, appBorderKey, colors: legendColors }
           ),
           position,
         },
@@ -778,7 +799,10 @@ export function GraphCanvas() {
     setGraphEdges((prev) => (prev.some((e) => e.id === created.id) ? prev : [...prev, createdEdge]));
     setEdges((prev) => {
       if (prev.some((e) => e.id === created.id)) return prev;
-      return [...prev, buildAppEdge(createdEdge, typeById, colorPropertyKey, labelPropertyKey)];
+      return [
+        ...prev,
+        buildAppEdge(createdEdge, typeById, colorPropertyKey, labelPropertyKey, legendColors),
+      ];
     });
     return null;
   }
@@ -1037,6 +1061,7 @@ export function GraphCanvas() {
                 <Panel position="top-left">
                   <GraphLegend
                     nodeTypes={['Application']}
+                    simpleMode={simpleMode}
                     colorPropertyKey={colorPropertyKey}
                     colorPropertyOptions={legendColorPropertyOptions}
                     onColorPropertyChange={handleColorPropertyChange}
@@ -1044,6 +1069,7 @@ export function GraphCanvas() {
                     labelPropertyKey={labelPropertyKey}
                     labelPropertyOptions={legendLabelPropertyOptions}
                     onLabelPropertyChange={handleLabelPropertyChange}
+                    labelValues={legendLabelValues}
                     appFillKey={appFillKey}
                     appFillOptions={legendAppPropertyOptions}
                     onAppFillChange={handleAppFillChange}
@@ -1052,6 +1078,12 @@ export function GraphCanvas() {
                     appBorderOptions={legendAppPropertyOptions}
                     onAppBorderChange={handleAppBorderChange}
                     borderValues={legendBorderValues}
+                    legendColors={legendColors}
+                    onValueColorChange={handleValueColorChange}
+                    legendSetups={legendSetups}
+                    onSaveLegendSetup={saveLegendSetup}
+                    onApplyLegendSetup={applyLegendSetup}
+                    onDeleteLegendSetup={deleteLegendSetup}
                     showIndirectFlow
                   />
                 </Panel>

@@ -24,19 +24,30 @@ import {
   collectLegendColorValues,
   collectNodeLegendValues,
   colorPropertyOptions,
+  isSimpleLegendMode,
+  loadLegendColorMaps,
+  loadLegendSetups,
   loadStoredAppBorderKey,
   loadStoredAppFillKey,
   loadStoredColorPropertyKey,
   loadStoredLabelPropertyKey,
+  NODE_TYPE_COLOR_KEY,
   nodeBorderColor,
   nodeFillColor,
   nodePropertyOptions,
+  RELATION_TYPE_COLOR_KEY,
   resolveColorPropertyKey,
   resolveNodePropertyKey,
+  setColorInMaps,
   storeAppBorderKey,
   storeAppFillKey,
   storeColorPropertyKey,
   storeLabelPropertyKey,
+  storeLegendColorMaps,
+  storeLegendSetups,
+  visibleGraphElements,
+  type LegendColorMaps,
+  type LegendSetup,
 } from '../components/edgeColorProperty';
 import type { AppGraphNodeType } from '../components/AppGraphNode';
 import {
@@ -57,6 +68,7 @@ export const GRID = 16;
 export type NodeCodingKeys = {
   appFillKey: string;
   appBorderKey: string;
+  colors?: LegendColorMaps;
 };
 
 /** Build RF node with visual-only fill/border (reads DTO; never writes properties). */
@@ -70,8 +82,8 @@ export function buildAppNode(node: GraphNodeDto, coding?: NodeCodingKeys): AppNo
       nodeType: node.type,
       ...(coding
         ? {
-            fillColor: nodeFillColor(node, coding.appFillKey),
-            borderColor: nodeBorderColor(node, coding.appBorderKey),
+            fillColor: nodeFillColor(node, coding.appFillKey, coding.colors?.appFill),
+            borderColor: nodeBorderColor(node, coding.appBorderKey, coding.colors?.appBorder),
           }
         : {}),
     },
@@ -83,7 +95,8 @@ export function buildAppEdge(
   edge: GraphEdgeDto,
   typeById: Map<string, string>,
   colorPropertyKey: string,
-  labelPropertyKey = 'data'
+  labelPropertyKey = 'data',
+  colors?: LegendColorMaps
 ) {
   return buildOrientedEdge({
     id: edge.id,
@@ -94,6 +107,7 @@ export function buildAppEdge(
     colorPropertyKey,
     labelPropertyKey,
     properties: edge.properties,
+    colors,
     sourceNodeType: typeById.get(edge.sourceId) ?? 'Application',
     targetNodeType: typeById.get(edge.targetId) ?? 'Application',
   });
@@ -112,8 +126,8 @@ function applyNodeCoding(
       ...node,
       data: {
         ...node.data,
-        fillColor: nodeFillColor(dto, coding.appFillKey),
-        borderColor: nodeBorderColor(dto, coding.appBorderKey),
+        fillColor: nodeFillColor(dto, coding.appFillKey, coding.colors?.appFill),
+        borderColor: nodeBorderColor(dto, coding.appBorderKey, coding.colors?.appBorder),
       },
     };
   });
@@ -125,6 +139,7 @@ type UseGraphDataParams = {
   nodeRefs: Record<string, string[]>;
   filtersActive: boolean;
   graphReloadNonce: number;
+  hiddenNodeIds?: ReadonlySet<string>;
   graphModeRef: MutableRefObject<GraphMode>;
   pendingSandboxFilterHint: boolean;
   setPendingSandboxFilterHint: Dispatch<SetStateAction<boolean>>;
@@ -142,6 +157,7 @@ export function useGraphData({
   nodeRefs,
   filtersActive,
   graphReloadNonce,
+  hiddenNodeIds = new Set(),
   graphModeRef,
   pendingSandboxFilterHint,
   setPendingSandboxFilterHint,
@@ -163,30 +179,86 @@ export function useGraphData({
   const [labelPropertyKey, setLabelPropertyKey] = useState(loadStoredLabelPropertyKey);
   const [appFillKey, setAppFillKey] = useState(loadStoredAppFillKey);
   const [appBorderKey, setAppBorderKey] = useState(loadStoredAppBorderKey);
+  const [legendColors, setLegendColors] = useState<LegendColorMaps>(loadLegendColorMaps);
+  const legendColorsRef = useRef(legendColors);
+  legendColorsRef.current = legendColors;
+  const [legendSetups, setLegendSetups] = useState<LegendSetup[]>(loadLegendSetups);
   const [layoutRevision, setLayoutRevision] = useState(0);
 
+  const visible = useMemo(
+    () => visibleGraphElements(graphNodes, graphEdges, hiddenNodeIds),
+    [graphNodes, graphEdges, hiddenNodeIds]
+  );
+
+  const simpleMode = useMemo(
+    () => isSimpleLegendMode(visible.nodes, visible.edges),
+    [visible.nodes, visible.edges]
+  );
+
+  const effectiveColorKey = simpleMode ? RELATION_TYPE_COLOR_KEY : colorPropertyKey;
+  const effectiveLabelKey = simpleMode ? RELATION_TYPE_COLOR_KEY : labelPropertyKey;
+  const effectiveFillKey = simpleMode ? NODE_TYPE_COLOR_KEY : appFillKey;
+  const effectiveBorderKey = simpleMode ? NODE_TYPE_COLOR_KEY : appBorderKey;
+
   const legendColorPropertyOptions = useMemo(
-    () => colorPropertyOptions(graphEdges),
-    [graphEdges]
+    () => colorPropertyOptions(visible.edges),
+    [visible.edges]
   );
   const legendLabelPropertyOptions = legendColorPropertyOptions;
   const legendAppPropertyOptions = useMemo(
-    () => nodePropertyOptions(graphNodes),
-    [graphNodes]
+    () => nodePropertyOptions(visible.nodes),
+    [visible.nodes]
   );
 
   const legendColorValues = useMemo(
-    () => collectLegendColorValues(graphEdges, colorPropertyKey),
-    [graphEdges, colorPropertyKey]
+    () => collectLegendColorValues(visible.edges, effectiveColorKey),
+    [visible.edges, effectiveColorKey]
+  );
+  const legendLabelValues = useMemo(
+    () => collectLegendColorValues(visible.edges, effectiveLabelKey),
+    [visible.edges, effectiveLabelKey]
   );
   const legendFillValues = useMemo(
-    () => collectNodeLegendValues(graphNodes, appFillKey),
-    [graphNodes, appFillKey]
+    () => collectNodeLegendValues(visible.nodes, effectiveFillKey),
+    [visible.nodes, effectiveFillKey]
   );
   const legendBorderValues = useMemo(
-    () => collectNodeLegendValues(graphNodes, appBorderKey),
-    [graphNodes, appBorderKey]
+    () => collectNodeLegendValues(visible.nodes, effectiveBorderKey),
+    [visible.nodes, effectiveBorderKey]
   );
+
+  // Resolve keys when options shrink (filters / hide).
+  useEffect(() => {
+    if (simpleMode) return;
+    const nextColor = resolveColorPropertyKey(colorPropertyKey, visible.edges);
+    const nextLabel = resolveColorPropertyKey(labelPropertyKey, visible.edges);
+    const nextFill = resolveNodePropertyKey(appFillKey, visible.nodes);
+    const nextBorder = resolveNodePropertyKey(appBorderKey, visible.nodes);
+    if (nextColor !== colorPropertyKey) {
+      setColorPropertyKey(nextColor);
+      storeColorPropertyKey(nextColor);
+    }
+    if (nextLabel !== labelPropertyKey) {
+      setLabelPropertyKey(nextLabel);
+      storeLabelPropertyKey(nextLabel);
+    }
+    if (nextFill !== appFillKey) {
+      setAppFillKey(nextFill);
+      storeAppFillKey(nextFill);
+    }
+    if (nextBorder !== appBorderKey) {
+      setAppBorderKey(nextBorder);
+      storeAppBorderKey(nextBorder);
+    }
+  }, [
+    simpleMode,
+    visible.edges,
+    visible.nodes,
+    colorPropertyKey,
+    labelPropertyKey,
+    appFillKey,
+    appBorderKey,
+  ]);
 
   const handleColorPropertyChange = useCallback((key: string) => {
     setColorPropertyKey(key);
@@ -205,29 +277,92 @@ export function useGraphData({
     storeAppBorderKey(key);
   }, []);
 
+  const handleValueColorChange = useCallback(
+    (channel: keyof LegendColorMaps, value: string, color: string) => {
+      setLegendColors((prev) => {
+        const next = setColorInMaps(prev, channel, value, color);
+        storeLegendColorMaps(next);
+        return next;
+      });
+    },
+    []
+  );
+
+  const saveLegendSetup = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      setLegendSetups((prev) => {
+        const next: LegendSetup[] = [
+          ...prev,
+          {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            name: trimmed,
+            edgeColorKey: effectiveColorKey,
+            edgeLabelKey: effectiveLabelKey,
+            appFillKey: effectiveFillKey,
+            appBorderKey: effectiveBorderKey,
+            colors: legendColorsRef.current,
+          },
+        ];
+        storeLegendSetups(next);
+        return next;
+      });
+    },
+    [effectiveColorKey, effectiveLabelKey, effectiveFillKey, effectiveBorderKey]
+  );
+
+  const applyLegendSetup = useCallback((setup: LegendSetup) => {
+    setColorPropertyKey(setup.edgeColorKey);
+    storeColorPropertyKey(setup.edgeColorKey);
+    setLabelPropertyKey(setup.edgeLabelKey);
+    storeLabelPropertyKey(setup.edgeLabelKey);
+    setAppFillKey(setup.appFillKey);
+    storeAppFillKey(setup.appFillKey);
+    setAppBorderKey(setup.appBorderKey);
+    storeAppBorderKey(setup.appBorderKey);
+    const colors = setup.colors ?? {};
+    setLegendColors(colors);
+    storeLegendColorMaps(colors);
+  }, []);
+
+  const deleteLegendSetup = useCallback((id: string) => {
+    setLegendSetups((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      storeLegendSetups(next);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     if (status !== 'ready') return;
     setEdges((prev) => {
       if (prev.length === 0) return prev;
       const byId = new Map(graphEdgesRef.current.map((edge) => [edge.id, edge]));
+      const colors = legendColorsRef.current;
       return prev.map((edge) =>
         restyleEdgeColorProperty(
           edge as OrientedEdgeType,
-          colorPropertyKey,
+          effectiveColorKey,
           byId.get(edge.id),
-          labelPropertyKey
+          effectiveLabelKey,
+          colors
         )
       );
     });
-  }, [colorPropertyKey, labelPropertyKey, status, setEdges]);
+  }, [effectiveColorKey, effectiveLabelKey, legendColors, status, setEdges]);
 
   useEffect(() => {
     if (status !== 'ready') return;
     setNodes((prev) => {
       if (prev.length === 0) return prev;
-      return applyNodeCoding(prev, graphNodesRef.current, { appFillKey, appBorderKey });
+      return applyNodeCoding(prev, graphNodesRef.current, {
+        appFillKey: effectiveFillKey,
+        appBorderKey: effectiveBorderKey,
+        colors: legendColorsRef.current,
+      });
     });
-  }, [appFillKey, appBorderKey, status, setNodes]);
+  }, [effectiveFillKey, effectiveBorderKey, legendColors, status, setNodes]);
 
   useEffect(() => {
     if (status !== 'ready' || layoutRevision === 0) return;
@@ -251,36 +386,47 @@ export function useGraphData({
         setGraphNodes(data.nodes);
         setGraphEdges(data.edges);
 
-        const effectiveColorKey = resolveColorPropertyKey(colorPropertyKey, data.edges);
-        const effectiveLabelKey = resolveColorPropertyKey(labelPropertyKey, data.edges);
-        const effectiveFillKey = resolveNodePropertyKey(appFillKey, data.nodes);
-        const effectiveBorderKey = resolveNodePropertyKey(appBorderKey, data.nodes);
+        const simple = isSimpleLegendMode(data.nodes, data.edges);
+        const nextColor = simple
+          ? RELATION_TYPE_COLOR_KEY
+          : resolveColorPropertyKey(colorPropertyKey, data.edges);
+        const nextLabel = simple
+          ? RELATION_TYPE_COLOR_KEY
+          : resolveColorPropertyKey(labelPropertyKey, data.edges);
+        const nextFill = simple
+          ? NODE_TYPE_COLOR_KEY
+          : resolveNodePropertyKey(appFillKey, data.nodes);
+        const nextBorder = simple
+          ? NODE_TYPE_COLOR_KEY
+          : resolveNodePropertyKey(appBorderKey, data.nodes);
 
-        if (effectiveColorKey !== colorPropertyKey) {
-          setColorPropertyKey(effectiveColorKey);
-          storeColorPropertyKey(effectiveColorKey);
+        if (nextColor !== colorPropertyKey) {
+          setColorPropertyKey(nextColor);
+          storeColorPropertyKey(nextColor);
         }
-        if (effectiveLabelKey !== labelPropertyKey) {
-          setLabelPropertyKey(effectiveLabelKey);
-          storeLabelPropertyKey(effectiveLabelKey);
+        if (nextLabel !== labelPropertyKey) {
+          setLabelPropertyKey(nextLabel);
+          storeLabelPropertyKey(nextLabel);
         }
-        if (effectiveFillKey !== appFillKey) {
-          setAppFillKey(effectiveFillKey);
-          storeAppFillKey(effectiveFillKey);
+        if (nextFill !== appFillKey) {
+          setAppFillKey(nextFill);
+          storeAppFillKey(nextFill);
         }
-        if (effectiveBorderKey !== appBorderKey) {
-          setAppBorderKey(effectiveBorderKey);
-          storeAppBorderKey(effectiveBorderKey);
+        if (nextBorder !== appBorderKey) {
+          setAppBorderKey(nextBorder);
+          storeAppBorderKey(nextBorder);
         }
 
+        const colors = legendColorsRef.current;
         const typeById = new Map(data.nodes.map((n) => [n.id, n.type]));
         const nodeCoding: NodeCodingKeys = {
-          appFillKey: effectiveFillKey,
-          appBorderKey: effectiveBorderKey,
+          appFillKey: nextFill,
+          appBorderKey: nextBorder,
+          colors,
         };
         const baseNodes = data.nodes.map((n) => buildAppNode(n, nodeCoding));
         const builtEdges = data.edges.map((e) =>
-          buildAppEdge(e, typeById, effectiveColorKey, effectiveLabelKey)
+          buildAppEdge(e, typeById, nextColor, nextLabel, colors)
         );
         const rect = containerRef.current?.getBoundingClientRect();
         const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
@@ -372,19 +518,27 @@ export function useGraphData({
     setGraphNodes,
     graphEdges,
     setGraphEdges,
-    colorPropertyKey,
-    labelPropertyKey,
-    appFillKey,
-    appBorderKey,
+    simpleMode,
+    colorPropertyKey: effectiveColorKey,
+    labelPropertyKey: effectiveLabelKey,
+    appFillKey: effectiveFillKey,
+    appBorderKey: effectiveBorderKey,
+    legendColors,
     handleColorPropertyChange,
     handleLabelPropertyChange,
     handleAppFillChange,
     handleAppBorderChange,
+    handleValueColorChange,
     legendColorPropertyOptions,
     legendLabelPropertyOptions,
     legendAppPropertyOptions,
     legendColorValues,
+    legendLabelValues,
     legendFillValues,
     legendBorderValues,
+    legendSetups,
+    saveLegendSetup,
+    applyLegendSetup,
+    deleteLegendSetup,
   };
 }

@@ -1,16 +1,30 @@
 import { MarkerType } from '@xyflow/react';
 import type { GraphEdgeDto } from '@/types/api';
-import { edgeColorForProperty, edgeDashedForRelation } from './graphTheme';
-import { edgeColorValue, edgeLabelText } from './edgeColorProperty';
+import { edgeDashedForRelation } from './graphTheme';
+import {
+  edgeColorValue,
+  edgeLabelText,
+  paintEdgeLabelColor,
+  paintEdgeStrokeColor,
+  type LegendColorMaps,
+} from './edgeColorProperty';
 import type { OrientedEdgeType } from './OrientedEdge';
 import type { Point } from './elkLayout';
 
-/** Arrowhead marker tinted to match the link color. */
 export function orientedMarkerEnd(color: string) {
   return { type: MarkerType.ArrowClosed, color, width: 16, height: 16 };
 }
 
-/** Build an OrientedEdge; reads existing fields only for stroke/label display. */
+export type EdgePaintOptions = {
+  colorPropertyKey?: string;
+  labelPropertyKey?: string;
+  colorValue?: string | null;
+  /** When true, keep Indirect / + (no attribute label coding). */
+  forceIndirect?: boolean;
+  colors?: LegendColorMaps;
+};
+
+/** Build an OrientedEdge; reads existing fields only. Never mutates DTO properties. */
 export function buildOrientedEdge(params: {
   id: string;
   sourceId: string;
@@ -23,6 +37,7 @@ export function buildOrientedEdge(params: {
   labelPropertyKey?: string;
   colorValue?: string | null;
   properties?: GraphEdgeDto['properties'];
+  colors?: LegendColorMaps;
 }): OrientedEdgeType {
   const dataKey = params.dataLabel?.trim() || null;
   const colorPropertyKey = params.colorPropertyKey ?? 'data';
@@ -39,9 +54,22 @@ export function buildOrientedEdge(params: {
     params.colorValue !== undefined
       ? params.colorValue
       : edgeColorValue(dto, colorPropertyKey);
-  const edgeColor = edgeColorForProperty(colorValue, params.relationType, colorPropertyKey);
+  const edgeColor = paintEdgeStrokeColor(
+    colorValue,
+    params.relationType,
+    colorPropertyKey,
+    params.colors?.edgeStroke
+  );
   const dashed = edgeDashedForRelation(params.relationType);
   const label = edgeLabelText(dto, labelPropertyKey);
+  const labelValue = edgeColorValue(dto, labelPropertyKey);
+  const labelColor = paintEdgeLabelColor(
+    labelValue,
+    params.relationType,
+    labelPropertyKey,
+    params.colors?.edgeLabel,
+    edgeColor
+  );
 
   return {
     id: params.id,
@@ -53,6 +81,7 @@ export function buildOrientedEdge(params: {
     data: {
       sourceColor: edgeColor,
       targetColor: edgeColor,
+      labelColor,
       dashed,
       relation: params.relationType,
       dataLabel: label,
@@ -64,12 +93,13 @@ export function buildOrientedEdge(params: {
   };
 }
 
-/** Re-apply stroke / label from existing DTO fields (keep routes). Never mutates DTO. */
+/** Re-apply stroke / label from existing DTO (keep routes). Never mutates DTO. */
 export function restyleEdgeColorProperty(
   edge: OrientedEdgeType,
   colorPropertyKey: string,
   raw?: GraphEdgeDto,
-  labelPropertyKey?: string
+  labelPropertyKey?: string,
+  colors?: LegendColorMaps
 ): OrientedEdgeType {
   const relationType = raw?.type ?? (edge.data?.relation as string | undefined) ?? 'DEPENDS_ON';
   const dto: GraphEdgeDto =
@@ -83,7 +113,7 @@ export function restyleEdgeColorProperty(
     };
 
   if (edge.data?.indirect) {
-    const edgeColor = edgeColorForProperty(null, relationType, colorPropertyKey);
+    const edgeColor = paintEdgeStrokeColor(null, relationType, colorPropertyKey, colors?.edgeStroke);
     return {
       ...edge,
       label: '+',
@@ -92,6 +122,7 @@ export function restyleEdgeColorProperty(
         ...edge.data!,
         sourceColor: edgeColor,
         targetColor: edgeColor,
+        labelColor: edgeColor,
         colorPropertyKey,
         colorValue: null,
         dataLabel: 'Indirect',
@@ -101,8 +132,22 @@ export function restyleEdgeColorProperty(
   }
 
   const colorValue = edgeColorValue(dto, colorPropertyKey);
-  const edgeColor = edgeColorForProperty(colorValue, relationType, colorPropertyKey);
-  const label = edgeLabelText(dto, labelPropertyKey ?? 'data');
+  const edgeColor = paintEdgeStrokeColor(
+    colorValue,
+    relationType,
+    colorPropertyKey,
+    colors?.edgeStroke
+  );
+  const labelKey = labelPropertyKey ?? 'data';
+  const label = edgeLabelText(dto, labelKey);
+  const labelValue = edgeColorValue(dto, labelKey);
+  const labelColor = paintEdgeLabelColor(
+    labelValue,
+    relationType,
+    labelKey,
+    colors?.edgeLabel,
+    edgeColor
+  );
   return {
     ...edge,
     label,
@@ -111,6 +156,7 @@ export function restyleEdgeColorProperty(
       ...edge.data!,
       sourceColor: edgeColor,
       targetColor: edgeColor,
+      labelColor,
       colorPropertyKey,
       colorValue,
       dataLabel: label,

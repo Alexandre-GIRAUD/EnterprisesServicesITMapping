@@ -8,15 +8,17 @@ import {
   type EdgeTypeKey,
 } from './graphTheme';
 
-/** Sentinel key: color/label edges by Neo4j relationship type. */
+/** Sentinel: paint by relationship / flow type. */
 export const RELATION_TYPE_COLOR_KEY = '__relation__';
-/** Sentinel key: paint apps by node type (default border / white fill). */
+/** Sentinel: paint by app / node type. */
 export const NODE_TYPE_COLOR_KEY = '__type__';
 
 export const EDGE_COLOR_PROPERTY_STORAGE_KEY = 'flowra.graph.edgeColorProperty';
 export const EDGE_LABEL_PROPERTY_STORAGE_KEY = 'flowra.graph.edgeLabelProperty';
 export const APP_FILL_PROPERTY_STORAGE_KEY = 'flowra.graph.appFillProperty';
 export const APP_BORDER_PROPERTY_STORAGE_KEY = 'flowra.graph.appBorderProperty';
+export const LEGEND_COLORS_STORAGE_KEY = 'flowra.graph.legendColors';
+export const LEGEND_SETUPS_STORAGE_KEY = 'flowra.graph.legendSetups';
 
 const KNOWN_PROPERTY_ORDER = ['data', 'connection_kind', 'asset_class', 'frequency', 'creation_date'] as const;
 const INTERNAL_PROPERTY_KEYS = new Set(['validFrom', 'validTo', 'id', 'name', 'description', 'year']);
@@ -27,11 +29,31 @@ export const EDGE_COLOR_PROPERTY_LABELS: Record<string, string> = {
   asset_class: 'Asset class',
   frequency: 'Frequency',
   creation_date: 'Creation year',
-  [RELATION_TYPE_COLOR_KEY]: 'Relationship type',
-  [NODE_TYPE_COLOR_KEY]: 'Node type',
+  [RELATION_TYPE_COLOR_KEY]: 'Flow',
+  [NODE_TYPE_COLOR_KEY]: 'App',
 };
 
 export type AttributeOption = { key: string; label: string };
+
+export type LegendColorMaps = {
+  edgeStroke?: Record<string, string>;
+  edgeLabel?: Record<string, string>;
+  appFill?: Record<string, string>;
+  appBorder?: Record<string, string>;
+};
+
+export type LegendCodingKeys = {
+  edgeColorKey: string;
+  edgeLabelKey: string;
+  appFillKey: string;
+  appBorderKey: string;
+};
+
+export type LegendSetup = LegendCodingKeys & {
+  id: string;
+  name: string;
+  colors: LegendColorMaps;
+};
 
 export function labelForColorProperty(key: string): string {
   return EDGE_COLOR_PROPERTY_LABELS[key] ?? key.replace(/_/g, ' ');
@@ -54,7 +76,7 @@ function storeKey(storageKey: string, key: string): void {
 }
 
 export function loadStoredColorPropertyKey(): string {
-  return loadStoredKey(EDGE_COLOR_PROPERTY_STORAGE_KEY, 'data');
+  return loadStoredKey(EDGE_COLOR_PROPERTY_STORAGE_KEY, RELATION_TYPE_COLOR_KEY);
 }
 
 export function storeColorPropertyKey(key: string): void {
@@ -85,6 +107,69 @@ export function storeAppBorderKey(key: string): void {
   storeKey(APP_BORDER_PROPERTY_STORAGE_KEY, key);
 }
 
+export function loadLegendColorMaps(): LegendColorMaps {
+  try {
+    const raw = localStorage.getItem(LEGEND_COLORS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as LegendColorMaps;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function storeLegendColorMaps(colors: LegendColorMaps): void {
+  try {
+    localStorage.setItem(LEGEND_COLORS_STORAGE_KEY, JSON.stringify(colors));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function loadLegendSetups(): LegendSetup[] {
+  try {
+    const raw = localStorage.getItem(LEGEND_SETUPS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as LegendSetup[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function storeLegendSetups(setups: LegendSetup[]): void {
+  try {
+    localStorage.setItem(LEGEND_SETUPS_STORAGE_KEY, JSON.stringify(setups));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Visible apps/edges after filters (+ hide). Read-only slice. */
+export function visibleGraphElements(
+  graphNodes: GraphNodeDto[],
+  graphEdges: GraphEdgeDto[],
+  hiddenNodeIds: ReadonlySet<string> = new Set()
+): { nodes: GraphNodeDto[]; edges: GraphEdgeDto[] } {
+  const nodes = graphNodes.filter((n) => !hiddenNodeIds.has(n.id));
+  const visible = new Set(nodes.map((n) => n.id));
+  const edges = graphEdges.filter(
+    (e) => visible.has(e.sourceId) && visible.has(e.targetId)
+  );
+  return { nodes, edges };
+}
+
+/** True when no business attrs exist on visible elements — only App / Flow sentinels. */
+export function isSimpleLegendMode(
+  visibleNodes: GraphNodeDto[],
+  visibleEdges: GraphEdgeDto[]
+): boolean {
+  return (
+    discoverColorPropertyKeys(visibleEdges).length === 0 &&
+    discoverNodePropertyKeys(visibleNodes).length === 0
+  );
+}
+
 /** Read-only: value used for stroke / label for one edge. Never writes. */
 export function edgeColorValue(edge: GraphEdgeDto, propertyKey: string): string | null {
   if (propertyKey === RELATION_TYPE_COLOR_KEY) {
@@ -100,7 +185,6 @@ export function edgeColorValue(edge: GraphEdgeDto, propertyKey: string): string 
   return null;
 }
 
-/** Display label text derived from an existing edge field (fallback: relation type). */
 export function edgeLabelText(edge: GraphEdgeDto, propertyKey: string): string {
   return edgeColorValue(edge, propertyKey)?.trim() || edge.type?.trim() || 'DEPENDS_ON';
 }
@@ -127,7 +211,6 @@ function orderKeys(keys: string[]): string[] {
   return [...known, ...rest];
 }
 
-/** Property keys with ≥1 non-empty value on the given edges (+ `data`). */
 export function discoverColorPropertyKeys(edges: GraphEdgeDto[]): string[] {
   const keys = presentKeysFromProps(edges);
   for (const edge of edges) {
@@ -136,7 +219,6 @@ export function discoverColorPropertyKeys(edges: GraphEdgeDto[]): string[] {
   return orderKeys([...keys]);
 }
 
-/** Selector options for edges: discovered properties + relationship type. */
 export function colorPropertyOptions(edges: GraphEdgeDto[]): AttributeOption[] {
   const options = discoverColorPropertyKeys(edges).map((key) => ({
     key,
@@ -152,15 +234,13 @@ export function colorPropertyOptions(edges: GraphEdgeDto[]): AttributeOption[] {
 export function resolveColorPropertyKey(storedKey: string, edges: GraphEdgeDto[]): string {
   const options = colorPropertyOptions(edges);
   if (options.some((o) => o.key === storedKey)) return storedKey;
-  return options[0]?.key ?? 'data';
+  return options[0]?.key ?? RELATION_TYPE_COLOR_KEY;
 }
 
-/** Property keys with ≥1 non-empty value on the given apps. */
 export function discoverNodePropertyKeys(nodes: GraphNodeDto[]): string[] {
   return orderKeys([...presentKeysFromProps(nodes)]);
 }
 
-/** Selector options for apps: discovered properties + node type. */
 export function nodePropertyOptions(nodes: GraphNodeDto[]): AttributeOption[] {
   const options = discoverNodePropertyKeys(nodes).map((key) => ({
     key,
@@ -179,7 +259,6 @@ export function resolveNodePropertyKey(storedKey: string, nodes: GraphNodeDto[])
   return options[0]?.key ?? NODE_TYPE_COLOR_KEY;
 }
 
-/** Read-only node property value. Never writes. */
 export function nodePropValue(node: GraphNodeDto, propertyKey: string): string | null {
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     return node.type?.trim() || null;
@@ -191,30 +270,99 @@ export function nodePropValue(node: GraphNodeDto, propertyKey: string): string |
   return null;
 }
 
-/** CSS fill only (derived from existing attributes). */
-export function nodeFillColor(node: GraphNodeDto, propertyKey: string): string {
-  if (propertyKey === NODE_TYPE_COLOR_KEY) return '#ffffff';
+function overrideOr(
+  map: Record<string, string> | undefined,
+  value: string | null | undefined,
+  fallback: string
+): string {
+  if (value && map?.[value]) return map[value];
+  return fallback;
+}
+
+/** Default edge stroke (no custom override). */
+export function defaultEdgeStrokeColor(
+  value: string | null,
+  relationType: string,
+  propertyKey: string
+): string {
+  return edgeColorForProperty(value, relationType, propertyKey);
+}
+
+export function paintEdgeStrokeColor(
+  value: string | null,
+  relationType: string,
+  propertyKey: string,
+  colorMap?: Record<string, string>
+): string {
+  const fallback = defaultEdgeStrokeColor(value, relationType, propertyKey);
+  return overrideOr(colorMap, value, fallback);
+}
+
+export function paintEdgeLabelColor(
+  value: string | null,
+  relationType: string,
+  propertyKey: string,
+  colorMap?: Record<string, string>,
+  strokeFallback?: string
+): string {
+  if (value && colorMap?.[value]) return colorMap[value];
+  if (strokeFallback) return strokeFallback;
+  return defaultEdgeStrokeColor(value, relationType, propertyKey);
+}
+
+export function nodeFillColor(
+  node: GraphNodeDto,
+  propertyKey: string,
+  colorMap?: Record<string, string>
+): string {
+  if (propertyKey === NODE_TYPE_COLOR_KEY) {
+    const value = nodePropValue(node, propertyKey);
+    return overrideOr(colorMap, value, '#ffffff');
+  }
   const value = nodePropValue(node, propertyKey);
   if (!value) return '#ffffff';
-  return edgeColorForProperty(value, node.type || 'Application', propertyKey);
+  const fallback = edgeColorForProperty(value, node.type || 'Application', propertyKey);
+  return overrideOr(colorMap, value, fallback);
 }
 
-/** CSS border only (derived from existing attributes). */
-export function nodeBorderColor(node: GraphNodeDto, propertyKey: string): string {
-  if (propertyKey === NODE_TYPE_COLOR_KEY) return nodeColorForType(node.type);
+export function nodeBorderColor(
+  node: GraphNodeDto,
+  propertyKey: string,
+  colorMap?: Record<string, string>
+): string {
+  if (propertyKey === NODE_TYPE_COLOR_KEY) {
+    const value = nodePropValue(node, propertyKey);
+    const fallback = nodeColorForType(node.type);
+    return overrideOr(colorMap, value, fallback);
+  }
   const value = nodePropValue(node, propertyKey);
   if (!value) return nodeColorForType(node.type);
-  return edgeColorForProperty(value, node.type || 'Application', propertyKey);
+  const fallback = edgeColorForProperty(value, node.type || 'Application', propertyKey);
+  return overrideOr(colorMap, value, fallback);
 }
 
-export function nodeFillColorForValue(propertyKey: string, value: string): string {
-  if (propertyKey === NODE_TYPE_COLOR_KEY) return '#ffffff';
-  return edgeColorForProperty(value, 'Application', propertyKey);
+export function nodeFillColorForValue(
+  propertyKey: string,
+  value: string,
+  colorMap?: Record<string, string>
+): string {
+  if (propertyKey === NODE_TYPE_COLOR_KEY) {
+    return overrideOr(colorMap, value, '#ffffff');
+  }
+  const fallback = edgeColorForProperty(value, 'Application', propertyKey);
+  return overrideOr(colorMap, value, fallback);
 }
 
-export function nodeBorderColorForValue(propertyKey: string, value: string): string {
-  if (propertyKey === NODE_TYPE_COLOR_KEY) return nodeColorForType(value);
-  return edgeColorForProperty(value, 'Application', propertyKey);
+export function nodeBorderColorForValue(
+  propertyKey: string,
+  value: string,
+  colorMap?: Record<string, string>
+): string {
+  if (propertyKey === NODE_TYPE_COLOR_KEY) {
+    return overrideOr(colorMap, value, nodeColorForType(value));
+  }
+  const fallback = edgeColorForProperty(value, 'Application', propertyKey);
+  return overrideOr(colorMap, value, fallback);
 }
 
 export function collectLegendColorValues(
@@ -257,13 +405,30 @@ export function legendLabelForColorValue(propertyKey: string, value: string): st
     return (EDGE_TYPE_STYLES as Record<string, { legendLabel: string } | undefined>)[value]
       ?.legendLabel ?? value;
   }
+  if (propertyKey === NODE_TYPE_COLOR_KEY) {
+    return value === 'Application' ? 'App' : value;
+  }
   return value;
 }
 
 export function strokeColorForLegendSwatch(
   propertyKey: string,
   value: string,
-  relationFallback = 'DEPENDS_ON'
+  relationFallback = 'DEPENDS_ON',
+  colorMap?: Record<string, string>
 ): string {
-  return edgeColorForProperty(value, relationFallback, propertyKey);
+  return paintEdgeStrokeColor(value, relationFallback, propertyKey, colorMap);
+}
+
+export function setColorInMaps(
+  colors: LegendColorMaps,
+  channel: keyof LegendColorMaps,
+  value: string,
+  color: string
+): LegendColorMaps {
+  const prev = colors[channel] ?? {};
+  return {
+    ...colors,
+    [channel]: { ...prev, [value]: color },
+  };
 }

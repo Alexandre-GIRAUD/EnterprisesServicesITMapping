@@ -7,6 +7,7 @@ import {
   type AppNode,
   type NodeCodingKeys,
 } from '../hooks/useGraphData';
+import type { LegendColorMaps } from './edgeColorProperty';
 import { computeBridges } from './bridges';
 import { projectCollapsedGraph } from './collapseGraph';
 import { elkLayout } from './elkLayout';
@@ -127,6 +128,7 @@ export async function layoutCollapsedAppGraph(params: {
   colorPropertyKey: string;
   labelPropertyKey?: string;
   nodeCoding?: NodeCodingKeys;
+  colors?: LegendColorMaps;
   aspectRatio: number;
   handlers: CollapseLayoutHandlers;
   /** Optional canvas positions to preserve (visible + newly restored). */
@@ -139,6 +141,7 @@ export async function layoutCollapsedAppGraph(params: {
     colorPropertyKey,
     labelPropertyKey = 'data',
     nodeCoding,
+    colors,
     aspectRatio,
     handlers,
     nodePositions,
@@ -180,9 +183,10 @@ export async function layoutCollapsedAppGraph(params: {
           targetNodeType: typeById.get(pe.targetId) ?? 'Application',
           colorPropertyKey,
           labelPropertyKey,
+          colors,
         });
       }
-      return buildAppEdge(dto, typeById, colorPropertyKey, labelPropertyKey);
+      return buildAppEdge(dto, typeById, colorPropertyKey, labelPropertyKey, colors);
     }
 
     const hiddenNodeIdsForEdge = [...pe.hiddenNodeIds];
@@ -197,6 +201,7 @@ export async function layoutCollapsedAppGraph(params: {
       colorPropertyKey,
       labelPropertyKey,
       colorValue: null,
+      colors,
     });
 
     const data: OrientedEdgeData = {

@@ -2836,6 +2836,59 @@ body {
   overflow-y: auto;
 }
 
+.graph-legend__setup-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.graph-legend__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.28rem 0.45rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.72rem;
+}
+
+.graph-legend__btn {
+  flex-shrink: 0;
+  padding: 0.28rem 0.45rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.graph-legend__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.graph-legend__btn--danger {
+  color: #b91c1c;
+}
+
+.graph-legend__color {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.graph-legend__item .graph-legend__label {
+  flex: 1;
+  min-width: 0;
+}
+
 .graph-legend__control {
   display: flex;
   flex-direction: column;

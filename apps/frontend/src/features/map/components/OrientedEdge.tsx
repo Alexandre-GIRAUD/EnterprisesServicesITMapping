@@ -18,6 +18,8 @@ import { computeBridges } from './bridges';
 export type OrientedEdgeData = {
   sourceColor: string;
   targetColor: string;
+  /** Optional distinct color for the edge label pill (falls back to sourceColor). */
+  labelColor?: string;
   dashed?: boolean;
   relation?: string;
   /** Label shown on the link (data type when available). */
@@ -546,6 +548,7 @@ export function OrientedEdge({
 
   const sourceColor = data?.sourceColor ?? '#64748b';
   const targetColor = data?.targetColor ?? '#64748b';
+  const labelColor = data?.labelColor ?? sourceColor;
   const gradientId  = `oriented-edge-gradient-${id}`;
   const isIndirect  = Boolean(data?.indirect);
   const showLabel   = !isIndirect && Boolean(label) && zoom >= ZOOM_THRESHOLDS.secondaryDetail;
@@ -603,8 +606,8 @@ export function OrientedEdge({
             className="oriented-edge-label nodrag nopan"
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-              color: sourceColor,
-              borderColor: `${sourceColor}55`,
+              color: labelColor,
+              borderColor: `${labelColor}55`,
             }}
           >
             {label}
