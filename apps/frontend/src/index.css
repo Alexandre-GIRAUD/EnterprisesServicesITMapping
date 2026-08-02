@@ -2818,12 +2818,64 @@ body {
   gap: 0.55rem;
   padding: 0.6rem 0.7rem;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgb(255 255 255 / 94%);
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
   pointer-events: auto;
   user-select: none;
+  max-width: min(16.5rem, 42vw);
+}
+
+.graph-legend.is-editing {
+  max-width: min(18.5rem, 48vw);
+  max-height: min(78vh, 36rem);
+  overflow-y: auto;
+}
+
+.graph-legend__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.graph-legend__heading {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Compact toggle aligned with Views item / pin button family */
+.graph-legend__toggle {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #2563eb;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.graph-legend__toggle:hover {
+  border-color: #93c5fd;
+  background: #f8fafc;
+  box-shadow: 0 4px 14px rgb(37 99 235 / 10%);
+}
+
+.graph-legend__toggle:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
 .graph-legend__group--control {
@@ -2832,36 +2884,53 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  max-height: min(70vh, 28rem);
-  overflow-y: auto;
 }
 
 .graph-legend__setup-row {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.35rem;
 }
 
 .graph-legend__input {
   flex: 1;
   min-width: 0;
-  padding: 0.28rem 0.45rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
   background: #fff;
   color: #334155;
-  font-size: 0.72rem;
+  font: inherit;
+  font-size: 0.78rem;
 }
 
 .graph-legend__btn {
   flex-shrink: 0;
-  padding: 0.28rem 0.45rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background: #f8fafc;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
+  background: #ffffff;
   color: #334155;
-  font-size: 0.68rem;
   cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.graph-legend__btn:hover:not(:disabled) {
+  border-color: #93c5fd;
+  background: #f8fafc;
+  box-shadow: 0 4px 14px rgb(37 99 235 / 10%);
+}
+
+.graph-legend__btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
 .graph-legend__btn:disabled {
@@ -2869,8 +2938,28 @@ body {
   cursor: not-allowed;
 }
 
+.graph-legend__btn--primary {
+  color: #ffffff;
+  background: #2563eb;
+  border-color: #1d4ed8;
+}
+
+.graph-legend__btn--primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  box-shadow: 0 4px 14px rgb(37 99 235 / 18%);
+}
+
 .graph-legend__btn--danger {
-  color: #b91c1c;
+  color: #94a3b8;
+  background: #ffffff;
+}
+
+.graph-legend__btn--danger:hover:not(:disabled) {
+  color: #dc2626;
+  border-color: #fecaca;
+  background: #fef2f2;
+  box-shadow: none;
 }
 
 .graph-legend__color {
@@ -2878,7 +2967,7 @@ body {
   width: 1.35rem;
   height: 1.1rem;
   padding: 0;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #e2e8f0;
   border-radius: 4px;
   background: transparent;
   cursor: pointer;

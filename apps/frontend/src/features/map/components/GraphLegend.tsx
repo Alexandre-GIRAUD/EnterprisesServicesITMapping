@@ -112,7 +112,8 @@ function normalizeHex(color: string): string {
 }
 
 /**
- * Legend: display coding + per-value colors. Never mutates graph attributes.
+ * Compact read mode by default; Edit reveals attribute/color/save controls.
+ * Never mutates graph attributes.
  */
 export function GraphLegend({
   nodeTypes,
@@ -142,6 +143,7 @@ export function GraphLegend({
   onDeleteLegendSetup,
   showIndirectFlow = false,
 }: Props) {
+  const [isEditing, setIsEditing] = useState(false);
   const [setupName, setSetupName] = useState('');
   const [selectedSetupId, setSelectedSetupId] = useState('');
 
@@ -150,9 +152,104 @@ export function GraphLegend({
     colorPropertyKey != null &&
     onColorPropertyChange != null;
 
+  const canEdit =
+    showCoding ||
+    Boolean(onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup);
+
+  const colorChange = isEditing ? onValueColorChange : undefined;
+
   return (
-    <div className="graph-legend" role="note" aria-label="Graph legend">
-      {showCoding && !simpleMode && (
+    <div
+      className={`graph-legend${isEditing ? ' is-editing' : ''}`}
+      role="note"
+      aria-label="Graph legend"
+    >
+      <header className="graph-legend__header">
+        <h2 className="graph-legend__heading">Legend</h2>
+        {canEdit ? (
+          <button
+            type="button"
+            className="graph-legend__toggle"
+            aria-label={isEditing ? 'Done' : 'Edit'}
+            title={isEditing ? 'Done' : 'Edit'}
+            onClick={() => setIsEditing((v) => !v)}
+          >
+            {isEditing ? '✓' : 'Edit'}
+          </button>
+        ) : null}
+      </header>
+
+      {/* Edit: Save / use saved legend first */}
+      {isEditing && onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup && (
+        <div className="graph-legend__group graph-legend__group--control">
+          <label className="graph-legend__control">
+            <span className="graph-legend__title">Save legend</span>
+            <div className="graph-legend__setup-row">
+              <input
+                className="graph-legend__input"
+                value={setupName}
+                onChange={(e) => setSetupName(e.target.value)}
+                placeholder="Legend name"
+                aria-label="Legend setup name"
+              />
+              <button
+                type="button"
+                className="graph-legend__btn graph-legend__btn--primary"
+                disabled={!setupName.trim()}
+                onClick={() => {
+                  onSaveLegendSetup(setupName);
+                  setSetupName('');
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </label>
+          {legendSetups.length > 0 && (
+            <div className="graph-legend__setup-row">
+              <select
+                className="graph-legend__select"
+                value={selectedSetupId}
+                onChange={(e) => setSelectedSetupId(e.target.value)}
+                aria-label="Saved legends"
+              >
+                <option value="">Saved legends…</option>
+                {legendSetups.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="graph-legend__btn"
+                disabled={!selectedSetupId}
+                onClick={() => {
+                  const setup = legendSetups.find((s) => s.id === selectedSetupId);
+                  if (setup) onApplyLegendSetup(setup);
+                }}
+              >
+                Apply
+              </button>
+              <button
+                type="button"
+                className="graph-legend__btn graph-legend__btn--danger"
+                disabled={!selectedSetupId}
+                onClick={() => {
+                  if (!selectedSetupId) return;
+                  onDeleteLegendSetup(selectedSetupId);
+                  setSelectedSetupId('');
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit: attribute selectors (full mode only) */}
+      {isEditing && showCoding && !simpleMode && (
         <div className="graph-legend__group graph-legend__group--control">
           <label className="graph-legend__control">
             <span className="graph-legend__title">Link color</span>
@@ -230,74 +327,7 @@ export function GraphLegend({
         </div>
       )}
 
-      {onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup && (
-        <div className="graph-legend__group graph-legend__group--control">
-          <label className="graph-legend__control">
-            <span className="graph-legend__title">Save legend</span>
-            <div className="graph-legend__setup-row">
-              <input
-                className="graph-legend__input"
-                value={setupName}
-                onChange={(e) => setSetupName(e.target.value)}
-                placeholder="Legend name"
-                aria-label="Legend setup name"
-              />
-              <button
-                type="button"
-                className="graph-legend__btn"
-                disabled={!setupName.trim()}
-                onClick={() => {
-                  onSaveLegendSetup(setupName);
-                  setSetupName('');
-                }}
-              >
-                Save
-              </button>
-            </div>
-          </label>
-          {legendSetups.length > 0 && (
-            <div className="graph-legend__setup-row">
-              <select
-                className="graph-legend__select"
-                value={selectedSetupId}
-                onChange={(e) => setSelectedSetupId(e.target.value)}
-                aria-label="Saved legends"
-              >
-                <option value="">Saved legends…</option>
-                {legendSetups.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="graph-legend__btn"
-                disabled={!selectedSetupId}
-                onClick={() => {
-                  const setup = legendSetups.find((s) => s.id === selectedSetupId);
-                  if (setup) onApplyLegendSetup(setup);
-                }}
-              >
-                Apply
-              </button>
-              <button
-                type="button"
-                className="graph-legend__btn graph-legend__btn--danger"
-                disabled={!selectedSetupId}
-                onClick={() => {
-                  if (!selectedSetupId) return;
-                  onDeleteLegendSetup(selectedSetupId);
-                  setSelectedSetupId('');
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
+      {/* Read (and edit): active coding swatches — pickers only while editing */}
       {!showCoding && nodeTypes.length > 0 && (
         <div className="graph-legend__group">
           <p className="graph-legend__title">App</p>
@@ -318,36 +348,31 @@ export function GraphLegend({
         </div>
       )}
 
-      {/* Simple mode: App + Flow only */}
-      {simpleMode &&
-        borderValues.length > 0 &&
-        appBorderKey != null && (
-          <div className="graph-legend__group">
-            <p className="graph-legend__title">App</p>
-            <ul className="graph-legend__list">
-              {borderValues.map((value) => {
-                const color = nodeBorderColorForValue(
-                  appBorderKey,
-                  value,
-                  legendColors.appBorder
-                );
-                return (
-                  <ColorValueRow
-                    key={`app-${value}`}
-                    label={nodeValueLabel(appBorderKey, value)}
-                    color={color}
-                    kind="border"
-                    onChange={
-                      onValueColorChange
-                        ? (c) => onValueColorChange('appBorder', value, c)
-                        : undefined
-                    }
-                  />
-                );
-              })}
-            </ul>
-          </div>
-        )}
+      {simpleMode && borderValues.length > 0 && appBorderKey != null && (
+        <div className="graph-legend__group">
+          <p className="graph-legend__title">App</p>
+          <ul className="graph-legend__list">
+            {borderValues.map((value) => {
+              const color = nodeBorderColorForValue(
+                appBorderKey,
+                value,
+                legendColors.appBorder
+              );
+              return (
+                <ColorValueRow
+                  key={`app-${value}`}
+                  label={nodeValueLabel(appBorderKey, value)}
+                  color={color}
+                  kind="border"
+                  onChange={
+                    colorChange ? (c) => colorChange('appBorder', value, c) : undefined
+                  }
+                />
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {simpleMode && colorValues.length > 0 && colorPropertyKey != null && (
         <div className="graph-legend__group">
@@ -367,9 +392,7 @@ export function GraphLegend({
                   color={color}
                   kind="edge"
                   onChange={
-                    onValueColorChange
-                      ? (c) => onValueColorChange('edgeStroke', value, c)
-                      : undefined
+                    colorChange ? (c) => colorChange('edgeStroke', value, c) : undefined
                   }
                 />
               );
@@ -378,7 +401,6 @@ export function GraphLegend({
         </div>
       )}
 
-      {/* Full mode value swatches + pickers */}
       {!simpleMode && fillValues.length > 0 && appFillKey != null && (
         <div className="graph-legend__group">
           <p className="graph-legend__title">
@@ -394,9 +416,7 @@ export function GraphLegend({
                   color={color}
                   kind="fill"
                   onChange={
-                    onValueColorChange
-                      ? (c) => onValueColorChange('appFill', value, c)
-                      : undefined
+                    colorChange ? (c) => colorChange('appFill', value, c) : undefined
                   }
                 />
               );
@@ -424,9 +444,7 @@ export function GraphLegend({
                   color={color}
                   kind="border"
                   onChange={
-                    onValueColorChange
-                      ? (c) => onValueColorChange('appBorder', value, c)
-                      : undefined
+                    colorChange ? (c) => colorChange('appBorder', value, c) : undefined
                   }
                 />
               );
@@ -455,9 +473,7 @@ export function GraphLegend({
                   color={color}
                   kind="edge"
                   onChange={
-                    onValueColorChange
-                      ? (c) => onValueColorChange('edgeStroke', value, c)
-                      : undefined
+                    colorChange ? (c) => colorChange('edgeStroke', value, c) : undefined
                   }
                 />
               );
@@ -483,9 +499,7 @@ export function GraphLegend({
                   color={color}
                   kind="edge"
                   onChange={
-                    onValueColorChange
-                      ? (c) => onValueColorChange('edgeLabel', value, c)
-                      : undefined
+                    colorChange ? (c) => colorChange('edgeLabel', value, c) : undefined
                   }
                 />
               );
