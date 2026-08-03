@@ -5,7 +5,6 @@ import {
   edgeColorValue,
   edgeLabelText,
   paintEdgeStrokeColor,
-  resolveSharedEdgeLabelColor,
   type LegendColorMaps,
 } from './edgeColorProperty';
 import type { OrientedEdgeType } from './OrientedEdge';
@@ -54,15 +53,6 @@ export function buildOrientedEdge(params: {
   );
   const dashed = edgeDashedForRelation(params.relationType);
   const label = edgeLabelText(dto, labelPropertyKey);
-  const labelValue = edgeColorValue(dto, labelPropertyKey);
-  const labelColor = resolveSharedEdgeLabelColor(
-    colorPropertyKey,
-    labelPropertyKey,
-    labelValue,
-    params.relationType,
-    params.colors,
-    edgeColor
-  );
 
   return {
     id: params.id,
@@ -74,7 +64,7 @@ export function buildOrientedEdge(params: {
     data: {
       sourceColor: edgeColor,
       targetColor: edgeColor,
-      labelColor,
+      labelColor: edgeColor,
       dashed,
       relation: params.relationType,
       dataLabel: label,
@@ -136,15 +126,6 @@ export function restyleEdgeColorProperty(
   );
   const labelKey = labelPropertyKey ?? 'data';
   const label = edgeLabelText(dto, labelKey);
-  const labelValue = edgeColorValue(dto, labelKey);
-  const labelColor = resolveSharedEdgeLabelColor(
-    colorPropertyKey,
-    labelKey,
-    labelValue,
-    relationType,
-    colors,
-    edgeColor
-  );
   return {
     ...edge,
     label,
@@ -153,7 +134,7 @@ export function restyleEdgeColorProperty(
       ...edge.data!,
       sourceColor: edgeColor,
       targetColor: edgeColor,
-      labelColor,
+      labelColor: edgeColor,
       colorPropertyKey,
       colorValue,
       dataLabel: label,

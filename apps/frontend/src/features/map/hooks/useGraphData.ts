@@ -24,6 +24,7 @@ import {
   collectLegendColorValues,
   collectNodeLegendValues,
   colorPropertyOptions,
+  edgeColorValue,
   isSimpleLegendMode,
   loadHideEdgeLabels,
   loadLegendColorMaps,
@@ -36,7 +37,9 @@ import {
   nodeBorderColor,
   nodeFillColor,
   nodePropertyOptions,
+  paintEdgeStrokeColor,
   RELATION_TYPE_COLOR_KEY,
+  HIDE_EDGE_LABELS_KEY,
   resolveColorPropertyKey,
   resolveNodePropertyKey,
   setRationalizedColorInMaps,
@@ -247,6 +250,23 @@ export function useGraphData({
     [visible.nodes, effectiveBorderKey]
   );
 
+  /** Stroke color of an edge that carries each label value (label text color = stroke). */
+  const legendLabelStrokeColors = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const edge of visible.edges) {
+      const labelValue = edgeColorValue(edge, effectiveLabelKey);
+      if (!labelValue || map[labelValue]) continue;
+      const strokeValue = edgeColorValue(edge, effectiveColorKey);
+      map[labelValue] = paintEdgeStrokeColor(
+        strokeValue,
+        edge.type,
+        effectiveColorKey,
+        legendColors.edgeStroke
+      );
+    }
+    return map;
+  }, [visible.edges, effectiveLabelKey, effectiveColorKey, legendColors.edgeStroke]);
+
   // Resolve keys when options shrink (filters / hide).
   useEffect(() => {
     if (simpleMode) return;
@@ -285,6 +305,13 @@ export function useGraphData({
     storeColorPropertyKey(key);
   }, []);
   const handleLabelPropertyChange = useCallback((key: string) => {
+    if (key === HIDE_EDGE_LABELS_KEY) {
+      setHideEdgeLabels(true);
+      storeHideEdgeLabels(true);
+      return;
+    }
+    setHideEdgeLabels(false);
+    storeHideEdgeLabels(false);
     setLabelPropertyKey(key);
     storeLabelPropertyKey(key);
   }, []);
@@ -316,11 +343,6 @@ export function useGraphData({
     },
     [effectiveColorKey, effectiveLabelKey, effectiveFillKey, effectiveBorderKey]
   );
-
-  const handleHideEdgeLabelsChange = useCallback((hide: boolean) => {
-    setHideEdgeLabels(hide);
-    storeHideEdgeLabels(hide);
-  }, []);
 
   const getLegendSnapshot = useCallback((): GraphLegendSnapshot => {
     return {
@@ -597,7 +619,6 @@ export function useGraphData({
     handleAppFillChange,
     handleAppBorderChange,
     handleValueColorChange,
-    handleHideEdgeLabelsChange,
     getLegendSnapshot,
     applyLegendSnapshot,
     legendColorPropertyOptions,
@@ -605,6 +626,7 @@ export function useGraphData({
     legendAppPropertyOptions,
     legendColorValues,
     legendLabelValues,
+    legendLabelStrokeColors,
     legendFillValues,
     legendBorderValues,
     legendSetups,

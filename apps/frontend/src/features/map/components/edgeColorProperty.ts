@@ -12,6 +12,10 @@ import {
 export const RELATION_TYPE_COLOR_KEY = '__relation__';
 /** Sentinel: paint by app / node type. */
 export const NODE_TYPE_COLOR_KEY = '__type__';
+/** Sentinel in Link label select: hide all edge labels. */
+export const HIDE_EDGE_LABELS_KEY = '__hide_labels__';
+/** Border when fill is white / near-white (derived border would be invisible). */
+export const LIGHT_BORDER_ON_WHITE = '#cbd5e1';
 
 export const EDGE_COLOR_PROPERTY_STORAGE_KEY = 'flowra.graph.edgeColorProperty';
 export const EDGE_LABEL_PROPERTY_STORAGE_KEY = 'flowra.graph.edgeLabelProperty';
@@ -159,6 +163,20 @@ export function darkenColor(color: string, amount = 0.18): string {
   const g = Math.max(0, Math.min(255, Math.round(rgb.g * f)));
   const b = Math.max(0, Math.min(255, Math.round(rgb.b * f)));
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+export function isNearWhite(color: string): boolean {
+  const t = color.trim().toLowerCase();
+  if (t === 'white' || t === '#fff' || t === '#ffffff') return true;
+  const rgb = parseCssColor(color);
+  if (!rgb) return false;
+  return rgb.r >= 245 && rgb.g >= 245 && rgb.b >= 245;
+}
+
+/** Border derived from fill: light grey on white, else darkened fill. */
+export function borderFromFill(fill: string): string {
+  if (isNearWhite(fill)) return LIGHT_BORDER_ON_WHITE;
+  return darkenColor(fill);
 }
 
 function toHex(n: number): string {
@@ -373,24 +391,17 @@ export function paintEdgeLabelColor(
 }
 
 /**
- * When stroke + label share the same attribute, use one color (stroke) for both.
+ * Edge label text color always matches the edge stroke (Link label only changes text).
  */
 export function resolveSharedEdgeLabelColor(
-  colorKey: string,
-  labelKey: string,
-  labelValue: string | null,
-  relationType: string,
-  colors: LegendColorMaps | undefined,
+  _colorKey: string,
+  _labelKey: string,
+  _labelValue: string | null,
+  _relationType: string,
+  _colors: LegendColorMaps | undefined,
   strokeColor: string
 ): string {
-  if (colorKey === labelKey) return strokeColor;
-  return paintEdgeLabelColor(
-    labelValue,
-    relationType,
-    labelKey,
-    colors?.edgeLabel,
-    strokeColor
-  );
+  return strokeColor;
 }
 
 export function nodeFillColor(
@@ -426,7 +437,7 @@ export function nodeBorderColor(
     if (fillKey === NODE_TYPE_COLOR_KEY && !hasCustom) {
       return nodeColorForType(node.type);
     }
-    return darkenColor(fill);
+    return borderFromFill(fill);
   }
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     const value = nodePropValue(node, propertyKey);
@@ -464,7 +475,7 @@ export function nodeBorderColorForValue(
     if (fillKey === NODE_TYPE_COLOR_KEY && !hasCustom) {
       return nodeColorForType(value);
     }
-    return darkenColor(fill);
+    return borderFromFill(fill);
   }
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     return overrideOr(colorMap, value, nodeColorForType(value));
@@ -485,12 +496,9 @@ export function setRationalizedColorInMaps(
   appBorderKey: string
 ): LegendColorMaps {
   let next = setColorInMaps(colors, channel, value, color);
-  if (
-    (channel === 'edgeStroke' || channel === 'edgeLabel') &&
-    edgeColorKey === edgeLabelKey
-  ) {
+  // Label text color follows stroke — only persist stroke when channels share a key.
+  if (channel === 'edgeStroke' && edgeColorKey === edgeLabelKey) {
     next = setColorInMaps(next, 'edgeStroke', value, color);
-    next = setColorInMaps(next, 'edgeLabel', value, color);
   }
   if (channel === 'appFill' && appFillKey === appBorderKey) {
     next = setColorInMaps(next, 'appFill', value, color);

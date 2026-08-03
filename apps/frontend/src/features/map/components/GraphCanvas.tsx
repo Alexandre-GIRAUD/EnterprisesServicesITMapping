@@ -232,7 +232,6 @@ export function GraphCanvas() {
     handleAppFillChange,
     handleAppBorderChange,
     handleValueColorChange,
-    handleHideEdgeLabelsChange,
     getLegendSnapshot,
     applyLegendSnapshot,
     legendColorPropertyOptions,
@@ -240,6 +239,7 @@ export function GraphCanvas() {
     legendAppPropertyOptions,
     legendColorValues,
     legendLabelValues,
+    legendLabelStrokeColors,
     legendFillValues,
     legendBorderValues,
     legendSetups,
@@ -1105,6 +1105,7 @@ export function GraphCanvas() {
                     labelPropertyOptions={legendLabelPropertyOptions}
                     onLabelPropertyChange={handleLabelPropertyChange}
                     labelValues={legendLabelValues}
+                    labelStrokeColors={legendLabelStrokeColors}
                     appFillKey={appFillKey}
                     appFillOptions={legendAppPropertyOptions}
                     onAppFillChange={handleAppFillChange}
@@ -1116,7 +1117,6 @@ export function GraphCanvas() {
                     legendColors={legendColors}
                     onValueColorChange={handleValueColorChange}
                     hideEdgeLabels={hideEdgeLabels}
-                    onHideEdgeLabelsChange={handleHideEdgeLabelsChange}
                     legendSetups={legendSetups}
                     onSaveLegendSetup={saveLegendSetup}
                     onApplyLegendSetup={applyLegendSetup}

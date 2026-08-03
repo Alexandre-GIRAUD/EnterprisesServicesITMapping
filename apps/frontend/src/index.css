@@ -2978,26 +2978,34 @@ body {
   min-width: 0;
 }
 
+.graph-legend__swatch--text-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  border-radius: 3px;
+  border: 1px solid rgb(148 163 184 / 55%);
+  background: rgb(255 255 255 / 92%);
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.graph-legend__option--italic {
+  font-style: italic;
+}
+
+.graph-legend__select:has(option[value='__hide_labels__']:checked) {
+  font-style: italic;
+}
+
 .graph-legend__swatch--mini-app {
   width: 18px;
   height: 14px;
   border-radius: 3px;
   border-width: 2px;
-}
-
-.graph-legend__check {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #334155;
-  cursor: pointer;
-}
-
-.graph-legend__check input {
-  margin: 0;
-  accent-color: #2563eb;
 }
 
 .graph-legend__control {
