@@ -9,6 +9,8 @@ import {
   HIDE_EDGE_LABELS_KEY,
   NODE_TYPE_COLOR_KEY,
   RELATION_TYPE_COLOR_KEY,
+  cssColorToHex,
+  labelForColorProperty,
   legendLabelForColorValue,
   nodeBorderColorForValue,
   nodeFillColorForValue,
@@ -29,8 +31,8 @@ type Props = {
   labelPropertyKey?: string;
   labelPropertyOptions?: AttributeOption[];
   onLabelPropertyChange?: (key: string) => void;
+  /** @deprecated unused — label legend shows attribute name once, not values */
   labelValues?: string[];
-  /** Stroke color per label value (from matching edges); used for the "label" swatch. */
   labelStrokeColors?: Record<string, string>;
   appFillKey?: string;
   appFillOptions?: AttributeOption[];
@@ -106,41 +108,13 @@ function ColorValueRow({
         <input
           type="color"
           className="graph-legend__color"
-          value={normalizeHex(color)}
+          value={cssColorToHex(color)}
           onChange={(e) => onChange(e.target.value)}
           aria-label={`Color for ${label}`}
           title="Choose color"
         />
       ) : null}
     </li>
-  );
-}
-
-function normalizeHex(color: string): string {
-  if (/^#[0-9a-fA-F]{6}$/.test(color)) return color;
-  if (/^#[0-9a-fA-F]{3}$/.test(color)) {
-    const r = color[1];
-    const g = color[2];
-    const b = color[3];
-    return `#${r}${r}${g}${g}${b}${b}`;
-  }
-  return '#64748b';
-}
-
-function Section({
-  title,
-  showTitle,
-  children,
-}: {
-  title: string;
-  showTitle: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div className="graph-legend__group">
-      {showTitle ? <p className="graph-legend__title">{title}</p> : null}
-      <ul className="graph-legend__list">{children}</ul>
-    </div>
   );
 }
 
@@ -159,7 +133,6 @@ export function GraphLegend({
   labelPropertyKey,
   labelPropertyOptions = [],
   onLabelPropertyChange,
-  labelValues = [],
   labelStrokeColors = {},
   appFillKey,
   appFillOptions = [],
@@ -192,12 +165,7 @@ export function GraphLegend({
     Boolean(onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup);
 
   const colorChange = isEditing ? onValueColorChange : undefined;
-  const sharedEdge =
-    !simpleMode &&
-    !hideEdgeLabels &&
-    colorPropertyKey != null &&
-    labelPropertyKey != null &&
-    colorPropertyKey === labelPropertyKey;
+
   const sharedApp =
     !simpleMode &&
     appFillKey != null &&
@@ -211,6 +179,23 @@ export function GraphLegend({
     simpleMode ||
     (colorPropertyKey === RELATION_TYPE_COLOR_KEY &&
       (hideEdgeLabels || labelPropertyKey === RELATION_TYPE_COLOR_KEY));
+
+  /** Same business attr on stroke+label → omit label from legend (graph still shows labels). */
+  const sharedBusinessFlowAttr =
+    !hideEdgeLabels &&
+    colorPropertyKey != null &&
+    labelPropertyKey != null &&
+    colorPropertyKey === labelPropertyKey &&
+    colorPropertyKey !== RELATION_TYPE_COLOR_KEY;
+
+  /** Show one "label" row only when label channel differs from stroke and is visible. */
+  const showLabelLegendRow =
+    !hideEdgeLabels &&
+    !edgesTypeOnly &&
+    !sharedBusinessFlowAttr &&
+    labelPropertyKey != null &&
+    colorPropertyKey != null &&
+    colorPropertyKey !== labelPropertyKey;
 
   const hideSectionTitles = !isEditing && nodesTypeOnly && edgesTypeOnly;
   const showAppsTitle = !hideSectionTitles;
@@ -373,26 +358,28 @@ export function GraphLegend({
         />
       );
     }
-    if (!hideEdgeLabels && !sharedEdge && labelPropertyKey != null) {
-      for (const value of labelValues) {
-        const color =
-          labelStrokeColors[value] ??
-          strokeColorForLegendSwatch(
+  }
+
+  if (showLabelLegendRow && labelPropertyKey != null && colorPropertyKey != null) {
+    const sampleStroke =
+      (colorValues[0]
+        ? strokeColorForLegendSwatch(
             colorPropertyKey,
-            colorValues[0] ?? value,
+            colorValues[0],
             'DEPENDS_ON',
             legendColors.edgeStroke
-          );
-        flowsItems.push(
-          <ColorValueRow
-            key={`label-${value}`}
-            label={legendLabelForColorValue(labelPropertyKey, value)}
-            color={color}
-            kind="label"
-          />
-        );
-      }
-    }
+          )
+        : undefined) ??
+      Object.values(labelStrokeColors)[0] ??
+      '#64748b';
+    flowsItems.push(
+      <ColorValueRow
+        key="label-attr"
+        label={labelForColorProperty(labelPropertyKey)}
+        color={sampleStroke}
+        kind="label"
+      />
+    );
   }
 
   if (showIndirectFlow) {
@@ -411,6 +398,19 @@ export function GraphLegend({
   const labelSelectValue = hideEdgeLabels
     ? HIDE_EDGE_LABELS_KEY
     : (labelPropertyKey ?? '');
+
+  const showAppSelects =
+    isEditing &&
+    showCoding &&
+    !simpleMode &&
+    ((appFillOptions.length > 0 && appFillKey != null && onAppFillChange != null) ||
+      (appBorderOptions.length > 0 && appBorderKey != null && onAppBorderChange != null));
+
+  const showFlowSelects =
+    isEditing && showCoding && !simpleMode && colorPropertyKey != null;
+
+  const showAppsBlock = showAppSelects || appsItems.length > 0;
+  const showFlowsBlock = showFlowSelects || flowsItems.length > 0;
 
   return (
     <div
@@ -501,95 +501,103 @@ export function GraphLegend({
         </div>
       )}
 
-      {isEditing && showCoding && !simpleMode && (
-        <div className="graph-legend__group graph-legend__group--control">
-          <label className="graph-legend__control">
-            <span className="graph-legend__title">Link color</span>
-            <select
-              className="graph-legend__select"
-              value={colorPropertyKey}
-              onChange={(event) => onColorPropertyChange(event.target.value)}
-              aria-label="Edge property used for link color"
-            >
-              {colorPropertyOptions.map((option) => (
-                <option key={option.key} value={option.key}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {labelPropertyOptions.length > 0 && onLabelPropertyChange != null && (
-            <label className="graph-legend__control">
-              <span className="graph-legend__title">Link label</span>
-              <select
-                className="graph-legend__select"
-                value={labelSelectValue}
-                onChange={(event) => onLabelPropertyChange(event.target.value)}
-                aria-label="Edge property used for link label"
-              >
-                {labelPropertyOptions.map((option) => (
-                  <option key={option.key} value={option.key}>
-                    {option.label}
-                  </option>
-                ))}
-                <option value={HIDE_EDGE_LABELS_KEY} className="graph-legend__option--italic">
-                  Hide all labels
-                </option>
-              </select>
-            </label>
+      {showAppsBlock && (
+        <div className="graph-legend__group">
+          {showAppsTitle ? <p className="graph-legend__title">Apps</p> : null}
+          {showAppSelects && (
+            <div className="graph-legend__group--control graph-legend__group--inline-controls">
+              {appFillOptions.length > 0 && appFillKey != null && onAppFillChange != null && (
+                <label className="graph-legend__control">
+                  <span className="graph-legend__title">App fill</span>
+                  <select
+                    className="graph-legend__select"
+                    value={appFillKey}
+                    onChange={(event) => onAppFillChange(event.target.value)}
+                    aria-label="App property used for node fill"
+                  >
+                    {appFillOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {appBorderOptions.length > 0 &&
+                appBorderKey != null &&
+                onAppBorderChange != null && (
+                  <label className="graph-legend__control">
+                    <span className="graph-legend__title">App border</span>
+                    <select
+                      className="graph-legend__select"
+                      value={appBorderKey}
+                      onChange={(event) => onAppBorderChange(event.target.value)}
+                      aria-label="App property used for node border"
+                    >
+                      {appBorderOptions.map((option) => (
+                        <option key={option.key} value={option.key}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+            </div>
           )}
+          {appsItems.length > 0 && <ul className="graph-legend__list">{appsItems}</ul>}
+        </div>
+      )}
 
-          {appFillOptions.length > 0 && appFillKey != null && onAppFillChange != null && (
-            <label className="graph-legend__control">
-              <span className="graph-legend__title">App fill</span>
-              <select
-                className="graph-legend__select"
-                value={appFillKey}
-                onChange={(event) => onAppFillChange(event.target.value)}
-                aria-label="App property used for node fill"
-              >
-                {appFillOptions.map((option) => (
-                  <option key={option.key} value={option.key}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          {appBorderOptions.length > 0 &&
-            appBorderKey != null &&
-            onAppBorderChange != null && (
+      {showFlowsBlock && (
+        <div className="graph-legend__group">
+          {showFlowsTitle ? <p className="graph-legend__title">Flows</p> : null}
+          {showFlowSelects && (
+            <div className="graph-legend__group--control graph-legend__group--inline-controls">
               <label className="graph-legend__control">
-                <span className="graph-legend__title">App border</span>
+                <span className="graph-legend__title">Flow color</span>
                 <select
                   className="graph-legend__select"
-                  value={appBorderKey}
-                  onChange={(event) => onAppBorderChange(event.target.value)}
-                  aria-label="App property used for node border"
+                  value={colorPropertyKey}
+                  onChange={(event) => onColorPropertyChange!(event.target.value)}
+                  aria-label="Edge property used for flow color"
                 >
-                  {appBorderOptions.map((option) => (
+                  {colorPropertyOptions.map((option) => (
                     <option key={option.key} value={option.key}>
                       {option.label}
                     </option>
                   ))}
                 </select>
               </label>
-            )}
+
+              {labelPropertyOptions.length > 0 && onLabelPropertyChange != null && (
+                <label className="graph-legend__control">
+                  <span className="graph-legend__title">Flow label</span>
+                  <select
+                    className={`graph-legend__select${
+                      hideEdgeLabels ? ' graph-legend__select--hide-labels' : ''
+                    }`}
+                    value={labelSelectValue}
+                    onChange={(event) => onLabelPropertyChange(event.target.value)}
+                    aria-label="Edge property used for flow label"
+                  >
+                    {labelPropertyOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                    <option
+                      value={HIDE_EDGE_LABELS_KEY}
+                      className="graph-legend__option--italic"
+                    >
+                      Hide all labels
+                    </option>
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
+          {flowsItems.length > 0 && <ul className="graph-legend__list">{flowsItems}</ul>}
         </div>
-      )}
-
-      {appsItems.length > 0 && (
-        <Section title="Apps" showTitle={showAppsTitle}>
-          {appsItems}
-        </Section>
-      )}
-
-      {flowsItems.length > 0 && (
-        <Section title="Flows" showTitle={showFlowsTitle}>
-          {flowsItems}
-        </Section>
       )}
     </div>
   );

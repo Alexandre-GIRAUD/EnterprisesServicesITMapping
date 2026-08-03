@@ -2993,12 +2993,28 @@ body {
   flex-shrink: 0;
 }
 
+/*
+ * Italic only for "Hide all labels":
+ * - closed select when that value is selected
+ * - that option in the dropdown (browsers that honor option styles)
+ * Attribute options stay roman (override inherited italic from the select).
+ */
+.graph-legend__select--hide-labels {
+  font-style: italic;
+}
+
+.graph-legend__select option {
+  font-style: normal;
+}
+
+.graph-legend__select option[value='__hide_labels__'],
 .graph-legend__option--italic {
   font-style: italic;
 }
 
-.graph-legend__select:has(option[value='__hide_labels__']:checked) {
-  font-style: italic;
+.graph-legend__group--inline-controls {
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.35rem;
 }
 
 .graph-legend__swatch--mini-app {

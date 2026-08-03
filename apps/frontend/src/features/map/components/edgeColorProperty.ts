@@ -183,6 +183,42 @@ function toHex(n: number): string {
   return n.toString(16).padStart(2, '0');
 }
 
+function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
+  const hh = ((h % 360) + 360) % 360;
+  const ss = Math.max(0, Math.min(100, s)) / 100;
+  const ll = Math.max(0, Math.min(100, l)) / 100;
+  const c = (1 - Math.abs(2 * ll - 1)) * ss;
+  const x = c * (1 - Math.abs(((hh / 60) % 2) - 1));
+  const m = ll - c / 2;
+  let rp = 0;
+  let gp = 0;
+  let bp = 0;
+  if (hh < 60) {
+    rp = c;
+    gp = x;
+  } else if (hh < 120) {
+    rp = x;
+    gp = c;
+  } else if (hh < 180) {
+    gp = c;
+    bp = x;
+  } else if (hh < 240) {
+    gp = x;
+    bp = c;
+  } else if (hh < 300) {
+    rp = x;
+    bp = c;
+  } else {
+    rp = c;
+    bp = x;
+  }
+  return {
+    r: Math.round((rp + m) * 255),
+    g: Math.round((gp + m) * 255),
+    b: Math.round((bp + m) * 255),
+  };
+}
+
 function parseCssColor(color: string): { r: number; g: number; b: number } | null {
   const hex = color.trim();
   if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
@@ -199,11 +235,51 @@ function parseCssColor(color: string): { r: number; g: number; b: number } | nul
       b: parseInt(hex[3]! + hex[3]!, 16),
     };
   }
-  const m = hex.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
-  if (m) {
-    return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]) };
+  if (hex.toLowerCase() === 'white') return { r: 255, g: 255, b: 255 };
+  if (hex.toLowerCase() === 'black') return { r: 0, g: 0, b: 0 };
+  const rgbComma = hex.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (rgbComma) {
+    return { r: Number(rgbComma[1]), g: Number(rgbComma[2]), b: Number(rgbComma[3]) };
+  }
+  const rgbSpace = hex.match(/^rgba?\(\s*(\d+)\s+(\d+)\s+(\d+)/i);
+  if (rgbSpace) {
+    return { r: Number(rgbSpace[1]), g: Number(rgbSpace[2]), b: Number(rgbSpace[3]) };
+  }
+  const hsl = hex.match(
+    /^hsla?\(\s*([\d.]+)(?:deg)?\s*[, ]\s*([\d.]+)%\s*[, ]\s*([\d.]+)%/i
+  );
+  if (hsl) {
+    return hslToRgb(Number(hsl[1]), Number(hsl[2]), Number(hsl[3]));
   }
   return null;
+}
+
+/**
+ * Normalize any CSS color used on the graph to `#rrggbb` for `<input type="color">`.
+ * Keeps the picker swatch aligned with the color currently painted.
+ */
+export function cssColorToHex(color: string): string {
+  const parsed = parseCssColor(color);
+  if (parsed) {
+    return `#${toHex(parsed.r)}${toHex(parsed.g)}${toHex(parsed.b)}`;
+  }
+  if (typeof document !== 'undefined') {
+    try {
+      const ctx = document.createElement('canvas').getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#000000';
+        ctx.fillStyle = color;
+        const normalized = String(ctx.fillStyle);
+        const fromCanvas = parseCssColor(normalized);
+        if (fromCanvas) {
+          return `#${toHex(fromCanvas.r)}${toHex(fromCanvas.g)}${toHex(fromCanvas.b)}`;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return '#64748b';
 }
 
 export function loadLegendSetups(): LegendSetup[] {
