@@ -12,13 +12,15 @@ import java.util.Map;
  * @param nodeRefs Data Model {@code target=NODE_REF} key → selected catalogue ref ids
  * @param hiddenApplicationIds application node ids collapsed when the view was pinned (UI-only)
  * @param nodePositions canvas positions of visible application nodes at pin time (UI-only)
+ * @param legend display coding for the legend at pin time (UI-only; optional)
  */
 public record GraphSnapshotFiltersDto(
     List<String> applicationIds,
     Map<String, List<String>> nodeAttributes,
     Map<String, List<String>> nodeRefs,
     List<String> hiddenApplicationIds,
-    Map<String, NodePositionDto> nodePositions) {
+    Map<String, NodePositionDto> nodePositions,
+    GraphSnapshotLegendDto legend) {
 
   public GraphSnapshotFiltersDto {
     applicationIds = applicationIds != null ? List.copyOf(applicationIds) : List.of();
@@ -34,12 +36,22 @@ public record GraphSnapshotFiltersDto(
       List<String> applicationIds,
       Map<String, List<String>> nodeAttributes,
       Map<String, List<String>> nodeRefs) {
-    this(applicationIds, nodeAttributes, nodeRefs, List.of(), Map.of());
+    this(applicationIds, nodeAttributes, nodeRefs, List.of(), Map.of(), null);
   }
 
   /** Convenience when nodeRefs and UI-only pin fields are empty. */
   public GraphSnapshotFiltersDto(
       List<String> applicationIds, Map<String, List<String>> nodeAttributes) {
-    this(applicationIds, nodeAttributes, Map.of(), List.of(), Map.of());
+    this(applicationIds, nodeAttributes, Map.of(), List.of(), Map.of(), null);
+  }
+
+  /** Convenience when legend is omitted. */
+  public GraphSnapshotFiltersDto(
+      List<String> applicationIds,
+      Map<String, List<String>> nodeAttributes,
+      Map<String, List<String>> nodeRefs,
+      List<String> hiddenApplicationIds,
+      Map<String, NodePositionDto> nodePositions) {
+    this(applicationIds, nodeAttributes, nodeRefs, hiddenApplicationIds, nodePositions, null);
   }
 }

@@ -1,5 +1,13 @@
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
-import { buildAppEdge, buildAppNode, NODE_HEIGHT, NODE_WIDTH, type AppNode } from '../hooks/useGraphData';
+import {
+  buildAppEdge,
+  buildAppNode,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  type AppNode,
+  type NodeCodingKeys,
+} from '../hooks/useGraphData';
+import type { LegendColorMaps } from './edgeColorProperty';
 import { computeBridges } from './bridges';
 import { projectCollapsedGraph } from './collapseGraph';
 import { elkLayout } from './elkLayout';
@@ -118,6 +126,10 @@ export async function layoutCollapsedAppGraph(params: {
   graphEdges: GraphEdgeDto[];
   hiddenNodeIds: ReadonlySet<string>;
   colorPropertyKey: string;
+  labelPropertyKey?: string;
+  nodeCoding?: NodeCodingKeys;
+  colors?: LegendColorMaps;
+  hideEdgeLabels?: boolean;
   aspectRatio: number;
   handlers: CollapseLayoutHandlers;
   /** Optional canvas positions to preserve (visible + newly restored). */
@@ -128,6 +140,10 @@ export async function layoutCollapsedAppGraph(params: {
     graphEdges,
     hiddenNodeIds,
     colorPropertyKey,
+    labelPropertyKey = 'data',
+    nodeCoding,
+    colors,
+    hideEdgeLabels,
     aspectRatio,
     handlers,
     nodePositions,
@@ -146,7 +162,7 @@ export async function layoutCollapsedAppGraph(params: {
   const typeById = new Map(visibleDtos.map((n) => [n.id, n.type]));
 
   const baseNodes: AppNode[] = visibleDtos.map((n) => {
-    const node = buildAppNode(n);
+    const node = buildAppNode(n, nodeCoding);
     return {
       ...node,
       data: {
@@ -168,9 +184,19 @@ export async function layoutCollapsedAppGraph(params: {
           sourceNodeType: typeById.get(pe.sourceId) ?? 'Application',
           targetNodeType: typeById.get(pe.targetId) ?? 'Application',
           colorPropertyKey,
+          labelPropertyKey,
+          colors,
+          hideEdgeLabels,
         });
       }
-      return buildAppEdge(dto, typeById, colorPropertyKey);
+      return buildAppEdge(
+        dto,
+        typeById,
+        colorPropertyKey,
+        labelPropertyKey,
+        colors,
+        hideEdgeLabels
+      );
     }
 
     const hiddenNodeIdsForEdge = [...pe.hiddenNodeIds];
@@ -183,7 +209,10 @@ export async function layoutCollapsedAppGraph(params: {
       targetNodeType: typeById.get(pe.targetId) ?? 'Application',
       dataLabel: 'Indirect',
       colorPropertyKey,
+      labelPropertyKey,
       colorValue: null,
+      colors,
+      hideEdgeLabels,
     });
 
     const data: OrientedEdgeData = {

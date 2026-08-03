@@ -2818,17 +2818,206 @@ body {
   gap: 0.55rem;
   padding: 0.6rem 0.7rem;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgb(255 255 255 / 94%);
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
   pointer-events: auto;
   user-select: none;
+  max-width: min(16.5rem, 42vw);
+}
+
+.graph-legend.is-editing {
+  max-width: min(18.5rem, 48vw);
+  max-height: min(78vh, 36rem);
+  overflow-y: auto;
+}
+
+.graph-legend__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.graph-legend__heading {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Compact toggle — accent follows Production / Sandbox (.map-graph-panel --ss-accent*) */
+.graph-legend__toggle {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ss-accent-text, #1d4ed8);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.graph-legend__toggle:hover {
+  border-color: var(--ss-accent-border, #93c5fd);
+  background: var(--ss-accent-surface, #f8fafc);
+  box-shadow: 0 4px 14px var(--ss-accent-shadow, rgb(37 99 235 / 10%));
+}
+
+.graph-legend__toggle:focus-visible {
+  outline: 2px solid var(--ss-accent-focus, #3b82f6);
+  outline-offset: 2px;
 }
 
 .graph-legend__group--control {
   padding-bottom: 0.15rem;
   border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.graph-legend__setup-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.graph-legend__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.graph-legend__btn {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.graph-legend__btn:hover:not(:disabled) {
+  border-color: var(--ss-accent-border, #93c5fd);
+  background: var(--ss-accent-surface, #f8fafc);
+  box-shadow: 0 4px 14px var(--ss-accent-shadow, rgb(37 99 235 / 10%));
+}
+
+.graph-legend__btn:focus-visible {
+  outline: 2px solid var(--ss-accent-focus, #3b82f6);
+  outline-offset: 2px;
+}
+
+.graph-legend__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.graph-legend__btn--primary {
+  color: #ffffff;
+  background: var(--ss-accent, #2563eb);
+  border-color: var(--ss-accent-dark, #1d4ed8);
+}
+
+.graph-legend__btn--primary:hover:not(:disabled) {
+  background: var(--ss-accent-dark, #1d4ed8);
+  border-color: var(--ss-accent-dark, #1d4ed8);
+  box-shadow: 0 4px 14px var(--ss-accent-shadow-strong, rgb(37 99 235 / 18%));
+}
+
+/* Rest = same as Apply; danger only on hover */
+.graph-legend__btn--danger:hover:not(:disabled) {
+  color: #dc2626;
+  border-color: #fecaca;
+  background: #fef2f2;
+  box-shadow: none;
+}
+
+.graph-legend__color {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.graph-legend__item .graph-legend__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.graph-legend__swatch--text-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  border-radius: 3px;
+  border: 1px solid rgb(148 163 184 / 55%);
+  background: rgb(255 255 255 / 92%);
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/*
+ * Italic only for "Hide all labels":
+ * - closed select when that value is selected
+ * - that option in the dropdown (browsers that honor option styles)
+ * Attribute options stay roman (override inherited italic from the select).
+ */
+.graph-legend__select--hide-labels {
+  font-style: italic;
+}
+
+.graph-legend__select option {
+  font-style: normal;
+}
+
+.graph-legend__select option[value='__hide_labels__'],
+.graph-legend__option--italic {
+  font-style: italic;
+}
+
+.graph-legend__group--inline-controls {
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.35rem;
+}
+
+.graph-legend__swatch--mini-app {
+  width: 18px;
+  height: 14px;
+  border-radius: 3px;
+  border-width: 2px;
 }
 
 .graph-legend__control {

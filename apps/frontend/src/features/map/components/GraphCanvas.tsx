@@ -25,6 +25,7 @@ import type {
   GraphNodeFilterDto,
   GraphNodePosition,
   GraphSnapshotFilters,
+  GraphSnapshotLegend,
 } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
 import { fetchGraphNodeFilters } from '../api/graphApi';
@@ -71,6 +72,7 @@ import {
 type PendingViewRestore = {
   hiddenApplicationIds: string[];
   nodePositions: NodePositionsMap;
+  legend?: GraphSnapshotLegend;
 };
 
 type SelectedApplication = {
@@ -187,12 +189,18 @@ export function GraphCanvas() {
     currentGraphFilters,
   } = filters;
 
+  const hiddenNodeIdsForLegend = useMemo(
+    () => new Set(hiddenIdsSnapshot),
+    [hiddenIdsSnapshot]
+  );
+
   const data = useGraphData({
     applicationIds,
     nodeAttributes,
     nodeRefs,
     filtersActive,
     graphReloadNonce,
+    hiddenNodeIds: hiddenNodeIdsForLegend,
     graphModeRef,
     pendingSandboxFilterHint,
     setPendingSandboxFilterHint,
@@ -212,11 +220,55 @@ export function GraphCanvas() {
     setGraphNodes,
     graphEdges,
     setGraphEdges,
+    simpleMode,
     colorPropertyKey,
+    labelPropertyKey,
+    appFillKey,
+    appBorderKey,
+    legendColors,
+    hideEdgeLabels,
     handleColorPropertyChange,
+    handleLabelPropertyChange,
+    handleAppFillChange,
+    handleAppBorderChange,
+    handleValueColorChange,
+    getLegendSnapshot,
+    applyLegendSnapshot,
     legendColorPropertyOptions,
+    legendLabelPropertyOptions,
+    legendAppPropertyOptions,
     legendColorValues,
+    legendLabelValues,
+    legendLabelStrokeColors,
+    legendFillValues,
+    legendBorderValues,
+    legendSetups,
+    saveLegendSetup,
+    applyLegendSetup,
+    deleteLegendSetup,
   } = data;
+
+  const legendCodingRef = useRef({
+    colorPropertyKey,
+    labelPropertyKey,
+    appFillKey,
+    appBorderKey,
+    legendColors,
+    hideEdgeLabels,
+  });
+  legendCodingRef.current = {
+    colorPropertyKey,
+    labelPropertyKey,
+    appFillKey,
+    appBorderKey,
+    legendColors,
+    hideEdgeLabels,
+  };
+
+  const showIndirectFlow = useMemo(
+    () => edges.some((e) => Boolean((e as { data?: { indirect?: boolean } }).data?.indirect)),
+    [edges]
+  );
 
   const graphAppsForDrawer = useMemo(
     () =>
@@ -291,6 +343,7 @@ export function GraphCanvas() {
     pendingViewRestoreRef.current = {
       hiddenApplicationIds: [...(snapshot.hiddenApplicationIds ?? [])],
       nodePositions: positions,
+      legend: snapshot.legend,
     };
   }
 
@@ -303,6 +356,7 @@ export function GraphCanvas() {
       ...currentGraphFilters,
       hiddenApplicationIds: [...hiddenNodeIdsRef.current],
       nodePositions,
+      legend: getLegendSnapshot(),
     });
     refreshSnapshots();
     setMessage(`View "${name}" saved.`);
@@ -339,11 +393,20 @@ export function GraphCanvas() {
       const gen = ++collapseGenerationRef.current;
       const rect = containerRef.current?.getBoundingClientRect();
       const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
+      const coding = legendCodingRef.current;
       const laid = await layoutCollapsedAppGraph({
         graphNodes,
         graphEdges,
         hiddenNodeIds: nextHidden,
-        colorPropertyKey,
+        colorPropertyKey: coding.colorPropertyKey,
+        labelPropertyKey: coding.labelPropertyKey,
+        nodeCoding: {
+          appFillKey: coding.appFillKey,
+          appBorderKey: coding.appBorderKey,
+          colors: coding.legendColors,
+        },
+        colors: coding.legendColors,
+        hideEdgeLabels: coding.hideEdgeLabels,
         aspectRatio,
         nodePositions,
         handlers: {
@@ -364,7 +427,7 @@ export function GraphCanvas() {
         }, 40);
       }
     },
-    [status, graphNodes, graphEdges, colorPropertyKey, setNodes, setEdges]
+    [status, graphNodes, graphEdges, setNodes, setEdges]
   );
 
   const hideNode = useCallback(
@@ -475,12 +538,24 @@ export function GraphCanvas() {
     hiddenNodeIdsRef.current = nextHidden;
     syncHiddenUi(nextHidden);
     lastHiddenPositionsRef.current = {};
+    if (pending.legend) {
+      applyLegendSnapshot(pending.legend);
+      // Keep collapse layout in sync — React state from apply is not committed yet.
+      legendCodingRef.current = {
+        colorPropertyKey: pending.legend.edgeColorKey || legendCodingRef.current.colorPropertyKey,
+        labelPropertyKey: pending.legend.edgeLabelKey || legendCodingRef.current.labelPropertyKey,
+        appFillKey: pending.legend.appFillKey || legendCodingRef.current.appFillKey,
+        appBorderKey: pending.legend.appBorderKey || legendCodingRef.current.appBorderKey,
+        legendColors: pending.legend.colors ?? {},
+        hideEdgeLabels: Boolean(pending.legend.hideEdgeLabels),
+      };
+    }
     void relayoutCollapsed(
       nextHidden,
       Object.keys(nextPositions).length > 0 ? nextPositions : undefined,
       { fitView: true }
     );
-  }, [status, graphNodes, graphEdges, relayoutCollapsed, syncHiddenUi]);
+  }, [status, graphNodes, graphEdges, relayoutCollapsed, syncHiddenUi, applyLegendSnapshot]);
 
   // Focus neighborhood for hover/selection dimming (null = nothing focused).
   const focus = useMemo(
@@ -703,7 +778,15 @@ export function GraphCanvas() {
       return [
         ...prev,
         {
-          ...buildAppNode({ id: created.id, label: created.name, type: 'Application' }),
+          ...buildAppNode(
+            {
+              id: created.id,
+              label: created.name,
+              type: 'Application',
+              properties: created.nodeAttributes ?? {},
+            },
+            { appFillKey, appBorderKey, colors: legendColors }
+          ),
           position,
         },
       ];
@@ -744,7 +827,17 @@ export function GraphCanvas() {
     setGraphEdges((prev) => (prev.some((e) => e.id === created.id) ? prev : [...prev, createdEdge]));
     setEdges((prev) => {
       if (prev.some((e) => e.id === created.id)) return prev;
-      return [...prev, buildAppEdge(createdEdge, typeById, colorPropertyKey)];
+      return [
+        ...prev,
+        buildAppEdge(
+          createdEdge,
+          typeById,
+          colorPropertyKey,
+          labelPropertyKey,
+          legendColors,
+          hideEdgeLabels
+        ),
+      ];
     });
     return null;
   }
@@ -1003,11 +1096,32 @@ export function GraphCanvas() {
                 <Panel position="top-left">
                   <GraphLegend
                     nodeTypes={['Application']}
+                    simpleMode={simpleMode}
                     colorPropertyKey={colorPropertyKey}
                     colorPropertyOptions={legendColorPropertyOptions}
                     onColorPropertyChange={handleColorPropertyChange}
                     colorValues={legendColorValues}
-                    showIndirectFlow
+                    labelPropertyKey={labelPropertyKey}
+                    labelPropertyOptions={legendLabelPropertyOptions}
+                    onLabelPropertyChange={handleLabelPropertyChange}
+                    labelValues={legendLabelValues}
+                    labelStrokeColors={legendLabelStrokeColors}
+                    appFillKey={appFillKey}
+                    appFillOptions={legendAppPropertyOptions}
+                    onAppFillChange={handleAppFillChange}
+                    fillValues={legendFillValues}
+                    appBorderKey={appBorderKey}
+                    appBorderOptions={legendAppPropertyOptions}
+                    onAppBorderChange={handleAppBorderChange}
+                    borderValues={legendBorderValues}
+                    legendColors={legendColors}
+                    onValueColorChange={handleValueColorChange}
+                    hideEdgeLabels={hideEdgeLabels}
+                    legendSetups={legendSetups}
+                    onSaveLegendSetup={saveLegendSetup}
+                    onApplyLegendSetup={applyLegendSetup}
+                    onDeleteLegendSetup={deleteLegendSetup}
+                    showIndirectFlow={showIndirectFlow}
                   />
                 </Panel>
                 {hiddenCount > 0 ? (

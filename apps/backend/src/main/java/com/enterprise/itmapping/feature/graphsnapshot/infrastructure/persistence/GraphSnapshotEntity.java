@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
+import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotLegendDto;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.NodePositionDto;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -56,6 +57,11 @@ public class GraphSnapshotEntity {
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "node_positions", nullable = false, columnDefinition = "jsonb")
   private Map<String, NodePositionDto> nodePositions = new LinkedHashMap<>();
+
+  /** Optional legend coding snapshot (UI display only). */
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "legend", columnDefinition = "jsonb")
+  private GraphSnapshotLegendDto legend;
 
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
@@ -141,6 +147,14 @@ public class GraphSnapshotEntity {
 
   public void setNodePositions(Map<String, NodePositionDto> nodePositions) {
     this.nodePositions = nodePositions != null ? nodePositions : new LinkedHashMap<>();
+  }
+
+  public GraphSnapshotLegendDto getLegend() {
+    return legend;
+  }
+
+  public void setLegend(GraphSnapshotLegendDto legend) {
+    this.legend = legend;
   }
 
   public Instant getCreatedAt() {

@@ -58,6 +58,7 @@ public class GraphSnapshotService {
     entity.setNodeRefs(new LinkedHashMap<>(filters.nodeRefs()));
     entity.setHiddenApplicationIds(filters.hiddenApplicationIds());
     entity.setNodePositions(new LinkedHashMap<>(filters.nodePositions()));
+    entity.setLegend(filters.legend());
 
     return toResponse(graphSnapshotRepository.save(entity));
   }
@@ -86,14 +87,15 @@ public class GraphSnapshotService {
 
   private static GraphSnapshotFiltersDto normalizeFilters(GraphSnapshotFiltersDto filters) {
     if (filters == null) {
-      return new GraphSnapshotFiltersDto(List.of(), Map.of(), Map.of(), List.of(), Map.of());
+      return new GraphSnapshotFiltersDto(List.of(), Map.of(), Map.of(), List.of(), Map.of(), null);
     }
     return new GraphSnapshotFiltersDto(
         normalizeIdList(filters.applicationIds()),
         normalizeKeyedLists(filters.nodeAttributes()),
         normalizeKeyedLists(filters.nodeRefs()),
         normalizeIdList(filters.hiddenApplicationIds()),
-        normalizeNodePositions(filters.nodePositions()));
+        normalizeNodePositions(filters.nodePositions()),
+        filters.legend());
   }
 
   /** Drops blank keys/values and keys left without any value; Data Model keys are lower-case. */
@@ -162,7 +164,8 @@ public class GraphSnapshotService {
             copyKeyedLists(entity.getNodeAttributes()),
             copyKeyedLists(entity.getNodeRefs()),
             List.copyOf(entity.getHiddenApplicationIds()),
-            Map.copyOf(entity.getNodePositions())),
+            Map.copyOf(entity.getNodePositions()),
+            entity.getLegend()),
         entity.getCreatedAt(),
         entity.getUpdatedAt());
   }

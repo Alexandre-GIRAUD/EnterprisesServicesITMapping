@@ -178,9 +178,24 @@ export type GraphNodeFilterDto = {
 
 export type GraphNodePosition = { x: number; y: number };
 
+/** Display-only legend coding pinned with a saved view. */
+export type GraphSnapshotLegend = {
+  edgeColorKey: string;
+  edgeLabelKey: string;
+  appFillKey: string;
+  appBorderKey: string;
+  colors?: {
+    edgeStroke?: Record<string, string>;
+    edgeLabel?: Record<string, string>;
+    appFill?: Record<string, string>;
+    appBorder?: Record<string, string>;
+  };
+  hideEdgeLabels?: boolean;
+};
+
 /**
- * Saved-view payload: graph filters + diagram collapse + node layout.
- * {@link hiddenApplicationIds} and {@link nodePositions} are UI-only
+ * Saved-view payload: graph filters + diagram collapse + node layout + legend.
+ * {@link hiddenApplicationIds}, {@link nodePositions}, and {@link legend} are UI-only
  * (not sent to GET /api/graph).
  */
 export type GraphSnapshotFilters = GraphFilters & {
@@ -188,6 +203,8 @@ export type GraphSnapshotFilters = GraphFilters & {
   hiddenApplicationIds?: string[];
   /** Canvas positions of visible application nodes at pin time. */
   nodePositions?: Record<string, GraphNodePosition>;
+  /** Legend coding (keys + per-value colors) at pin time. */
+  legend?: GraphSnapshotLegend;
 };
 
 export type GraphSnapshotDto = {

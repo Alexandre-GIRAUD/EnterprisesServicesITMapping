@@ -1,0 +1,2 @@
+ALTER TABLE graph_snapshots
+    ADD COLUMN IF NOT EXISTS legend JSONB NULL;

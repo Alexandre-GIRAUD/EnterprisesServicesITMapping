@@ -22,10 +22,38 @@ import { elkLayout } from '../components/elkLayout';
 import { computeBridges } from '../components/bridges';
 import {
   collectLegendColorValues,
+  collectNodeLegendValues,
   colorPropertyOptions,
+  edgeColorValue,
+  isSimpleLegendMode,
+  loadHideEdgeLabels,
+  loadLegendColorMaps,
+  loadLegendSetups,
+  loadStoredAppBorderKey,
+  loadStoredAppFillKey,
   loadStoredColorPropertyKey,
+  loadStoredLabelPropertyKey,
+  NODE_TYPE_COLOR_KEY,
+  nodeBorderColor,
+  nodeFillColor,
+  nodePropertyOptions,
+  paintEdgeStrokeColor,
+  RELATION_TYPE_COLOR_KEY,
+  HIDE_EDGE_LABELS_KEY,
   resolveColorPropertyKey,
+  resolveNodePropertyKey,
+  setRationalizedColorInMaps,
+  storeAppBorderKey,
+  storeAppFillKey,
   storeColorPropertyKey,
+  storeHideEdgeLabels,
+  storeLabelPropertyKey,
+  storeLegendColorMaps,
+  storeLegendSetups,
+  visibleGraphElements,
+  type GraphLegendSnapshot,
+  type LegendColorMaps,
+  type LegendSetup,
 } from '../components/edgeColorProperty';
 import type { AppGraphNodeType } from '../components/AppGraphNode';
 import {
@@ -43,12 +71,34 @@ export const NODE_WIDTH = 160;
 export const NODE_HEIGHT = 48;
 export const GRID = 16;
 
-export function buildAppNode(node: GraphNodeDto): AppNode {
+export type NodeCodingKeys = {
+  appFillKey: string;
+  appBorderKey: string;
+  colors?: LegendColorMaps;
+};
+
+/** Build RF node with visual-only fill/border (reads DTO; never writes properties). */
+export function buildAppNode(node: GraphNodeDto, coding?: NodeCodingKeys): AppNode {
   return {
     id: node.id,
     type: 'app',
     position: { x: 0, y: 0 },
-    data: { label: node.label, nodeType: node.type },
+    data: {
+      label: node.label,
+      nodeType: node.type,
+      ...(coding
+        ? {
+            fillColor: nodeFillColor(node, coding.appFillKey, coding.colors?.appFill),
+            borderColor: nodeBorderColor(
+              node,
+              coding.appBorderKey,
+              coding.colors?.appBorder,
+              coding.appFillKey,
+              coding.colors?.appFill
+            ),
+          }
+        : {}),
+    },
     className: 'graph-node',
   };
 }
@@ -56,7 +106,10 @@ export function buildAppNode(node: GraphNodeDto): AppNode {
 export function buildAppEdge(
   edge: GraphEdgeDto,
   typeById: Map<string, string>,
-  colorPropertyKey: string
+  colorPropertyKey: string,
+  labelPropertyKey = 'data',
+  colors?: LegendColorMaps,
+  hideEdgeLabels?: boolean
 ) {
   return buildOrientedEdge({
     id: edge.id,
@@ -65,9 +118,38 @@ export function buildAppEdge(
     relationType: edge.type,
     dataLabel: edge.data,
     colorPropertyKey,
+    labelPropertyKey,
     properties: edge.properties,
+    colors,
+    hideEdgeLabels,
     sourceNodeType: typeById.get(edge.sourceId) ?? 'Application',
     targetNodeType: typeById.get(edge.targetId) ?? 'Application',
+  });
+}
+
+function applyNodeCoding(
+  nodes: AppNode[],
+  graphNodes: GraphNodeDto[],
+  coding: NodeCodingKeys
+): AppNode[] {
+  const byId = new Map(graphNodes.map((n) => [n.id, n]));
+  return nodes.map((node) => {
+    const dto = byId.get(node.id);
+    if (!dto) return node;
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        fillColor: nodeFillColor(dto, coding.appFillKey, coding.colors?.appFill),
+        borderColor: nodeBorderColor(
+          dto,
+          coding.appBorderKey,
+          coding.colors?.appBorder,
+          coding.appFillKey,
+          coding.colors?.appFill
+        ),
+      },
+    };
   });
 }
 
@@ -77,6 +159,7 @@ type UseGraphDataParams = {
   nodeRefs: Record<string, string[]>;
   filtersActive: boolean;
   graphReloadNonce: number;
+  hiddenNodeIds?: ReadonlySet<string>;
   graphModeRef: MutableRefObject<GraphMode>;
   pendingSandboxFilterHint: boolean;
   setPendingSandboxFilterHint: Dispatch<SetStateAction<boolean>>;
@@ -86,9 +169,7 @@ type UseGraphDataParams = {
 };
 
 /**
- * Owns the React Flow node/edge state and the data pipeline: fetch graph for
- * the active filters, run ELK (with a dagre fallback) layout, then expose the
- * laid-out graph plus the color-property legend state.
+ * Graph fetch + layout + legend coding (display-only; never mutates DTO properties).
  */
 export function useGraphData({
   applicationIds,
@@ -96,6 +177,7 @@ export function useGraphData({
   nodeRefs,
   filtersActive,
   graphReloadNonce,
+  hiddenNodeIds = new Set(),
   graphModeRef,
   pendingSandboxFilterHint,
   setPendingSandboxFilterHint,
@@ -110,37 +192,267 @@ export function useGraphData({
   const [graphEdges, setGraphEdges] = useState<GraphEdgeDto[]>([]);
   const graphEdgesRef = useRef(graphEdges);
   graphEdgesRef.current = graphEdges;
+  const graphNodesRef = useRef(graphNodes);
+  graphNodesRef.current = graphNodes;
+
   const [colorPropertyKey, setColorPropertyKey] = useState(loadStoredColorPropertyKey);
+  const [labelPropertyKey, setLabelPropertyKey] = useState(loadStoredLabelPropertyKey);
+  const [appFillKey, setAppFillKey] = useState(loadStoredAppFillKey);
+  const [appBorderKey, setAppBorderKey] = useState(loadStoredAppBorderKey);
+  const [legendColors, setLegendColors] = useState<LegendColorMaps>(loadLegendColorMaps);
+  const legendColorsRef = useRef(legendColors);
+  legendColorsRef.current = legendColors;
+  const [hideEdgeLabels, setHideEdgeLabels] = useState(loadHideEdgeLabels);
+  const hideEdgeLabelsRef = useRef(hideEdgeLabels);
+  hideEdgeLabelsRef.current = hideEdgeLabels;
+  const [legendSetups, setLegendSetups] = useState<LegendSetup[]>(loadLegendSetups);
   const [layoutRevision, setLayoutRevision] = useState(0);
 
+  const visible = useMemo(
+    () => visibleGraphElements(graphNodes, graphEdges, hiddenNodeIds),
+    [graphNodes, graphEdges, hiddenNodeIds]
+  );
+
+  const simpleMode = useMemo(
+    () => isSimpleLegendMode(visible.nodes, visible.edges),
+    [visible.nodes, visible.edges]
+  );
+
+  const effectiveColorKey = simpleMode ? RELATION_TYPE_COLOR_KEY : colorPropertyKey;
+  const effectiveLabelKey = simpleMode ? RELATION_TYPE_COLOR_KEY : labelPropertyKey;
+  const effectiveFillKey = simpleMode ? NODE_TYPE_COLOR_KEY : appFillKey;
+  const effectiveBorderKey = simpleMode ? NODE_TYPE_COLOR_KEY : appBorderKey;
+
   const legendColorPropertyOptions = useMemo(
-    () => colorPropertyOptions(graphEdges),
-    [graphEdges]
+    () => colorPropertyOptions(visible.edges),
+    [visible.edges]
   );
+  const legendLabelPropertyOptions = legendColorPropertyOptions;
+  const legendAppPropertyOptions = useMemo(
+    () => nodePropertyOptions(visible.nodes),
+    [visible.nodes]
+  );
+
   const legendColorValues = useMemo(
-    () => collectLegendColorValues(graphEdges, colorPropertyKey),
-    [graphEdges, colorPropertyKey]
+    () => collectLegendColorValues(visible.edges, effectiveColorKey),
+    [visible.edges, effectiveColorKey]
   );
+  const legendLabelValues = useMemo(
+    () => collectLegendColorValues(visible.edges, effectiveLabelKey),
+    [visible.edges, effectiveLabelKey]
+  );
+  const legendFillValues = useMemo(
+    () => collectNodeLegendValues(visible.nodes, effectiveFillKey),
+    [visible.nodes, effectiveFillKey]
+  );
+  const legendBorderValues = useMemo(
+    () => collectNodeLegendValues(visible.nodes, effectiveBorderKey),
+    [visible.nodes, effectiveBorderKey]
+  );
+
+  /** Stroke color of an edge that carries each label value (label text color = stroke). */
+  const legendLabelStrokeColors = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const edge of visible.edges) {
+      const labelValue = edgeColorValue(edge, effectiveLabelKey);
+      if (!labelValue || map[labelValue]) continue;
+      const strokeValue = edgeColorValue(edge, effectiveColorKey);
+      map[labelValue] = paintEdgeStrokeColor(
+        strokeValue,
+        edge.type,
+        effectiveColorKey,
+        legendColors.edgeStroke
+      );
+    }
+    return map;
+  }, [visible.edges, effectiveLabelKey, effectiveColorKey, legendColors.edgeStroke]);
+
+  // Resolve keys when options shrink (filters / hide).
+  useEffect(() => {
+    if (simpleMode) return;
+    const nextColor = resolveColorPropertyKey(colorPropertyKey, visible.edges);
+    const nextLabel = resolveColorPropertyKey(labelPropertyKey, visible.edges);
+    const nextFill = resolveNodePropertyKey(appFillKey, visible.nodes);
+    const nextBorder = resolveNodePropertyKey(appBorderKey, visible.nodes);
+    if (nextColor !== colorPropertyKey) {
+      setColorPropertyKey(nextColor);
+      storeColorPropertyKey(nextColor);
+    }
+    if (nextLabel !== labelPropertyKey) {
+      setLabelPropertyKey(nextLabel);
+      storeLabelPropertyKey(nextLabel);
+    }
+    if (nextFill !== appFillKey) {
+      setAppFillKey(nextFill);
+      storeAppFillKey(nextFill);
+    }
+    if (nextBorder !== appBorderKey) {
+      setAppBorderKey(nextBorder);
+      storeAppBorderKey(nextBorder);
+    }
+  }, [
+    simpleMode,
+    visible.edges,
+    visible.nodes,
+    colorPropertyKey,
+    labelPropertyKey,
+    appFillKey,
+    appBorderKey,
+  ]);
 
   const handleColorPropertyChange = useCallback((key: string) => {
     setColorPropertyKey(key);
     storeColorPropertyKey(key);
   }, []);
+  const handleLabelPropertyChange = useCallback((key: string) => {
+    if (key === HIDE_EDGE_LABELS_KEY) {
+      setHideEdgeLabels(true);
+      storeHideEdgeLabels(true);
+      return;
+    }
+    setHideEdgeLabels(false);
+    storeHideEdgeLabels(false);
+    setLabelPropertyKey(key);
+    storeLabelPropertyKey(key);
+  }, []);
+  const handleAppFillChange = useCallback((key: string) => {
+    setAppFillKey(key);
+    storeAppFillKey(key);
+  }, []);
+  const handleAppBorderChange = useCallback((key: string) => {
+    setAppBorderKey(key);
+    storeAppBorderKey(key);
+  }, []);
 
-  // Re-stroke edges when the user picks another color property (keep ELK routes).
+  const handleValueColorChange = useCallback(
+    (channel: keyof LegendColorMaps, value: string, color: string) => {
+      setLegendColors((prev) => {
+        const next = setRationalizedColorInMaps(
+          prev,
+          channel,
+          value,
+          color,
+          effectiveColorKey,
+          effectiveLabelKey,
+          effectiveFillKey,
+          effectiveBorderKey
+        );
+        storeLegendColorMaps(next);
+        return next;
+      });
+    },
+    [effectiveColorKey, effectiveLabelKey, effectiveFillKey, effectiveBorderKey]
+  );
+
+  const getLegendSnapshot = useCallback((): GraphLegendSnapshot => {
+    return {
+      edgeColorKey: effectiveColorKey,
+      edgeLabelKey: effectiveLabelKey,
+      appFillKey: effectiveFillKey,
+      appBorderKey: effectiveBorderKey,
+      colors: legendColorsRef.current,
+      hideEdgeLabels: hideEdgeLabelsRef.current,
+    };
+  }, [effectiveColorKey, effectiveLabelKey, effectiveFillKey, effectiveBorderKey]);
+
+  const applyLegendSnapshot = useCallback((legend: GraphLegendSnapshot | null | undefined) => {
+    if (!legend) return;
+    if (legend.edgeColorKey) {
+      setColorPropertyKey(legend.edgeColorKey);
+      storeColorPropertyKey(legend.edgeColorKey);
+    }
+    if (legend.edgeLabelKey) {
+      setLabelPropertyKey(legend.edgeLabelKey);
+      storeLabelPropertyKey(legend.edgeLabelKey);
+    }
+    if (legend.appFillKey) {
+      setAppFillKey(legend.appFillKey);
+      storeAppFillKey(legend.appFillKey);
+    }
+    if (legend.appBorderKey) {
+      setAppBorderKey(legend.appBorderKey);
+      storeAppBorderKey(legend.appBorderKey);
+    }
+    const colors = legend.colors ?? {};
+    // Sync refs before any immediate relayout/restyle that reads them.
+    legendColorsRef.current = colors;
+    setLegendColors(colors);
+    storeLegendColorMaps(colors);
+    const hide = Boolean(legend.hideEdgeLabels);
+    hideEdgeLabelsRef.current = hide;
+    setHideEdgeLabels(hide);
+    storeHideEdgeLabels(hide);
+  }, []);
+
+  const saveLegendSetup = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      setLegendSetups((prev) => {
+        const next: LegendSetup[] = [
+          ...prev,
+          {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            name: trimmed,
+            edgeColorKey: effectiveColorKey,
+            edgeLabelKey: effectiveLabelKey,
+            appFillKey: effectiveFillKey,
+            appBorderKey: effectiveBorderKey,
+            colors: legendColorsRef.current,
+            hideEdgeLabels: hideEdgeLabelsRef.current,
+          },
+        ];
+        storeLegendSetups(next);
+        return next;
+      });
+    },
+    [effectiveColorKey, effectiveLabelKey, effectiveFillKey, effectiveBorderKey]
+  );
+
+  const applyLegendSetup = useCallback((setup: LegendSetup) => {
+    applyLegendSnapshot(setup);
+  }, [applyLegendSnapshot]);
+
+  const deleteLegendSetup = useCallback((id: string) => {
+    setLegendSetups((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      storeLegendSetups(next);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     if (status !== 'ready') return;
     setEdges((prev) => {
       if (prev.length === 0) return prev;
       const byId = new Map(graphEdgesRef.current.map((edge) => [edge.id, edge]));
+      const colors = legendColorsRef.current;
+      const hide = hideEdgeLabelsRef.current;
       return prev.map((edge) =>
-        restyleEdgeColorProperty(edge as OrientedEdgeType, colorPropertyKey, byId.get(edge.id))
+        restyleEdgeColorProperty(
+          edge as OrientedEdgeType,
+          effectiveColorKey,
+          byId.get(edge.id),
+          effectiveLabelKey,
+          colors,
+          hide
+        )
       );
     });
-  }, [colorPropertyKey, status, setEdges]);
+  }, [effectiveColorKey, effectiveLabelKey, legendColors, hideEdgeLabels, status, setEdges]);
 
-  // Fit the full diagram after an initial/reload layout only — not when
-  // nodes.length changes due to hide/restore (those must keep the viewport).
+  useEffect(() => {
+    if (status !== 'ready') return;
+    setNodes((prev) => {
+      if (prev.length === 0) return prev;
+      return applyNodeCoding(prev, graphNodesRef.current, {
+        appFillKey: effectiveFillKey,
+        appBorderKey: effectiveBorderKey,
+        colors: legendColorsRef.current,
+      });
+    });
+  }, [effectiveFillKey, effectiveBorderKey, legendColors, status, setNodes]);
+
   useEffect(() => {
     if (status !== 'ready' || layoutRevision === 0) return;
     fitGraphView(rfRef.current);
@@ -162,20 +474,53 @@ export function useGraphData({
 
         setGraphNodes(data.nodes);
         setGraphEdges(data.edges);
-        const effectiveColorKey = resolveColorPropertyKey(colorPropertyKey, data.edges);
-        if (effectiveColorKey !== colorPropertyKey) {
-          setColorPropertyKey(effectiveColorKey);
-          storeColorPropertyKey(effectiveColorKey);
+
+        const simple = isSimpleLegendMode(data.nodes, data.edges);
+        const nextColor = simple
+          ? RELATION_TYPE_COLOR_KEY
+          : resolveColorPropertyKey(colorPropertyKey, data.edges);
+        const nextLabel = simple
+          ? RELATION_TYPE_COLOR_KEY
+          : resolveColorPropertyKey(labelPropertyKey, data.edges);
+        const nextFill = simple
+          ? NODE_TYPE_COLOR_KEY
+          : resolveNodePropertyKey(appFillKey, data.nodes);
+        const nextBorder = simple
+          ? NODE_TYPE_COLOR_KEY
+          : resolveNodePropertyKey(appBorderKey, data.nodes);
+
+        if (nextColor !== colorPropertyKey) {
+          setColorPropertyKey(nextColor);
+          storeColorPropertyKey(nextColor);
+        }
+        if (nextLabel !== labelPropertyKey) {
+          setLabelPropertyKey(nextLabel);
+          storeLabelPropertyKey(nextLabel);
+        }
+        if (nextFill !== appFillKey) {
+          setAppFillKey(nextFill);
+          storeAppFillKey(nextFill);
+        }
+        if (nextBorder !== appBorderKey) {
+          setAppBorderKey(nextBorder);
+          storeAppBorderKey(nextBorder);
         }
 
+        const colors = legendColorsRef.current;
         const typeById = new Map(data.nodes.map((n) => [n.id, n.type]));
-        const baseNodes = data.nodes.map(buildAppNode);
-        const builtEdges = data.edges.map((e) => buildAppEdge(e, typeById, effectiveColorKey));
+        const nodeCoding: NodeCodingKeys = {
+          appFillKey: nextFill,
+          appBorderKey: nextBorder,
+          colors,
+        };
+        const baseNodes = data.nodes.map((n) => buildAppNode(n, nodeCoding));
+        const builtEdges = data.edges.map((e) =>
+          buildAppEdge(e, typeById, nextColor, nextLabel, colors, hideEdgeLabelsRef.current)
+        );
         const rect = containerRef.current?.getBoundingClientRect();
         const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
 
         try {
-          // Preferred: ELK layered layout with node-avoiding orthogonal routing.
           const { nodes: laidOut, routes } = await elkLayout(baseNodes, builtEdges, {
             nodeWidth: NODE_WIDTH,
             nodeHeight: NODE_HEIGHT,
@@ -188,7 +533,6 @@ export function useGraphData({
           setNodes(laidOut);
           setEdges(builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id))));
         } catch {
-          // Fallback: dagre layout + smoothstep edges if ELK fails.
           if (cancelled) return;
           setNodes(
             layoutGraph(baseNodes, builtEdges, {
@@ -263,10 +607,31 @@ export function useGraphData({
     setGraphNodes,
     graphEdges,
     setGraphEdges,
-    colorPropertyKey,
-    setColorPropertyKey,
+    simpleMode,
+    colorPropertyKey: effectiveColorKey,
+    labelPropertyKey: effectiveLabelKey,
+    appFillKey: effectiveFillKey,
+    appBorderKey: effectiveBorderKey,
+    legendColors,
+    hideEdgeLabels,
     handleColorPropertyChange,
+    handleLabelPropertyChange,
+    handleAppFillChange,
+    handleAppBorderChange,
+    handleValueColorChange,
+    getLegendSnapshot,
+    applyLegendSnapshot,
     legendColorPropertyOptions,
+    legendLabelPropertyOptions,
+    legendAppPropertyOptions,
     legendColorValues,
+    legendLabelValues,
+    legendLabelStrokeColors,
+    legendFillValues,
+    legendBorderValues,
+    legendSetups,
+    saveLegendSetup,
+    applyLegendSetup,
+    deleteLegendSetup,
   };
 }
