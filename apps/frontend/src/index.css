@@ -1205,6 +1205,86 @@ body {
   flex-shrink: 0;
 }
 
+.graph-export-menu {
+  position: relative;
+}
+
+.graph-export-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.35rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #334155;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.graph-export-menu-trigger:hover:not(:disabled) {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.graph-export-menu-trigger:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.graph-export-menu-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.graph-export-menu-popover {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 20;
+  min-width: 9.5rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.3rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 14%);
+}
+
+.graph-export-menu-item {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+}
+
+.graph-export-menu-item:hover {
+  background: #f1f5f9;
+}
+
+.graph-export-menu-item:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
 .graph-display-toggle {
   display: inline-flex;
   align-items: stretch;

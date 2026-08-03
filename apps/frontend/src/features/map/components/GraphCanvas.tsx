@@ -64,6 +64,12 @@ import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
+import { GraphExportMenu } from './GraphExportMenu';
+import {
+  buildGraphExportFileName,
+  exportGraphImage,
+  type GraphImageFormat,
+} from '../utils/exportGraphImage';
 import {
   layoutCollapsedAppGraph,
   type NodePositionsMap,
@@ -116,6 +122,7 @@ export function GraphCanvas() {
   const [tableContent, setTableContent] = useState<TableContentMode>('apps');
   const [moduleGraphApp, setModuleGraphApp] = useState<{ id: string; label: string } | null>(null);
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
+  const [isExportingGraph, setIsExportingGraph] = useState(false);
   /** Local-only collapse set; tables keep using the full graph DTOs. */
   const hiddenNodeIdsRef = useRef<Set<string>>(new Set());
   /** Last canvas position of each hidden app (used when restoring without moving others). */
@@ -906,10 +913,35 @@ export function GraphCanvas() {
   }, [moduleGraphApp, isViewsMode, status, message]);
 
   const showGraphDisplayToggle = graphMode === 'normal' || graphMode === 'sandbox';
+  const showGraphExport =
+    (graphMode === 'normal' || graphMode === 'sandbox') &&
+    displayMode === 'graph' &&
+    moduleGraphApp == null;
 
   const handleSideMenuToggle = useCallback(() => {
     setIsSideMenuOpen((open) => !open);
   }, []);
+
+  const handleExportGraph = useCallback(
+    async (format: GraphImageFormat) => {
+      const el = containerRef.current;
+      if (!el || status !== 'ready') return;
+      setIsExportingGraph(true);
+      try {
+        await exportGraphImage({
+          element: el,
+          format,
+          fileName: buildGraphExportFileName(isSandbox ? 'sandbox' : 'production', format),
+        });
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : 'Unknown error';
+        setMessage(`Could not export diagram: ${detail}`);
+      } finally {
+        setIsExportingGraph(false);
+      }
+    },
+    [isSandbox, status]
+  );
 
   useEffect(() => {
     if (isViewsMode || displayMode !== 'graph') return;
@@ -1029,6 +1061,13 @@ export function GraphCanvas() {
               ) : null}
             </div>
             <div className="graph-view-header-actions">
+              {showGraphExport ? (
+                <GraphExportMenu
+                  disabled={status !== 'ready'}
+                  busy={isExportingGraph}
+                  onExport={handleExportGraph}
+                />
+              ) : null}
               {showGraphDisplayToggle ? (
                 <GraphDisplayToggle displayMode={displayMode} onChange={setDisplayMode} />
               ) : null}
