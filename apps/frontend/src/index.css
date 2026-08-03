@@ -3134,6 +3134,249 @@ body {
     inset 0 3px 0 rgb(245 158 11 / 35%);
 }
 
+/* ===== Multi-sandbox board ===== */
+.sandbox-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.sandbox-board {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.45rem;
+}
+
+.sandbox-board--single {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.sandbox-board--horizontal {
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.sandbox-board--vertical {
+  grid-auto-flow: row;
+  grid-auto-rows: 1fr;
+  grid-template-columns: 1fr;
+}
+
+.sandbox-board--square.sandbox-board--n2 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+.sandbox-board--square.sandbox-board--n3,
+.sandbox-board--square.sandbox-board--n4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.sandbox-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.sandbox-pane.is-active {
+  border-color: var(--ss-accent-border, #fbbf24);
+  box-shadow: 0 0 0 1px var(--ss-accent-border, #fbbf24);
+}
+
+.sandbox-pane__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.28rem 0.45rem;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sandbox-pane__title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.sandbox-pane__close {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.1rem 0.35rem;
+}
+
+.sandbox-pane__close:hover {
+  color: #b45309;
+}
+
+.sandbox-pane__canvas {
+  flex: 1;
+  min-height: 0;
+}
+
+.sandbox-pane__save {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ss-accent-text, #b45309);
+  background: #ffffff;
+  border: 1px solid var(--ss-accent-border, #fbbf24);
+  border-radius: 999px;
+  width: 1.75rem;
+  height: 1.75rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--ss-accent-shadow, rgb(245 158 11 / 12%));
+}
+
+.sandbox-pane__save:hover {
+  background: var(--ss-accent-surface, #fffbeb);
+}
+
+.sandbox-shared-legend {
+  position: absolute;
+  top: 0.65rem;
+  left: 0.65rem;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.sandbox-shared-legend .graph-legend {
+  pointer-events: auto;
+  max-height: min(70vh, 28rem);
+  overflow: auto;
+}
+
+.sandbox-icon-node {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 8%);
+}
+
+.sandbox-icon-node__glyph {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.sandbox-icon-node__delete {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.graph-legend__swatch--icon {
+  width: auto;
+  min-width: 1.1rem;
+  border: none;
+  background: transparent;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.graph-node-card__label-input,
+.oriented-edge-label--input {
+  font: inherit;
+  font-size: 0.7rem;
+  width: 6.5rem;
+  padding: 0.1rem 0.25rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.oriented-edge-label.is-empty {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+.oriented-edge-label.is-editable {
+  cursor: text;
+}
+
+.graph-drawer-sandbox-tools {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.graph-drawer-saved-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.graph-drawer-saved-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.graph-drawer-saved-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-drawer-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.graph-drawer-icon-btn {
+  font-size: 1.25rem;
+  padding: 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.graph-drawer-icon-btn:hover {
+  border-color: var(--ss-accent-border, #fbbf24);
+  background: var(--ss-accent-surface, #fffbeb);
+}
+
 /* ===== Graph mode tabs (Excel / Sheets style) ===== */
 .graph-mode-tabs-bar {
   display: flex;

@@ -1,4 +1,5 @@
-﻿import {
+﻿import { useState, type KeyboardEvent, type MouseEvent } from 'react';
+import {
   BaseEdge,
   EdgeLabelRenderer,
   Position,
@@ -26,6 +27,10 @@ export type OrientedEdgeData = {
   relation?: string;
   /** Label shown on the link (data type when available). */
   dataLabel?: string;
+  /** Sandbox display-only label (never written to Neo4j). */
+  displayLabel?: string;
+  /** When set, double-click edits the displayed label only. */
+  onDisplayLabelChange?: (label: string) => void;
   /** Raw Neo4j `r.data` key used for edge labels. */
   dataKey?: string | null;
   /** Edge property key currently driving stroke color. */
@@ -554,11 +559,42 @@ export function OrientedEdge({
   const gradientId  = `oriented-edge-gradient-${id}`;
   const isIndirect  = Boolean(data?.indirect);
   const hideLabels = Boolean(data?.hideEdgeLabels);
+  const displayText =
+    data?.displayLabel !== undefined ? data.displayLabel : String(label ?? '');
+  const canEditLabel = Boolean(data?.onDisplayLabelChange) && !isIndirect;
   const showLabel =
     !isIndirect &&
     !hideLabels &&
-    Boolean(label) &&
+    (Boolean(displayText) || canEditLabel) &&
     zoom >= ZOOM_THRESHOLDS.secondaryDetail;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(displayText);
+
+  function commitLabel() {
+    setEditing(false);
+    const next = draft.trim();
+    if (data?.onDisplayLabelChange && next !== displayText) {
+      data.onDisplayLabelChange(next);
+    }
+  }
+
+  function onLabelDoubleClick(event: MouseEvent) {
+    if (!canEditLabel) return;
+    event.stopPropagation();
+    setDraft(displayText);
+    setEditing(true);
+  }
+
+  function onLabelKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commitLabel();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setEditing(false);
+      setDraft(displayText);
+    }
+  }
 
   return (
     <>
@@ -609,16 +645,38 @@ export function OrientedEdge({
       )}
       {showLabel && (
         <EdgeLabelRenderer>
-          <div
-            className="oriented-edge-label nodrag nopan"
-            style={{
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-              color: labelColor,
-              borderColor: `${labelColor}55`,
-            }}
-          >
-            {label}
-          </div>
+          {editing ? (
+            <input
+              className="oriented-edge-label oriented-edge-label--input nodrag nopan"
+              style={{
+                transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+                color: labelColor,
+                borderColor: `${labelColor}55`,
+              }}
+              value={draft}
+              autoFocus
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commitLabel}
+              onKeyDown={onLabelKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Edit edge display label"
+            />
+          ) : (
+            <div
+              className={`oriented-edge-label nodrag nopan${canEditLabel ? ' is-editable' : ''}${
+                displayText ? '' : ' is-empty'
+              }`}
+              style={{
+                transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+                color: labelColor,
+                borderColor: `${labelColor}55`,
+              }}
+              onDoubleClick={onLabelDoubleClick}
+              title={canEditLabel ? 'Double-click to edit label' : displayText}
+            >
+              {displayText || (canEditLabel ? 'label' : '')}
+            </div>
+          )}
         </EdgeLabelRenderer>
       )}
     </>

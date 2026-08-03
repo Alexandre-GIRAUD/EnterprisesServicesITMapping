@@ -50,6 +50,9 @@ type Props = {
   onApplyLegendSetup?: (setup: LegendSetup) => void;
   onDeleteLegendSetup?: (id: string) => void;
   showIndirectFlow?: boolean;
+  /** Sandbox icons shown in a shared legend section. */
+  sandboxIcons?: Array<{ id: string; iconKey: string; legendLabel: string }>;
+  onSandboxIconLabelChange?: (id: string, label: string) => void;
 };
 
 function nodeValueLabel(propertyKey: string, value: string): string {
@@ -150,6 +153,8 @@ export function GraphLegend({
   onApplyLegendSetup,
   onDeleteLegendSetup,
   showIndirectFlow = false,
+  sandboxIcons = [],
+  onSandboxIconLabelChange,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [setupName, setSetupName] = useState('');
@@ -162,7 +167,8 @@ export function GraphLegend({
 
   const canEdit =
     showCoding ||
-    Boolean(onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup);
+    Boolean(onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup) ||
+    Boolean(onSandboxIconLabelChange && sandboxIcons.length > 0);
 
   const colorChange = isEditing ? onValueColorChange : undefined;
 
@@ -597,6 +603,31 @@ export function GraphLegend({
             </div>
           )}
           {flowsItems.length > 0 && <ul className="graph-legend__list">{flowsItems}</ul>}
+        </div>
+      )}
+
+      {sandboxIcons.length > 0 && (
+        <div className="graph-legend__group">
+          <p className="graph-legend__title">Icons</p>
+          <ul className="graph-legend__list">
+            {sandboxIcons.map((icon) => (
+              <li key={icon.id} className="graph-legend__item">
+                <span className="graph-legend__swatch graph-legend__swatch--icon" aria-hidden="true">
+                  {icon.iconKey}
+                </span>
+                {isEditing && onSandboxIconLabelChange ? (
+                  <input
+                    className="graph-legend__input"
+                    value={icon.legendLabel}
+                    onChange={(e) => onSandboxIconLabelChange(icon.id, e.target.value)}
+                    aria-label={`Legend label for icon ${icon.iconKey}`}
+                  />
+                ) : (
+                  <span className="graph-legend__label">{icon.legendLabel}</span>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
