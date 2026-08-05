@@ -116,6 +116,7 @@ export function GraphCanvas() {
   const DOUBLE_CLICK_MS = 400;
 
   const [message, setMessage] = useState<string | null>(null);
+  const [sandboxToast, setSandboxToast] = useState<string | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
@@ -309,6 +310,53 @@ export function GraphCanvas() {
     mode.setSandboxDirty(sandboxes.anyDirty);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync dirty flag only
   }, [sandboxes.anyDirty]);
+
+  useEffect(() => {
+    if (!sandboxToast) return;
+    const t = window.setTimeout(() => setSandboxToast(null), 2500);
+    return () => window.clearTimeout(t);
+  }, [sandboxToast]);
+
+  // Keep sandbox edge stroke/label colors aligned with active legend coding.
+  useEffect(() => {
+    if (!isSandbox) return;
+    for (const doc of sandboxes.openDocs) {
+      sandboxes.patchDoc(doc.id, (d) => {
+        const typeById = new Map(d.nodes.map((n) => [n.id, n.data.nodeType]));
+        const nextEdges = d.graphEdges.map((ge) => {
+          const built = buildAppEdge(
+            ge,
+            typeById,
+            colorPropertyKey,
+            labelPropertyKey,
+            legendColors,
+            hideEdgeLabels
+          );
+          const override = d.edgeLabelOverrides[ge.id];
+          if (override !== undefined) {
+            return {
+              ...built,
+              label: override,
+              data: {
+                ...built.data!,
+                displayLabel: override,
+                labelColor: built.data!.sourceColor,
+              },
+            };
+          }
+          return {
+            ...built,
+            data: {
+              ...built.data!,
+              labelColor: built.data!.sourceColor,
+            },
+          };
+        });
+        return { ...d, edges: nextEdges };
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- restyle on legend coding only
+  }, [isSandbox, colorPropertyKey, labelPropertyKey, legendColors, hideEdgeLabels]);
 
   const wasSandboxRef = useRef(false);
   useEffect(() => {
@@ -899,7 +947,12 @@ export function GraphCanvas() {
       const blank: OrientedEdgeType = {
         ...built,
         label: '',
-        data: { ...built.data!, dataLabel: '', displayLabel: '' },
+        data: {
+          ...built.data!,
+          dataLabel: '',
+          displayLabel: '',
+          labelColor: built.data!.sourceColor,
+        },
       };
       mutateActiveSandbox((d) => ({
         ...d,
@@ -1192,23 +1245,24 @@ export function GraphCanvas() {
             }}
             onNewSandbox={() => {
               if (sandboxes.openDocs.length >= MAX_OPEN_SANDBOXES) {
-                setMessage(`At most ${MAX_OPEN_SANDBOXES} sandboxes can be open.`);
+                setSandboxToast('Close at least one sandbox before opening another.');
                 return;
               }
               const id = sandboxes.openNew(sandboxSeed());
-              if (!id) setMessage(`At most ${MAX_OPEN_SANDBOXES} sandboxes can be open.`);
+              if (!id) setSandboxToast('Close at least one sandbox before opening another.');
             }}
             openSandboxCount={sandboxes.openDocs.length}
             savedSandboxes={sandboxes.saved}
             onLoadSandbox={(id) => {
               const result = sandboxes.loadSaved(id);
               if (result === 'full') {
-                setMessage(`At most ${MAX_OPEN_SANDBOXES} sandboxes can be open.`);
+                setSandboxToast('Close at least one sandbox before loading another.');
               }
             }}
             onDeleteSavedSandbox={sandboxes.deleteSaved}
             layoutMode={sandboxes.layout}
             onLayoutModeChange={sandboxes.setLayout}
+            onSandboxToast={setSandboxToast}
           />
         );
       default:
@@ -1308,6 +1362,7 @@ export function GraphCanvas() {
                     key={doc.id}
                     doc={doc}
                     active={doc.id === sandboxes.activeId}
+                    toast={doc.id === sandboxes.activeId ? sandboxToast : null}
                     onActivate={() => sandboxes.setActiveId(doc.id)}
                     onNodesChange={() => undefined}
                     onEdgesChange={() => undefined}
@@ -1324,14 +1379,13 @@ export function GraphCanvas() {
                       });
                     }}
                     onSave={() => {
-                      const name =
-                        doc.name.trim() ||
-                        window.prompt('Sandbox name', doc.name) ||
-                        doc.name;
-                      sandboxes.saveDoc(doc.id, name);
-                      setMessage(`Sandbox "${name}" saved.`);
+                      sandboxes.saveDoc(doc.id, doc.name);
+                      setSandboxToast('Saved');
                     }}
                     onClose={() => sandboxes.closeDoc(doc.id)}
+                    onRename={(name) => {
+                      sandboxes.patchDoc(doc.id, { name, dirty: true });
+                    }}
                     onNodeDisplayLabel={(nodeId, label) => {
                       sandboxes.patchDoc(doc.id, (d) => ({
                         ...d,

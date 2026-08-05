@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Edge } from '@xyflow/react';
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import type { AppNode } from './useGraphData';
@@ -24,11 +24,26 @@ type Seed = {
 export function useSandboxes() {
   const [openDocs, setOpenDocs] = useState<SandboxDocument[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [layout, setLayout] = useState<SandboxLayoutMode>('square');
+  const [layout, setLayoutState] = useState<SandboxLayoutMode>('horizontal');
   const [saved, setSaved] = useState<SavedSandboxMeta[]>(() => loadSavedSandboxes());
 
   const activeDoc = openDocs.find((d) => d.id === activeId) ?? openDocs[0] ?? null;
   const anyDirty = openDocs.some((d) => d.dirty);
+
+  // Square only makes sense with 3+ panes.
+  useEffect(() => {
+    if (openDocs.length === 2 && layout === 'square') {
+      setLayoutState('horizontal');
+    }
+  }, [openDocs.length, layout]);
+
+  const setLayout = useCallback((mode: SandboxLayoutMode) => {
+    if (openDocs.length === 2 && mode === 'square') {
+      setLayoutState('horizontal');
+      return;
+    }
+    setLayoutState(mode);
+  }, [openDocs.length]);
 
   const patchDoc = useCallback((id: string, patch: Partial<SandboxDocument> | ((d: SandboxDocument) => SandboxDocument)) => {
     setOpenDocs((prev) =>

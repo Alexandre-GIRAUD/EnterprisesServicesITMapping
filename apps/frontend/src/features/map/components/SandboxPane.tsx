@@ -13,7 +13,7 @@ import {
   type OnEdgesChange,
   type OnNodesChange,
 } from '@xyflow/react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { GRID } from '../hooks/useGraphData';
 import { AppGraphNode } from './AppGraphNode';
 import { OrientedEdge } from './OrientedEdge';
@@ -23,6 +23,7 @@ import type { SandboxDocument, SandboxIcon } from '../utils/sandboxDocuments';
 type Props = {
   doc: SandboxDocument;
   active: boolean;
+  toast?: string | null;
   onActivate: () => void;
   onNodesChange: OnNodesChange<Node>;
   onEdgesChange: OnEdgesChange<Edge>;
@@ -30,6 +31,7 @@ type Props = {
   onDocEdges: (edges: Edge[]) => void;
   onSave: () => void;
   onClose: () => void;
+  onRename: (name: string) => void;
   onNodeDisplayLabel: (nodeId: string, label: string) => void;
   onEdgeDisplayLabel: (edgeId: string, label: string) => void;
   onIconMove: (iconId: string, x: number, y: number) => void;
@@ -54,6 +56,7 @@ function iconNodesFromDoc(icons: SandboxIcon[], onDelete: (id: string) => void):
 function SandboxPaneInner({
   doc,
   active,
+  toast,
   onActivate,
   onNodesChange,
   onEdgesChange,
@@ -61,11 +64,19 @@ function SandboxPaneInner({
   onDocEdges,
   onSave,
   onClose,
+  onRename,
   onNodeDisplayLabel,
   onEdgeDisplayLabel,
   onIconMove,
   onIconDelete,
 }: Props) {
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(doc.name);
+
+  useEffect(() => {
+    if (!editingTitle) setTitleDraft(doc.name);
+  }, [doc.name, editingTitle]);
+
   const appNodes = useMemo(
     () =>
       doc.nodes.map((n) => ({
@@ -80,21 +91,22 @@ function SandboxPaneInner({
   );
   const appEdges = useMemo(
     () =>
-      doc.edges.map((e) => ({
-        ...e,
-        label:
-          doc.edgeLabelOverrides[e.id] !== undefined
-            ? doc.edgeLabelOverrides[e.id]
-            : (e.label ?? ''),
-        data: {
-          ...e.data!,
-          displayLabel:
-            doc.edgeLabelOverrides[e.id] !== undefined
-              ? doc.edgeLabelOverrides[e.id]
-              : (e.data?.displayLabel ?? ''),
-          onDisplayLabelChange: (label: string) => onEdgeDisplayLabel(e.id, label),
-        },
-      })),
+      doc.edges.map((e) => {
+        const override = doc.edgeLabelOverrides[e.id];
+        const text =
+          override !== undefined ? override : String(e.label ?? e.data?.dataLabel ?? '');
+        return {
+          ...e,
+          label: text,
+          data: {
+            ...e.data!,
+            // Color always follows edge stroke (legend coding).
+            labelColor: e.data?.sourceColor ?? e.data?.labelColor,
+            displayLabel: text,
+            onDisplayLabelChange: (label: string) => onEdgeDisplayLabel(e.id, label),
+          },
+        };
+      }),
     [doc.edges, doc.edgeLabelOverrides, onEdgeDisplayLabel]
   );
 
@@ -120,6 +132,24 @@ function SandboxPaneInner({
   );
   const edgeTypes = useMemo<EdgeTypes>(() => ({ oriented: OrientedEdge }), []);
 
+  function commitTitle() {
+    setEditingTitle(false);
+    const next = titleDraft.trim();
+    if (next && next !== doc.name) onRename(next);
+    else setTitleDraft(doc.name);
+  }
+
+  function onTitleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commitTitle();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setEditingTitle(false);
+      setTitleDraft(doc.name);
+    }
+  }
+
   return (
     <div
       className={`sandbox-pane${active ? ' is-active' : ''}`}
@@ -128,10 +158,31 @@ function SandboxPaneInner({
       aria-label={doc.name}
     >
       <header className="sandbox-pane__header">
-        <span className="sandbox-pane__title">
-          {doc.name}
-          {doc.dirty ? ' •' : ''}
-        </span>
+        {editingTitle ? (
+          <input
+            className="sandbox-pane__title-input"
+            value={titleDraft}
+            autoFocus
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={commitTitle}
+            onKeyDown={onTitleKeyDown}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Sandbox name"
+          />
+        ) : (
+          <span
+            className="sandbox-pane__title"
+            title="Double-click to rename"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setTitleDraft(doc.name);
+              setEditingTitle(true);
+            }}
+          >
+            {doc.name}
+            {doc.dirty ? ' •' : ''}
+          </span>
+        )}
         <button
           type="button"
           className="sandbox-pane__close"
@@ -145,6 +196,11 @@ function SandboxPaneInner({
           ×
         </button>
       </header>
+      {active && toast ? (
+        <div className="sandbox-pane__toast" role="status">
+          {toast}
+        </div>
+      ) : null}
       <div className="sandbox-pane__canvas">
         <ReactFlow
           nodes={nodes}
@@ -193,7 +249,7 @@ function SandboxPaneInner({
         >
           <Background color="#e2e8f0" gap={GRID} />
           <Controls showInteractive={false} />
-          <Panel position="bottom-left">
+          <Panel position="bottom-right">
             <button
               type="button"
               className="sandbox-pane__save"

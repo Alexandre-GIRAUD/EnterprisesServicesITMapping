@@ -3180,6 +3180,7 @@ body {
 }
 
 .sandbox-pane {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -3209,6 +3210,41 @@ body {
   font-size: 0.72rem;
   font-weight: 600;
   color: #334155;
+  cursor: text;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sandbox-pane__title-input {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #334155;
+  flex: 1;
+  min-width: 0;
+  padding: 0.05rem 0.25rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.sandbox-pane__toast {
+  position: absolute;
+  top: 2.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  max-width: min(90%, 18rem);
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  background: rgb(15 23 42 / 88%);
+  color: #f8fafc;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 18%);
 }
 
 .sandbox-pane__close {
@@ -3329,6 +3365,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+}
+
+.graph-drawer-saved-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
 }
 
 .graph-drawer-saved-list {
@@ -3860,6 +3902,10 @@ body {
 .graph-legend__label {
   font-size: 0.72rem;
   color: #334155;
+}
+
+.graph-legend__label.is-editable {
+  cursor: text;
 }
 
 .graph-legend__swatch {
