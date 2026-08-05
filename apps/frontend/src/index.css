@@ -3451,14 +3451,16 @@ body {
   position: fixed;
   z-index: 80;
   pointer-events: none;
-  transform: translate(10px, 10px);
+  transform: translate(-50%, -50%);
   font-size: 1.45rem;
   line-height: 1;
   filter: drop-shadow(0 2px 4px rgb(15 23 42 / 25%));
 }
 
-.sandbox-pane.is-placing-icon {
-  cursor: copy;
+.sandbox-pane.is-placing-icon,
+.sandbox-stage.is-placing-icon,
+.sandbox-stage.is-placing-icon * {
+  cursor: none !important;
 }
 
 .graph-drawer-icon-btn {

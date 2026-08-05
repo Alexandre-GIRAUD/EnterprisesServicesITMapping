@@ -1373,7 +1373,9 @@ export function GraphCanvas() {
             ) : displayMode === 'graph' && isSandbox ? (
             <div
               id="graph-canvas-pane"
-              className="graph-canvas is-sandbox sandbox-stage"
+              className={`graph-canvas is-sandbox sandbox-stage${
+                iconPlacement ? ' is-placing-icon' : ''
+              }`}
               role="tabpanel"
               aria-labelledby="graph-mode-tab-sandbox"
               aria-label="Sandbox boards"
