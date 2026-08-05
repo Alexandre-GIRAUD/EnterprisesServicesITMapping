@@ -30,6 +30,8 @@ export type SandboxDocument = {
   nodeLabelOverrides: Record<string, string>;
   /** Display-only label overrides (edge id → text). */
   edgeLabelOverrides: Record<string, string>;
+  /** Local-only collapsed apps (same idea as Production hide). */
+  hiddenNodeIds: string[];
 };
 
 export type SavedSandboxMeta = {
@@ -72,6 +74,30 @@ export function cloneIntoSandboxDocument(
     icons: [],
     nodeLabelOverrides: {},
     edgeLabelOverrides: {},
+    hiddenNodeIds: [],
+  };
+}
+
+/** Deep-clone an open sandbox into a new independent document. */
+export function cloneSandboxDocument(source: SandboxDocument, name: string): SandboxDocument {
+  const copy = cloneJson(source);
+  return {
+    ...copy,
+    id: createSandboxDocumentId(),
+    name,
+    dirty: true,
+    hiddenNodeIds: copy.hiddenNodeIds ?? [],
+  };
+}
+
+/** Normalize older saved docs that may omit newer fields. */
+export function normalizeSandboxDocument(doc: SandboxDocument): SandboxDocument {
+  return {
+    ...doc,
+    icons: doc.icons ?? [],
+    nodeLabelOverrides: doc.nodeLabelOverrides ?? {},
+    edgeLabelOverrides: doc.edgeLabelOverrides ?? {},
+    hiddenNodeIds: doc.hiddenNodeIds ?? [],
   };
 }
 

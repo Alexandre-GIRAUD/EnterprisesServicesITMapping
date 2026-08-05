@@ -5,8 +5,10 @@ import type { AppNode } from './useGraphData';
 import {
   MAX_OPEN_SANDBOXES,
   cloneIntoSandboxDocument,
+  cloneSandboxDocument,
   createSandboxIconId,
   loadSavedSandboxes,
+  normalizeSandboxDocument,
   storeSavedSandboxes,
   type SandboxDocument,
   type SandboxIcon,
@@ -62,17 +64,30 @@ export function useSandboxes() {
   const openNew = useCallback((seed: Seed): string | null => {
     if (openDocs.length >= MAX_OPEN_SANDBOXES) return null;
     const n = openDocs.length + 1;
-    const doc = cloneIntoSandboxDocument(
-      `Sandbox ${n}`,
-      seed.graphNodes,
-      seed.graphEdges,
-      seed.nodes,
-      seed.edges
-    );
+    const last = openDocs[openDocs.length - 1];
+    const doc = last
+      ? cloneSandboxDocument(last, `Sandbox ${n}`)
+      : cloneIntoSandboxDocument(
+          `Sandbox ${n}`,
+          seed.graphNodes,
+          seed.graphEdges,
+          seed.nodes,
+          seed.edges
+        );
     setOpenDocs((prev) => [...prev, doc]);
     setActiveId(doc.id);
     return doc.id;
-  }, [openDocs.length]);
+  }, [openDocs]);
+
+  const duplicateDoc = useCallback((id: string): string | null => {
+    if (openDocs.length >= MAX_OPEN_SANDBOXES) return null;
+    const source = openDocs.find((d) => d.id === id);
+    if (!source) return null;
+    const doc = cloneSandboxDocument(source, `Sandbox ${openDocs.length + 1}`);
+    setOpenDocs((prev) => [...prev, doc]);
+    setActiveId(doc.id);
+    return doc.id;
+  }, [openDocs]);
 
   const ensureAtLeastOne = useCallback((seed: Seed) => {
     setOpenDocs((prev) => {
@@ -117,7 +132,7 @@ export function useSandboxes() {
       const finalName = (savedName ?? doc.name).trim() || doc.name;
       savedName = finalName;
       const persisted: SandboxDocument = {
-        ...doc,
+        ...normalizeSandboxDocument(doc),
         name: finalName,
         dirty: false,
       };
@@ -146,10 +161,10 @@ export function useSandboxes() {
       return 'focused';
     }
     if (openDocs.length >= MAX_OPEN_SANDBOXES) return 'full';
-    const doc: SandboxDocument = {
-      ...JSON.parse(JSON.stringify(meta.document)) as SandboxDocument,
+    const doc = normalizeSandboxDocument({
+      ...(JSON.parse(JSON.stringify(meta.document)) as SandboxDocument),
       dirty: false,
-    };
+    });
     setOpenDocs((prev) => [...prev, doc]);
     setActiveId(doc.id);
     return 'opened';
@@ -194,6 +209,24 @@ export function useSandboxes() {
     }));
   }, [patchDoc]);
 
+  const hideNode = useCallback((docId: string, nodeId: string) => {
+    patchDoc(docId, (d) => {
+      const hidden = d.hiddenNodeIds ?? [];
+      if (hidden.includes(nodeId)) return d;
+      return { ...d, dirty: true, hiddenNodeIds: [...hidden, nodeId] };
+    });
+  }, [patchDoc]);
+
+  const showHidden = useCallback((docId: string, ids: string[]) => {
+    if (ids.length === 0) return;
+    const remove = new Set(ids);
+    patchDoc(docId, (d) => ({
+      ...d,
+      dirty: true,
+      hiddenNodeIds: (d.hiddenNodeIds ?? []).filter((id) => !remove.has(id)),
+    }));
+  }, [patchDoc]);
+
   return {
     openDocs,
     activeId,
@@ -204,6 +237,7 @@ export function useSandboxes() {
     anyDirty,
     setActiveId,
     openNew,
+    duplicateDoc,
     ensureAtLeastOne,
     closeDoc,
     clearAll,
@@ -215,5 +249,7 @@ export function useSandboxes() {
     addIcon,
     updateIconLabel,
     removeIcon,
+    hideNode,
+    showHidden,
   };
 }

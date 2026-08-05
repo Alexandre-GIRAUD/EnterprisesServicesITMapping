@@ -13,7 +13,7 @@ export type AppGraphNodeData = {
   onHide?: () => void;
   /** Sandbox display-only label override (never written to Neo4j). */
   displayLabel?: string;
-  /** When set, double-click edits the displayed label only. */
+  /** When set, single-click on the title edits the displayed label only. */
   onDisplayLabelChange?: (label: string) => void;
 };
 
@@ -36,9 +36,10 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
     }
   }
 
-  function onDoubleClick(event: MouseEvent) {
+  function startLabelEdit(event: MouseEvent) {
     if (!data.onDisplayLabelChange) return;
     event.stopPropagation();
+    event.preventDefault();
     setDraft(shown);
     setEditing(true);
   }
@@ -58,7 +59,6 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
     <div
       className="graph-node-card"
       style={{ borderColor, backgroundColor: fillColor }}
-      onDoubleClick={onDoubleClick}
     >
       <Handle type="source" position={Position.Top} id="top-s" className="graph-node-handle" isConnectable={false} />
       <Handle type="target" position={Position.Top} id="top-t" className="graph-node-handle" isConnectable={false} />
@@ -73,7 +73,7 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
           type="button"
           className="graph-node-hide nodrag nopan"
           aria-label="Hide application"
-          title="Hide application"
+          title="Hide"
           onMouseDown={(event) => {
             event.stopPropagation();
           }}
@@ -95,12 +95,19 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
           onBlur={commit}
           onKeyDown={onKeyDown}
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
           aria-label="Edit display label"
         />
       ) : (
         <span
-          className={`graph-node-card__label${labelVisible ? '' : ' is-hidden'}`}
-          title={shown}
+          className={`graph-node-card__label${labelVisible ? '' : ' is-hidden'}${
+            data.onDisplayLabelChange ? ' is-editable' : ''
+          }`}
+          title={data.onDisplayLabelChange ? 'Click to rename' : shown}
+          onClick={startLabelEdit}
+          onMouseDown={(event) => {
+            if (data.onDisplayLabelChange) event.stopPropagation();
+          }}
         >
           {shown}
         </span>

@@ -358,7 +358,7 @@ export function GraphCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- restyle on legend coding only
   }, [isSandbox, colorPropertyKey, labelPropertyKey, legendColors, hideEdgeLabels]);
 
-  const wasSandboxRef = useRef(false);
+  // Keep open sandboxes in memory when leaving (Views / Production); only seed if empty.
   useEffect(() => {
     if (isSandbox && status === 'ready' && sandboxes.openDocs.length === 0) {
       sandboxes.ensureAtLeastOne({
@@ -368,11 +368,7 @@ export function GraphCanvas() {
         edges,
       });
     }
-    if (!isSandbox && wasSandboxRef.current) {
-      sandboxes.clearAll();
-    }
-    wasSandboxRef.current = isSandbox;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- enter/leave sandbox only
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- enter sandbox only
   }, [isSandbox, status, sandboxes.openDocs.length]);
 
   const sandboxSeed = useCallback(
@@ -1386,6 +1382,12 @@ export function GraphCanvas() {
                     onRename={(name) => {
                       sandboxes.patchDoc(doc.id, { name, dirty: true });
                     }}
+                    onDuplicate={() => {
+                      const id = sandboxes.duplicateDoc(doc.id);
+                      if (!id) {
+                        setSandboxToast('Close at least one sandbox before opening another.');
+                      }
+                    }}
                     onNodeDisplayLabel={(nodeId, label) => {
                       sandboxes.patchDoc(doc.id, (d) => ({
                         ...d,
@@ -1410,6 +1412,10 @@ export function GraphCanvas() {
                       }));
                     }}
                     onIconDelete={(iconId) => sandboxes.removeIcon(doc.id, iconId)}
+                    onHideNode={(nodeId) => sandboxes.hideNode(doc.id, nodeId)}
+                    onShowHidden={(ids) => sandboxes.showHidden(doc.id, ids)}
+                    onOpenDetails={(nodeId, label) => openApplicationDetails(nodeId, label)}
+                    onOpenModules={(nodeId, label) => openModuleGraphById(nodeId, label)}
                   />
                 ))}
               </div>
