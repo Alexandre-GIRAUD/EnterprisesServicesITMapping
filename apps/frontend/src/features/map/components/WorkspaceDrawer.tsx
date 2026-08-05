@@ -1,4 +1,11 @@
-import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useState } from 'react';
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ApplicationResponse, GraphEdgeCreateResponse } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
 import { useCreateApplicationNode } from '../hooks/useCreateApplicationNode';
@@ -22,7 +29,8 @@ type WorkspaceDrawerProps = {
   extraApplications?: ApplicationResponse[];
   onNodeCreated?: (application: ApplicationResponse) => void;
   onEdgeCreated?: (edge: GraphEdgeCreateResponse) => string | null;
-  onAddIcon?: (iconKey: string) => void;
+  /** Pick an icon for cursor placement (sticky = multi-drop until cancel). */
+  onPickIcon?: (iconKey: string, sticky: boolean) => void;
   onNewSandbox?: () => void;
   openSandboxCount?: number;
   savedSandboxes?: SavedSandboxMeta[];
@@ -72,9 +80,9 @@ const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
 ];
 
 const TOOLKIT_ACTIONS: DrawerActionItem[] = [
-  { id: 'add-node', label: 'Add node' },
-  { id: 'add-edge', label: 'Add edge' },
-  { id: 'add-icons', label: 'Add icons' },
+  { id: 'add-node', label: 'Nodes' },
+  { id: 'add-edge', label: 'Edges' },
+  { id: 'add-icons', label: 'Icons' },
 ];
 
 function actionHandler(
@@ -99,7 +107,7 @@ export function WorkspaceDrawer({
   extraApplications = [],
   onNodeCreated,
   onEdgeCreated,
-  onAddIcon,
+  onPickIcon,
   onNewSandbox,
   openSandboxCount = 0,
   savedSandboxes = [],
@@ -107,9 +115,10 @@ export function WorkspaceDrawer({
   onDeleteSavedSandbox,
   layoutMode = 'horizontal',
   onLayoutModeChange,
-  onSandboxToast,
 }: WorkspaceDrawerProps) {
   const [selectedSavedId, setSelectedSavedId] = useState('');
+  const [iconQuery, setIconQuery] = useState('');
+  const iconClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [view, setView] = useState<DrawerView>('menu');
   const [nodeFormState, setNodeFormState] = useState<AddNodeFormState>(DEFAULT_FORM_STATE);
   const [edgeFormState, setEdgeFormState] = useState<AddEdgeFormState>(DEFAULT_EDGE_FORM_STATE);
@@ -180,8 +189,39 @@ export function WorkspaceDrawer({
 
   function openAddIcons() {
     setView('add-icons');
+    setIconQuery('');
     setLocalError(null);
     setFeedbackMessage(null);
+  }
+
+  const filteredIcons = useMemo(() => {
+    const q = iconQuery.trim().toLowerCase();
+    if (!q) return SANDBOX_ICON_PALETTE;
+    return SANDBOX_ICON_PALETTE.filter((icon) => {
+      const hay = `${icon.key} ${icon.label} ${icon.keywords ?? ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [iconQuery]);
+
+  function pickIcon(iconKey: string, sticky: boolean) {
+    onPickIcon?.(iconKey, sticky);
+    setView('menu');
+  }
+
+  function onIconButtonClick(iconKey: string) {
+    if (iconClickTimerRef.current) clearTimeout(iconClickTimerRef.current);
+    iconClickTimerRef.current = setTimeout(() => {
+      iconClickTimerRef.current = null;
+      pickIcon(iconKey, false);
+    }, 280);
+  }
+
+  function onIconButtonDoubleClick(iconKey: string) {
+    if (iconClickTimerRef.current) {
+      clearTimeout(iconClickTimerRef.current);
+      iconClickTimerRef.current = null;
+    }
+    pickIcon(iconKey, true);
   }
 
   function closeDrawer() {
@@ -420,14 +460,14 @@ export function WorkspaceDrawer({
                   {view === 'add-node-form'
                     ? 'Create Node'
                     : view === 'add-icons'
-                      ? 'Add icons'
+                      ? 'Icons'
                       : 'Create Edge'}
                 </h2>
                 <p className="graph-drawer-description">
                   {view === 'add-node-form'
                     ? 'Create an Application node (name, description). Business attributes are edited from the node details.'
                     : view === 'add-icons'
-                      ? 'Place an icon on the active sandbox canvas.'
+                      ? 'Click to place once. Double-click to place many.'
                       : 'Create a typed relationship between two nodes already visible in the graph.'}
                 </p>
               </div>
@@ -456,6 +496,9 @@ export function WorkspaceDrawer({
 
       {view === 'menu' ? (
         <>
+          {sandboxMode ? (
+            <p className="graph-drawer-eyebrow">Add an element</p>
+          ) : null}
           <div className="graph-drawer-actions" role="list">
             {(sandboxMode ? TOOLKIT_ACTIONS : CORRECTIONS_ACTIONS).map((action) => {
               const onClick = actionHandler(action.id, {
@@ -555,23 +598,33 @@ export function WorkspaceDrawer({
         </>
       ) : view === 'add-icons' ? (
         <div className="graph-drawer-icon-palette">
-          <div className="graph-drawer-icon-grid">
-            {SANDBOX_ICON_PALETTE.map((iconKey) => (
-              <button
-                key={iconKey}
-                type="button"
-                className="graph-drawer-icon-btn"
-                title={`Add ${iconKey}`}
-                onClick={() => {
-                  onAddIcon?.(iconKey);
-                  onSandboxToast?.('Icon added');
-                  setView('menu');
-                }}
-              >
-                {iconKey}
-              </button>
-            ))}
-          </div>
+          <input
+            className="graph-drawer-input"
+            type="search"
+            value={iconQuery}
+            onChange={(e) => setIconQuery(e.target.value)}
+            placeholder="Search icons…"
+            aria-label="Search icons"
+          />
+          {filteredIcons.length === 0 ? (
+            <p className="graph-drawer-search-state">No icons match.</p>
+          ) : (
+            <div className="graph-drawer-icon-grid">
+              {filteredIcons.map((icon) => (
+                <button
+                  key={`${icon.key}-${icon.label}`}
+                  type="button"
+                  className="graph-drawer-icon-btn"
+                  title={icon.label}
+                  aria-label={icon.label}
+                  onClick={() => onIconButtonClick(icon.key)}
+                  onDoubleClick={() => onIconButtonDoubleClick(icon.key)}
+                >
+                  {icon.key}
+                </button>
+              ))}
+            </div>
+          )}
           <button type="button" className="graph-drawer-action" onClick={cancelForm}>
             <span className="graph-drawer-action-title">Cancel</span>
           </button>

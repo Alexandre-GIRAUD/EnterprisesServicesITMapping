@@ -117,6 +117,11 @@ export function GraphCanvas() {
 
   const [message, setMessage] = useState<string | null>(null);
   const [sandboxToast, setSandboxToast] = useState<string | null>(null);
+  const [iconPlacement, setIconPlacement] = useState<{
+    iconKey: string;
+    sticky: boolean;
+  } | null>(null);
+  const [iconGhostPos, setIconGhostPos] = useState({ x: 0, y: 0 });
   const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
@@ -316,6 +321,29 @@ export function GraphCanvas() {
     const t = window.setTimeout(() => setSandboxToast(null), 2500);
     return () => window.clearTimeout(t);
   }, [sandboxToast]);
+
+  useEffect(() => {
+    if (!iconPlacement) return;
+    const onMove = (e: MouseEvent) => setIconGhostPos({ x: e.clientX, y: e.clientY });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIconPlacement(null);
+    };
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Element | null;
+      if (!t) return;
+      if (t.closest('.sandbox-pane')) return;
+      if (t.closest('.graph-drawer-icon-palette') || t.closest('.graph-drawer-icon-btn')) return;
+      setIconPlacement(null);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('mousedown', onDown, true);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousedown', onDown, true);
+    };
+  }, [iconPlacement]);
 
   // Keep sandbox edge stroke/label colors aligned with active legend coding.
   useEffect(() => {
@@ -1234,10 +1262,13 @@ export function GraphCanvas() {
             extraApplications={graphAppsForDrawer}
             onNodeCreated={onNodeCreatedHandler}
             onEdgeCreated={onEdgeCreatedHandler}
-            onAddIcon={(iconKey) => {
-              const id = sandboxes.activeId;
-              if (!id) return;
-              sandboxes.addIcon(id, iconKey, 120 + Math.random() * 80, 120 + Math.random() * 80);
+            onPickIcon={(iconKey, sticky) => {
+              if (sandboxes.openDocs.length === 0) {
+                setSandboxToast('Open a sandbox to place an icon.');
+                return;
+              }
+              setIconGhostPos({ x: 0, y: 0 });
+              setIconPlacement({ iconKey, sticky });
             }}
             onNewSandbox={() => {
               if (sandboxes.openDocs.length >= MAX_OPEN_SANDBOXES) {
@@ -1416,9 +1447,26 @@ export function GraphCanvas() {
                     onShowHidden={(ids) => sandboxes.showHidden(doc.id, ids)}
                     onOpenDetails={(nodeId, label) => openApplicationDetails(nodeId, label)}
                     onOpenModules={(nodeId, label) => openModuleGraphById(nodeId, label)}
+                    placingIconKey={iconPlacement?.iconKey ?? null}
+                    onPlaceIcon={(x, y) => {
+                      if (!iconPlacement) return;
+                      sandboxes.addIcon(doc.id, iconPlacement.iconKey, x, y);
+                      sandboxes.setActiveId(doc.id);
+                      setSandboxToast('Icon added');
+                      if (!iconPlacement.sticky) setIconPlacement(null);
+                    }}
                   />
                 ))}
               </div>
+              {iconPlacement ? (
+                <div
+                  className="sandbox-icon-ghost"
+                  style={{ left: iconGhostPos.x, top: iconGhostPos.y }}
+                  aria-hidden
+                >
+                  {iconPlacement.iconKey}
+                </div>
+              ) : null}
               <div className="sandbox-shared-legend">
                 <GraphLegend
                   nodeTypes={['Application']}

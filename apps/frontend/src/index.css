@@ -3431,11 +3431,34 @@ body {
   white-space: nowrap;
 }
 
+.graph-drawer-icon-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
 .graph-drawer-icon-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.4rem;
-  margin-bottom: 0.6rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+  margin-bottom: 0.2rem;
+  max-height: min(50vh, 18rem);
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.sandbox-icon-ghost {
+  position: fixed;
+  z-index: 80;
+  pointer-events: none;
+  transform: translate(10px, 10px);
+  font-size: 1.45rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgb(15 23 42 / 25%));
+}
+
+.sandbox-pane.is-placing-icon {
+  cursor: copy;
 }
 
 .graph-drawer-icon-btn {

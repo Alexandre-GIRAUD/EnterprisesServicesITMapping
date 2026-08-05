@@ -41,7 +41,88 @@ export type SavedSandboxMeta = {
   document: SandboxDocument;
 };
 
-export const SANDBOX_ICON_PALETTE = ['⭐', '⚠️', '📌', '🔗', '💡', '🏷️'] as const;
+export type SandboxIconDef = {
+  key: string;
+  label: string;
+  keywords?: string;
+};
+
+/** Flat business-oriented emoji palette (filterable in Toolkit Icons). */
+export const SANDBOX_ICON_PALETTE: SandboxIconDef[] = [
+  { key: '🏢', label: 'Building', keywords: 'office company hq' },
+  { key: '🏭', label: 'Factory', keywords: 'plant industry manufacturing' },
+  { key: '🏪', label: 'Store', keywords: 'shop retail' },
+  { key: '🏛️', label: 'Bank', keywords: 'finance institution government' },
+  { key: '👥', label: 'Users', keywords: 'people team group' },
+  { key: '👤', label: 'User', keywords: 'person employee' },
+  { key: '🤝', label: 'Handshake', keywords: 'deal partner agreement' },
+  { key: '💼', label: 'Briefcase', keywords: 'work business job' },
+  { key: '📊', label: 'Chart', keywords: 'analytics stats report' },
+  { key: '📈', label: 'Growth', keywords: 'trend up analytics' },
+  { key: '📉', label: 'Decline', keywords: 'trend down' },
+  { key: '💰', label: 'Money', keywords: 'cash finance revenue' },
+  { key: '💳', label: 'Card', keywords: 'payment credit' },
+  { key: '🧾', label: 'Invoice', keywords: 'receipt bill' },
+  { key: '💱', label: 'Exchange', keywords: 'currency forex' },
+  { key: '☁️', label: 'Cloud', keywords: 'saas aws azure' },
+  { key: '💻', label: 'Laptop', keywords: 'computer device' },
+  { key: '🖥️', label: 'Desktop', keywords: 'computer workstation' },
+  { key: '📱', label: 'Phone', keywords: 'mobile device' },
+  { key: '💾', label: 'Server', keywords: 'host infrastructure storage' },
+  { key: '🗄️', label: 'Database', keywords: 'data storage db' },
+  { key: '🔌', label: 'Plugin', keywords: 'integration connect' },
+  { key: '🔗', label: 'Link', keywords: 'connection url' },
+  { key: '🔒', label: 'Lock', keywords: 'security private' },
+  { key: '🔑', label: 'Key', keywords: 'access credential' },
+  { key: '🛡️', label: 'Shield', keywords: 'security protect' },
+  { key: '⚠️', label: 'Warning', keywords: 'alert risk' },
+  { key: '✅', label: 'Check', keywords: 'ok done success' },
+  { key: '❌', label: 'Cross', keywords: 'error fail stop' },
+  { key: '⭐', label: 'Star', keywords: 'favorite important' },
+  { key: '📌', label: 'Pin', keywords: 'mark note' },
+  { key: '🏷️', label: 'Tag', keywords: 'label category' },
+  { key: '💡', label: 'Idea', keywords: 'light innovation' },
+  { key: '🎯', label: 'Target', keywords: 'goal kpi' },
+  { key: '🚀', label: 'Rocket', keywords: 'launch growth' },
+  { key: '📅', label: 'Calendar', keywords: 'date schedule' },
+  { key: '⏰', label: 'Clock', keywords: 'time deadline' },
+  { key: '📧', label: 'Mail', keywords: 'email message' },
+  { key: '📞', label: 'Call', keywords: 'phone contact' },
+  { key: '💬', label: 'Chat', keywords: 'message talk' },
+  { key: '📄', label: 'Document', keywords: 'file paper' },
+  { key: '📁', label: 'Folder', keywords: 'files directory' },
+  { key: '📦', label: 'Package', keywords: 'box delivery product' },
+  { key: '🚚', label: 'Truck', keywords: 'logistics shipping' },
+  { key: '🌍', label: 'Globe', keywords: 'world global international' },
+  { key: '🗺️', label: 'Map', keywords: 'location geography' },
+  { key: '📍', label: 'Location', keywords: 'pin place' },
+  { key: '🛒', label: 'Cart', keywords: 'ecommerce shop' },
+  { key: '⚙️', label: 'Settings', keywords: 'gear config' },
+  { key: '🔧', label: 'Wrench', keywords: 'tools maintenance' },
+  { key: '🛠️', label: 'Tools', keywords: 'build fix' },
+  { key: '📡', label: 'Antenna', keywords: 'network signal api' },
+  { key: '🧩', label: 'Puzzle', keywords: 'module component' },
+  { key: '🔁', label: 'Sync', keywords: 'refresh cycle process' },
+  { key: '⏸️', label: 'Pause', keywords: 'hold stop' },
+  { key: '▶️', label: 'Play', keywords: 'start run' },
+  { key: '🔔', label: 'Bell', keywords: 'notification alert' },
+  { key: '📝', label: 'Note', keywords: 'write edit' },
+  { key: '📋', label: 'Clipboard', keywords: 'list checklist' },
+  { key: '🧠', label: 'Brain', keywords: 'ai ml intelligence' },
+  { key: '🤖', label: 'Robot', keywords: 'ai automation bot' },
+  { key: '🌐', label: 'Web', keywords: 'internet www' },
+  { key: '🪪', label: 'ID', keywords: 'badge identity' },
+  { key: '📐', label: 'Ruler', keywords: 'measure design' },
+  { key: '🔬', label: 'Science', keywords: 'lab research' },
+  { key: '🏥', label: 'Hospital', keywords: 'health medical' },
+  { key: '🎓', label: 'Education', keywords: 'school learning' },
+  { key: '⚖️', label: 'Legal', keywords: 'law compliance' },
+  { key: '📣', label: 'Megaphone', keywords: 'marketing announce' },
+];
+
+export function sandboxIconLabel(iconKey: string): string {
+  return SANDBOX_ICON_PALETTE.find((i) => i.key === iconKey)?.label ?? 'Icon';
+}
 
 export function createSandboxDocumentId(): string {
   return `sandbox-doc-${crypto.randomUUID()}`;

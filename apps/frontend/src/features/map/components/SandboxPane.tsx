@@ -6,6 +6,7 @@ import {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
   type Edge,
   type EdgeTypes,
   type Node,
@@ -49,6 +50,9 @@ type Props = {
   onShowHidden: (ids: string[]) => void;
   onOpenDetails: (nodeId: string, label: string) => void;
   onOpenModules: (nodeId: string, label: string) => void;
+  /** When set, pane click places this icon at flow coords. */
+  placingIconKey?: string | null;
+  onPlaceIcon?: (x: number, y: number) => void;
 };
 
 function iconNodesFromDoc(icons: SandboxIcon[], onDelete: (id: string) => void): Node[] {
@@ -87,7 +91,10 @@ function SandboxPaneInner({
   onShowHidden,
   onOpenDetails,
   onOpenModules,
+  placingIconKey,
+  onPlaceIcon,
 }: Props) {
+  const { screenToFlowPosition } = useReactFlow();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(doc.name);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
@@ -210,7 +217,20 @@ function SandboxPaneInner({
     return String(data.displayLabel ?? data.label ?? node.id);
   }
 
+  function placeAtClient(clientX: number, clientY: number) {
+    if (!placingIconKey || !onPlaceIcon) return false;
+    const p = screenToFlowPosition({ x: clientX, y: clientY });
+    onActivate();
+    onPlaceIcon(p.x, p.y);
+    return true;
+  }
+
+  function handlePaneClick(event: ReactMouseEvent) {
+    if (placeAtClient(event.clientX, event.clientY)) return;
+  }
+
   function handleNodeClick(event: ReactMouseEvent, node: Node) {
+    if (placeAtClient(event.clientX, event.clientY)) return;
     if (String(node.id).startsWith('sandbox-icon-')) return;
     onActivate();
 
@@ -241,6 +261,7 @@ function SandboxPaneInner({
   }
 
   function handleNodeDoubleClick(_event: ReactMouseEvent, node: Node) {
+    if (placingIconKey) return;
     if (String(node.id).startsWith('sandbox-icon-')) return;
     clearPendingNodeClick();
     lastNodeClickRef.current = null;
@@ -249,7 +270,7 @@ function SandboxPaneInner({
 
   return (
     <div
-      className={`sandbox-pane${active ? ' is-active' : ''}`}
+      className={`sandbox-pane${active ? ' is-active' : ''}${placingIconKey ? ' is-placing-icon' : ''}`}
       onMouseDown={onActivate}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -337,6 +358,7 @@ function SandboxPaneInner({
           }}
           onNodeClick={handleNodeClick}
           onNodeDoubleClick={handleNodeDoubleClick}
+          onPaneClick={handlePaneClick}
           fitView
           onNodeDragStop={(_e, node) => {
             if (String(node.id).startsWith('sandbox-icon-')) {

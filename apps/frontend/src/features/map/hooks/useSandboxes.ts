@@ -9,6 +9,7 @@ import {
   createSandboxIconId,
   loadSavedSandboxes,
   normalizeSandboxDocument,
+  sandboxIconLabel,
   storeSavedSandboxes,
   type SandboxDocument,
   type SandboxIcon,
@@ -182,7 +183,7 @@ export function useSandboxes() {
     const icon: SandboxIcon = {
       id: createSandboxIconId(),
       iconKey,
-      legendLabel: 'Icon',
+      legendLabel: sandboxIconLabel(iconKey),
       x,
       y,
     };
