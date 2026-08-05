@@ -33,7 +33,7 @@ class GraphNodeFilterResolverTest {
   }
 
   @Test
-  void rejectsEdgeFieldsAndUndeclaredKeys() {
+  void rejectsEdgeFieldsWhenPassedAsNodeAttributes() {
     Map<String, List<String>> raw = new LinkedHashMap<>();
     raw.put("channel", List.of("KAFKA"));
     raw.put("not_in_model", List.of("x"));
@@ -42,6 +42,49 @@ class GraphNodeFilterResolverTest {
 
     assertThat(resolved.filters()).isEmpty();
     assertThat(resolved.rejectedKeys()).containsExactlyInAnyOrder("channel", "not_in_model");
+  }
+
+  @Test
+  void keepsEdgeAttributesSeparately() {
+    Map<String, List<String>> attrs = Map.of("tier", List.of("GOLD"));
+    Map<String, List<String>> refs = Map.of("tier_ref", List.of("id-a"));
+    Map<String, List<String>> edges =
+        Map.of(
+            "data_category", List.of("ORDER_PAYLOAD"),
+            "flow_nature", List.of("SYNC", "ASYNC"));
+
+    var resolved =
+        resolver.resolve(
+            config(
+                nodeField("tier", DataModelDetection.AUTOMATIC_DETECTION),
+                nodeRefField("tier_ref"),
+                edgeField("data_category"),
+                edgeField("flow_nature")),
+            attrs,
+            refs,
+            edges);
+
+    assertThat(resolved.nodeAttributes()).containsExactly(Map.entry("tier", List.of("GOLD")));
+    assertThat(resolved.nodeRefs()).containsExactly(Map.entry("tier_ref", List.of("id-a")));
+    assertThat(resolved.edgeAttributes())
+        .containsOnly(
+            Map.entry("data_category", List.of("ORDER_PAYLOAD")),
+            Map.entry("flow_nature", List.of("SYNC", "ASYNC")));
+    assertThat(resolved.rejectedKeys()).isEmpty();
+  }
+
+  @Test
+  void rejectsUndeclaredEdgeKeys() {
+    var resolved =
+        resolver.resolve(
+            config(edgeField("data_category")),
+            Map.of(),
+            Map.of(),
+            Map.of("unknown_edge", List.of("X"), "data_category", List.of("ORDER_PAYLOAD")));
+
+    assertThat(resolved.edgeAttributes())
+        .containsExactly(Map.entry("data_category", List.of("ORDER_PAYLOAD")));
+    assertThat(resolved.rejectedKeys()).containsExactly("unknown_edge");
   }
 
   @Test

@@ -150,15 +150,17 @@ export interface SuggestConnectionsFromGithubResponse {
 }
 
 /**
- * Canonical graph filter set: graph identity (application ids) plus Data Model NODE attributes and
- * NODE_REF catalogue ids. Values inside one key combine with OR, keys combine with AND. An empty
- * list means "no filter on that axis".
+ * Canonical graph filter set: graph identity (application ids) plus Data Model NODE attributes,
+ * NODE_REF catalogue ids, and EDGE attributes on DEPENDS_ON. Values inside one key combine with OR,
+ * keys/axes combine with AND. An empty list means "no filter on that axis".
  */
 export type GraphFilters = {
   applicationIds: string[];
   nodeAttributes: Record<string, string[]>;
   /** Data Model target=NODE_REF key → selected :DataModelRef ids. */
   nodeRefs: Record<string, string[]>;
+  /** Data Model target=EDGE key → selected values on DEPENDS_ON relationships. */
+  edgeAttributes?: Record<string, string[]>;
 };
 
 /** One filterable dimension from GET /api/graph/node-filters. */
@@ -166,11 +168,11 @@ export type GraphNodeFilterDto = {
   /** Data Model field key. */
   key: string;
   label: string;
-  /** NODE: attribute values; NODE_REF: catalogue ref ids (same order as options). */
+  /** NODE/EDGE: attribute values; NODE_REF: catalogue ref ids (same order as options). */
   values: string[];
   fromAllowedValues: boolean;
-  /** NODE (flat props) or NODE_REF (catalogue links). Defaults to NODE when omitted. */
-  kind?: 'NODE' | 'NODE_REF';
+  /** NODE (flat props), NODE_REF (catalogue), or EDGE (DEPENDS_ON props). Defaults to NODE. */
+  kind?: 'NODE' | 'NODE_REF' | 'EDGE';
   multiple?: boolean;
   /** Present for NODE_REF: id + display name. */
   options?: Array<{ id: string; name: string }>;

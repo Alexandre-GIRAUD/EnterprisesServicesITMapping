@@ -12,6 +12,7 @@ import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.ApplicationNodeAttributeFacetQuery;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.DataModelRefFacetQuery;
+import com.enterprise.itmapping.feature.graph.infrastructure.persistence.DependsOnEdgeAttributeFacetQuery;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,7 @@ class GraphNodeFilterFacetServiceTest {
   @Mock DataModelService dataModelService;
   @Mock ApplicationNodeAttributeFacetQuery facetQuery;
   @Mock DataModelRefFacetQuery refFacetQuery;
+  @Mock DependsOnEdgeAttributeFacetQuery edgeFacetQuery;
 
   @InjectMocks GraphNodeFilterFacetService service;
 
@@ -82,10 +84,37 @@ class GraphNodeFilterFacetServiceTest {
   }
 
   @Test
-  void skipsEdgeFields() {
-    when(dataModelService.loadConfig()).thenReturn(config(edgeField("channel")));
+  void exposesEdgeFieldsWithAllowedValues() {
+    when(dataModelService.loadConfig())
+        .thenReturn(
+            config(
+                edgeField(
+                    "data_category", "Data category", List.of("ORDER_PAYLOAD", "INVOICE"))));
 
-    assertThat(service.listNodeFilters()).isEmpty();
+    var filters = service.listNodeFilters();
+
+    assertThat(filters).singleElement().satisfies(f -> {
+      assertThat(f.key()).isEqualTo("data_category");
+      assertThat(f.kind()).isEqualTo("EDGE");
+      assertThat(f.values()).containsExactly("ORDER_PAYLOAD", "INVOICE");
+      assertThat(f.fromAllowedValues()).isTrue();
+    });
+    verify(edgeFacetQuery, never()).distinctValues("data_category");
+  }
+
+  @Test
+  void fallsBackToDistinctEdgeValuesWhenNoAllowedValues() {
+    when(dataModelService.loadConfig())
+        .thenReturn(config(edgeField("flow_nature", "Flow nature", List.of())));
+    when(edgeFacetQuery.distinctValues("flow_nature")).thenReturn(List.of("ASYNC", "SYNC"));
+
+    var filters = service.listNodeFilters();
+
+    assertThat(filters).singleElement().satisfies(f -> {
+      assertThat(f.kind()).isEqualTo("EDGE");
+      assertThat(f.values()).containsExactly("ASYNC", "SYNC");
+      assertThat(f.fromAllowedValues()).isFalse();
+    });
   }
 
   private static DataModelConfig config(DataModelField... fields) {
@@ -120,13 +149,13 @@ class GraphNodeFilterFacetServiceTest {
         multiple);
   }
 
-  private static DataModelField edgeField(String key) {
+  private static DataModelField edgeField(String key, String label, List<String> allowedValues) {
     return new DataModelField(
         key,
-        key,
+        label,
         "",
         "",
-        List.of(),
+        allowedValues,
         false,
         false,
         DataModelDetection.AUTOMATIC_DETECTION,

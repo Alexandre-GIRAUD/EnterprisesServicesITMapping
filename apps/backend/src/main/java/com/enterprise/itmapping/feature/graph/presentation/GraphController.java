@@ -31,6 +31,9 @@ public class GraphController {
   /** Prefix carrying one Data Model NODE_REF filter, e.g. {@code ref.tier_ref=<refId>}. */
   static final String NODE_REF_PARAM_PREFIX = "ref.";
 
+  /** Prefix carrying one Data Model EDGE attribute filter, e.g. {@code edge.data_category=X}. */
+  static final String EDGE_ATTRIBUTE_PARAM_PREFIX = "edge.";
+
   private final GraphService graphService;
   private final GraphNodeFilterFacetService nodeFilterFacetService;
 
@@ -46,7 +49,8 @@ public class GraphController {
    * <ul>
    *   <li>{@code applicationIds} (repeatable);
    *   <li>{@code attr.<nodeKey>} — flat NODE props;
-   *   <li>{@code ref.<nodeRefKey>} — NODE_REF catalogue ids via {@code CLASSIFIED_AS}.
+   *   <li>{@code ref.<nodeRefKey>} — NODE_REF catalogue ids via {@code CLASSIFIED_AS};
+   *   <li>{@code edge.<edgeKey>} — flat EDGE props on {@code DEPENDS_ON} (edges only; Option A).
    * </ul>
    */
   @GetMapping
@@ -59,10 +63,14 @@ public class GraphController {
         graphService.getGraph(
             mergeFilterParams(applicationIds, applicationId),
             prefixedFilters(allParams, NODE_ATTRIBUTE_PARAM_PREFIX),
-            prefixedFilters(allParams, NODE_REF_PARAM_PREFIX)));
+            prefixedFilters(allParams, NODE_REF_PARAM_PREFIX),
+            prefixedFilters(allParams, EDGE_ATTRIBUTE_PARAM_PREFIX)));
   }
 
-  /** Filterable dimensions: Data Model NODE + NODE_REF fields. */
+  /**
+   * Filterable dimensions for the map menu: Data Model {@code NODE}, {@code NODE_REF} and {@code
+   * EDGE} fields ({@code kind} discriminates). Historical path name retained for UI compatibility.
+   */
   @GetMapping("/node-filters")
   public List<GraphNodeFilterDto> nodeFilters() {
     return nodeFilterFacetService.listNodeFilters();
@@ -82,6 +90,10 @@ public class GraphController {
 
   static Map<String, List<String>> nodeRefFilters(MultiValueMap<String, String> allParams) {
     return prefixedFilters(allParams, NODE_REF_PARAM_PREFIX);
+  }
+
+  static Map<String, List<String>> edgeAttributeFilters(MultiValueMap<String, String> allParams) {
+    return prefixedFilters(allParams, EDGE_ATTRIBUTE_PARAM_PREFIX);
   }
 
   static Map<String, List<String>> prefixedFilters(

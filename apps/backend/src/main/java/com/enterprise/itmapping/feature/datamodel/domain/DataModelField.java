@@ -1,8 +1,10 @@
 package com.enterprise.itmapping.feature.datamodel.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 /** One user-defined field in the workspace Data Model. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record DataModelField(
     String key,
     String label,

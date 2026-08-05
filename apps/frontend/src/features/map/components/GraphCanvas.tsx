@@ -191,6 +191,7 @@ export function GraphCanvas() {
     applicationIds,
     nodeAttributes,
     nodeRefs,
+    edgeAttributes,
     filtersActive,
     applyGraphFilters,
     currentGraphFilters,
@@ -205,6 +206,7 @@ export function GraphCanvas() {
     applicationIds,
     nodeAttributes,
     nodeRefs,
+    edgeAttributes,
     filtersActive,
     graphReloadNonce,
     hiddenNodeIds: hiddenNodeIdsForLegend,
@@ -992,7 +994,13 @@ export function GraphCanvas() {
             initialApplicationIds={applicationIds}
             initialNodeAttributes={nodeAttributes}
             initialNodeRefs={nodeRefs}
-            onApply={({ applicationIds: appIds, nodeAttributes: attrs, nodeRefs: refs }) => {
+            initialEdgeAttributes={edgeAttributes}
+            onApply={({
+              applicationIds: appIds,
+              nodeAttributes: attrs,
+              nodeRefs: refs,
+              edgeAttributes: edgeAttrs,
+            }) => {
               if (isSandbox) {
                 mode.setSandboxDirty(false);
                 setPendingSandboxFilterHint(true);
@@ -1000,6 +1008,7 @@ export function GraphCanvas() {
               filters.setApplicationIds(appIds);
               filters.setNodeAttributes(attrs);
               filters.setNodeRefs(refs);
+              filters.setEdgeAttributes(edgeAttrs ?? {});
             }}
             showPinView={isExplorer}
             pinViewDisabled={status !== 'ready'}
@@ -1030,6 +1039,7 @@ export function GraphCanvas() {
     applicationIds,
     nodeAttributes,
     nodeRefs,
+    edgeAttributes,
     isSandbox,
     mode,
     filters,

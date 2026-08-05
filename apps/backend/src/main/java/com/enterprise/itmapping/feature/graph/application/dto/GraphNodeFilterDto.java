@@ -6,9 +6,10 @@ import java.util.List;
 /**
  * One filterable dimension for the filter menu.
  *
- * @param kind {@code NODE} (flat Application props) or {@code NODE_REF} (catalogue links)
- * @param values for NODE: string values; for NODE_REF: ref ids (same order as {@code options})
- * @param options for NODE_REF: id + display name; empty for NODE
+ * @param kind {@code NODE} (flat Application props), {@code NODE_REF} (catalogue links), or {@code
+ *     EDGE} (flat DEPENDS_ON props)
+ * @param values for NODE/EDGE: string values; for NODE_REF: ref ids (same order as {@code options})
+ * @param options for NODE_REF: id + display name; empty for NODE/EDGE
  * @param multiple when {@code true}, several values may be selected / linked
  */
 @JsonInclude(JsonInclude.Include.NON_EMPTY)

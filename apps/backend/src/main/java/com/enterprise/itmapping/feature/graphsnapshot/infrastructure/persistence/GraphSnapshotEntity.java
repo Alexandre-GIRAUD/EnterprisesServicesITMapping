@@ -50,6 +50,11 @@ public class GraphSnapshotEntity {
   @Column(name = "node_refs", nullable = false, columnDefinition = "jsonb")
   private Map<String, List<String>> nodeRefs = new LinkedHashMap<>();
 
+  /** Data Model {@code target=EDGE} key → selected DEPENDS_ON property values. */
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "edge_attributes", nullable = false, columnDefinition = "jsonb")
+  private Map<String, List<String>> edgeAttributes = new LinkedHashMap<>();
+
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "hidden_application_ids", nullable = false, columnDefinition = "jsonb")
   private List<String> hiddenApplicationIds = new ArrayList<>();
@@ -130,6 +135,14 @@ public class GraphSnapshotEntity {
 
   public void setNodeRefs(Map<String, List<String>> nodeRefs) {
     this.nodeRefs = nodeRefs != null ? nodeRefs : new LinkedHashMap<>();
+  }
+
+  public Map<String, List<String>> getEdgeAttributes() {
+    return edgeAttributes;
+  }
+
+  public void setEdgeAttributes(Map<String, List<String>> edgeAttributes) {
+    this.edgeAttributes = edgeAttributes != null ? edgeAttributes : new LinkedHashMap<>();
   }
 
   public List<String> getHiddenApplicationIds() {

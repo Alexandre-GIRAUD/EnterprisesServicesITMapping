@@ -157,6 +157,7 @@ type UseGraphDataParams = {
   applicationIds: string[];
   nodeAttributes: Record<string, string[]>;
   nodeRefs: Record<string, string[]>;
+  edgeAttributes: Record<string, string[]>;
   filtersActive: boolean;
   graphReloadNonce: number;
   hiddenNodeIds?: ReadonlySet<string>;
@@ -175,6 +176,7 @@ export function useGraphData({
   applicationIds,
   nodeAttributes,
   nodeRefs,
+  edgeAttributes,
   filtersActive,
   graphReloadNonce,
   hiddenNodeIds = new Set(),
@@ -469,6 +471,7 @@ export function useGraphData({
           applicationIds: applicationIds.length > 0 ? applicationIds : undefined,
           nodeAttributes: Object.keys(nodeAttributes).length > 0 ? nodeAttributes : undefined,
           nodeRefs: Object.keys(nodeRefs).length > 0 ? nodeRefs : undefined,
+          edgeAttributes: Object.keys(edgeAttributes).length > 0 ? edgeAttributes : undefined,
         });
         if (cancelled) return;
 
@@ -589,6 +592,7 @@ export function useGraphData({
     applicationIds,
     nodeAttributes,
     nodeRefs,
+    edgeAttributes,
     filtersActive,
     graphReloadNonce,
     setNodes,
