@@ -3343,6 +3343,50 @@ body {
   box-shadow: none;
 }
 
+/* Placed icons: same visual height as flag glyphs (21px). */
+.sandbox-icon-node .sandbox-icon-glyph {
+  width: auto;
+  max-width: 32px;
+  height: 21px;
+  font-size: 21px;
+  line-height: 1;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.sandbox-icon-node .sandbox-icon-glyph--flag {
+  width: auto;
+  height: 21px;
+  object-fit: contain;
+  object-position: center;
+}
+
+.sandbox-icon-node .sandbox-icon-glyph--currency,
+.sandbox-icon-node .sandbox-icon-glyph--it {
+  height: 21px;
+  max-height: 21px;
+  font-size: 15px;
+  letter-spacing: -0.06em;
+  overflow: visible;
+  line-height: 1;
+}
+
+.sandbox-icon-node .sandbox-icon-glyph--combo {
+  width: 21px;
+  height: 21px;
+}
+
+.sandbox-icon-node .sandbox-icon-glyph__man {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.sandbox-icon-node .sandbox-icon-glyph__dot {
+  right: 0;
+  bottom: 0;
+  font-size: 0.4rem;
+}
+
 .sandbox-icon-glyph {
   display: inline-flex;
   align-items: center;
@@ -3376,7 +3420,8 @@ body {
 .sandbox-icon-glyph--flag {
   width: 28px;
   height: 21px;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   border-radius: 2px;
   box-shadow: 0 0 0 1px rgb(15 23 42 / 12%);
 }
@@ -3506,22 +3551,41 @@ body {
 }
 
 .sandbox-icon-ghost .sandbox-icon-glyph {
-  width: 32px;
-  height: 32px;
-  font-size: 1.35rem;
+  width: auto;
+  max-width: 32px;
+  height: 21px;
+  font-size: 21px;
 }
 
 .sandbox-icon-ghost .sandbox-icon-glyph--flag {
-  width: 32px;
-  height: 32px;
+  width: auto;
+  height: 21px;
   object-fit: contain;
   object-position: center;
   box-shadow: none;
 }
 
+.sandbox-icon-ghost .sandbox-icon-glyph--currency,
+.sandbox-icon-ghost .sandbox-icon-glyph--it {
+  height: 21px;
+  font-size: 15px;
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+.sandbox-icon-ghost .sandbox-icon-glyph--combo {
+  width: 21px;
+  height: 21px;
+}
+
+.sandbox-icon-ghost .sandbox-icon-glyph__man {
+  font-size: 18px;
+}
+
 .sandbox-icon-ghost .sandbox-icon-glyph__dot {
-  right: 1px;
-  bottom: 1px;
+  right: 0;
+  bottom: 0;
+  font-size: 0.4rem;
 }
 
 .sandbox-pane.is-placing-icon,
@@ -3543,19 +3607,21 @@ body {
   cursor: pointer;
 }
 
-/* Palette only: similar visual size, stay inside current cells. */
+/* Palette only: same glyph visual height, no crop. */
 .graph-drawer-icon-btn .sandbox-icon-glyph {
-  width: 1.45rem;
-  height: 1.45rem;
-  font-size: 1.15rem;
+  width: auto;
+  max-width: 100%;
+  height: 1.25rem;
+  font-size: 1.25rem;
   line-height: 1;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
 }
 
 .graph-drawer-icon-btn .sandbox-icon-glyph--flag {
-  width: 1.45rem;
-  height: 1.45rem;
+  width: auto;
+  max-width: 100%;
+  height: 1.25rem;
   object-fit: contain;
   object-position: center;
   box-shadow: none;
@@ -3563,25 +3629,30 @@ body {
 
 .graph-drawer-icon-btn .sandbox-icon-glyph--currency,
 .graph-drawer-icon-btn .sandbox-icon-glyph--it {
-  font-size: 0.48rem;
+  height: 1.25rem;
+  font-size: 0.55rem;
   max-width: 100%;
-  max-height: 100%;
+  max-height: 1.25rem;
   letter-spacing: -0.05em;
+  overflow: visible;
+  white-space: nowrap;
 }
 
 .graph-drawer-icon-btn .sandbox-icon-glyph--combo {
-  width: 1.45rem;
-  height: 1.45rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  position: relative;
 }
 
 .graph-drawer-icon-btn .sandbox-icon-glyph__man {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
+  line-height: 1;
 }
 
 .graph-drawer-icon-btn .sandbox-icon-glyph__dot {
   right: 0;
   bottom: 0;
-  font-size: 0.5rem;
+  font-size: 0.45rem;
 }
 
 .graph-drawer-title-block {
