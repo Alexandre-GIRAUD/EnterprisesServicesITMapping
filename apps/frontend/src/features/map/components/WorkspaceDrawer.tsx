@@ -19,6 +19,7 @@ import {
   SANDBOX_ICON_PALETTE,
   type SavedSandboxMeta,
 } from '../utils/sandboxDocuments';
+import { SandboxIconGlyph } from './SandboxIconGlyph';
 
 type WorkspaceDrawerProps = {
   isOpen: boolean;
@@ -31,6 +32,8 @@ type WorkspaceDrawerProps = {
   onEdgeCreated?: (edge: GraphEdgeCreateResponse) => string | null;
   /** Pick an icon for cursor placement (sticky = multi-drop until cancel). */
   onPickIcon?: (iconKey: string, sticky: boolean) => void;
+  /** Clear cursor placement when leaving Icons via ✓. */
+  onClearIconPlacement?: () => void;
   onNewSandbox?: () => void;
   openSandboxCount?: number;
   savedSandboxes?: SavedSandboxMeta[];
@@ -108,6 +111,7 @@ export function WorkspaceDrawer({
   onNodeCreated,
   onEdgeCreated,
   onPickIcon,
+  onClearIconPlacement,
   onNewSandbox,
   openSandboxCount = 0,
   savedSandboxes = [],
@@ -205,7 +209,14 @@ export function WorkspaceDrawer({
 
   function pickIcon(iconKey: string, sticky: boolean) {
     onPickIcon?.(iconKey, sticky);
+  }
+
+  function doneIcons() {
+    onClearIconPlacement?.();
     setView('menu');
+    setIconQuery('');
+    setLocalError(null);
+    setFeedbackMessage(null);
   }
 
   function onIconButtonClick(iconKey: string) {
@@ -453,9 +464,11 @@ export function WorkspaceDrawer({
       {showMenuHeader ? (
         <header className="graph-drawer-header">
           <p className="graph-drawer-eyebrow">{sandboxMode ? 'Toolkit' : 'Corrections'}</p>
-          <div className="graph-drawer-title-row">
+          <div
+            className={`graph-drawer-title-row${view === 'add-icons' ? ' graph-drawer-title-row--icons' : ''}`}
+          >
             {view !== 'menu' ? (
-              <div>
+              <div className="graph-drawer-title-block">
                 <h2 className="graph-drawer-title">
                   {view === 'add-node-form'
                     ? 'Create Node'
@@ -474,6 +487,17 @@ export function WorkspaceDrawer({
             ) : (
               <div className="graph-drawer-title-spacer" aria-hidden="true" />
             )}
+            {view === 'add-icons' ? (
+              <button
+                type="button"
+                className="graph-legend__toggle graph-drawer-icons-done"
+                aria-label="Done"
+                title="Done"
+                onClick={doneIcons}
+              >
+                ✓
+              </button>
+            ) : null}
             {!isEmbedded ? (
               <button
                 type="button"
@@ -620,14 +644,11 @@ export function WorkspaceDrawer({
                   onClick={() => onIconButtonClick(icon.key)}
                   onDoubleClick={() => onIconButtonDoubleClick(icon.key)}
                 >
-                  {icon.key}
+                  <SandboxIconGlyph iconKey={icon.key} />
                 </button>
               ))}
             </div>
           )}
-          <button type="button" className="graph-drawer-action" onClick={cancelForm}>
-            <span className="graph-drawer-action-title">Cancel</span>
-          </button>
         </div>
       ) : view === 'add-node-form' ? (
         <form className="graph-drawer-form" onSubmit={onSubmitNode}>

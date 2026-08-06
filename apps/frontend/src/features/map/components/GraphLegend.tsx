@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { SandboxIconGlyph } from './SandboxIconGlyph';
 import {
   EDGE_TYPE_STYLES,
   NODE_TYPE_STYLES,
@@ -648,8 +649,8 @@ function LegendEditableLabel({
 
   return (
     <li className="graph-legend__item">
-      <span className="graph-legend__swatch graph-legend__swatch--icon" aria-hidden="true">
-        {iconKey}
+      <span className="graph-legend__swatch graph-legend__swatch--icon">
+        <SandboxIconGlyph iconKey={iconKey} />
       </span>
       {editing && onChange ? (
         <input

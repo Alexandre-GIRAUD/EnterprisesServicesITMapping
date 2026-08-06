@@ -1,4 +1,5 @@
 import { type Node, type NodeProps } from '@xyflow/react';
+import { SandboxIconGlyph } from './SandboxIconGlyph';
 
 export type SandboxIconNodeData = {
   iconKey: string;
@@ -11,9 +12,7 @@ export type SandboxIconNodeType = Node<SandboxIconNodeData, 'sandboxIcon'>;
 export function SandboxIconNode({ data }: NodeProps<SandboxIconNodeType>) {
   return (
     <div className="sandbox-icon-node" title={data.legendLabel}>
-      <span className="sandbox-icon-node__glyph" aria-hidden="true">
-        {data.iconKey}
-      </span>
+      <SandboxIconGlyph iconKey={data.iconKey} />
       {data.onDelete ? (
         <button
           type="button"

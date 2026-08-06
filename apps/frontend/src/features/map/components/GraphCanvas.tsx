@@ -45,6 +45,7 @@ import { useGraphFilters } from '../hooks/useGraphFilters';
 import { useGraphMode } from '../hooks/useGraphMode';
 import { useSandboxes } from '../hooks/useSandboxes';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
+import { SandboxIconGlyph } from './SandboxIconGlyph';
 import { SandboxPane } from './SandboxPane';
 import {
   MAX_OPEN_SANDBOXES,
@@ -1270,6 +1271,7 @@ export function GraphCanvas() {
               setIconGhostPos({ x: 0, y: 0 });
               setIconPlacement({ iconKey, sticky });
             }}
+            onClearIconPlacement={() => setIconPlacement(null)}
             onNewSandbox={() => {
               if (sandboxes.openDocs.length >= MAX_OPEN_SANDBOXES) {
                 setSandboxToast('Close at least one sandbox before opening another.');
@@ -1466,7 +1468,7 @@ export function GraphCanvas() {
                   style={{ left: iconGhostPos.x, top: iconGhostPos.y }}
                   aria-hidden
                 >
-                  {iconPlacement.iconKey}
+                  <SandboxIconGlyph iconKey={iconPlacement.iconKey} />
                 </div>
               ) : null}
               <div className="sandbox-shared-legend">

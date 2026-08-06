@@ -219,9 +219,11 @@ function SandboxPaneInner({
 
   function placeAtClient(clientX: number, clientY: number) {
     if (!placingIconKey || !onPlaceIcon) return false;
+    // Ghost is centered on the cursor; RF node position is top-left — offset by half icon size.
+    const ICON_HALF = 16;
     const p = screenToFlowPosition({ x: clientX, y: clientY });
     onActivate();
-    onPlaceIcon(p.x, p.y);
+    onPlaceIcon(p.x - ICON_HALF, p.y - ICON_HALF);
     return true;
   }
 
