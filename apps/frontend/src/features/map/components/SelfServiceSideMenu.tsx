@@ -17,6 +17,7 @@ type SelfServiceSideMenuProps = {
   onActiveToolChange: (tool: SideMenuTool) => void;
   onModeChange: (mode: GraphMode) => void;
   toolDetail: ReactNode;
+  pendingChangeCount?: number;
 };
 
 const VIEWS: { mode: GraphMode; label: string; tabId: string; accent: string }[] = [
@@ -41,6 +42,7 @@ const VIEWS: { mode: GraphMode; label: string; tabId: string; accent: string }[]
 ];
 
 const TOOL_DETAIL_TITLES: Record<SideMenuTool, string> = {
+  changes: 'Pending changes',
   search: 'Search applications',
   filters: 'Filters',
   actions: 'Corrections',
@@ -71,6 +73,7 @@ export function SelfServiceSideMenu({
   onActiveToolChange,
   onModeChange,
   toolDetail,
+  pendingChangeCount = 0,
 }: SelfServiceSideMenuProps) {
   const showGraphTools = graphMode === 'normal' || graphMode === 'sandbox';
   const toolDetailTitle =
@@ -140,6 +143,7 @@ export function SelfServiceSideMenu({
                 filtersActive={filtersActive}
                 activeTool={activeTool}
                 onChange={onActiveToolChange}
+                pendingChangeCount={pendingChangeCount}
               />
               <div
                 className="self-service-tool-detail"

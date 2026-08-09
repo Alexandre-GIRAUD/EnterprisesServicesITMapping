@@ -9,6 +9,7 @@ import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.GraphLoader;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -54,7 +55,8 @@ public class GraphService {
    * @param nodeAttributeFilters optional; Data Model {@code target=NODE} key → accepted values.
    * @param nodeRefFilters optional; Data Model {@code target=NODE_REF} key → ref ids.
    * @param edgeAttributeFilters optional; Data Model {@code target=EDGE} key → values on {@code
-   *     DEPENDS_ON} (reduces edges only; Option A keeps filtered applications even if isolated).
+   *     DEPENDS_ON}. When non-empty: keep matching edges, then drop applications that are not an
+   *     endpoint of any remaining edge. When empty: node set is unchanged (isolates OK).
    */
   @Transactional(readOnly = true)
   public GraphResponseDto getGraph(
@@ -92,8 +94,14 @@ public class GraphService {
     List<GraphEdgeProjection> edges =
         graphLoader.loadEdges(appIds, attrFilters, refFilters, edgeFilters);
 
+    List<GraphNodeRow> nodeRows = graphLoader.loadNodes(appIds, attrFilters, refFilters);
+    if (!edgeFilters.isEmpty()) {
+      Set<String> incidentIds = incidentApplicationIds(edges);
+      nodeRows = nodeRows.stream().filter(n -> incidentIds.contains(n.id())).toList();
+    }
+
     List<GraphNodeDto> nodes =
-        graphLoader.loadNodes(appIds, attrFilters, refFilters).stream()
+        nodeRows.stream()
             .map(
                 a ->
                     new GraphNodeDto(
@@ -117,6 +125,20 @@ public class GraphService {
     }
 
     return new GraphResponseDto(nodes, edgeDtos);
+  }
+
+  /** Application ids that appear as source or target of at least one edge. */
+  private static Set<String> incidentApplicationIds(List<GraphEdgeProjection> edges) {
+    Set<String> ids = new HashSet<>();
+    for (GraphEdgeProjection e : edges) {
+      if (e.sourceId() != null && !e.sourceId().isBlank()) {
+        ids.add(e.sourceId());
+      }
+      if (e.targetId() != null && !e.targetId().isBlank()) {
+        ids.add(e.targetId());
+      }
+    }
+    return ids;
   }
 
   /** Backward-compatible overload (no EDGE filters). */

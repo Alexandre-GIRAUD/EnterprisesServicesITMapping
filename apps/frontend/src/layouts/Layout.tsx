@@ -47,6 +47,9 @@ export function Layout() {
                 <Link to="/map/import-github" className="layout-header-link">
                   Sources
                 </Link>
+                <Link to="/admin/changes" className="layout-header-link">
+                  Changes
+                </Link>
                 {isAdmin ? (
                   <Link to="/admin/users" className="layout-header-link">
                     Admin

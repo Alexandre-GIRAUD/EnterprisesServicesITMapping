@@ -13,7 +13,9 @@ import org.junit.jupiter.api.io.TempDir;
 class GitHubRepoCloneServiceTest {
 
   private GitHubRepoCloneService newService() {
-    var properties = new GitHubIntegrationProperties("", "https://api.github.com", 100);
+    var properties =
+        new GitHubIntegrationProperties(
+            "", "https://api.github.com", 100, "", "refs/heads/main", 80, 512);
     return new GitHubRepoCloneService(new GitHubApiClient(properties));
   }
 

@@ -62,8 +62,10 @@ import { TableContentToggle, type TableContentMode } from './TableContentToggle'
 import { fitGraphView, ensureNodesVisible } from './fitGraphView';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
+import { PendingChangesPanel, pendingItemsCount } from './PendingChangesPanel';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
+import { listChangeDetections } from '../api/changeDetectionsApi';
 import { GraphExportMenu } from './GraphExportMenu';
 import {
   buildGraphExportFileName,
@@ -122,6 +124,7 @@ export function GraphCanvas() {
   const [tableContent, setTableContent] = useState<TableContentMode>('apps');
   const [moduleGraphApp, setModuleGraphApp] = useState<{ id: string; label: string } | null>(null);
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
+  const [pendingChangeCount, setPendingChangeCount] = useState(0);
   const [isExportingGraph, setIsExportingGraph] = useState(false);
   /** Local-only collapse set; tables keep using the full graph DTOs. */
   const hiddenNodeIdsRef = useRef<Set<string>>(new Set());
@@ -171,6 +174,20 @@ export function GraphCanvas() {
   }, []);
 
   const reloadGraph = useCallback(() => setGraphReloadNonce((n) => n + 1), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listChangeDetections()
+      .then((runs) => {
+        if (!cancelled) setPendingChangeCount(pendingItemsCount(runs));
+      })
+      .catch(() => {
+        if (!cancelled) setPendingChangeCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [graphReloadNonce]);
 
   const mode = useGraphMode({
     setMessage,
@@ -298,7 +315,7 @@ export function GraphCanvas() {
 
   useEffect(() => {
     const state = location.state as MapLocationState | null;
-    if (!state?.applySnapshot && !state?.graphMode) return;
+    if (!state?.applySnapshot && !state?.graphMode && !state?.sideMenuTool) return;
 
     if (state.applySnapshot) {
       queueViewRestore(state.applySnapshot);
@@ -329,6 +346,10 @@ export function GraphCanvas() {
       setWorkspacePanelOpen(false);
       setFilterPanelOpen(false);
       setIsDetailsDrawerOpen(false);
+    }
+
+    if (state.sideMenuTool) {
+      setActiveSideMenuTool(state.sideMenuTool);
     }
 
     navigate('.', { replace: true, state: {} });
@@ -980,7 +1001,17 @@ export function GraphCanvas() {
     const isExplorer = graphMode === 'normal';
 
     switch (activeSideMenuTool) {
+      case 'changes':
+        if (!isExplorer) return null;
+        return (
+          <PendingChangesPanel
+            variant="embedded"
+            applications={applications}
+            onPendingCountChange={setPendingChangeCount}
+          />
+        );
       case 'search':
+        if (!isSandbox) return null;
         return <ApplicationSearchBar variant="menu" />;
       case 'filters':
         return (
@@ -1046,7 +1077,7 @@ export function GraphCanvas() {
     graphAppsForDrawer,
     onNodeCreatedHandler,
     onEdgeCreatedHandler,
-    filtersActive,
+    status,
     noopClose,
   ]);
 
@@ -1259,10 +1290,15 @@ export function GraphCanvas() {
           filtersActive={filtersActive}
           activeTool={activeSideMenuTool}
           onActiveToolChange={setActiveSideMenuTool}
+          pendingChangeCount={pendingChangeCount}
           onModeChange={(nextMode) => {
             setDisplayMode('graph');
             setModuleGraphApp(null);
-            setActiveSideMenuTool('filters');
+            setActiveSideMenuTool((current) => {
+              if (nextMode === 'sandbox' && current === 'changes') return 'search';
+              if (nextMode === 'normal' && current === 'search') return 'changes';
+              return current;
+            });
             if (nextMode === 'sandbox') mode.switchToSandboxMode();
             else if (nextMode === 'views') mode.switchToViewsMode();
             else mode.switchToNormalMode();

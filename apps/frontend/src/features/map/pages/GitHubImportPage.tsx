@@ -113,9 +113,7 @@ export function GitHubImportPage() {
           setApplications((prev) => [...prev, created]);
           createdNames.push(normalizeName(repo.fullName));
         } catch (e) {
-          errors.push(
-            `${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`
-          );
+          errors.push(`${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`);
         }
       }
 
@@ -209,8 +207,9 @@ export function GitHubImportPage() {
           <h1 className="github-import-title">Sources</h1>
           <p className="github-import-subtitle">
             Repositories are listed via the backend (token{' '}
-            <code className="github-import-code">GITHUB_TOKEN</code>). Check the
-            projects to import as applications in Neo4j.
+            <code className="github-import-code">GITHUB_TOKEN</code>). Check the projects to import
+            as applications in Neo4j. Review webhook change suggestions from Cartography → Pending
+            changes.
           </p>
         </div>
         <Link className="github-import-back" to="/map">
@@ -218,11 +217,7 @@ export function GitHubImportPage() {
         </Link>
       </header>
 
-      <div
-        className="github-import-ai-live"
-        aria-live="polite"
-        aria-relevant="additions text"
-      >
+      <div className="github-import-ai-live" aria-live="polite" aria-relevant="additions text">
         {aiBanner && (
           <p
             className={
@@ -239,11 +234,7 @@ export function GitHubImportPage() {
                 className="github-import-inline-link"
                 onClick={() => {
                   const app = applications.find((a) => a.id === lastSuggestApplicationId);
-                  navigateToModuleGraph(
-                    navigate,
-                    lastSuggestApplicationId,
-                    app?.name
-                  );
+                  navigateToModuleGraph(navigate, lastSuggestApplicationId, app?.name);
                 }}
               >
                 View module graph
@@ -364,8 +355,7 @@ export function GitHubImportPage() {
                   {imported &&
                     isGitHubLinkedApplication({
                       name: repo.fullName,
-                      description:
-                        repo.description?.trim() || `GitHub: ${repo.htmlUrl}`,
+                      description: repo.description?.trim() || `GitHub: ${repo.htmlUrl}`,
                     }) && (
                       <div className="github-import-card-ai">
                         <button
@@ -424,14 +414,11 @@ export function GitHubImportPage() {
         repositories). Existing applications are detected by exact name (
         <code className="github-import-code">full_name</code> on GitHub). The &quot;Suggest modules
         (AI)&quot; button appears for already-imported rows when{' '}
-        <code className="github-import-code">name</code> looks like <code className="github-import-code">
-          owner/repo
-        </code>{' '}
-        or the description follows the import schema <code className="github-import-code">
-          GitHub: https://…
-        </code>
-        . Once modules are linked to the application, the button changes to &quot;Modules already in place&quot; (no
-        new AI suggestion).
+        <code className="github-import-code">name</code> looks like{' '}
+        <code className="github-import-code">owner/repo</code> or the description follows the import
+        schema <code className="github-import-code">GitHub: https://…</code>. Once modules are linked
+        to the application, the button changes to &quot;Modules already in place&quot; (no new AI
+        suggestion).
       </p>
     </div>
   );

@@ -79,12 +79,19 @@ Dependencies point inward: presentation → application → domain; infrastructu
   - `applicationIds` (repeatable; singular `applicationId` also accepted): OR on application ids;
   - `attr.<key>` (repeatable per key): flat NODE props — OR inside a key, AND across keys;
   - `ref.<key>` (repeatable per key): NODE_REF catalogue **ids** via `(:Application)-[:CLASSIFIED_AS {fieldKey}]->(:DataModelRef)`;
-  - `edge.<key>` (repeatable per key): flat EDGE props on `DEPENDS_ON` — OR inside a key, AND across keys. Edge filters shrink relationships only (**Option A**: applications from the node filter set stay, even if isolated).
+  - `edge.<key>` (repeatable per key): flat EDGE props on `DEPENDS_ON` — OR inside a key, AND across keys. When any edge filter is active, only applications that are an endpoint of a surviving matching edge remain (isolated apps are dropped).
   Keys absent from the Data Model (or failing `KEY_PATTERN`) are ignored. Axes combine with AND.
 - `GET /api/graph/node-filters` returns NODE + NODE_REF + EDGE dimensions (`kind`, `multiple`, and for NODE_REF `options: [{id,name}]`). Historical path name kept; EDGE facets use `allowedValues` when set, otherwise distinct Neo4j values on `DEPENDS_ON`.
 - `PATCH /api/applications/{id}/node-attributes` edits flat NODE props; `PATCH /api/applications/{id}/node-refs` replaces CLASSIFIED_AS links by ref ids (no free-text catalogue create).
 - Saving the Data Model upserts `:DataModelRef` for each NODE_REF `allowedValues` entry and soft-retires removed values (`active=false`).
 - Graph snapshots store `{applicationIds, nodeAttributes, nodeRefs, edgeAttributes}`. Flat attributes use Data Model `target=NODE` (`year` is reserved — use e.g. `reference_year`). Catalogue dimensions use `target=NODE_REF`. Edge dimensions use `target=EDGE` (reserved technical keys such as `connection_kind` / `channel` stay non-filterable via DM).
+
+### GitHub change detection (webhooks)
+
+- `POST /api/webhooks/github` (no JWT): verifies `X-Hub-Signature-256` with `GITHUB_WEBHOOK_SECRET`, accepts `push` on `refs/heads/main` (configurable).
+- For each commit SHA: idempotent run `(repo_full_name, commit_sha)` → fetch commit diff via GitHub API → heuristic buckets (`MODULE_SIGNAL` / `FLOW_SIGNAL` / `ATTRIBUTE_SIGNAL`) → reviewable items (no auto Neo4j write).
+- Authenticated APIs: `GET /api/change-detections`, `POST .../items/{id}/accept|reject`. Accept reuses existing suggest/patch writers (connections, modules, NODE attrs). EDGE attribute accept is acknowledgement-only in v1.
+- UI: Cartography left rail **Pending changes** shows pending runs/items (Accept/Reject). Link Application via existing GitHub import identity (`owner/repo` name or `GitHub:` description).
 
 ### Scalability (Thousands of Nodes)
 
