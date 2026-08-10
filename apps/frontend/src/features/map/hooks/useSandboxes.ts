@@ -15,6 +15,7 @@ import {
   type SandboxIcon,
   type SandboxLayoutMode,
   type SavedSandboxMeta,
+  coerceSandboxLayout,
 } from '../utils/sandboxDocuments';
 
 type Seed = {
@@ -33,19 +34,13 @@ export function useSandboxes() {
   const activeDoc = openDocs.find((d) => d.id === activeId) ?? openDocs[0] ?? null;
   const anyDirty = openDocs.some((d) => d.dirty);
 
-  // Square only makes sense with 3+ panes.
+  // Drop layouts that are invalid for the current pane count.
   useEffect(() => {
-    if (openDocs.length === 2 && layout === 'square') {
-      setLayoutState('horizontal');
-    }
-  }, [openDocs.length, layout]);
+    setLayoutState((cur) => coerceSandboxLayout(cur, openDocs.length));
+  }, [openDocs.length]);
 
   const setLayout = useCallback((mode: SandboxLayoutMode) => {
-    if (openDocs.length === 2 && mode === 'square') {
-      setLayoutState('horizontal');
-      return;
-    }
-    setLayoutState(mode);
+    setLayoutState(coerceSandboxLayout(mode, openDocs.length));
   }, [openDocs.length]);
 
   const patchDoc = useCallback((id: string, patch: Partial<SandboxDocument> | ((d: SandboxDocument) => SandboxDocument)) => {

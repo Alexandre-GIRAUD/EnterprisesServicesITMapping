@@ -45,6 +45,7 @@ import { useGraphFilters } from '../hooks/useGraphFilters';
 import { useGraphMode } from '../hooks/useGraphMode';
 import { useSandboxes } from '../hooks/useSandboxes';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
+import { SandboxesPanel } from './SandboxesPanel';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 import { SandboxPane } from './SandboxPane';
 import {
@@ -1272,6 +1273,15 @@ export function GraphCanvas() {
               setIconPlacement({ iconKey, sticky });
             }}
             onClearIconPlacement={() => setIconPlacement(null)}
+          />
+        );
+      case 'sandboxes':
+        if (!isSandbox) return null;
+        return (
+          <SandboxesPanel
+            openSandboxCount={sandboxes.openDocs.length}
+            layoutMode={sandboxes.layout}
+            onLayoutModeChange={sandboxes.setLayout}
             onNewSandbox={() => {
               if (sandboxes.openDocs.length >= MAX_OPEN_SANDBOXES) {
                 setSandboxToast('Close at least one sandbox before opening another.');
@@ -1280,7 +1290,13 @@ export function GraphCanvas() {
               const id = sandboxes.openNew(sandboxSeed());
               if (!id) setSandboxToast('Close at least one sandbox before opening another.');
             }}
-            openSandboxCount={sandboxes.openDocs.length}
+            onSaveActive={() => {
+              const doc = sandboxes.activeDoc;
+              if (!doc) return;
+              sandboxes.saveDoc(doc.id, doc.name);
+              setSandboxToast('Saved');
+            }}
+            canSave={Boolean(sandboxes.activeDoc)}
             savedSandboxes={sandboxes.saved}
             onLoadSandbox={(id) => {
               const result = sandboxes.loadSaved(id);
@@ -1289,9 +1305,6 @@ export function GraphCanvas() {
               }
             }}
             onDeleteSavedSandbox={sandboxes.deleteSaved}
-            layoutMode={sandboxes.layout}
-            onLayoutModeChange={sandboxes.setLayout}
-            onSandboxToast={setSandboxToast}
           />
         );
       default:

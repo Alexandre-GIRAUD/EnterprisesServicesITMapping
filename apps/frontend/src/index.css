@@ -3179,6 +3179,47 @@ body {
   grid-template-rows: 1fr 1fr;
 }
 
+.sandbox-board--main-side.sandbox-board--n2 {
+  grid-template-columns: 1.6fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+.sandbox-board--main-side.sandbox-board--n3 {
+  grid-template-columns: 1.6fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.sandbox-board--main-side.sandbox-board--n3 > :first-child {
+  grid-row: 1 / span 2;
+}
+
+.sandbox-board--main-side.sandbox-board--n4 {
+  grid-template-columns: 1.5fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+}
+
+.sandbox-board--main-side.sandbox-board--n4 > :first-child {
+  grid-row: 1 / span 3;
+}
+
+.sandbox-board--top-row.sandbox-board--n3 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1.15fr 1fr;
+}
+
+.sandbox-board--top-row.sandbox-board--n3 > :first-child {
+  grid-column: 1 / span 2;
+}
+
+.sandbox-board--top-row.sandbox-board--n4 {
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1.15fr 1fr;
+}
+
+.sandbox-board--top-row.sandbox-board--n4 > :first-child {
+  grid-column: 1 / span 3;
+}
+
 .sandbox-pane {
   position: relative;
   display: flex;
@@ -3480,11 +3521,62 @@ body {
   cursor: text;
 }
 
-.graph-drawer-sandbox-tools {
-  margin-top: 0.75rem;
+.graph-drawer-sandbox-tools,
+.graph-drawer-sandbox-manage {
+  margin-top: 0.15rem;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+}
+
+.sandbox-manage-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.sandbox-manage-top .graph-drawer-search-state {
+  margin: 0;
+}
+
+.sandbox-manage-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sandbox-layout-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  justify-content: flex-end;
+}
+
+.sandbox-layout-picker__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 1.85rem;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.sandbox-layout-picker__btn:hover {
+  border-color: #94a3b8;
+  color: #334155;
+}
+
+.sandbox-layout-picker__btn.is-active {
+  border-color: var(--ss-accent-border, #fbbf24);
+  color: #0f172a;
+  box-shadow: 0 0 0 1px var(--ss-accent-border, #fbbf24);
 }
 
 .graph-drawer-saved-actions {

@@ -14,11 +14,7 @@ import {
   buildSandboxApplicationResponse,
   buildSandboxEdgeResponse,
 } from '../utils/sandboxGraph';
-import {
-  MAX_OPEN_SANDBOXES,
-  SANDBOX_ICON_PALETTE,
-  type SavedSandboxMeta,
-} from '../utils/sandboxDocuments';
+import { SANDBOX_ICON_PALETTE } from '../utils/sandboxDocuments';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 
 type WorkspaceDrawerProps = {
@@ -34,15 +30,6 @@ type WorkspaceDrawerProps = {
   onPickIcon?: (iconKey: string, sticky: boolean) => void;
   /** Clear cursor placement when leaving Icons via ✓. */
   onClearIconPlacement?: () => void;
-  onNewSandbox?: () => void;
-  openSandboxCount?: number;
-  savedSandboxes?: SavedSandboxMeta[];
-  onLoadSandbox?: (id: string) => void;
-  onDeleteSavedSandbox?: (id: string) => void;
-  layoutMode?: 'horizontal' | 'vertical' | 'square';
-  onLayoutModeChange?: (mode: 'horizontal' | 'vertical' | 'square') => void;
-  /** Brief toast on the active sandbox pane (preferred over drawer feedback). */
-  onSandboxToast?: (message: string) => void;
 };
 
 type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-icons';
@@ -112,15 +99,7 @@ export function WorkspaceDrawer({
   onEdgeCreated,
   onPickIcon,
   onClearIconPlacement,
-  onNewSandbox,
-  openSandboxCount = 0,
-  savedSandboxes = [],
-  onLoadSandbox,
-  onDeleteSavedSandbox,
-  layoutMode = 'horizontal',
-  onLayoutModeChange,
 }: WorkspaceDrawerProps) {
-  const [selectedSavedId, setSelectedSavedId] = useState('');
   const [iconQuery, setIconQuery] = useState('');
   const iconClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [view, setView] = useState<DrawerView>('menu');
@@ -520,9 +499,6 @@ export function WorkspaceDrawer({
 
       {view === 'menu' ? (
         <>
-          {sandboxMode ? (
-            <p className="graph-drawer-eyebrow">Add an element</p>
-          ) : null}
           <div className="graph-drawer-actions" role="list">
             {(sandboxMode ? TOOLKIT_ACTIONS : CORRECTIONS_ACTIONS).map((action) => {
               const onClick = actionHandler(action.id, {
@@ -545,80 +521,6 @@ export function WorkspaceDrawer({
               );
             })}
           </div>
-          {sandboxMode && (
-            <div className="graph-drawer-sandbox-tools">
-              <div className="graph-drawer-setup-row">
-                <button
-                  type="button"
-                  className="graph-drawer-action"
-                  disabled={!onNewSandbox || openSandboxCount >= MAX_OPEN_SANDBOXES}
-                  onClick={() => onNewSandbox?.()}
-                >
-                  <span className="graph-drawer-action-title">New sandbox</span>
-                  <span className="graph-drawer-action-meta">
-                    {openSandboxCount}/{MAX_OPEN_SANDBOXES}
-                  </span>
-                </button>
-              </div>
-              {onLayoutModeChange && openSandboxCount > 1 && (
-                <label className="graph-drawer-field">
-                  <span className="graph-drawer-field-label">Layout</span>
-                  <select
-                    className="graph-drawer-input"
-                    value={openSandboxCount === 2 && layoutMode === 'square' ? 'horizontal' : layoutMode}
-                    onChange={(e) =>
-                      onLayoutModeChange(e.target.value as 'horizontal' | 'vertical' | 'square')
-                    }
-                  >
-                    <option value="horizontal">Horizontal</option>
-                    <option value="vertical">Vertical</option>
-                    {openSandboxCount >= 3 ? <option value="square">Square</option> : null}
-                  </select>
-                </label>
-              )}
-              <p className="graph-drawer-eyebrow">Saved sandboxes</p>
-              {savedSandboxes.length === 0 ? (
-                <p className="graph-drawer-search-state">No saved sandboxes.</p>
-              ) : (
-                <>
-                  <select
-                    className="graph-drawer-input"
-                    value={selectedSavedId}
-                    onChange={(e) => setSelectedSavedId(e.target.value)}
-                    aria-label="Saved sandboxes"
-                  >
-                    <option value="">Saved sandboxes…</option>
-                    {savedSandboxes.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedSavedId ? (
-                    <div className="graph-drawer-saved-actions">
-                      <button
-                        type="button"
-                        className="graph-drawer-action"
-                        onClick={() => onLoadSandbox?.(selectedSavedId)}
-                      >
-                        Load
-                      </button>
-                      <button
-                        type="button"
-                        className="graph-drawer-action"
-                        onClick={() => {
-                          onDeleteSavedSandbox?.(selectedSavedId);
-                          setSelectedSavedId('');
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </div>
-          )}
         </>
       ) : view === 'add-icons' ? (
         <div className="graph-drawer-icon-palette">

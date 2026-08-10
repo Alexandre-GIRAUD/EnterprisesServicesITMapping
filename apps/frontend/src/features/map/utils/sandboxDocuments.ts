@@ -6,7 +6,28 @@ import type { OrientedEdgeType } from '../components/OrientedEdge';
 export const MAX_OPEN_SANDBOXES = 4;
 export const SANDBOX_SAVED_STORAGE_KEY = 'flowra.sandbox.savedDocuments';
 
-export type SandboxLayoutMode = 'horizontal' | 'vertical' | 'square';
+export type SandboxLayoutMode =
+  | 'horizontal'
+  | 'vertical'
+  | 'square'
+  | 'main-side'
+  | 'top-row';
+
+/** Layouts allowed for the current open sandbox count. */
+export function sandboxLayoutsForCount(count: number): SandboxLayoutMode[] {
+  if (count <= 1) return [];
+  const modes: SandboxLayoutMode[] = ['horizontal', 'vertical', 'main-side'];
+  if (count >= 3) {
+    modes.push('square', 'top-row');
+  }
+  return modes;
+}
+
+export function coerceSandboxLayout(mode: SandboxLayoutMode, count: number): SandboxLayoutMode {
+  const allowed = sandboxLayoutsForCount(count);
+  if (allowed.length === 0) return 'horizontal';
+  return allowed.includes(mode) ? mode : 'horizontal';
+}
 
 export type SandboxIcon = {
   id: string;
@@ -489,5 +510,6 @@ export function storeSavedSandboxes(items: SavedSandboxMeta[]): void {
 
 export function sandboxLayoutClass(mode: SandboxLayoutMode, count: number): string {
   if (count <= 1) return 'sandbox-board sandbox-board--single';
-  return `sandbox-board sandbox-board--${mode} sandbox-board--n${Math.min(count, 4)}`;
+  const safe = coerceSandboxLayout(mode, count);
+  return `sandbox-board sandbox-board--${safe} sandbox-board--n${Math.min(count, 4)}`;
 }
