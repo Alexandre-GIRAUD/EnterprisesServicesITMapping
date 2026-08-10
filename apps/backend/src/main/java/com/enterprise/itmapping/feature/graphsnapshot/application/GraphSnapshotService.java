@@ -56,6 +56,7 @@ public class GraphSnapshotService {
     entity.setApplicationIds(filters.applicationIds());
     entity.setNodeAttributes(new LinkedHashMap<>(filters.nodeAttributes()));
     entity.setNodeRefs(new LinkedHashMap<>(filters.nodeRefs()));
+    entity.setEdgeAttributes(new LinkedHashMap<>(filters.edgeAttributes()));
     entity.setHiddenApplicationIds(filters.hiddenApplicationIds());
     entity.setNodePositions(new LinkedHashMap<>(filters.nodePositions()));
     entity.setLegend(filters.legend());
@@ -87,12 +88,14 @@ public class GraphSnapshotService {
 
   private static GraphSnapshotFiltersDto normalizeFilters(GraphSnapshotFiltersDto filters) {
     if (filters == null) {
-      return new GraphSnapshotFiltersDto(List.of(), Map.of(), Map.of(), List.of(), Map.of(), null);
+      return new GraphSnapshotFiltersDto(
+          List.of(), Map.of(), Map.of(), Map.of(), List.of(), Map.of(), null);
     }
     return new GraphSnapshotFiltersDto(
         normalizeIdList(filters.applicationIds()),
         normalizeKeyedLists(filters.nodeAttributes()),
         normalizeKeyedLists(filters.nodeRefs()),
+        normalizeKeyedLists(filters.edgeAttributes()),
         normalizeIdList(filters.hiddenApplicationIds()),
         normalizeNodePositions(filters.nodePositions()),
         filters.legend());
@@ -163,6 +166,7 @@ public class GraphSnapshotService {
             List.copyOf(entity.getApplicationIds()),
             copyKeyedLists(entity.getNodeAttributes()),
             copyKeyedLists(entity.getNodeRefs()),
+            copyKeyedLists(entity.getEdgeAttributes()),
             List.copyOf(entity.getHiddenApplicationIds()),
             Map.copyOf(entity.getNodePositions()),
             entity.getLegend()),

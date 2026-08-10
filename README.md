@@ -71,18 +71,20 @@ Dependencies point inward: presentation → application → domain; infrastructu
 - Cypher supports complex traversals and aggregations for drill-down and “subgraph” views.
 - Flat business attributes are properties on `Application` nodes (`Data Model` `target=NODE`).
 - Catalogue classifications are `:DataModelRef` nodes linked with `CLASSIFIED_AS` (`target=NODE_REF`). There is **no** seed of business fields (region, BU, …): admins declare NODE_REF fields and values in `/data-model` when needed.
+- Connection attributes are dynamic properties on `DEPENDS_ON` relationships (`Data Model` `target=EDGE`).
 
 ### Graph filtering (Data Model driven)
 
 - `GET /api/graph` filter axes:
   - `applicationIds` (repeatable; singular `applicationId` also accepted): OR on application ids;
   - `attr.<key>` (repeatable per key): flat NODE props — OR inside a key, AND across keys;
-  - `ref.<key>` (repeatable per key): NODE_REF catalogue **ids** via `(:Application)-[:CLASSIFIED_AS {fieldKey}]->(:DataModelRef)`.
-  Keys absent from the Data Model (or failing `KEY_PATTERN`) are ignored.
-- `GET /api/graph/node-filters` returns NODE + NODE_REF dimensions (`kind`, `multiple`, and for NODE_REF `options: [{id,name}]`).
+  - `ref.<key>` (repeatable per key): NODE_REF catalogue **ids** via `(:Application)-[:CLASSIFIED_AS {fieldKey}]->(:DataModelRef)`;
+  - `edge.<key>` (repeatable per key): flat EDGE props on `DEPENDS_ON` — OR inside a key, AND across keys. Edge filters shrink relationships only (**Option A**: applications from the node filter set stay, even if isolated).
+  Keys absent from the Data Model (or failing `KEY_PATTERN`) are ignored. Axes combine with AND.
+- `GET /api/graph/node-filters` returns NODE + NODE_REF + EDGE dimensions (`kind`, `multiple`, and for NODE_REF `options: [{id,name}]`). Historical path name kept; EDGE facets use `allowedValues` when set, otherwise distinct Neo4j values on `DEPENDS_ON`.
 - `PATCH /api/applications/{id}/node-attributes` edits flat NODE props; `PATCH /api/applications/{id}/node-refs` replaces CLASSIFIED_AS links by ref ids (no free-text catalogue create).
 - Saving the Data Model upserts `:DataModelRef` for each NODE_REF `allowedValues` entry and soft-retires removed values (`active=false`).
-- Graph snapshots store `{applicationIds, nodeAttributes, nodeRefs}`. Flat attributes use Data Model `target=NODE` (`year` is reserved — use e.g. `reference_year`). Catalogue dimensions use `target=NODE_REF`.
+- Graph snapshots store `{applicationIds, nodeAttributes, nodeRefs, edgeAttributes}`. Flat attributes use Data Model `target=NODE` (`year` is reserved — use e.g. `reference_year`). Catalogue dimensions use `target=NODE_REF`. Edge dimensions use `target=EDGE` (reserved technical keys such as `connection_kind` / `channel` stay non-filterable via DM).
 
 ### Scalability (Thousands of Nodes)
 

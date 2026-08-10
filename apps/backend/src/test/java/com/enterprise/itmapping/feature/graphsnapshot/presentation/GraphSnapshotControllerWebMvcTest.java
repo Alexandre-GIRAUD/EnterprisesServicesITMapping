@@ -44,6 +44,7 @@ class GraphSnapshotControllerWebMvcTest {
                         List.of("app-1"),
                         Map.of("region", List.of("EMEA")),
                         Map.of(),
+                        Map.of("data_category", List.of("ORDER_PAYLOAD")),
                         List.of("app-2"),
                         Map.of("app-1", new NodePositionDto(10, 20))),
                     Instant.parse("2026-01-01T00:00:00Z"),
@@ -55,6 +56,7 @@ class GraphSnapshotControllerWebMvcTest {
         .andExpect(jsonPath("$[0].name").value("Retail EMEA"))
         .andExpect(jsonPath("$[0].filters.applicationIds[0]").value("app-1"))
         .andExpect(jsonPath("$[0].filters.nodeAttributes.region[0]").value("EMEA"))
+        .andExpect(jsonPath("$[0].filters.edgeAttributes.data_category[0]").value("ORDER_PAYLOAD"))
         .andExpect(jsonPath("$[0].filters.hiddenApplicationIds[0]").value("app-2"))
         .andExpect(jsonPath("$[0].filters.nodePositions['app-1'].x").value(10));
   }
@@ -71,6 +73,7 @@ class GraphSnapshotControllerWebMvcTest {
                     List.of("app-1"),
                     Map.of("tier", List.of("GOLD")),
                     Map.of(),
+                    Map.of("flow_nature", List.of("SYNC")),
                     List.of("app-9"),
                     Map.of("app-1", new NodePositionDto(40, 80))),
                 Instant.parse("2026-01-01T00:00:00Z"),
@@ -87,6 +90,7 @@ class GraphSnapshotControllerWebMvcTest {
                       "filters": {
                         "applicationIds": ["app-1"],
                         "nodeAttributes": { "tier": ["GOLD"] },
+                        "edgeAttributes": { "flow_nature": ["SYNC"] },
                         "hiddenApplicationIds": ["app-9"],
                         "nodePositions": { "app-1": { "x": 40, "y": 80 } }
                       }
@@ -94,6 +98,7 @@ class GraphSnapshotControllerWebMvcTest {
                     """))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.name").value("Vue Retail"))
+        .andExpect(jsonPath("$.filters.edgeAttributes.flow_nature[0]").value("SYNC"))
         .andExpect(jsonPath("$.filters.hiddenApplicationIds[0]").value("app-9"))
         .andExpect(jsonPath("$.filters.nodePositions['app-1'].y").value(80));
   }

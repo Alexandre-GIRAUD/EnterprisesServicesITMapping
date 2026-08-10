@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
- * Resolves raw graph filters against the active Data Model for {@code NODE} (flat props) and {@code
- * NODE_REF} (catalogue ids) keys.
+ * Resolves raw graph filters against the active Data Model for {@code NODE} (flat props), {@code
+ * NODE_REF} (catalogue ids) and {@code EDGE} (DEPENDS_ON props) keys.
  */
 @Component
 public class GraphNodeFilterResolver {
@@ -26,11 +26,13 @@ public class GraphNodeFilterResolver {
   public record Resolved(
       Map<String, List<String>> nodeAttributes,
       Map<String, List<String>> nodeRefs,
+      Map<String, List<String>> edgeAttributes,
       List<String> rejectedKeys) {
 
     public Resolved {
       nodeAttributes = nodeAttributes != null ? Map.copyOf(nodeAttributes) : Map.of();
       nodeRefs = nodeRefs != null ? Map.copyOf(nodeRefs) : Map.of();
+      edgeAttributes = edgeAttributes != null ? Map.copyOf(edgeAttributes) : Map.of();
       rejectedKeys = rejectedKeys != null ? List.copyOf(rejectedKeys) : List.of();
     }
 
@@ -40,27 +42,36 @@ public class GraphNodeFilterResolver {
     }
 
     public boolean isEmpty() {
-      return nodeAttributes.isEmpty() && nodeRefs.isEmpty();
+      return nodeAttributes.isEmpty() && nodeRefs.isEmpty() && edgeAttributes.isEmpty();
     }
   }
 
   public Resolved resolve(DataModelConfig config, Map<String, List<String>> rawNodeAttributes) {
-    return resolve(config, rawNodeAttributes, Map.of());
+    return resolve(config, rawNodeAttributes, Map.of(), Map.of());
   }
 
   public Resolved resolve(
       DataModelConfig config,
       Map<String, List<String>> rawNodeAttributes,
       Map<String, List<String>> rawNodeRefs) {
+    return resolve(config, rawNodeAttributes, rawNodeRefs, Map.of());
+  }
+
+  public Resolved resolve(
+      DataModelConfig config,
+      Map<String, List<String>> rawNodeAttributes,
+      Map<String, List<String>> rawNodeRefs,
+      Map<String, List<String>> rawEdgeAttributes) {
     Set<String> nodeKeys = keys(config != null ? config.nodeFields() : List.of());
     Set<String> nodeRefKeys = keys(config != null ? config.nodeRefFields() : List.of());
+    Set<String> edgeKeys = keys(config != null ? config.edgeFields() : List.of());
 
     List<String> rejected = new ArrayList<>();
-    Map<String, List<String>> nodeAccepted =
-        accept(rawNodeAttributes, nodeKeys, rejected);
+    Map<String, List<String>> nodeAccepted = accept(rawNodeAttributes, nodeKeys, rejected);
     Map<String, List<String>> refAccepted = accept(rawNodeRefs, nodeRefKeys, rejected);
+    Map<String, List<String>> edgeAccepted = accept(rawEdgeAttributes, edgeKeys, rejected);
 
-    return new Resolved(nodeAccepted, refAccepted, rejected);
+    return new Resolved(nodeAccepted, refAccepted, edgeAccepted, rejected);
   }
 
   private static Map<String, List<String>> accept(

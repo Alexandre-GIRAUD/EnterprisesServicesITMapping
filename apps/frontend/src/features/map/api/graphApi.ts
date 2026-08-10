@@ -1,8 +1,8 @@
 /**
  * Graph API client. Fetches graph data for React Flow (nodes + edges).
  *
- * Filtering axes: application ids, Data Model `target=NODE` (`attr.<key>`), and `target=NODE_REF`
- * (`ref.<key>` catalogue ids).
+ * Filtering axes: application ids, Data Model `target=NODE` (`attr.<key>`), `target=NODE_REF`
+ * (`ref.<key>` catalogue ids), and `target=EDGE` (`edge.<key>` on DEPENDS_ON).
  *
  * - Relative `/api/...` : same origin (Vite proxy en dev, nginx en prod Docker).
  * - VITE_API_BASE_URL=http://127.0.0.1:8081: direct call (CORS enabled server-side).
@@ -44,6 +44,7 @@ export async function fetchGraph(params?: {
   applicationIds?: string[];
   nodeAttributes?: Record<string, string[]>;
   nodeRefs?: Record<string, string[]>;
+  edgeAttributes?: Record<string, string[]>;
 }): Promise<GraphResponseDto> {
   const sp = new URLSearchParams();
   for (const id of params?.applicationIds ?? []) {
@@ -59,11 +60,16 @@ export async function fetchGraph(params?: {
       if (key && value) sp.append(`ref.${key}`, value);
     }
   }
+  for (const [key, values] of Object.entries(params?.edgeAttributes ?? {})) {
+    for (const value of values) {
+      if (key && value) sp.append(`edge.${key}`, value);
+    }
+  }
   const search = sp.toString() ? `?${sp.toString()}` : '';
   return fetchGraphJson(graphUrl(search), 'Graph API');
 }
 
-/** Filterable dimensions: Data Model NODE + NODE_REF fields. */
+/** Filterable dimensions: Data Model NODE + NODE_REF + EDGE fields. */
 export async function fetchGraphNodeFilters(): Promise<GraphNodeFilterDto[]> {
   const res = await authenticatedFetch(resolveApiUrl('/api/graph/node-filters'), {
     headers: { Accept: 'application/json' },

@@ -11,7 +11,7 @@ type UseGraphFiltersParams = {
 };
 
 /**
- * Active graph filter set (application ids + NODE attrs + NODE_REF catalogue ids).
+ * Active graph filter set (application ids + NODE attrs + NODE_REF catalogue ids + EDGE attrs).
  * `applyGraphFilters` also leaves any transient mode (sandbox / views) so that applying a saved
  * snapshot returns to the live filtered graph.
  */
@@ -24,11 +24,13 @@ export function useGraphFilters({
   const [applicationIds, setApplicationIds] = useState<string[]>([]);
   const [nodeAttributes, setNodeAttributes] = useState<Record<string, string[]>>({});
   const [nodeRefs, setNodeRefs] = useState<Record<string, string[]>>({});
+  const [edgeAttributes, setEdgeAttributes] = useState<Record<string, string[]>>({});
 
   const filtersActive =
     applicationIds.length > 0 ||
     Object.keys(nodeAttributes).length > 0 ||
-    Object.keys(nodeRefs).length > 0;
+    Object.keys(nodeRefs).length > 0 ||
+    Object.keys(edgeAttributes).length > 0;
 
   const applyGraphFilters = useCallback(
     (filters: GraphSnapshotFilters) => {
@@ -40,13 +42,14 @@ export function useGraphFilters({
       setApplicationIds(filters.applicationIds ?? []);
       setNodeAttributes(filters.nodeAttributes ?? {});
       setNodeRefs(filters.nodeRefs ?? {});
+      setEdgeAttributes(filters.edgeAttributes ?? {});
     },
     [graphModeRef, setGraphMode, setSandboxDirty, setIsDrawerOpen]
   );
 
   const currentGraphFilters = useMemo<GraphSnapshotFilters>(
-    () => ({ applicationIds, nodeAttributes, nodeRefs }),
-    [applicationIds, nodeAttributes, nodeRefs]
+    () => ({ applicationIds, nodeAttributes, nodeRefs, edgeAttributes }),
+    [applicationIds, nodeAttributes, nodeRefs, edgeAttributes]
   );
 
   return {
@@ -56,6 +59,8 @@ export function useGraphFilters({
     setNodeAttributes,
     nodeRefs,
     setNodeRefs,
+    edgeAttributes,
+    setEdgeAttributes,
     filtersActive,
     applyGraphFilters,
     currentGraphFilters,

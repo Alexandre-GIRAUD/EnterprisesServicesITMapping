@@ -6,13 +6,15 @@ import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto.GraphFilterOptionDto;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.ApplicationNodeAttributeFacetQuery;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.DataModelRefFacetQuery;
+import com.enterprise.itmapping.feature.graph.infrastructure.persistence.DependsOnEdgeAttributeFacetQuery;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Builds filterable dimensions from Data Model {@code NODE} and {@code NODE_REF} fields.
+ * Builds filterable dimensions from Data Model {@code NODE}, {@code NODE_REF} and {@code EDGE}
+ * fields (served by the historical {@code GET /graph/node-filters} endpoint).
  */
 @Service
 public class GraphNodeFilterFacetService {
@@ -20,14 +22,17 @@ public class GraphNodeFilterFacetService {
   private final DataModelService dataModelService;
   private final ApplicationNodeAttributeFacetQuery facetQuery;
   private final DataModelRefFacetQuery refFacetQuery;
+  private final DependsOnEdgeAttributeFacetQuery edgeFacetQuery;
 
   public GraphNodeFilterFacetService(
       DataModelService dataModelService,
       ApplicationNodeAttributeFacetQuery facetQuery,
-      DataModelRefFacetQuery refFacetQuery) {
+      DataModelRefFacetQuery refFacetQuery,
+      DependsOnEdgeAttributeFacetQuery edgeFacetQuery) {
     this.dataModelService = dataModelService;
     this.facetQuery = facetQuery;
     this.refFacetQuery = refFacetQuery;
+    this.edgeFacetQuery = edgeFacetQuery;
   }
 
   @Transactional(readOnly = true)
@@ -58,6 +63,17 @@ public class GraphNodeFilterFacetService {
               "NODE_REF",
               field.multiple(),
               options));
+    }
+
+    for (DataModelField field : config.edgeFields()) {
+      boolean fromAllowedValues = !field.allowedValues().isEmpty();
+      List<String> values =
+          fromAllowedValues
+              ? field.allowedValues()
+              : edgeFacetQuery.distinctValues(field.key());
+      out.add(
+          new GraphNodeFilterDto(
+              field.key(), labelOf(field), values, fromAllowedValues, "EDGE", false, List.of()));
     }
 
     return List.copyOf(out);

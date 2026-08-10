@@ -14,8 +14,10 @@ import org.springframework.stereotype.Repository;
 /**
  * Loads graph structure via Neo4jClient (no Spring Data entity hydration).
  *
- * <p>Filtering axes: application ids, Data Model {@code NODE} flat props ({@code attr.*}), and Data
- * Model {@code NODE_REF} catalogue links ({@code ref.*} → {@code CLASSIFIED_AS}).
+ * <p>Filtering axes: application ids, Data Model {@code NODE} flat props ({@code attr.*}), Data
+ * Model {@code NODE_REF} catalogue links ({@code ref.*} → {@code CLASSIFIED_AS}), and Data Model
+ * {@code EDGE} props on {@code DEPENDS_ON} ({@code edge.*}). Edge filters reduce edges only
+ * (Option A: isolated applications from the node filter set are kept).
  */
 @Repository
 public class GraphLoader {
@@ -37,11 +39,15 @@ public class GraphLoader {
       RETURN a.id AS id, a.name AS name, a.description AS description, properties(a) AS props
       """;
 
-  private static final String EDGES_RETURN =
+  private static final String EDGES_MATCH_PREFIX =
       """
       WITH collect(DISTINCT a.id) AS appIds
       MATCH (x:Application)-[r:DEPENDS_ON]->(y:Application)
       WHERE x.id IN appIds AND y.id IN appIds
+      """;
+
+  private static final String EDGES_RETURN =
+      """
       RETURN x.id AS sourceId, y.id AS targetId, type(r) AS relType, r.data AS data, r.id AS relId,
              properties(r) AS props
       """;
@@ -65,10 +71,10 @@ public class GraphLoader {
       List<String> applicationIds,
       Map<String, List<String>> nodeAttributeFilters,
       Map<String, List<String>> nodeRefFilters) {
-    String cypher = buildCypher(NODES_RETURN, nodeAttributeFilters, nodeRefFilters);
+    String cypher = buildNodeCypher(nodeAttributeFilters, nodeRefFilters);
     return neo4jClient
         .query(cypher)
-        .bindAll(params(applicationIds, nodeAttributeFilters, nodeRefFilters))
+        .bindAll(params(applicationIds, nodeAttributeFilters, nodeRefFilters, Map.of()))
         .fetch()
         .all()
         .stream()
@@ -78,22 +84,30 @@ public class GraphLoader {
   }
 
   public List<GraphEdgeProjection> loadEdges() {
-    return loadEdges(null, Map.of(), Map.of());
+    return loadEdges(null, Map.of(), Map.of(), Map.of());
   }
 
   public List<GraphEdgeProjection> loadEdges(
       List<String> applicationIds, Map<String, List<String>> nodeAttributeFilters) {
-    return loadEdges(applicationIds, nodeAttributeFilters, Map.of());
+    return loadEdges(applicationIds, nodeAttributeFilters, Map.of(), Map.of());
   }
 
   public List<GraphEdgeProjection> loadEdges(
       List<String> applicationIds,
       Map<String, List<String>> nodeAttributeFilters,
       Map<String, List<String>> nodeRefFilters) {
-    String cypher = buildCypher(EDGES_RETURN, nodeAttributeFilters, nodeRefFilters);
+    return loadEdges(applicationIds, nodeAttributeFilters, nodeRefFilters, Map.of());
+  }
+
+  public List<GraphEdgeProjection> loadEdges(
+      List<String> applicationIds,
+      Map<String, List<String>> nodeAttributeFilters,
+      Map<String, List<String>> nodeRefFilters,
+      Map<String, List<String>> edgeAttributeFilters) {
+    String cypher = buildEdgeCypher(nodeAttributeFilters, nodeRefFilters, edgeAttributeFilters);
     return neo4jClient
         .query(cypher)
-        .bindAll(params(applicationIds, nodeAttributeFilters, nodeRefFilters))
+        .bindAll(params(applicationIds, nodeAttributeFilters, nodeRefFilters, edgeAttributeFilters))
         .fetch()
         .all()
         .stream()
@@ -110,11 +124,47 @@ public class GraphLoader {
         .toList();
   }
 
-  private static String buildCypher(
-      String returnClause,
+  private static String buildNodeCypher(
+      Map<String, List<String>> nodeFilters, Map<String, List<String>> nodeRefFilters) {
+    StringBuilder sb = new StringBuilder(NODE_MATCH_AND_FILTER);
+    appendNodeFilters(sb, nodeFilters, nodeRefFilters);
+    String cypher = sb.append(NODES_RETURN).toString();
+    log.debug(
+        "Graph Cypher node filters keys={} nodeRefKeys={}",
+        nodeFilters != null ? nodeFilters.keySet() : Set.of(),
+        nodeRefFilters != null ? nodeRefFilters.keySet() : Set.of());
+    return cypher;
+  }
+
+  private static String buildEdgeCypher(
+      Map<String, List<String>> nodeFilters,
+      Map<String, List<String>> nodeRefFilters,
+      Map<String, List<String>> edgeFilters) {
+    StringBuilder sb = new StringBuilder(NODE_MATCH_AND_FILTER);
+    appendNodeFilters(sb, nodeFilters, nodeRefFilters);
+    sb.append(EDGES_MATCH_PREFIX);
+    if (edgeFilters != null) {
+      for (String key : edgeFilters.keySet()) {
+        sb.append("  AND toString(r.`")
+            .append(key)
+            .append("`) IN $")
+            .append(edgeValuesParam(key))
+            .append('\n');
+      }
+    }
+    String cypher = sb.append(EDGES_RETURN).toString();
+    log.debug(
+        "Graph Cypher edge filters keys={} nodeRefKeys={} edgeFilterKeys={}",
+        nodeFilters != null ? nodeFilters.keySet() : Set.of(),
+        nodeRefFilters != null ? nodeRefFilters.keySet() : Set.of(),
+        edgeFilters != null ? edgeFilters.keySet() : Set.of());
+    return cypher;
+  }
+
+  private static void appendNodeFilters(
+      StringBuilder sb,
       Map<String, List<String>> nodeFilters,
       Map<String, List<String>> nodeRefFilters) {
-    StringBuilder sb = new StringBuilder(NODE_MATCH_AND_FILTER);
     if (nodeFilters != null) {
       for (String key : nodeFilters.keySet()) {
         sb.append("  AND toString(a.`")
@@ -140,18 +190,13 @@ public class GraphLoader {
         i++;
       }
     }
-    String cypher = sb.append(returnClause).toString();
-    log.debug(
-        "Graph Cypher node filters keys={} nodeRefKeys={}",
-        nodeFilters != null ? nodeFilters.keySet() : Set.of(),
-        nodeRefFilters != null ? nodeRefFilters.keySet() : Set.of());
-    return cypher;
   }
 
   private static Map<String, Object> params(
       List<String> applicationIds,
       Map<String, List<String>> nodeFilters,
-      Map<String, List<String>> nodeRefFilters) {
+      Map<String, List<String>> nodeRefFilters,
+      Map<String, List<String>> edgeFilters) {
     boolean filterApplicationIds = applicationIds != null && !applicationIds.isEmpty();
     Map<String, Object> params = new LinkedHashMap<>();
     params.put("filterApplicationIds", filterApplicationIds);
@@ -169,11 +214,20 @@ public class GraphLoader {
         i++;
       }
     }
+    if (edgeFilters != null) {
+      for (Map.Entry<String, List<String>> entry : edgeFilters.entrySet()) {
+        params.put(edgeValuesParam(entry.getKey()), entry.getValue());
+      }
+    }
     return params;
   }
 
   private static String valuesParam(String key) {
     return "nodeAttr_" + key;
+  }
+
+  private static String edgeValuesParam(String key) {
+    return "edgeAttr_" + key;
   }
 
   private static GraphNodeRow mapNodeRow(Map<String, Object> map) {

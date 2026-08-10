@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { ApplicationResponse, GraphFilters, GraphNodeFilterDto } from '@/types/api';
 import {
   type FilterView,
@@ -20,11 +20,12 @@ type FilterDrawerProps = {
   onClose: () => void;
   variant?: 'overlay' | 'embedded';
   applications: ApplicationResponse[];
-  /** Dimensions derived from the Data Model NODE + NODE_REF fields. */
+  /** Dimensions derived from the Data Model NODE + NODE_REF + EDGE fields. */
   nodeFilters: GraphNodeFilterDto[];
   initialApplicationIds: string[];
   initialNodeAttributes: Record<string, string[]>;
   initialNodeRefs?: Record<string, string[]>;
+  initialEdgeAttributes?: Record<string, string[]>;
   onApply: (filters: GraphFilters) => void;
   showPinView?: boolean;
   pinViewDisabled?: boolean;
@@ -50,6 +51,10 @@ function isNodeRefDimension(dimension: GraphNodeFilterDto): boolean {
   return dimension.kind === 'NODE_REF';
 }
 
+function isEdgeDimension(dimension: GraphNodeFilterDto): boolean {
+  return dimension.kind === 'EDGE';
+}
+
 function optionLabel(dimension: GraphNodeFilterDto, id: string): string {
   const fromOptions = dimension.options?.find((o) => o.id === id)?.name;
   return fromOptions && fromOptions.trim() ? fromOptions : id;
@@ -58,12 +63,28 @@ function optionLabel(dimension: GraphNodeFilterDto, id: string): string {
 function initialForDimension(
   dimension: GraphNodeFilterDto,
   initialNodeAttributes: Record<string, string[]>,
-  initialNodeRefs: Record<string, string[]>
+  initialNodeRefs: Record<string, string[]>,
+  initialEdgeAttributes: Record<string, string[]>
 ): string[] {
   if (isNodeRefDimension(dimension)) {
     return initialNodeRefs[dimension.key] ?? [];
   }
+  if (isEdgeDimension(dimension)) {
+    return initialEdgeAttributes[dimension.key] ?? [];
+  }
   return initialNodeAttributes[dimension.key] ?? [];
+}
+
+function matchesSearch(haystack: string, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return haystack.toLowerCase().includes(q);
+}
+
+function stopSearchSubmit(event: KeyboardEvent<HTMLInputElement>) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+  }
 }
 
 export function FilterDrawer({
@@ -75,6 +96,7 @@ export function FilterDrawer({
   initialApplicationIds,
   initialNodeAttributes,
   initialNodeRefs = {},
+  initialEdgeAttributes = {},
   onApply,
   showPinView = false,
   pinViewDisabled = false,
@@ -85,6 +107,8 @@ export function FilterDrawer({
   const [selectedNodeValues, setSelectedNodeValues] = useState<Record<string, string[]>>({});
   const [detailError, setDetailError] = useState<string | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [dimensionQuery, setDimensionQuery] = useState('');
+  const [valueQuery, setValueQuery] = useState('');
 
   const appCatalog = useMemo(
     () =>
@@ -119,13 +143,20 @@ export function FilterDrawer({
     setView('root');
     setDetailError(null);
     setApplyError(null);
+    setDimensionQuery('');
+    setValueQuery('');
     setSelectedApplicationIds(
       initialApplicationIds.length > 0 ? initialApplicationIds : selectAllCatalog(appCatalog)
     );
     setSelectedNodeValues(
       Object.fromEntries(
         nodeFilters.map((dimension) => {
-          const initial = initialForDimension(dimension, initialNodeAttributes, initialNodeRefs);
+          const initial = initialForDimension(
+            dimension,
+            initialNodeAttributes,
+            initialNodeRefs,
+            initialEdgeAttributes
+          );
           return [
             dimension.key,
             initial.length > 0 ? initial : selectAllCatalog(nodeCatalogs[dimension.key] ?? []),
@@ -138,6 +169,7 @@ export function FilterDrawer({
     initialApplicationIds,
     initialNodeAttributes,
     initialNodeRefs,
+    initialEdgeAttributes,
     appCatalog,
     nodeFilters,
     nodeCatalogs,
@@ -164,6 +196,7 @@ export function FilterDrawer({
 
   function openDetail(next: FilterView) {
     setDetailError(null);
+    setValueQuery('');
     setView(next);
   }
 
@@ -190,9 +223,10 @@ export function FilterDrawer({
     setView('root');
   }
 
-  function filtersForApi(): Pick<GraphFilters, 'nodeAttributes' | 'nodeRefs'> {
+  function filtersForApi(): Pick<GraphFilters, 'nodeAttributes' | 'nodeRefs' | 'edgeAttributes'> {
     const nodeAttributes: Record<string, string[]> = {};
     const nodeRefs: Record<string, string[]> = {};
+    const edgeAttributes: Record<string, string[]> = {};
     for (const dimension of nodeFilters) {
       const selected = toApiFilterList(
         selectedNodeValues[dimension.key] ?? [],
@@ -201,11 +235,13 @@ export function FilterDrawer({
       if (!selected || selected.length === 0) continue;
       if (isNodeRefDimension(dimension)) {
         nodeRefs[dimension.key] = selected;
+      } else if (isEdgeDimension(dimension)) {
+        edgeAttributes[dimension.key] = selected;
       } else {
         nodeAttributes[dimension.key] = selected;
       }
     }
-    return { nodeAttributes, nodeRefs };
+    return { nodeAttributes, nodeRefs, edgeAttributes };
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -217,11 +253,12 @@ export function FilterDrawer({
       return;
     }
     setApplyError(null);
-    const { nodeAttributes, nodeRefs } = filtersForApi();
+    const { nodeAttributes, nodeRefs, edgeAttributes } = filtersForApi();
     onApply({
       applicationIds: toApiFilterList(selectedApplicationIds, appCatalog) ?? [],
       nodeAttributes,
       nodeRefs,
+      edgeAttributes,
     });
     onClose();
   }
@@ -239,7 +276,7 @@ export function FilterDrawer({
     setView('root');
     setDetailError(null);
     setApplyError(null);
-    onApply({ applicationIds: [], nodeAttributes: {}, nodeRefs: {} });
+    onApply({ applicationIds: [], nodeAttributes: {}, nodeRefs: {}, edgeAttributes: {} });
   }
 
   function renderRootActions() {
@@ -302,6 +339,10 @@ export function FilterDrawer({
   }
 
   function renderApplicationsDetail() {
+    const filteredApps = applications.filter((app) =>
+      matchesSearch(`${app.name ?? ''} ${app.id}`, valueQuery)
+    );
+
     return (
       <div className="graph-filter-detail-panel">
         {detailError ? (
@@ -309,6 +350,17 @@ export function FilterDrawer({
             {detailError}
           </p>
         ) : null}
+        <div className="graph-filter-search">
+          <input
+            type="search"
+            className="graph-filter-search-input"
+            value={valueQuery}
+            onChange={(e) => setValueQuery(e.target.value)}
+            placeholder="Search applications…"
+            aria-label="Search applications"
+            onKeyDown={stopSearchSubmit}
+          />
+        </div>
         <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
           <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
             <input
@@ -321,19 +373,25 @@ export function FilterDrawer({
             />
             <span>Select all</span>
           </label>
-          {applications.map((app) => (
-            <label key={app.id} className="graph-drawer-checkbox-row">
-              <input
-                type="checkbox"
-                checked={selectedApplicationIds.includes(app.id)}
-                onChange={() => {
-                  setDetailError(null);
-                  setSelectedApplicationIds((prev) => toggleSortedValue(prev, app.id));
-                }}
-              />
-              <span>{app.name ?? app.id}</span>
-            </label>
-          ))}
+          {filteredApps.length === 0 ? (
+            <p className="graph-filter-hint graph-filter-search-empty" role="status">
+              No application matches “{valueQuery.trim()}”.
+            </p>
+          ) : (
+            filteredApps.map((app) => (
+              <label key={app.id} className="graph-drawer-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={selectedApplicationIds.includes(app.id)}
+                  onChange={() => {
+                    setDetailError(null);
+                    setSelectedApplicationIds((prev) => toggleSortedValue(prev, app.id));
+                  }}
+                />
+                <span>{app.name ?? app.id}</span>
+              </label>
+            ))
+          )}
         </div>
       </div>
     );
@@ -343,6 +401,9 @@ export function FilterDrawer({
     const catalog = nodeCatalogs[dimension.key] ?? [];
     const selected = selectedNodeValues[dimension.key] ?? [];
     const mode = dimensionMode(selected, catalog);
+    const filteredValues = catalog.filter((value) =>
+      matchesSearch(`${optionLabel(dimension, value)} ${value}`, valueQuery)
+    );
 
     return (
       <div className="graph-filter-detail-panel">
@@ -355,41 +416,62 @@ export function FilterDrawer({
           <p className="graph-filter-hint">
             {isNodeRefDimension(dimension)
               ? 'No active catalogue value for this reference. Add values in the Data Model, then save.'
-              : 'No value recorded yet for this attribute. Values appear once applications carry it.'}
+              : isEdgeDimension(dimension)
+                ? 'No value recorded yet for this edge attribute. Values appear once DEPENDS_ON relationships carry it.'
+                : 'No value recorded yet for this attribute. Values appear once applications carry it.'}
           </p>
         ) : (
-          <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
-            <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
+          <>
+            <div className="graph-filter-search">
               <input
-                ref={detailSelectAllRef}
-                type="checkbox"
-                checked={rootCheckboxState(mode) === 'checked'}
-                onChange={() =>
-                  setSelectedNodeValues((prev) => ({
-                    ...prev,
-                    [dimension.key]: applyRootToggle(catalog, selected),
-                  }))
-                }
+                type="search"
+                className="graph-filter-search-input"
+                value={valueQuery}
+                onChange={(e) => setValueQuery(e.target.value)}
+                placeholder="Search values…"
+                aria-label={`Search ${dimension.label} values`}
+                onKeyDown={stopSearchSubmit}
               />
-              <span>Select all</span>
-            </label>
-            {catalog.map((value) => (
-              <label key={value} className="graph-drawer-checkbox-row">
+            </div>
+            <div className="graph-drawer-region-checkboxes graph-filter-detail-list">
+              <label className="graph-drawer-checkbox-row graph-filter-select-all-row">
                 <input
+                  ref={detailSelectAllRef}
                   type="checkbox"
-                  checked={selected.includes(value)}
-                  onChange={() => {
-                    setDetailError(null);
+                  checked={rootCheckboxState(mode) === 'checked'}
+                  onChange={() =>
                     setSelectedNodeValues((prev) => ({
                       ...prev,
-                      [dimension.key]: toggleSortedValue(prev[dimension.key] ?? [], value),
-                    }));
-                  }}
+                      [dimension.key]: applyRootToggle(catalog, selected),
+                    }))
+                  }
                 />
-                <span>{optionLabel(dimension, value)}</span>
+                <span>Select all</span>
               </label>
-            ))}
-          </div>
+              {filteredValues.length === 0 ? (
+                <p className="graph-filter-hint graph-filter-search-empty" role="status">
+                  No value matches “{valueQuery.trim()}”.
+                </p>
+              ) : (
+                filteredValues.map((value) => (
+                  <label key={value} className="graph-drawer-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(value)}
+                      onChange={() => {
+                        setDetailError(null);
+                        setSelectedNodeValues((prev) => ({
+                          ...prev,
+                          [dimension.key]: toggleSortedValue(prev[dimension.key] ?? [], value),
+                        }));
+                      }}
+                    />
+                    <span>{optionLabel(dimension, value)}</span>
+                  </label>
+                ))
+              )}
+            </div>
+          </>
         )}
       </div>
     );
@@ -443,6 +525,11 @@ export function FilterDrawer({
   const isEmbedded = variant === 'embedded';
   const showHeader = !isEmbedded || view !== 'root';
 
+  const showApplicationsRow = matchesSearch('application applications', dimensionQuery);
+  const visibleNodeFilters = nodeFilters.filter((dimension) =>
+    matchesSearch(`${dimension.label} ${dimension.key}`, dimensionQuery)
+  );
+
   return (
     <aside
       id="graph-filter-drawer"
@@ -458,6 +545,7 @@ export function FilterDrawer({
               className="graph-filter-back-btn"
               onClick={() => {
                 setDetailError(null);
+                setValueQuery('');
                 setView('root');
               }}
               aria-label="Back to filters"
@@ -489,16 +577,30 @@ export function FilterDrawer({
               Narrow the graph. Each dimension combines with AND (all conditions must match).
             </p>
 
-            {renderRootRow({
-              key: 'applications',
-              view: 'applications',
-              label: 'Application',
-              plural: 'applications',
-              selected: selectedApplicationIds,
-              catalog: appCatalog,
-            })}
+            <div className="graph-filter-search">
+              <input
+                type="search"
+                className="graph-filter-search-input"
+                value={dimensionQuery}
+                onChange={(e) => setDimensionQuery(e.target.value)}
+                placeholder="Search filters…"
+                aria-label="Search filters"
+                onKeyDown={stopSearchSubmit}
+              />
+            </div>
 
-            {nodeFilters.map((dimension) =>
+            {showApplicationsRow
+              ? renderRootRow({
+                  key: 'applications',
+                  view: 'applications',
+                  label: 'Application',
+                  plural: 'applications',
+                  selected: selectedApplicationIds,
+                  catalog: appCatalog,
+                })
+              : null}
+
+            {visibleNodeFilters.map((dimension) =>
               renderRootRow({
                 key: dimension.key,
                 view: nodeAttributeView(dimension.key),
@@ -511,9 +613,13 @@ export function FilterDrawer({
 
             {nodeFilters.length === 0 ? (
               <p className="graph-filter-hint" role="status">
-                No application attributes configured. Add Data Model fields with target
-                &quot;Application (node)&quot; or &quot;Application (reference)&quot; to filter on
-                them.
+                No filter dimensions configured. Add Data Model fields with target
+                &quot;Application (node)&quot;, &quot;Application (reference)&quot;, or
+                &quot;Connection (edge)&quot; to filter on them.
+              </p>
+            ) : !showApplicationsRow && visibleNodeFilters.length === 0 ? (
+              <p className="graph-filter-hint graph-filter-search-empty" role="status">
+                No filter matches “{dimensionQuery.trim()}”.
               </p>
             ) : null}
 

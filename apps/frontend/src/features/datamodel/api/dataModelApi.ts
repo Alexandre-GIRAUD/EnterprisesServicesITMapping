@@ -18,7 +18,13 @@ export async function putDataModelRequest(body: DataModelPutRequest): Promise<Da
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const text = await res.text();
+    const text = (await res.text().catch(() => '')).trim();
+    if (res.status === 403) {
+      throw new Error(
+        text ||
+          'PUT data-model failed (403): admin role required. Log out and sign in again as admin so the JWT includes ROLE_ADMIN.'
+      );
+    }
     throw new Error(text || `PUT data-model failed (${res.status})`);
   }
   return res.json() as Promise<DataModelResponse>;

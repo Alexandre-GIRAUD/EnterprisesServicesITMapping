@@ -49,6 +49,11 @@ public record DataModelConfig(List<DataModelField> fields) {
     return fields.stream().filter(DataModelField::isNodeRefTarget).toList();
   }
 
+  /** All EDGE fields regardless of detection — graph edge filters accept automatic and manual alike. */
+  public List<DataModelField> edgeFields() {
+    return fields.stream().filter(DataModelField::isEdgeTarget).toList();
+  }
+
   public boolean hasAutomaticFields() {
     return !automaticFields().isEmpty();
   }

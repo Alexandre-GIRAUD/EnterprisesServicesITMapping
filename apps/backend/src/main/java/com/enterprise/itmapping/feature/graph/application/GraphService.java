@@ -53,25 +53,32 @@ public class GraphService {
    * @param applicationIds optional; when non-empty, only listed application ids (OR).
    * @param nodeAttributeFilters optional; Data Model {@code target=NODE} key → accepted values.
    * @param nodeRefFilters optional; Data Model {@code target=NODE_REF} key → ref ids.
+   * @param edgeAttributeFilters optional; Data Model {@code target=EDGE} key → values on {@code
+   *     DEPENDS_ON} (reduces edges only; Option A keeps filtered applications even if isolated).
    */
   @Transactional(readOnly = true)
   public GraphResponseDto getGraph(
       List<String> applicationIds,
       Map<String, List<String>> nodeAttributeFilters,
-      Map<String, List<String>> nodeRefFilters) {
+      Map<String, List<String>> nodeRefFilters,
+      Map<String, List<String>> edgeAttributeFilters) {
     List<String> appIds = resolveExistingApplicationIds(applicationIds);
     GraphNodeFilterResolver.Resolved resolved =
         nodeFilterResolver.resolve(
-            dataModelService.loadConfig(), nodeAttributeFilters, nodeRefFilters);
+            dataModelService.loadConfig(),
+            nodeAttributeFilters,
+            nodeRefFilters,
+            edgeAttributeFilters);
 
     log.info(
-        "Graph load: applicationIds={} nodeFilterKeys={} nodeRefKeys={}",
+        "Graph load: applicationIds={} nodeFilterKeys={} nodeRefKeys={} edgeFilterKeys={}",
         appIds != null ? appIds.size() : 0,
         resolved.nodeAttributes().keySet(),
-        resolved.nodeRefs().keySet());
+        resolved.nodeRefs().keySet(),
+        resolved.edgeAttributes().keySet());
     if (!resolved.rejectedKeys().isEmpty()) {
       log.debug(
-          "Graph load ignored filter keys (not in Data Model NODE/NODE_REF fields): {}",
+          "Graph load ignored filter keys (not in Data Model NODE/NODE_REF/EDGE fields): {}",
           resolved.rejectedKeys());
     }
 
@@ -81,7 +88,9 @@ public class GraphService {
 
     Map<String, List<String>> attrFilters = resolved.nodeAttributes();
     Map<String, List<String>> refFilters = resolved.nodeRefs();
-    List<GraphEdgeProjection> edges = graphLoader.loadEdges(appIds, attrFilters, refFilters);
+    Map<String, List<String>> edgeFilters = resolved.edgeAttributes();
+    List<GraphEdgeProjection> edges =
+        graphLoader.loadEdges(appIds, attrFilters, refFilters, edgeFilters);
 
     List<GraphNodeDto> nodes =
         graphLoader.loadNodes(appIds, attrFilters, refFilters).stream()
@@ -110,11 +119,20 @@ public class GraphService {
     return new GraphResponseDto(nodes, edgeDtos);
   }
 
-  /** Backward-compatible overload (no NODE_REF filters). */
+  /** Backward-compatible overload (no EDGE filters). */
+  @Transactional(readOnly = true)
+  public GraphResponseDto getGraph(
+      List<String> applicationIds,
+      Map<String, List<String>> nodeAttributeFilters,
+      Map<String, List<String>> nodeRefFilters) {
+    return getGraph(applicationIds, nodeAttributeFilters, nodeRefFilters, Map.of());
+  }
+
+  /** Backward-compatible overload (no NODE_REF / EDGE filters). */
   @Transactional(readOnly = true)
   public GraphResponseDto getGraph(
       List<String> applicationIds, Map<String, List<String>> nodeAttributeFilters) {
-    return getGraph(applicationIds, nodeAttributeFilters, Map.of());
+    return getGraph(applicationIds, nodeAttributeFilters, Map.of(), Map.of());
   }
 
   /** {@code null} = no filter; empty list after validation = empty graph. */
