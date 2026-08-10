@@ -50,7 +50,8 @@ public class GraphController {
    *   <li>{@code applicationIds} (repeatable);
    *   <li>{@code attr.<nodeKey>} — flat NODE props;
    *   <li>{@code ref.<nodeRefKey>} — NODE_REF catalogue ids via {@code CLASSIFIED_AS};
-   *   <li>{@code edge.<edgeKey>} — flat EDGE props on {@code DEPENDS_ON} (edges only; Option A).
+   *   <li>{@code edge.<edgeKey>} — flat EDGE props on {@code DEPENDS_ON}; when set, only apps
+   *       incident to a matching edge remain.
    * </ul>
    */
   @GetMapping

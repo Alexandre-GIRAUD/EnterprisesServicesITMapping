@@ -94,6 +94,36 @@ export interface GitHubRepoDto {
   repoPrivate: boolean;
 }
 
+/** {@code GET /api/change-detections} — GitHub push diff suggestions (review before Neo4j write). */
+export type ChangeDetectionItemDto = {
+  id: string;
+  kind: 'MODULE' | 'CONNECTION' | 'NODE_ATTRIBUTE' | 'EDGE_ATTRIBUTE';
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  confidence: number;
+  summary: string;
+  evidence: Array<{ path: string; hunkPreview?: string }>;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ChangeDetectionRunDto = {
+  id: string;
+  provider: string;
+  repoFullName: string;
+  commitSha: string;
+  branchRef: string;
+  applicationId?: string | null;
+  status: string;
+  truncated: boolean;
+  buckets: string[];
+  files: Array<{ path: string; status: string; bucket: string }>;
+  errorMessage?: string | null;
+  items: ChangeDetectionItemDto[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 /** {@code POST /api/applications/{id}/modules/suggest-from-github} */
 export interface SuggestModulesFromGithubRequest {
   fullName?: string | null;

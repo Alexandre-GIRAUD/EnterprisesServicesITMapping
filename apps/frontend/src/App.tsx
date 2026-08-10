@@ -3,6 +3,8 @@ import { Layout } from '@/layouts/Layout';
 import { MapPage } from '@/features/map/pages/MapPage';
 import { GitHubImportPage } from '@/features/map/pages/GitHubImportPage';
 import { ApplicationModuleMapPage } from '@/features/map/pages/ApplicationModuleMapPage';
+import { ChangesListPage } from '@/features/map/pages/ChangesListPage';
+import { ChangeDetailPage } from '@/features/map/pages/ChangeDetailPage';
 import { AuthProvider } from '@/features/auth/context/AuthContext';
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
@@ -21,6 +23,8 @@ function App() {
             <Route path="/map/import-github" element={<GitHubImportPage />} />
             <Route path="/map/apps/:applicationId" element={<ApplicationModuleMapPage />} />
             <Route path="/data-model" element={<DataModelPage />} />
+            <Route path="/admin/changes" element={<ChangesListPage />} />
+            <Route path="/admin/changes/:runId/:itemId" element={<ChangeDetailPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="*" element={<Navigate to="/map" replace />} />
           </Route>

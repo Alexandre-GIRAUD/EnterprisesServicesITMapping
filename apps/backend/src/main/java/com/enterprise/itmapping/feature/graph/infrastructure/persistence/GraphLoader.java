@@ -16,8 +16,9 @@ import org.springframework.stereotype.Repository;
  *
  * <p>Filtering axes: application ids, Data Model {@code NODE} flat props ({@code attr.*}), Data
  * Model {@code NODE_REF} catalogue links ({@code ref.*} → {@code CLASSIFIED_AS}), and Data Model
- * {@code EDGE} props on {@code DEPENDS_ON} ({@code edge.*}). Edge filters reduce edges only
- * (Option A: isolated applications from the node filter set are kept).
+ * {@code EDGE} props on {@code DEPENDS_ON} ({@code edge.*}). Edge filters reduce {@code DEPENDS_ON}
+ * only here; {@link com.enterprise.itmapping.feature.graph.application.GraphService} then drops
+ * applications not incident to a surviving edge when any edge filter is active.
  */
 @Repository
 public class GraphLoader {

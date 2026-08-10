@@ -1,5 +1,7 @@
 package com.enterprise.itmapping.feature.auth.security;
 
+import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
+
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -39,15 +41,22 @@ public class SecurityConfig {
       HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
     http.csrf(AbstractHttpConfigurer::disable)
         .cors(c -> c.configurationSource(corsConfigurationSource()))
-        .sessionManagement(
-            s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers(HttpMethod.POST, "/auth/login")
+                auth.requestMatchers(antMatcher(HttpMethod.POST, "/auth/login"))
                     .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/health", "/health/**")
+                    .requestMatchers(antMatcher(HttpMethod.POST, "/webhooks/github"))
                     .permitAll()
-                    .requestMatchers("/actuator/health", "/actuator/health/**")
+                    .requestMatchers(antMatcher("/error"))
+                    .permitAll()
+                    .requestMatchers(antMatcher(HttpMethod.GET, "/health"))
+                    .permitAll()
+                    .requestMatchers(antMatcher(HttpMethod.GET, "/health/**"))
+                    .permitAll()
+                    .requestMatchers(antMatcher("/actuator/health"))
+                    .permitAll()
+                    .requestMatchers(antMatcher("/actuator/health/**"))
                     .permitAll()
                     .anyRequest()
                     .authenticated())
@@ -65,7 +74,14 @@ public class SecurityConfig {
             .toList();
     cfg.setAllowedOrigins(origins);
     cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-    cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+    cfg.setAllowedHeaders(
+        List.of(
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "X-Hub-Signature-256",
+            "X-GitHub-Event",
+            "X-GitHub-Delivery"));
     cfg.setAllowCredentials(true);
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", cfg);
