@@ -27,7 +27,13 @@ import { AppGraphNode } from './AppGraphNode';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { OrientedEdge } from './OrientedEdge';
 import { SandboxIconNode } from './SandboxIconNode';
-import type { SandboxDocument, SandboxIcon } from '../utils/sandboxDocuments';
+import {
+  sandboxFilterVisibleIds,
+  sandboxIconLabel,
+  type SandboxDocument,
+  type SandboxIcon,
+} from '../utils/sandboxDocuments';
+import { SandboxIconGlyph } from './SandboxIconGlyph';
 
 type Props = {
   doc: SandboxDocument;
@@ -42,6 +48,11 @@ type Props = {
   onClose: () => void;
   onRename: (name: string) => void;
   onDuplicate: () => void;
+  onNewSandbox: () => void;
+  onAddNode: () => void;
+  onAddEdge: () => void;
+  recentIcons: string[];
+  onPickRecentIcon: (iconKey: string) => void;
   onNodeDisplayLabel: (nodeId: string, label: string) => void;
   onEdgeDisplayLabel: (edgeId: string, label: string) => void;
   onIconMove: (iconId: string, x: number, y: number) => void;
@@ -83,6 +94,11 @@ function SandboxPaneInner({
   onClose,
   onRename,
   onDuplicate,
+  onNewSandbox,
+  onAddNode,
+  onAddEdge,
+  recentIcons,
+  onPickRecentIcon,
   onNodeDisplayLabel,
   onEdgeDisplayLabel,
   onIconMove,
@@ -115,11 +131,15 @@ function SandboxPaneInner({
 
   const hiddenIds = doc.hiddenNodeIds ?? [];
   const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
+  const filterVisibleIds = useMemo(() => sandboxFilterVisibleIds(doc), [doc]);
 
   const appNodes = useMemo(
     () =>
       doc.nodes
-        .filter((n) => !hiddenSet.has(n.id))
+        .filter(
+          (n) =>
+            !hiddenSet.has(n.id) && (!filterVisibleIds || filterVisibleIds.has(n.id))
+        )
         .map((n) => ({
           ...n,
           data: {
@@ -130,12 +150,25 @@ function SandboxPaneInner({
               n.data.nodeType === 'Application' ? () => onHideNode(n.id) : undefined,
           },
         })),
-    [doc.nodes, doc.nodeLabelOverrides, hiddenSet, onNodeDisplayLabel, onHideNode]
+    [
+      doc.nodes,
+      doc.nodeLabelOverrides,
+      hiddenSet,
+      filterVisibleIds,
+      onNodeDisplayLabel,
+      onHideNode,
+    ]
   );
   const appEdges = useMemo(
     () =>
       doc.edges
-        .filter((e) => !hiddenSet.has(e.source) && !hiddenSet.has(e.target))
+        .filter(
+          (e) =>
+            !hiddenSet.has(e.source) &&
+            !hiddenSet.has(e.target) &&
+            (!filterVisibleIds ||
+              (filterVisibleIds.has(e.source) && filterVisibleIds.has(e.target)))
+        )
         .map((e) => {
           const override = doc.edgeLabelOverrides[e.id];
           const text =
@@ -151,7 +184,7 @@ function SandboxPaneInner({
             },
           };
         }),
-    [doc.edges, doc.edgeLabelOverrides, hiddenSet, onEdgeDisplayLabel]
+    [doc.edges, doc.edgeLabelOverrides, hiddenSet, filterVisibleIds, onEdgeDisplayLabel]
   );
 
   const hiddenOptions = useMemo(
@@ -340,8 +373,89 @@ function SandboxPaneInner({
               onDuplicate();
             }}
           >
-            Open new sandbox with same content
+            Duplicate
           </button>
+          <button
+            type="button"
+            className="sandbox-pane__ctx-item"
+            onClick={() => {
+              setCtxMenu(null);
+              setTitleDraft(doc.name);
+              setEditingTitle(true);
+            }}
+          >
+            Rename
+          </button>
+          <button
+            type="button"
+            className="sandbox-pane__ctx-item"
+            onClick={() => {
+              setCtxMenu(null);
+              onSave();
+            }}
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            className="sandbox-pane__ctx-item"
+            onClick={() => {
+              setCtxMenu(null);
+              onClose();
+            }}
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            className="sandbox-pane__ctx-item"
+            onClick={() => {
+              setCtxMenu(null);
+              onNewSandbox();
+            }}
+          >
+            New sandbox
+          </button>
+          <div className="sandbox-pane__ctx-sep" role="separator" />
+          <button
+            type="button"
+            className="sandbox-pane__ctx-item"
+            onClick={() => {
+              setCtxMenu(null);
+              onAddNode();
+            }}
+          >
+            Add node
+          </button>
+          <button
+            type="button"
+            className="sandbox-pane__ctx-item"
+            onClick={() => {
+              setCtxMenu(null);
+              onAddEdge();
+            }}
+          >
+            Add edge
+          </button>
+          {recentIcons.length > 0 ? (
+            <>
+              <div className="sandbox-pane__ctx-sep" role="separator" />
+              {recentIcons.map((iconKey) => (
+                <button
+                  key={iconKey}
+                  type="button"
+                  className="sandbox-pane__ctx-item sandbox-pane__ctx-item--icon"
+                  onClick={() => {
+                    setCtxMenu(null);
+                    onPickRecentIcon(iconKey);
+                  }}
+                >
+                  <SandboxIconGlyph iconKey={iconKey} />
+                  <span>{sandboxIconLabel(iconKey)}</span>
+                </button>
+              ))}
+            </>
+          ) : null}
         </div>
       ) : null}
       <div className="sandbox-pane__canvas">

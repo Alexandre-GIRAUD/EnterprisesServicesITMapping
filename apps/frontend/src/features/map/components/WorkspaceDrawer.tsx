@@ -17,6 +17,8 @@ import {
 import { SANDBOX_ICON_PALETTE } from '../utils/sandboxDocuments';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 
+type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-icons';
+
 type WorkspaceDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -30,9 +32,10 @@ type WorkspaceDrawerProps = {
   onPickIcon?: (iconKey: string, sticky: boolean) => void;
   /** Clear cursor placement when leaving Icons via ✓. */
   onClearIconPlacement?: () => void;
+  /** Open a toolkit form from outside (e.g. sandbox pane context menu). */
+  requestedView?: Extract<DrawerView, 'add-node-form' | 'add-edge-form'> | null;
+  onRequestedViewConsumed?: () => void;
 };
-
-type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-icons';
 
 type AddNodeFormState = {
   name: string;
@@ -99,6 +102,8 @@ export function WorkspaceDrawer({
   onEdgeCreated,
   onPickIcon,
   onClearIconPlacement,
+  requestedView = null,
+  onRequestedViewConsumed,
 }: WorkspaceDrawerProps) {
   const [iconQuery, setIconQuery] = useState('');
   const iconClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -176,6 +181,13 @@ export function WorkspaceDrawer({
     setLocalError(null);
     setFeedbackMessage(null);
   }
+
+  useEffect(() => {
+    if (!requestedView) return;
+    if (requestedView === 'add-node-form') openAddNodeForm();
+    else openAddEdgeForm();
+    onRequestedViewConsumed?.();
+  }, [requestedView, onRequestedViewConsumed]);
 
   const filteredIcons = useMemo(() => {
     const q = iconQuery.trim().toLowerCase();

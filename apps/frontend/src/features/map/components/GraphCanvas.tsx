@@ -50,6 +50,10 @@ import { SandboxIconGlyph } from './SandboxIconGlyph';
 import { SandboxPane } from './SandboxPane';
 import {
   MAX_OPEN_SANDBOXES,
+  EMPTY_SANDBOX_FILTERS,
+  loadRecentSandboxIcons,
+  pushRecentSandboxIcon,
+  sandboxFiltersActive,
   sandboxLayoutClass,
   type SandboxDocument,
 } from '../utils/sandboxDocuments';
@@ -124,6 +128,12 @@ export function GraphCanvas() {
     sticky: boolean;
   } | null>(null);
   const [iconGhostPos, setIconGhostPos] = useState({ x: 0, y: 0 });
+  const [recentSandboxIcons, setRecentSandboxIcons] = useState<string[]>(() =>
+    loadRecentSandboxIcons()
+  );
+  const [toolkitRequest, setToolkitRequest] = useState<
+    'add-node-form' | 'add-edge-form' | null
+  >(null);
   const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
@@ -226,10 +236,26 @@ export function GraphCanvas() {
     nodeAttributes,
     nodeRefs,
     edgeAttributes,
-    filtersActive,
+    filtersActive: productionFiltersActive,
     applyGraphFilters,
     currentGraphFilters,
   } = filters;
+
+  const activeSandboxFilters =
+    sandboxes.activeDoc?.filters ?? EMPTY_SANDBOX_FILTERS;
+  const filtersActive = isSandbox
+    ? sandboxFiltersActive(activeSandboxFilters)
+    : productionFiltersActive;
+
+  const openToolkitForm = useCallback((view: 'add-node-form' | 'add-edge-form') => {
+    setIsSideMenuOpen(true);
+    setActiveSideMenuTool('actions');
+    setToolkitRequest(view);
+  }, []);
+
+  const rememberSandboxIcon = useCallback((iconKey: string) => {
+    setRecentSandboxIcons(pushRecentSandboxIcon(iconKey));
+  }, []);
 
   const hiddenNodeIdsForLegend = useMemo(
     () => new Set(hiddenIdsSnapshot),
@@ -241,7 +267,7 @@ export function GraphCanvas() {
     nodeAttributes,
     nodeRefs,
     edgeAttributes,
-    filtersActive,
+    filtersActive: productionFiltersActive,
     graphReloadNonce,
     hiddenNodeIds: hiddenNodeIdsForLegend,
     graphModeRef,
@@ -1223,16 +1249,24 @@ export function GraphCanvas() {
       case 'filters':
         return (
           <FilterDrawer
-            key={`filters-${graphMode}`}
+            key={
+              isSandbox
+                ? `filters-sandbox-${sandboxes.activeDoc?.id ?? 'none'}`
+                : `filters-${graphMode}`
+            }
             variant="embedded"
             isOpen
             onClose={noopClose}
             applications={applications}
             nodeFilters={nodeFilters}
-            initialApplicationIds={applicationIds}
-            initialNodeAttributes={nodeAttributes}
-            initialNodeRefs={nodeRefs}
-            initialEdgeAttributes={edgeAttributes}
+            initialApplicationIds={
+              isSandbox ? activeSandboxFilters.applicationIds : applicationIds
+            }
+            initialNodeAttributes={
+              isSandbox ? activeSandboxFilters.nodeAttributes : nodeAttributes
+            }
+            initialNodeRefs={isSandbox ? activeSandboxFilters.nodeRefs : nodeRefs}
+            initialEdgeAttributes={isSandbox ? {} : edgeAttributes}
             onApply={({
               applicationIds: appIds,
               nodeAttributes: attrs,
@@ -1240,8 +1274,17 @@ export function GraphCanvas() {
               edgeAttributes: edgeAttrs,
             }) => {
               if (isSandbox) {
-                mode.setSandboxDirty(false);
-                setPendingSandboxFilterHint(true);
+                const id = sandboxes.activeId ?? sandboxes.activeDoc?.id;
+                if (!id) return;
+                sandboxes.patchDoc(id, {
+                  filters: {
+                    applicationIds: appIds,
+                    nodeAttributes: attrs,
+                    nodeRefs: refs,
+                  },
+                  dirty: true,
+                });
+                return;
               }
               filters.setApplicationIds(appIds);
               filters.setNodeAttributes(attrs);
@@ -1269,10 +1312,13 @@ export function GraphCanvas() {
                 setSandboxToast('Open a sandbox to place an icon.');
                 return;
               }
+              rememberSandboxIcon(iconKey);
               setIconGhostPos({ x: 0, y: 0 });
               setIconPlacement({ iconKey, sticky });
             }}
             onClearIconPlacement={() => setIconPlacement(null)}
+            requestedView={toolkitRequest}
+            onRequestedViewConsumed={() => setToolkitRequest(null)}
           />
         );
       case 'sandboxes':
@@ -1319,8 +1365,8 @@ export function GraphCanvas() {
     nodeAttributes,
     nodeRefs,
     edgeAttributes,
+    activeSandboxFilters,
     isSandbox,
-    mode,
     filters,
     graphAppsForDrawer,
     onNodeCreatedHandler,
@@ -1330,6 +1376,8 @@ export function GraphCanvas() {
     sandboxes,
     sandboxSeed,
     status,
+    rememberSandboxIcon,
+    toolkitRequest,
   ]);
 
   return (
@@ -1436,6 +1484,25 @@ export function GraphCanvas() {
                         setSandboxToast('Close at least one sandbox before opening another.');
                       }
                     }}
+                    onNewSandbox={() => {
+                      if (sandboxes.openDocs.length >= MAX_OPEN_SANDBOXES) {
+                        setSandboxToast('Close at least one sandbox before opening another.');
+                        return;
+                      }
+                      const id = sandboxes.openNew(sandboxSeed());
+                      if (!id) {
+                        setSandboxToast('Close at least one sandbox before opening another.');
+                      }
+                    }}
+                    onAddNode={() => openToolkitForm('add-node-form')}
+                    onAddEdge={() => openToolkitForm('add-edge-form')}
+                    recentIcons={recentSandboxIcons}
+                    onPickRecentIcon={(iconKey) => {
+                      sandboxes.setActiveId(doc.id);
+                      rememberSandboxIcon(iconKey);
+                      setIconGhostPos({ x: 0, y: 0 });
+                      setIconPlacement({ iconKey, sticky: false });
+                    }}
                     onNodeDisplayLabel={(nodeId, label) => {
                       sandboxes.patchDoc(doc.id, (d) => ({
                         ...d,
@@ -1469,6 +1536,7 @@ export function GraphCanvas() {
                       if (!iconPlacement) return;
                       sandboxes.addIcon(doc.id, iconPlacement.iconKey, x, y);
                       sandboxes.setActiveId(doc.id);
+                      rememberSandboxIcon(iconPlacement.iconKey);
                       setSandboxToast('Icon added');
                       if (!iconPlacement.sticky) setIconPlacement(null);
                     }}

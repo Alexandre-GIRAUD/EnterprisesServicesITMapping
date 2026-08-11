@@ -4,6 +4,7 @@ import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import type { AppNode } from './useGraphData';
 import {
   MAX_OPEN_SANDBOXES,
+  EMPTY_SANDBOX_FILTERS,
   cloneIntoSandboxDocument,
   cloneSandboxDocument,
   createSandboxIconId,
@@ -62,7 +63,10 @@ export function useSandboxes() {
     const n = openDocs.length + 1;
     const last = openDocs[openDocs.length - 1];
     const doc = last
-      ? cloneSandboxDocument(last, `Sandbox ${n}`)
+      ? {
+          ...cloneSandboxDocument(last, `Sandbox ${n}`),
+          filters: { ...EMPTY_SANDBOX_FILTERS },
+        }
       : cloneIntoSandboxDocument(
           `Sandbox ${n}`,
           seed.graphNodes,

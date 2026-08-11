@@ -3317,6 +3317,22 @@ body {
   background: #f1f5f9;
 }
 
+.sandbox-pane__ctx-sep {
+  height: 1px;
+  margin: 0.2rem 0.35rem;
+  background: #e2e8f0;
+}
+
+.sandbox-pane__ctx-item--icon {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sandbox-pane__ctx-item--icon .sandbox-icon-glyph {
+  flex: 0 0 auto;
+}
+
 .graph-node-card__label.is-editable {
   cursor: text;
 }
@@ -3545,6 +3561,24 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.sandbox-manage-load-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sandbox-manage-load-row .graph-drawer-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.sandbox-manage-load-btn {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  padding-inline: 0.55rem;
 }
 
 .sandbox-layout-picker {

@@ -5,6 +5,90 @@ import type { OrientedEdgeType } from '../components/OrientedEdge';
 
 export const MAX_OPEN_SANDBOXES = 4;
 export const SANDBOX_SAVED_STORAGE_KEY = 'flowra.sandbox.savedDocuments';
+export const SANDBOX_RECENT_ICONS_KEY = 'flowra.sandbox.recentIcons';
+export const MAX_RECENT_SANDBOX_ICONS = 5;
+
+export type SandboxDocFilters = {
+  applicationIds: string[];
+  nodeAttributes: Record<string, string[]>;
+  nodeRefs: Record<string, string[]>;
+};
+
+export const EMPTY_SANDBOX_FILTERS: SandboxDocFilters = {
+  applicationIds: [],
+  nodeAttributes: {},
+  nodeRefs: {},
+};
+
+export function sandboxFiltersActive(filters?: SandboxDocFilters | null): boolean {
+  if (!filters) return false;
+  return (
+    filters.applicationIds.length > 0 ||
+    Object.keys(filters.nodeAttributes).length > 0 ||
+    Object.keys(filters.nodeRefs).length > 0
+  );
+}
+
+/** Client-side match for per-sandbox filters (same AND/OR idea as API GraphFilters). */
+export function graphNodeMatchesSandboxFilters(
+  node: GraphNodeDto,
+  filters: SandboxDocFilters
+): boolean {
+  if (
+    filters.applicationIds.length > 0 &&
+    node.type === 'Application' &&
+    !filters.applicationIds.includes(node.id)
+  ) {
+    return false;
+  }
+  for (const [key, values] of Object.entries(filters.nodeAttributes)) {
+    if (!values.length) continue;
+    const v = node.properties?.[key];
+    if (v === undefined || !values.includes(v)) return false;
+  }
+  for (const [key, values] of Object.entries(filters.nodeRefs)) {
+    if (!values.length) continue;
+    const v = node.properties?.[key];
+    if (v === undefined || !values.includes(v)) return false;
+  }
+  return true;
+}
+
+export function sandboxFilterVisibleIds(doc: {
+  graphNodes: GraphNodeDto[];
+  filters?: SandboxDocFilters;
+}): Set<string> | null {
+  const filters = doc.filters ?? EMPTY_SANDBOX_FILTERS;
+  if (!sandboxFiltersActive(filters)) return null;
+  return new Set(
+    doc.graphNodes.filter((n) => graphNodeMatchesSandboxFilters(n, filters)).map((n) => n.id)
+  );
+}
+
+export function loadRecentSandboxIcons(): string[] {
+  try {
+    const raw = localStorage.getItem(SANDBOX_RECENT_ICONS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((k): k is string => typeof k === 'string').slice(0, MAX_RECENT_SANDBOX_ICONS);
+  } catch {
+    return [];
+  }
+}
+
+export function pushRecentSandboxIcon(iconKey: string): string[] {
+  const next = [iconKey, ...loadRecentSandboxIcons().filter((k) => k !== iconKey)].slice(
+    0,
+    MAX_RECENT_SANDBOX_ICONS
+  );
+  try {
+    localStorage.setItem(SANDBOX_RECENT_ICONS_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+  return next;
+}
 
 export type SandboxLayoutMode =
   | 'horizontal'
@@ -53,6 +137,8 @@ export type SandboxDocument = {
   edgeLabelOverrides: Record<string, string>;
   /** Local-only collapsed apps (same idea as Production hide). */
   hiddenNodeIds: string[];
+  /** Per-sandbox Filters menu state (display-only; not Production). */
+  filters: SandboxDocFilters;
 };
 
 export type SavedSandboxMeta = {
@@ -463,6 +549,7 @@ export function cloneIntoSandboxDocument(
     nodeLabelOverrides: {},
     edgeLabelOverrides: {},
     hiddenNodeIds: [],
+    filters: { ...EMPTY_SANDBOX_FILTERS },
   };
 }
 
@@ -475,6 +562,7 @@ export function cloneSandboxDocument(source: SandboxDocument, name: string): San
     name,
     dirty: true,
     hiddenNodeIds: copy.hiddenNodeIds ?? [],
+    filters: copy.filters ?? { ...EMPTY_SANDBOX_FILTERS },
   };
 }
 
@@ -486,6 +574,7 @@ export function normalizeSandboxDocument(doc: SandboxDocument): SandboxDocument 
     nodeLabelOverrides: doc.nodeLabelOverrides ?? {},
     edgeLabelOverrides: doc.edgeLabelOverrides ?? {},
     hiddenNodeIds: doc.hiddenNodeIds ?? [],
+    filters: doc.filters ?? { ...EMPTY_SANDBOX_FILTERS },
   };
 }
 

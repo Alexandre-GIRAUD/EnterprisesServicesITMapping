@@ -136,33 +136,35 @@ export function SandboxesPanel({
         >
           <span className="graph-drawer-action-title">Save</span>
         </button>
-        <button
-          type="button"
-          className="graph-drawer-action"
-          disabled={!selectedSavedId}
-          onClick={() => selectedSavedId && onLoadSandbox(selectedSavedId)}
-        >
-          <span className="graph-drawer-action-title">Load</span>
-        </button>
       </div>
 
       {savedSandboxes.length === 0 ? (
         <p className="graph-drawer-search-state">No saved sandboxes.</p>
       ) : (
         <>
-          <select
-            className="graph-drawer-input"
-            value={selectedSavedId}
-            onChange={(e) => setSelectedSavedId(e.target.value)}
-            aria-label="Saved sandboxes"
-          >
-            <option value="">Saved sandboxes…</option>
-            {savedSandboxes.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+          <div className="sandbox-manage-load-row">
+            <select
+              className="graph-drawer-input"
+              value={selectedSavedId}
+              onChange={(e) => setSelectedSavedId(e.target.value)}
+              aria-label="Saved sandboxes"
+            >
+              <option value="">Saved sandboxes…</option>
+              {savedSandboxes.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="graph-drawer-action sandbox-manage-load-btn"
+              disabled={!selectedSavedId}
+              onClick={() => selectedSavedId && onLoadSandbox(selectedSavedId)}
+            >
+              <span className="graph-drawer-action-title">Load</span>
+            </button>
+          </div>
           {selectedSavedId ? (
             <button
               type="button"
