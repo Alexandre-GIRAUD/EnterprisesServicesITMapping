@@ -3134,6 +3134,712 @@ body {
     inset 0 3px 0 rgb(245 158 11 / 35%);
 }
 
+/* ===== Multi-sandbox board ===== */
+.sandbox-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.sandbox-board {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.45rem;
+}
+
+.sandbox-board--single {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.sandbox-board--horizontal {
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.sandbox-board--vertical {
+  grid-auto-flow: row;
+  grid-auto-rows: 1fr;
+  grid-template-columns: 1fr;
+}
+
+.sandbox-board--square.sandbox-board--n2 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+.sandbox-board--square.sandbox-board--n3,
+.sandbox-board--square.sandbox-board--n4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.sandbox-board--main-side.sandbox-board--n2 {
+  grid-template-columns: 1.6fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+.sandbox-board--main-side.sandbox-board--n3 {
+  grid-template-columns: 1.6fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.sandbox-board--main-side.sandbox-board--n3 > :first-child {
+  grid-row: 1 / span 2;
+}
+
+.sandbox-board--main-side.sandbox-board--n4 {
+  grid-template-columns: 1.5fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+}
+
+.sandbox-board--main-side.sandbox-board--n4 > :first-child {
+  grid-row: 1 / span 3;
+}
+
+.sandbox-board--top-row.sandbox-board--n3 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1.15fr 1fr;
+}
+
+.sandbox-board--top-row.sandbox-board--n3 > :first-child {
+  grid-column: 1 / span 2;
+}
+
+.sandbox-board--top-row.sandbox-board--n4 {
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1.15fr 1fr;
+}
+
+.sandbox-board--top-row.sandbox-board--n4 > :first-child {
+  grid-column: 1 / span 3;
+}
+
+.sandbox-pane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.sandbox-pane.is-active {
+  border-color: var(--ss-accent-border, #fbbf24);
+  box-shadow: 0 0 0 1px var(--ss-accent-border, #fbbf24);
+}
+
+.sandbox-pane__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.28rem 0.45rem;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sandbox-pane__title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: text;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sandbox-pane__title-input {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #334155;
+  flex: 1;
+  min-width: 0;
+  padding: 0.05rem 0.25rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.sandbox-pane__toast {
+  position: absolute;
+  top: 2.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  max-width: min(90%, 18rem);
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  background: rgb(15 23 42 / 88%);
+  color: #f8fafc;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 18%);
+}
+
+.sandbox-pane__ctx {
+  position: fixed;
+  z-index: 40;
+  min-width: 12rem;
+  padding: 0.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
+}
+
+.sandbox-pane__ctx-item {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: 0.75rem;
+  color: #334155;
+  padding: 0.4rem 0.55rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.sandbox-pane__ctx-item:hover {
+  background: #f1f5f9;
+}
+
+.sandbox-pane__ctx-sep {
+  height: 1px;
+  margin: 0.2rem 0.35rem;
+  background: #e2e8f0;
+}
+
+.sandbox-pane__ctx-item--icon {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sandbox-pane__ctx-item--icon .sandbox-icon-glyph {
+  flex: 0 0 auto;
+}
+
+.graph-node-card__label.is-editable {
+  cursor: text;
+}
+
+.sandbox-pane__close {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.1rem 0.35rem;
+}
+
+.sandbox-pane__close:hover {
+  color: #b45309;
+}
+
+.sandbox-pane__canvas {
+  flex: 1;
+  min-height: 0;
+}
+
+.sandbox-pane__save {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ss-accent-text, #b45309);
+  background: #ffffff;
+  border: 1px solid var(--ss-accent-border, #fbbf24);
+  border-radius: 999px;
+  width: 1.75rem;
+  height: 1.75rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--ss-accent-shadow, rgb(245 158 11 / 12%));
+}
+
+.sandbox-pane__save:hover {
+  background: var(--ss-accent-surface, #fffbeb);
+}
+
+.sandbox-shared-legend {
+  position: absolute;
+  top: 0.65rem;
+  left: 0.65rem;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.sandbox-shared-legend .graph-legend {
+  pointer-events: auto;
+  max-height: min(70vh, 28rem);
+  overflow: auto;
+}
+
+.sandbox-icon-node {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* Placed icons: same visual height as flag glyphs (21px). */
+.sandbox-icon-node .sandbox-icon-glyph {
+  width: auto;
+  max-width: 32px;
+  height: 21px;
+  font-size: 21px;
+  line-height: 1;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.sandbox-icon-node .sandbox-icon-glyph--flag {
+  width: auto;
+  height: 21px;
+  object-fit: contain;
+  object-position: center;
+}
+
+.sandbox-icon-node .sandbox-icon-glyph--currency,
+.sandbox-icon-node .sandbox-icon-glyph--it {
+  height: 21px;
+  max-height: 21px;
+  font-size: 15px;
+  letter-spacing: -0.06em;
+  overflow: visible;
+  line-height: 1;
+}
+
+.sandbox-icon-node .sandbox-icon-glyph--combo {
+  width: 21px;
+  height: 21px;
+}
+
+.sandbox-icon-node .sandbox-icon-glyph__man {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.sandbox-icon-node .sandbox-icon-glyph__dot {
+  right: 0;
+  bottom: 0;
+  font-size: 0.4rem;
+}
+
+.sandbox-icon-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: 1.25rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.sandbox-icon-glyph--combo {
+  position: relative;
+  width: 28px;
+  height: 28px;
+}
+
+.sandbox-icon-glyph__man {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.sandbox-icon-glyph__dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+.sandbox-icon-glyph--flag {
+  width: 28px;
+  height: 21px;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgb(15 23 42 / 12%);
+}
+
+.sandbox-icon-node__delete {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.graph-legend__swatch--icon {
+  width: auto;
+  min-width: 1.1rem;
+  border: none;
+  background: transparent;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.graph-legend__swatch--icon .sandbox-icon-glyph {
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 0.95rem;
+}
+
+.graph-legend__swatch--icon .sandbox-icon-glyph__dot {
+  font-size: 0.45rem;
+}
+
+.graph-node-card__label-input,
+.oriented-edge-label--input {
+  font: inherit;
+  font-size: 0.7rem;
+  width: 6.5rem;
+  padding: 0.1rem 0.25rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.oriented-edge-label.is-empty {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+.oriented-edge-label.is-editable {
+  cursor: text;
+}
+
+.graph-drawer-sandbox-tools,
+.graph-drawer-sandbox-manage {
+  margin-top: 0.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.sandbox-manage-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.sandbox-manage-top .graph-drawer-search-state {
+  margin: 0;
+}
+
+.sandbox-manage-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sandbox-manage-load-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sandbox-manage-load-row .graph-drawer-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.sandbox-manage-load-btn {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  padding-inline: 0.55rem;
+}
+
+.sandbox-layout-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  justify-content: flex-end;
+}
+
+.sandbox-layout-picker__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 1.85rem;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.sandbox-layout-picker__btn:hover {
+  border-color: #94a3b8;
+  color: #334155;
+}
+
+.sandbox-layout-picker__btn.is-active {
+  border-color: var(--ss-accent-border, #fbbf24);
+  color: #0f172a;
+  box-shadow: 0 0 0 1px var(--ss-accent-border, #fbbf24);
+}
+
+.graph-drawer-saved-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.graph-drawer-saved-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.graph-drawer-saved-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.graph-drawer-saved-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-drawer-icon-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.graph-drawer-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+  margin-bottom: 0.2rem;
+  max-height: min(50vh, 18rem);
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.sandbox-icon-ghost {
+  position: fixed;
+  z-index: 80;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  margin: 0;
+  padding: 0;
+  /* Cursor tip = exact center of the 32×32 icon box (matches placed node). */
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 1px 2px rgb(15 23 42 / 20%));
+}
+
+.sandbox-icon-ghost .sandbox-icon-glyph {
+  width: auto;
+  max-width: 32px;
+  height: 21px;
+  font-size: 21px;
+}
+
+.sandbox-icon-ghost .sandbox-icon-glyph--flag {
+  width: auto;
+  height: 21px;
+  object-fit: contain;
+  object-position: center;
+  box-shadow: none;
+}
+
+.sandbox-icon-ghost .sandbox-icon-glyph--currency,
+.sandbox-icon-ghost .sandbox-icon-glyph--it {
+  height: 21px;
+  font-size: 15px;
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+.sandbox-icon-ghost .sandbox-icon-glyph--combo {
+  width: 21px;
+  height: 21px;
+}
+
+.sandbox-icon-ghost .sandbox-icon-glyph__man {
+  font-size: 18px;
+}
+
+.sandbox-icon-ghost .sandbox-icon-glyph__dot {
+  right: 0;
+  bottom: 0;
+  font-size: 0.4rem;
+}
+
+.sandbox-pane.is-placing-icon,
+.sandbox-stage.is-placing-icon,
+.sandbox-stage.is-placing-icon * {
+  cursor: none !important;
+}
+
+.graph-drawer-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.4rem;
+  padding: 0.4rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* Palette only: same glyph visual height, no crop. */
+.graph-drawer-icon-btn .sandbox-icon-glyph {
+  width: auto;
+  max-width: 100%;
+  height: 1.25rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.graph-drawer-icon-btn .sandbox-icon-glyph--flag {
+  width: auto;
+  max-width: 100%;
+  height: 1.25rem;
+  object-fit: contain;
+  object-position: center;
+  box-shadow: none;
+}
+
+.graph-drawer-icon-btn .sandbox-icon-glyph--currency,
+.graph-drawer-icon-btn .sandbox-icon-glyph--it {
+  height: 1.25rem;
+  font-size: 0.55rem;
+  max-width: 100%;
+  max-height: 1.25rem;
+  letter-spacing: -0.05em;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.graph-drawer-icon-btn .sandbox-icon-glyph--combo {
+  width: 1.25rem;
+  height: 1.25rem;
+  position: relative;
+}
+
+.graph-drawer-icon-btn .sandbox-icon-glyph__man {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.graph-drawer-icon-btn .sandbox-icon-glyph__dot {
+  right: 0;
+  bottom: 0;
+  font-size: 0.45rem;
+}
+
+.graph-drawer-title-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.graph-drawer-title-row--icons {
+  align-items: flex-start;
+}
+
+.graph-drawer-title-row--icons .graph-drawer-icons-done {
+  margin-left: auto;
+}
+
+/* Bigger tick on the right, aligned with Icons title line. */
+.graph-drawer-icons-done {
+  width: 2.35rem;
+  height: 2.35rem;
+  min-width: 2.35rem;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  line-height: 1;
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+
+.graph-legend__swatch--icon .sandbox-icon-glyph--flag {
+  width: 1.35rem;
+  height: 1rem;
+}
+
+.sandbox-icon-glyph--currency,
+.sandbox-icon-glyph--it {
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  text-align: center;
+  max-width: 100%;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  padding: 0 1px;
+  box-sizing: border-box;
+}
+
+.graph-legend__swatch--icon .sandbox-icon-glyph--currency,
+.graph-legend__swatch--icon .sandbox-icon-glyph--it {
+  font-size: 0.48rem;
+}
+
+.graph-drawer-icon-btn:hover {
+  border-color: var(--ss-accent-border, #fbbf24);
+  background: var(--ss-accent-surface, #fffbeb);
+}
+
 /* ===== Graph mode tabs (Excel / Sheets style) ===== */
 .graph-mode-tabs-bar {
   display: flex;
@@ -3617,6 +4323,10 @@ body {
 .graph-legend__label {
   font-size: 0.72rem;
   color: #334155;
+}
+
+.graph-legend__label.is-editable {
+  cursor: text;
 }
 
 .graph-legend__swatch {

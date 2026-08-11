@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { SandboxIconGlyph } from './SandboxIconGlyph';
 import {
   EDGE_TYPE_STYLES,
   NODE_TYPE_STYLES,
@@ -50,6 +51,9 @@ type Props = {
   onApplyLegendSetup?: (setup: LegendSetup) => void;
   onDeleteLegendSetup?: (id: string) => void;
   showIndirectFlow?: boolean;
+  /** Sandbox icons shown in a shared legend section. */
+  sandboxIcons?: Array<{ id: string; iconKey: string; legendLabel: string }>;
+  onSandboxIconLabelChange?: (id: string, label: string) => void;
 };
 
 function nodeValueLabel(propertyKey: string, value: string): string {
@@ -150,6 +154,8 @@ export function GraphLegend({
   onApplyLegendSetup,
   onDeleteLegendSetup,
   showIndirectFlow = false,
+  sandboxIcons = [],
+  onSandboxIconLabelChange,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [setupName, setSetupName] = useState('');
@@ -162,7 +168,8 @@ export function GraphLegend({
 
   const canEdit =
     showCoding ||
-    Boolean(onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup);
+    Boolean(onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup) ||
+    Boolean(onSandboxIconLabelChange && sandboxIcons.length > 0);
 
   const colorChange = isEditing ? onValueColorChange : undefined;
 
@@ -599,6 +606,86 @@ export function GraphLegend({
           {flowsItems.length > 0 && <ul className="graph-legend__list">{flowsItems}</ul>}
         </div>
       )}
+
+      {sandboxIcons.length > 0 && (
+        <div className="graph-legend__group">
+          <p className="graph-legend__title">Icons</p>
+          <ul className="graph-legend__list">
+            {sandboxIcons.map((icon) => (
+              <LegendEditableLabel
+                key={icon.id}
+                iconKey={icon.iconKey}
+                label={icon.legendLabel}
+                onChange={
+                  onSandboxIconLabelChange
+                    ? (next) => onSandboxIconLabelChange(icon.id, next)
+                    : undefined
+                }
+              />
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
+  );
+}
+
+/** Double-click to edit a legend label (display-only; Icons / sandbox). */
+function LegendEditableLabel({
+  iconKey,
+  label,
+  onChange,
+}: {
+  iconKey: string;
+  label: string;
+  onChange?: (label: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(label);
+
+  useEffect(() => {
+    if (!editing) setDraft(label);
+  }, [label, editing]);
+
+  return (
+    <li className="graph-legend__item">
+      <span className="graph-legend__swatch graph-legend__swatch--icon">
+        <SandboxIconGlyph iconKey={iconKey} />
+      </span>
+      {editing && onChange ? (
+        <input
+          className="graph-legend__input"
+          value={draft}
+          autoFocus
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => {
+            setEditing(false);
+            const next = draft.trim();
+            if (next && next !== label) onChange(next);
+            else setDraft(label);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            if (e.key === 'Escape') {
+              setEditing(false);
+              setDraft(label);
+            }
+          }}
+          aria-label={`Legend label for icon ${iconKey}`}
+        />
+      ) : (
+        <span
+          className={`graph-legend__label${onChange ? ' is-editable' : ''}`}
+          title={onChange ? 'Double-click to edit' : label}
+          onDoubleClick={() => {
+            if (!onChange) return;
+            setDraft(label);
+            setEditing(true);
+          }}
+        >
+          {label}
+        </span>
+      )}
+    </li>
   );
 }

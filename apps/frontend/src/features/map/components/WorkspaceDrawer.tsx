@@ -1,4 +1,11 @@
-import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useState } from 'react';
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ApplicationResponse, GraphEdgeCreateResponse } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
 import { useCreateApplicationNode } from '../hooks/useCreateApplicationNode';
@@ -7,6 +14,10 @@ import {
   buildSandboxApplicationResponse,
   buildSandboxEdgeResponse,
 } from '../utils/sandboxGraph';
+import { SANDBOX_ICON_PALETTE } from '../utils/sandboxDocuments';
+import { SandboxIconGlyph } from './SandboxIconGlyph';
+
+type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-icons';
 
 type WorkspaceDrawerProps = {
   isOpen: boolean;
@@ -17,9 +28,14 @@ type WorkspaceDrawerProps = {
   extraApplications?: ApplicationResponse[];
   onNodeCreated?: (application: ApplicationResponse) => void;
   onEdgeCreated?: (edge: GraphEdgeCreateResponse) => string | null;
+  /** Pick an icon for cursor placement (sticky = multi-drop until cancel). */
+  onPickIcon?: (iconKey: string, sticky: boolean) => void;
+  /** Clear cursor placement when leaving Icons via ✓. */
+  onClearIconPlacement?: () => void;
+  /** Open a toolkit form from outside (e.g. sandbox pane context menu). */
+  requestedView?: Extract<DrawerView, 'add-node-form' | 'add-edge-form'> | null;
+  onRequestedViewConsumed?: () => void;
 };
-
-type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form';
 
 type AddNodeFormState = {
   name: string;
@@ -57,9 +73,9 @@ const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
 ];
 
 const TOOLKIT_ACTIONS: DrawerActionItem[] = [
-  { id: 'add-node', label: 'Add node' },
-  { id: 'add-edge', label: 'Add edge' },
-  { id: 'add-icons', label: 'Add icons' },
+  { id: 'add-node', label: 'Nodes' },
+  { id: 'add-edge', label: 'Edges' },
+  { id: 'add-icons', label: 'Icons' },
 ];
 
 function actionHandler(
@@ -67,10 +83,12 @@ function actionHandler(
   handlers: {
     openAddNodeForm: () => void;
     openAddEdgeForm: () => void;
+    openAddIcons: () => void;
   }
 ): (() => void) | undefined {
   if (id === 'add-node') return handlers.openAddNodeForm;
   if (id === 'add-edge') return handlers.openAddEdgeForm;
+  if (id === 'add-icons') return handlers.openAddIcons;
   return undefined;
 }
 
@@ -82,7 +100,13 @@ export function WorkspaceDrawer({
   extraApplications = [],
   onNodeCreated,
   onEdgeCreated,
+  onPickIcon,
+  onClearIconPlacement,
+  requestedView = null,
+  onRequestedViewConsumed,
 }: WorkspaceDrawerProps) {
+  const [iconQuery, setIconQuery] = useState('');
+  const iconClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [view, setView] = useState<DrawerView>('menu');
   const [nodeFormState, setNodeFormState] = useState<AddNodeFormState>(DEFAULT_FORM_STATE);
   const [edgeFormState, setEdgeFormState] = useState<AddEdgeFormState>(DEFAULT_EDGE_FORM_STATE);
@@ -149,6 +173,57 @@ export function WorkspaceDrawer({
     setView('add-edge-form');
     setLocalError(null);
     setFeedbackMessage(null);
+  }
+
+  function openAddIcons() {
+    setView('add-icons');
+    setIconQuery('');
+    setLocalError(null);
+    setFeedbackMessage(null);
+  }
+
+  useEffect(() => {
+    if (!requestedView) return;
+    if (requestedView === 'add-node-form') openAddNodeForm();
+    else openAddEdgeForm();
+    onRequestedViewConsumed?.();
+  }, [requestedView, onRequestedViewConsumed]);
+
+  const filteredIcons = useMemo(() => {
+    const q = iconQuery.trim().toLowerCase();
+    if (!q) return SANDBOX_ICON_PALETTE;
+    return SANDBOX_ICON_PALETTE.filter((icon) => {
+      const hay = `${icon.key} ${icon.label} ${icon.keywords ?? ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [iconQuery]);
+
+  function pickIcon(iconKey: string, sticky: boolean) {
+    onPickIcon?.(iconKey, sticky);
+  }
+
+  function doneIcons() {
+    onClearIconPlacement?.();
+    setView('menu');
+    setIconQuery('');
+    setLocalError(null);
+    setFeedbackMessage(null);
+  }
+
+  function onIconButtonClick(iconKey: string) {
+    if (iconClickTimerRef.current) clearTimeout(iconClickTimerRef.current);
+    iconClickTimerRef.current = setTimeout(() => {
+      iconClickTimerRef.current = null;
+      pickIcon(iconKey, false);
+    }, 280);
+  }
+
+  function onIconButtonDoubleClick(iconKey: string) {
+    if (iconClickTimerRef.current) {
+      clearTimeout(iconClickTimerRef.current);
+      iconClickTimerRef.current = null;
+    }
+    pickIcon(iconKey, true);
   }
 
   function closeDrawer() {
@@ -320,10 +395,14 @@ export function WorkspaceDrawer({
     event.preventDefault();
     const sourceId = selectedSourceApp?.id;
     const targetId = selectedTargetApp?.id;
-    const type = edgeFormState.type.trim();
+    const type = sandboxMode ? 'DEPENDS_ON' : edgeFormState.type.trim();
 
-    if (!sourceId || !targetId || !type) {
-      setLocalError('Source application, target application, and type are required.');
+    if (!sourceId || !targetId || (!sandboxMode && !type)) {
+      setLocalError(
+        sandboxMode
+          ? 'Source application and target application are required.'
+          : 'Source application, target application, and type are required.'
+      );
       return;
     }
     if (sourceId === targetId) {
@@ -333,7 +412,12 @@ export function WorkspaceDrawer({
 
     let created: GraphEdgeCreateResponse | null;
     if (sandboxMode) {
-      created = buildSandboxEdgeResponse({ sourceId, targetId, type });
+      // Relation type kept for rendering; visible label starts empty (no DEPENDS_ON).
+      created = buildSandboxEdgeResponse({
+        sourceId,
+        targetId,
+        type: type || 'DEPENDS_ON',
+      });
     } else {
       created = await createEdge({ sourceId, targetId, type });
     }
@@ -371,21 +455,40 @@ export function WorkspaceDrawer({
       {showMenuHeader ? (
         <header className="graph-drawer-header">
           <p className="graph-drawer-eyebrow">{sandboxMode ? 'Toolkit' : 'Corrections'}</p>
-          <div className="graph-drawer-title-row">
+          <div
+            className={`graph-drawer-title-row${view === 'add-icons' ? ' graph-drawer-title-row--icons' : ''}`}
+          >
             {view !== 'menu' ? (
-              <div>
+              <div className="graph-drawer-title-block">
                 <h2 className="graph-drawer-title">
-                  {view === 'add-node-form' ? 'Create Node' : 'Create Edge'}
+                  {view === 'add-node-form'
+                    ? 'Create Node'
+                    : view === 'add-icons'
+                      ? 'Icons'
+                      : 'Create Edge'}
                 </h2>
                 <p className="graph-drawer-description">
                   {view === 'add-node-form'
                     ? 'Create an Application node (name, description). Business attributes are edited from the node details.'
-                    : 'Create a typed relationship between two nodes already visible in the graph.'}
+                    : view === 'add-icons'
+                      ? 'Click to place once. Double-click to place many.'
+                      : 'Create a typed relationship between two nodes already visible in the graph.'}
                 </p>
               </div>
             ) : (
               <div className="graph-drawer-title-spacer" aria-hidden="true" />
             )}
+            {view === 'add-icons' ? (
+              <button
+                type="button"
+                className="graph-legend__toggle graph-drawer-icons-done"
+                aria-label="Done"
+                title="Done"
+                onClick={doneIcons}
+              >
+                ✓
+              </button>
+            ) : null}
             {!isEmbedded ? (
               <button
                 type="button"
@@ -407,25 +510,59 @@ export function WorkspaceDrawer({
       )}
 
       {view === 'menu' ? (
-        <div className="graph-drawer-actions" role="list">
-          {(sandboxMode ? TOOLKIT_ACTIONS : CORRECTIONS_ACTIONS).map((action) => {
-            const onClick = actionHandler(action.id, {
-              openAddNodeForm,
-              openAddEdgeForm,
-            });
-            return (
-              <button
-                key={action.id}
-                type="button"
-                className="graph-drawer-action"
-                role="listitem"
-                onClick={onClick}
-              >
-                <span className="graph-drawer-action-title">{action.label}</span>
-                <span className="graph-drawer-action-meta">Open</span>
-              </button>
-            );
-          })}
+        <>
+          <div className="graph-drawer-actions" role="list">
+            {(sandboxMode ? TOOLKIT_ACTIONS : CORRECTIONS_ACTIONS).map((action) => {
+              const onClick = actionHandler(action.id, {
+                openAddNodeForm,
+                openAddEdgeForm,
+                openAddIcons,
+              });
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  className="graph-drawer-action"
+                  role="listitem"
+                  onClick={onClick}
+                  disabled={!onClick}
+                >
+                  <span className="graph-drawer-action-title">{action.label}</span>
+                  <span className="graph-drawer-action-meta">Open</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      ) : view === 'add-icons' ? (
+        <div className="graph-drawer-icon-palette">
+          <input
+            className="graph-drawer-input"
+            type="search"
+            value={iconQuery}
+            onChange={(e) => setIconQuery(e.target.value)}
+            placeholder="Search icons…"
+            aria-label="Search icons"
+          />
+          {filteredIcons.length === 0 ? (
+            <p className="graph-drawer-search-state">No icons match.</p>
+          ) : (
+            <div className="graph-drawer-icon-grid">
+              {filteredIcons.map((icon) => (
+                <button
+                  key={`${icon.key}-${icon.label}`}
+                  type="button"
+                  className="graph-drawer-icon-btn"
+                  title={icon.label}
+                  aria-label={icon.label}
+                  onClick={() => onIconButtonClick(icon.key)}
+                  onDoubleClick={() => onIconButtonDoubleClick(icon.key)}
+                >
+                  <SandboxIconGlyph iconKey={icon.key} />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       ) : view === 'add-node-form' ? (
         <form className="graph-drawer-form" onSubmit={onSubmitNode}>
@@ -587,17 +724,19 @@ export function WorkspaceDrawer({
             )}
           </label>
 
-          <label className="graph-drawer-field">
-            <span className="graph-drawer-field-label">type</span>
-            <input
-              className="graph-drawer-input"
-              type="text"
-              value={edgeFormState.type}
-              onChange={(e) => updateEdgeField('type', e.target.value)}
-              required
-              placeholder="DEPENDS_ON"
-            />
-          </label>
+          {!sandboxMode && (
+            <label className="graph-drawer-field">
+              <span className="graph-drawer-field-label">type</span>
+              <input
+                className="graph-drawer-input"
+                type="text"
+                value={edgeFormState.type}
+                onChange={(e) => updateEdgeField('type', e.target.value)}
+                required
+                placeholder="DEPENDS_ON"
+              />
+            </label>
+          )}
 
           <div className="graph-drawer-form-actions">
             <button

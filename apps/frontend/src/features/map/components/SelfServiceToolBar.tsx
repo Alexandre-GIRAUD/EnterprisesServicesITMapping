@@ -1,6 +1,6 @@
 import type { GraphMode } from './GraphModeTabs';
 
-export type SideMenuTool = 'changes' | 'search' | 'filters' | 'actions';
+export type SideMenuTool = 'changes' | 'search' | 'filters' | 'actions' | 'sandboxes';
 
 type SelfServiceToolBarProps = {
   graphMode: GraphMode;
@@ -70,6 +70,17 @@ function ActionsIcon() {
         strokeWidth="1.35"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function SandboxesIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+      <rect x="2.5" y="2.5" width="6.5" height="6.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="11" y="2.5" width="6.5" height="6.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="2.5" y="11" width="6.5" height="6.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="11" y="11" width="6.5" height="6.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
     </svg>
   );
 }
@@ -149,6 +160,19 @@ export function SelfServiceToolBar({
       >
         <ActionsIcon />
       </button>
+      {graphMode === 'sandbox' ? (
+        <button
+          type="button"
+          role="tab"
+          className={`self-service-tool-bar-btn${activeTool === 'sandboxes' ? ' is-active' : ''}`}
+          aria-selected={activeTool === 'sandboxes'}
+          aria-label="My sandboxes"
+          title="My sandboxes"
+          onClick={() => onChange('sandboxes')}
+        >
+          <SandboxesIcon />
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -46,6 +46,7 @@ const TOOL_DETAIL_TITLES: Record<SideMenuTool, string> = {
   search: 'Search applications',
   filters: 'Filters',
   actions: 'Corrections',
+  sandboxes: 'My sandboxes',
 };
 
 export function SelfServiceBurger({ isOpen, onToggle }: SelfServiceBurgerProps) {
