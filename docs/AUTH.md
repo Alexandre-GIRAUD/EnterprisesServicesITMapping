@@ -24,7 +24,16 @@ Si la table n’est pas vide, ces variables sont ignorées.
 
 ## CORS
 
-Variable `APP_CORS_ALLOWED_ORIGINS` : origines séparées par des virgules (ex. `http://localhost:3000,http://localhost:5173`).
+Variable `APP_CORS_ALLOWED_ORIGINS` : origines navigateur séparées par des virgules (schéma + hôte + port, **sans** slash final).
+
+| Contexte | Exemple |
+|----------|---------|
+| Dev local | `http://localhost:5173,http://localhost:3000` (défaut du backend hors Docker) |
+| Docker / VPS | `*` (défaut Compose) ou `http://IP:3000,https://mondomaine.fr` |
+
+`Invalid CORS request` (403) au login signifie que `Origin` du navigateur n’est pas dans cette liste. Même si nginx proxifie `/api` (même site), Spring lit l’en-tête `Origin` (`http://IP:3000`, `https://domaine`, etc.) et refuse tout ce qui n’est pas listé. `localhost` ne couvre pas l’IP ni le nom de domaine du VPS.
+
+Le joker `*` est accepté (patterns Spring) : l’API renvoie l’origine réelle, pas `*`.
 
 ## Docker Compose
 

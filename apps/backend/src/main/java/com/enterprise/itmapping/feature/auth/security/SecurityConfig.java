@@ -72,7 +72,9 @@ public class SecurityConfig {
             .map(String::trim)
             .filter(s -> !s.isEmpty())
             .toList();
-    cfg.setAllowedOrigins(origins);
+    // Patterns (not exact origins) so "*" and VPS hosts work with credentials.
+    // Spring reflects the request Origin instead of sending Access-Control-Allow-Origin: *.
+    cfg.setAllowedOriginPatterns(origins.isEmpty() ? List.of("*") : origins);
     cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     cfg.setAllowedHeaders(
         List.of(
