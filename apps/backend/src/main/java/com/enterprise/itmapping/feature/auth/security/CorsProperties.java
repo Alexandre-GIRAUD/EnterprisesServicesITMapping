@@ -5,5 +5,5 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 
 @ConfigurationProperties(prefix = "app.cors")
 public record CorsProperties(
-    /** Comma-separated browser origins allowed for CORS (SPA dev servers). */
+    /** Comma-separated browser origins (or * / patterns) allowed for CORS. */
     @DefaultValue("http://localhost:5173,http://localhost:3000") String allowedOrigins) {}
