@@ -1,15 +1,17 @@
 import type { ApplicationResponse, GraphEdgeCreateResponse } from '@/types/api';
 
+import { createClientUuid } from './clientId';
+
 export function isSandboxId(id: string): boolean {
   return id.startsWith('sandbox-');
 }
 
 export function createSandboxApplicationId(): string {
-  return `sandbox-app-${crypto.randomUUID()}`;
+  return `sandbox-app-${createClientUuid()}`;
 }
 
 export function createSandboxEdgeId(): string {
-  return `sandbox-edge-${crypto.randomUUID()}`;
+  return `sandbox-edge-${createClientUuid()}`;
 }
 
 export function buildSandboxApplicationResponse(input: {

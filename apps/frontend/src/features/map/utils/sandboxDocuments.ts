@@ -2,6 +2,7 @@ import type { Edge } from '@xyflow/react';
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import type { AppNode } from '../hooks/useGraphData';
 import type { OrientedEdgeType } from '../components/OrientedEdge';
+import { createClientUuid } from './clientId';
 
 export const MAX_OPEN_SANDBOXES = 4;
 export const SANDBOX_SAVED_STORAGE_KEY = 'flowra.sandbox.savedDocuments';
@@ -518,11 +519,11 @@ export function sandboxIconLabel(iconKey: string): string {
 }
 
 export function createSandboxDocumentId(): string {
-  return `sandbox-doc-${crypto.randomUUID()}`;
+  return `sandbox-doc-${createClientUuid()}`;
 }
 
 export function createSandboxIconId(): string {
-  return `sandbox-icon-${crypto.randomUUID()}`;
+  return `sandbox-icon-${createClientUuid()}`;
 }
 
 function cloneJson<T>(value: T): T {
