@@ -1,0 +1,3 @@
+interface:
+  display_name: "Security Secrets Scan"
+  short_description: "Hard gate: scan diffs for secrets and real data"

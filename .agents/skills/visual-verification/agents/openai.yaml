@@ -1,0 +1,3 @@
+interface:
+  display_name: "Visual Verification"
+  short_description: "Screenshot UI vs spec; pass/fail with images"

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Dead Code Check"
+  short_description: "Hard gate: unused code before PR"

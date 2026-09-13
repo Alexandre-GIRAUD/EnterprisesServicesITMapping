@@ -1,0 +1,3 @@
+interface:
+  display_name: "Open PR"
+  short_description: "Rebase, retest, gate, open PR — never merge"
