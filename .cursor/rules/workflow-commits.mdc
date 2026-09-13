@@ -1,0 +1,68 @@
+---
+description: Granular auto-commits per feature and per change for easy revert
+alwaysApply: true
+---
+
+# Workflow checkpoint commits
+
+On this repo, commits must be **granular** so the human can revert one feature or one logical change without undoing unrelated work. Do **not** wait for an explicit "please commit" for these checkpoints.
+
+**Minimum:** one commit per feature (or per bug fix).  
+**Prefer:** one commit per logical change (and per green workflow step below).  
+**Never:** one mega-commit that mixes several features or unrelated changes.
+
+## Multiple features in one request
+
+If the user asks for several features at once:
+
+1. Split into separate features (each with its own slug / spec / branch slice when practical).
+2. Finish and **fully checkpoint-commit** feature A before starting feature B.
+3. Never stage files from feature B into feature A's commits (and vice versa).
+4. If a shared prerequisite is needed (e.g. one domain ADR), commit that prerequisite alone first, then each feature on top.
+
+## Granularity inside one feature
+
+Prefer many small commits over one large one. Commit when any of these lands:
+
+- a single coherent behaviour slice (one user story, one seam, one module interface)
+- tests for that slice (failing then passing can be two commits: `test` then `feat`/`fix`)
+- a pure refactor with no behaviour change (`refactor:`)
+- a gate step that changed files (secrets fix, dead-code removal, visual-verification assets)
+
+Do not bundle "tests + implementation + lint cleanup + unrelated rename" in one commit if they can be separated cleanly.
+
+## When to commit (AGENTS.md steps)
+
+After each of these steps succeeds (green / done criteria met), commit before starting the next step:
+
+### Feature workflow
+1. **to-spec** — published spec exists
+2. **tdd** — failing tests exist for the right reason
+3. **implement-spec** — tests pass and match the spec; also commit each meaningful mid-implementation slice (not only at the end)
+4. **security-secrets-scan** — result `clean` (after that scan's commit range is settled)
+5. **visual-verification** — `pass` (or explicit non-UI skip recorded)
+6. **code-review** — blocking findings resolved
+7. **dead-code-check** — `clean`
+8. Before **open-pr** — working tree clean except what belongs in the PR
+
+### Bug fix workflow
+1. **diagnosing-bugs** — root cause identified (commit notes/docs only if any files changed; skip empty commit)
+2. **Regression test** — failing test reproduces the bug
+3. **Fix** — regression test passes
+4. **security-secrets-scan** — `clean`
+5. **code-review** — clear
+6. **dead-code-check** — `clean`
+
+Skip a commit only when that step produced **no file changes**. Never create an empty commit.
+
+## How to commit
+
+- Follow Conventional Commits + body (see `dev-standards`).
+- Subject names the **feature/scope and the change**, e.g. `test(auth): add failing cases for login lockout` or `feat(auth): implement lockout per spec`.
+- Body: what changed, why, feature slug if multi-feature batch, and which AGENTS.md step (if any).
+- Stage only files that belong to **that one change** (no secrets, no other feature, no unrelated junk).
+- Run any configured pre-commit hooks; if they fail, fix and make a **new** commit (do not `--no-verify`).
+
+## Scope vs other rules
+
+For these workflow checkpoints and per-change commits on AGENTS.md work, this rule **authorizes commits without asking**. For anything outside the AGENTS.md feature/bug paths (one-off experiments, drive-by edits), still ask before committing.
