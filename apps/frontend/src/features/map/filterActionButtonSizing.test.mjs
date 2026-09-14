@@ -42,6 +42,10 @@ test('compact action buttons share equal width and height sizing', () => {
     declares(body, 'box-sizing', 'border-box'),
     'equal boxes require border-box so padding does not break height equality'
   );
+  assert.ok(
+    declares(body, 'min-width', '0'),
+    'min-width:0 allows flex to equalize past content-sized minima'
+  );
 });
 
 test('pin variant does not override action-row width or horizontal padding', () => {

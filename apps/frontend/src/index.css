@@ -2482,15 +2482,17 @@ body {
   display: flex;
   justify-content: flex-end;
   align-items: stretch;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.35rem;
   flex-shrink: 0;
+  width: 100%;
   margin: 0 0 0.45rem;
 }
 
 .graph-filter-compact-actions .graph-filter-compact-btn {
   flex: 1 1 0;
   box-sizing: border-box;
+  min-width: 0;
   min-height: 2rem;
   text-align: center;
   white-space: nowrap;
