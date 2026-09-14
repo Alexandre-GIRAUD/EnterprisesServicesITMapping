@@ -1515,10 +1515,6 @@ body {
   border-color: var(--ss-views-accent);
   background: var(--ss-views-accent);
   color: #ffffff;
-  min-width: 7.25rem;
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
-  white-space: nowrap;
 }
 
 .map-graph-panel .graph-filter-compact-btn--pin:not(:disabled):hover {
@@ -1529,13 +1525,6 @@ body {
 
 .map-graph-panel .graph-filter-compact-btn--pin:focus-visible {
   outline-color: var(--ss-views-focus);
-}
-
-.map-graph-panel .graph-filter-compact-btn--pin:disabled {
-  min-width: 7.25rem;
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
-  white-space: nowrap;
 }
 
 .map-graph-panel .graph-filter-status.is-active {
@@ -2492,11 +2481,19 @@ body {
 .graph-filter-compact-actions {
   display: flex;
   justify-content: flex-end;
-  align-items: center;
+  align-items: stretch;
   flex-wrap: wrap;
   gap: 0.35rem;
   flex-shrink: 0;
   margin: 0 0 0.45rem;
+}
+
+.graph-filter-compact-actions .graph-filter-compact-btn {
+  flex: 1 1 0;
+  box-sizing: border-box;
+  min-height: 2rem;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .graph-filter-compact-btn {
