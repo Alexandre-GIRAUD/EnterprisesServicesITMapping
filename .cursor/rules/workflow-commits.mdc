@@ -43,7 +43,8 @@ After each of these steps succeeds (green / done criteria met), commit before st
 5. **visual-verification** — `pass` (or explicit non-UI skip recorded)
 6. **code-review** — blocking findings resolved
 7. **dead-code-check** — `clean`
-8. Before **open-pr** — working tree clean except what belongs in the PR
+8. **ponytail** — simplifications applied (skip the commit if it suggested no file changes)
+9. Before **open-pr** — working tree clean except what belongs in the PR
 
 ### Bug fix workflow
 1. **diagnosing-bugs** — root cause identified (commit notes/docs only if any files changed; skip empty commit)

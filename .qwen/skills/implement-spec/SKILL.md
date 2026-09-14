@@ -14,6 +14,18 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 **Implementer subagents** should be run in the background where possible for **maximum concurrency**.
 
+## Commits
+
+Commit after each meaningful unit of work — do not wait until the ticket or the whole spec is done. A unit is done and must be committed when any of these is true:
+
+- a test that was failing is now passing
+- a function or behaviour slice is implemented and its tests pass
+- a ticket's work has been integrated onto the feature branch
+
+**Done when:** that slice is a Conventional Commit with both a concise subject and a body (see `.cursor/rules/dev-standards.mdc`), staging only files that belong to that slice (see `.cursor/rules/workflow-commits.mdc`). Skip only when the slice produced no file changes.
+
+Implementer subagents follow the same commit rule on their worktree branches so history stays granular after integration.
+
 ## Steps
 
 1. Read the spec and tickets. Read enough to understand the task graph.
@@ -22,13 +34,13 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 3. Create a feature branch for the spec (not `main` / `master`). Stay on that branch for the rest of this skill.
 
-4. Use **implementer subagents** to implement each ticket. Each implementer subagent should work in its own worktree, on its own branch.
+4. Use **implementer subagents** to implement each ticket. Each implementer subagent should work in its own worktree, on its own branch, and commit after each passing test and each function implemented (see Commits above).
 
-5. Once an **implementer subagent** completes, integrate its work onto the feature branch with an **integrator subagent** (local git only: cherry-pick or merge the worktree branch into the feature branch). This is not a GitHub/GitLab pull request.
+5. Once an **implementer subagent** completes, integrate its work onto the feature branch with an **integrator subagent** (local git only: cherry-pick or merge the worktree branch into the feature branch). This is not a GitHub/GitLab pull request. If integration produced a distinct slice not already committed, commit it.
 
 6. If this changes the **frontier** of available tickets, kick off more **implementer subagents** to work on the new tickets. This allows for maximum concurrency.
 
-7. Once all tickets are complete, run the project's full test suite on the feature branch. Fix failures with a single **implementer subagent** until the tests pass.
+7. Once all tickets are complete, run the project's full test suite on the feature branch. Fix failures with a single **implementer subagent** until the tests pass, committing each fix slice (see Commits above).
 
 8. Clean up all **implementer subagent** worktrees.
 

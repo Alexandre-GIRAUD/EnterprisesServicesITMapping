@@ -72,22 +72,31 @@ Must return `clean`. See `.agents/skills/dead-code-check/`.
 
 If any check in steps 5–8 fails: go back to step 4, fix, and re-run the failed checks.
 
-- **Maximum 3 total attempts** (the first run counts as attempt 1).
+- **Maximum 3 total attempts** (the first run counts as attempt 1). This same budget covers the post-ponytail re-run of dead-code-check and code-review in step 10.
 - If still failing after 3 attempts: **STOP** and escalate to the human developer with a summary of what failed and why — do not attempt a 4th cycle.
 
 **Done when:** steps 5–8 all pass within 3 attempts, or the human has been escalated to.
 
-### 10. open-pr
+### 10. ponytail
+
+After steps 7 and 8 have passed, run `.agents/skills/ponytail/` on the newly written code and look for refactor / simplification opportunities (YAGNI, stdlib, fewer files, shorter working diff).
+
+- If ponytail finds nothing to change: proceed to open-pr.
+- If ponytail suggests changes: apply them, then re-run **dead-code-check** and **code-review** once. That re-run counts toward the max-3-attempts limit in step 9. If those gates fail, go back to step 4 (fix) and the step-9 loop; do not skip to open-pr.
+
+**Done when:** ponytail has run, and either no changes were needed or the post-ponytail dead-code-check and code-review passed (within the retry limit).
+
+### 11. open-pr
 
 Once all checks pass, run `.agents/skills/open-pr/`: rebase on main, retest, final secrets scan, PR description (including the published spec path from step 2), open PR.
 
 **Done when:** the PR URL is returned to the human.
 
-### 11. Stop after opening the PR
+### 12. Stop after opening the PR
 
 The agent stops after opening the PR. Merging into main is always done manually by a human — the agent must never merge.
 
-### 12. After merge (human)
+### 13. After merge (human)
 
 After the human merges, the agent may run `.agents/skills/resolving-merge-conflicts/` if needed, then delete the feature branch.
 
@@ -158,4 +167,5 @@ Same rules as the feature workflow: run `.agents/skills/open-pr/` (rebase, retes
 | UI | `visual-verification` | when UI | if UI affected | `pass` (or non-UI skip) |
 | Review | `code-review` | yes | yes | standards + readability clear; spec when applicable |
 | Dead code | `dead-code-check` | yes | yes | `clean` |
+| Simplify | `ponytail` | yes (after 7–8 pass) | no | ran; if it changed code, dead-code-check + code-review re-run passed |
 | Ship | `open-pr` | yes | yes | opens PR; never merges |

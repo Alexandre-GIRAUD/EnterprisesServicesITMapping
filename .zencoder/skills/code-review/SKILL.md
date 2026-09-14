@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: "Review the changes since a fixed point (commit, branch, tag, or merge-base) along three axes: Standards (does the code follow this repo's documented coding standards?), Spec (does the code match what the originating issue/spec asked for?), and Readability (does the code follow .cursor/rules/code-readability.mdc: naming, function size, nesting, magic values, empty error handling?). Runs the three reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to \"review since X\"."
+description: "Review the changes since a fixed point (commit, branch, tag, or merge-base) along three axes: Standards (does the code follow this repo's documented coding standards?), Spec (does the code match what the originating issue/spec asked for?), and Readability (does the code follow .cursor/rules/code-readability.mdc: naming, function size, nesting, magic values, empty error handling?). Launches the three reviews as concurrent sub-agents in one turn and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to \"review since X\"."
 ---
 
 Three-axis review of the diff between `HEAD` and a fixed point the user supplies:
@@ -9,7 +9,7 @@ Three-axis review of the diff between `HEAD` and a fixed point the user supplies
 - **Spec**: does the code faithfully implement the originating issue / spec?
 - **Readability**: does the code follow `.cursor/rules/code-readability.mdc`?
 
-All three axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
+All three axes launch as **concurrent sub-agent calls in a single turn** so they don't pollute each other's context and don't run one-after-another. After every launched sub-agent has returned, this skill aggregates their findings into one report.
 
 The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-matt-pocock-skills`.
 
@@ -70,7 +70,13 @@ This axis flags **hard violations** of that file, focused on:
 
 Cite the rule from `code-readability.mdc` for each finding.
 
-### 5. Spawn all three sub-agents in parallel
+### 5. Launch all three sub-agents in the same turn
+
+After steps 1–4, launch the Standards, Spec, and Readability sub-agents as **concurrent sub-agent calls in a single turn** (multiple sub-agent tool calls in one message). Do not run them sequentially: do not wait for one axis to finish before launching the next.
+
+If the spec is missing, launch Standards and Readability concurrently in that same turn and note Spec as skipped in the final report.
+
+Wait until **every launched sub-agent has returned**. Only then go to Aggregate.
 
 **Standards sub-agent prompt** should include:
 
@@ -83,8 +89,6 @@ Cite the rule from `code-readability.mdc` for each finding.
 - The diff command and commit list.
 - The path or fetched contents of the spec.
 - The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
-
-If the spec is missing, skip the Spec sub-agent and note this in the final report.
 
 **Readability sub-agent prompt** should include:
 
