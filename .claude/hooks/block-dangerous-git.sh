@@ -56,16 +56,17 @@ if echo "$NORMALIZED" | grep -qE 'git[[:space:]]+clean[[:space:]]+.*-f'; then
   block "git clean -f is forbidden."
 fi
 
-# Discard working tree wholesale
-if echo "$NORMALIZED" | grep -qE 'git[[:space:]]+checkout[[:space:]]+\.|git[[:space:]]+restore[[:space:]]+\.'; then
+# Discard working tree wholesale (optional "--" before ".")
+if echo "$NORMALIZED" | grep -qE 'git[[:space:]]+(checkout|restore)[[:space:]]+(--[[:space:]]+)?\.'; then
   block "Discarding the whole working tree (checkout/restore .) is forbidden."
 fi
 
 # Branch deletion of main/master only — feature-branch -D allowed for open-pr post-merge cleanup
+# "/" is a valid preceding character so origin/main and origin/master are caught too
 if echo "$NORMALIZED" | grep -qE 'git[[:space:]]+branch[[:space:]]+(-D|-d|--delete)'; then
-  if echo "$NORMALIZED" | grep -qE '(^|[[:space:]])(-D|-d|--delete)([=[:space:]]+)(main|master)([[:space:]]|$)|(^|[[:space:]])(main|master)([[:space:]]|$)'; then
+  if echo "$NORMALIZED" | grep -qE '(^|[[:space:]])(-D|-d|--delete)([=[:space:]/]+)(main|master)([[:space:]]|$)|(^|[[:space:]/])(main|master)([[:space:]]|$)'; then
     # Safer: if main or master appears as an operand after delete flags
-    if echo "$NORMALIZED" | grep -qE 'branch[[:space:]]+(-D|-d|--delete)([=[:space:]]|.*[[:space:]])(main|master)([[:space:]]|$)'; then
+    if echo "$NORMALIZED" | grep -qE 'branch[[:space:]]+(-D|-d|--delete)([=[:space:]/]|.*[[:space:]/])(main|master)([[:space:]]|$)'; then
       block "Deleting the main/master branch is forbidden."
     fi
   fi

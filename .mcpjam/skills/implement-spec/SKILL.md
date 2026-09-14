@@ -1,12 +1,12 @@
 ---
 name: implement-spec
-description: "Implement a specification in code."
+description: "Implement a specification in code until tests pass. Opening and merging a PR is not this skill — that is open-pr, gated by a human."
 disable-model-invocation: true
 ---
 
 You have been provided a spec. This spec should have tickets associated with it, describing how to implement the spec.
 
-The goal is a PR which implements the entire spec on a single branch.
+The goal is a complete implementation of the spec on a single feature branch, with tests passing. **Done when:** the new tests pass and the change matches the published spec. Creating a pull request is the `open-pr` skill, after later workflow gates. Merging a pull request is always a manual human action.
 
 The tickets are not a list of steps. They are a **task graph** with blocking relationships between them. This means there is always a **frontier** of tickets which are ready to be grabbed.
 
@@ -20,16 +20,20 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 2. (optional) Use an **exploration subagent** to conduct any exploration required by the tickets - relevant codebase files or external documentation. Ensure the exploration subagent can save files - it should save its markdown notes in a directory outside the repo, accessible by all future subagents. This lets **implementer subagents** focus on implementation rather than exploration.
 
-3. Create a branch, and a draft PR. The PR should be marked as 'closing' the spec issue and tickets.
+3. Create a feature branch for the spec (not `main` / `master`). Stay on that branch for the rest of this skill.
 
 4. Use **implementer subagents** to implement each ticket. Each implementer subagent should work in its own worktree, on its own branch.
 
-5. Once an **implementer subagent** completes, merge its work to the PR branch with a **merger subagent**.
+5. Once an **implementer subagent** completes, integrate its work onto the feature branch with an **integrator subagent** (local git only: cherry-pick or merge the worktree branch into the feature branch). This is not a GitHub/GitLab pull request.
 
 6. If this changes the **frontier** of available tickets, kick off more **implementer subagents** to work on the new tickets. This allows for maximum concurrency.
 
-7. Once all tickets are complete, run /code-review on the PR branch. Fix all issues raised by the code review in a single **implementer subagent**.
+7. Once all tickets are complete, run the project's full test suite on the feature branch. Fix failures with a single **implementer subagent** until the tests pass.
 
-8. Mark the PR as ready for review.
+8. Clean up all **implementer subagent** worktrees.
 
-9. Clean up all **implementer subagent** worktrees.
+## Done
+
+Stop here. Hand back: feature branch name, what was implemented, and that tests pass.
+
+PR creation, PR description, and any merge of a pull request belong exclusively to `open-pr` (and a human). This skill does not create, update, mark ready, or merge a pull request.
