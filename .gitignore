@@ -77,3 +77,24 @@ AGENTS.md
 .cursor/hooks.json
 .cursor/hooks/
 "@ | Add-Content .gitignore
+
+# Removed unused marketing/writing skill mirrors (kept locally if present, never tracked)
+.agents/skills/ask-matt/
+.agents/skills/awwwards*/
+.agents/skills/brandkit-gen/
+.agents/skills/claude-handoff/
+.agents/skills/grill-with-docs/
+.agents/skills/handoff/
+.agents/skills/imagegen-frontend*/
+.agents/skills/implement/
+.agents/skills/teach/
+.agents/skills/to-questionnaire/
+.agents/skills/to-tickets/
+.agents/skills/triage/
+.agents/skills/visual-redesign/
+.agents/skills/wait-what/
+.agents/skills/wayfinder/
+.agents/skills/wizard/
+.agents/skills/writing-*/
+.scratch/
+skills-lock.json
