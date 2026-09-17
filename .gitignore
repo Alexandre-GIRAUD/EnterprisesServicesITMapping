@@ -49,3 +49,31 @@ query.cypher
 seed-app-db.cypher
 
 graphify-out/
+
+
+@"
+
+# Personal dev workflow - kept locally, not shared via clone
+.agents/skills/security-secrets-scan/
+.agents/skills/dead-code-check/
+.agents/skills/open-pr/
+.agents/skills/visual-verification/
+.agents/skills/ponytail/
+.agents/skills/grill-me/
+.agents/skills/to-spec/
+.agents/skills/domain-modeling/
+.agents/skills/tdd/
+.agents/skills/implement-spec/
+.agents/skills/code-review/
+.agents/skills/diagnosing-bugs/
+.agents/skills/resolving-merge-conflicts/
+.cursor/rules/dev-standards.mdc
+.cursor/rules/code-readability.mdc
+.cursor/rules/workflow-commits.mdc
+.cursor/rules/ponytail.mdc
+AGENTS.md
+.claude/settings.json
+.claude/hooks/
+.cursor/hooks.json
+.cursor/hooks/
+"@ | Add-Content .gitignore
