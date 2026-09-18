@@ -15,6 +15,7 @@ import { ZOOM_THRESHOLDS } from './graphTheme';
 import { buildLiveRoutes, type Point, type Rect } from './elkLayout';
 import { buildOrthogonalPath } from './orthogonalPath';
 import { computeBridges } from './bridges';
+import { notifyEdgeDetailsOpen } from '../utils/edgeDetailsSelection';
 
 export type OrientedEdgeData = {
   sourceColor: string;
@@ -31,6 +32,8 @@ export type OrientedEdgeData = {
   displayLabel?: string;
   /** When set, double-click edits the displayed label only. */
   onDisplayLabelChange?: (label: string) => void;
+  /** Open connection details drawer (edge stroke / label click). */
+  onSelect?: () => void;
   /** Raw Neo4j `r.data` key used for edge labels. */
   dataKey?: string | null;
   /** Edge property key currently driving stroke color. */
@@ -45,6 +48,8 @@ export type OrientedEdgeData = {
   hiddenNodeIds?: string[];
   /** Expand hidden applications represented by this indirect edge. */
   onExpand?: () => void;
+  /** Highlight this edge (GraphCanvas hover). */
+  hovered?: boolean;
   bendPoints?: Point[];
   routeStart?: Point;
   routeEnd?: Point;
@@ -442,6 +447,12 @@ function getLiveBundle(allEdges: Edge[], rectById: Map<string, Rect>): LiveBundl
 // Component
 // ---------------------------------------------------------------------------
 
+/** Screen-pixel hit width; divided by the zoom so it stays clickable when zoomed out. */
+const EDGE_HIT_STROKE = 24;
+
+/** Resting edge thickness in flow units. */
+const REST_STROKE = 1.75;
+
 export function OrientedEdge({
   id,
   source,
@@ -455,6 +466,7 @@ export function OrientedEdge({
   markerEnd,
   data,
   label,
+  selected,
 }: EdgeProps<OrientedEdgeType>) {
   const zoom = useStore((s) => s.transform[2]);
 
@@ -569,6 +581,7 @@ export function OrientedEdge({
     zoom >= ZOOM_THRESHOLDS.secondaryDetail;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(displayText);
+  const [localHovered, setLocalHovered] = useState(false);
 
   function commitLabel() {
     setEditing(false);
@@ -596,6 +609,26 @@ export function OrientedEdge({
     }
   }
 
+  function selectEdge() {
+    if (isIndirect) return;
+    notifyEdgeDetailsOpen(id);
+    data?.onSelect?.();
+  }
+
+  const hovered = Boolean(data?.hovered) || localHovered;
+  const isActive = !isIndirect && (hovered || Boolean(selected));
+  const zoomSafe = Math.max(zoom, 0.05);
+  // Only the emphasis widths compensate the viewport zoom (RF applies it as a CSS
+  // scale) so the highlight stays readable when zoomed out; the resting width is
+  // a plain flow-unit value that thins out with the zoom like the rest of the graph.
+  const strokeWidth =
+    hovered && !isIndirect
+      ? Math.max(REST_STROKE * 1.5, 2.5 / zoomSafe)
+      : selected && !isIndirect
+        ? Math.max(REST_STROKE * 1.35, 2 / zoomSafe)
+        : REST_STROKE;
+  const hitStroke = Math.max(32, EDGE_HIT_STROKE / zoomSafe);
+
   return (
     <>
       <defs>
@@ -617,11 +650,38 @@ export function OrientedEdge({
         markerEnd={markerEnd}
         style={{
           stroke: `url(#${gradientId})`,
-          strokeWidth: 1.75,
-          opacity: 0.95,
+          strokeWidth,
+          opacity: isActive ? 1 : 0.95,
+          filter: isActive ? `drop-shadow(0 0 6px ${sourceColor}aa)` : undefined,
           ...(data?.dashed || isIndirect ? { strokeDasharray: '6 4' } : {}),
+          transition: 'stroke-width 120ms ease, filter 120ms ease, opacity 120ms ease',
         }}
+        interactionWidth={0}
       />
+      {/*
+        Hit target ~EDGE_HIT_STROKE screen pixels: RF zoom is a CSS transform, so
+        stroke width is expressed in flow units and must be divided by the zoom.
+      */}
+      {!isIndirect ? (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={hitStroke}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="react-flow__edge-interaction oriented-edge-hit nodrag nopan"
+          style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+          onMouseEnter={() => setLocalHovered(true)}
+          onMouseLeave={() => setLocalHovered(false)}
+          onClick={(event) => {
+            if (event.button !== 0) return;
+            selectEdge();
+          }}
+        >
+          <title>Click for connection details</title>
+        </path>
+      ) : null}
       {isIndirect && (
         <EdgeLabelRenderer>
           <button
@@ -641,6 +701,28 @@ export function OrientedEdge({
           >
             +
           </button>
+        </EdgeLabelRenderer>
+      )}
+      {!isIndirect && !showLabel && (
+        <EdgeLabelRenderer>
+          <button
+            type="button"
+            className="oriented-edge-hotspot nodrag nopan"
+            aria-label="Open connection details"
+            title="Click for connection details"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px) scale(${
+                1 / Math.max(zoom, 0.05)
+              })`,
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              setLocalHovered(true);
+              selectEdge();
+            }}
+            onMouseEnter={() => setLocalHovered(true)}
+            onMouseLeave={() => setLocalHovered(false)}
+          />
         </EdgeLabelRenderer>
       )}
       {showLabel && (
@@ -665,14 +747,27 @@ export function OrientedEdge({
             <div
               className={`oriented-edge-label nodrag nopan${canEditLabel ? ' is-editable' : ''}${
                 displayText ? '' : ' is-empty'
-              }`}
+              }${data?.onSelect ? ' is-selectable' : ''}`}
               style={{
                 transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
                 color: labelColor,
                 borderColor: `${labelColor}55`,
               }}
+              onClick={(event) => {
+                event.stopPropagation();
+                setLocalHovered(true);
+                selectEdge();
+              }}
+              onMouseEnter={() => setLocalHovered(true)}
+              onMouseLeave={() => setLocalHovered(false)}
               onDoubleClick={onLabelDoubleClick}
-              title={canEditLabel ? 'Double-click to edit label' : displayText}
+              title={
+                canEditLabel
+                  ? 'Click for details · double-click to edit label'
+                  : data?.onSelect
+                    ? 'Click for details'
+                    : displayText
+              }
             >
               {displayText || (canEditLabel ? 'label' : '')}
             </div>

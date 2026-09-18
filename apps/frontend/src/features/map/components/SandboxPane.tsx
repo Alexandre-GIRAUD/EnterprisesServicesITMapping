@@ -60,6 +60,8 @@ type Props = {
   onHideNode: (nodeId: string) => void;
   onShowHidden: (ids: string[]) => void;
   onOpenDetails: (nodeId: string, label: string) => void;
+  onOpenEdgeDetails: (edgeId: string) => void;
+  onClearDetails?: () => void;
   onOpenModules: (nodeId: string, label: string) => void;
   /** When set, pane click places this icon at flow coords. */
   placingIconKey?: string | null;
@@ -106,6 +108,8 @@ function SandboxPaneInner({
   onHideNode,
   onShowHidden,
   onOpenDetails,
+  onOpenEdgeDetails,
+  onClearDetails,
   onOpenModules,
   placingIconKey,
   onPlaceIcon,
@@ -114,6 +118,7 @@ function SandboxPaneInner({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(doc.name);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const lastNodeClickRef = useRef<{ nodeId: string; time: number } | null>(null);
   const nodeClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const DOUBLE_CLICK_MS = 400;
@@ -181,10 +186,11 @@ function SandboxPaneInner({
               labelColor: e.data?.sourceColor ?? e.data?.labelColor,
               displayLabel: text,
               onDisplayLabelChange: (label: string) => onEdgeDisplayLabel(e.id, label),
+              onSelect: e.data?.indirect ? undefined : () => onOpenEdgeDetails(e.id),
             },
           };
         }),
-    [doc.edges, doc.edgeLabelOverrides, hiddenSet, filterVisibleIds, onEdgeDisplayLabel]
+    [doc.edges, doc.edgeLabelOverrides, hiddenSet, filterVisibleIds, onEdgeDisplayLabel, onOpenEdgeDetails]
   );
 
   const hiddenOptions = useMemo(
@@ -205,6 +211,20 @@ function SandboxPaneInner({
 
   const [nodes, setNodes, onNodesChangeLocal] = useNodesState(mergedNodes);
   const [edges, setEdges, onEdgesChangeLocal] = useEdgesState(appEdges);
+  const displayEdges = useMemo(
+    () =>
+      edges.map((e) => ({
+        ...e,
+        className: [e.className, hoveredEdgeId === e.id ? 'is-hovered' : undefined]
+          .filter(Boolean)
+          .join(' '),
+        data: {
+          ...e.data,
+          hovered: hoveredEdgeId === e.id && !e.data?.indirect,
+        },
+      })),
+    [edges, hoveredEdgeId]
+  );
 
   useEffect(() => {
     setNodes(mergedNodes);
@@ -262,6 +282,8 @@ function SandboxPaneInner({
 
   function handlePaneClick(event: ReactMouseEvent) {
     if (placeAtClient(event.clientX, event.clientY)) return;
+    setHoveredEdgeId(null);
+    onClearDetails?.();
   }
 
   function handleNodeClick(event: ReactMouseEvent, node: Node) {
@@ -293,6 +315,13 @@ function SandboxPaneInner({
       lastNodeClickRef.current = null;
       onOpenDetails(node.id, nodeLabel(node));
     }, 350);
+  }
+
+  function handleEdgeClick(_event: ReactMouseEvent, edge: Edge) {
+    onActivate();
+    const data = edge.data as { indirect?: boolean } | undefined;
+    if (data?.indirect) return;
+    onOpenEdgeDetails(edge.id);
   }
 
   function handleNodeDoubleClick(_event: ReactMouseEvent, node: Node) {
@@ -461,7 +490,7 @@ function SandboxPaneInner({
       <div className="sandbox-pane__canvas">
         <ReactFlow
           nodes={nodes}
-          edges={edges}
+          edges={displayEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           onNodesChange={(changes) => {
@@ -473,6 +502,9 @@ function SandboxPaneInner({
             onEdgesChange(changes);
           }}
           onNodeClick={handleNodeClick}
+          onEdgeClick={handleEdgeClick}
+          onEdgeMouseEnter={(_e, edge) => setHoveredEdgeId(edge.id)}
+          onEdgeMouseLeave={() => setHoveredEdgeId(null)}
           onNodeDoubleClick={handleNodeDoubleClick}
           onPaneClick={handlePaneClick}
           fitView
@@ -501,6 +533,8 @@ function SandboxPaneInner({
           nodesDraggable
           nodesConnectable={false}
           elementsSelectable
+          edgesFocusable
+          elevateEdgesOnSelect
           snapToGrid
           snapGrid={[GRID, GRID]}
           minZoom={0.05}

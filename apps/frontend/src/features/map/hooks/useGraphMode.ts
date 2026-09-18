@@ -6,6 +6,7 @@ type UseGraphModeParams = {
   setIsDrawerOpen: Dispatch<SetStateAction<boolean>>;
   setIsFilterDrawerOpen: Dispatch<SetStateAction<boolean>>;
   setIsDetailsDrawerOpen: Dispatch<SetStateAction<boolean>>;
+  setIsEdgeDetailsDrawerOpen?: Dispatch<SetStateAction<boolean>>;
   /** Forces a fresh graph fetch (used when returning to the normal mode). */
   reloadGraph: () => void;
 };
@@ -20,6 +21,7 @@ export function useGraphMode({
   setIsDrawerOpen,
   setIsFilterDrawerOpen,
   setIsDetailsDrawerOpen,
+  setIsEdgeDetailsDrawerOpen,
   reloadGraph,
 }: UseGraphModeParams) {
   const [graphMode, setGraphMode] = useState<GraphMode>('normal');
@@ -46,6 +48,7 @@ export function useGraphMode({
     setIsDrawerOpen(false);
     setIsFilterDrawerOpen(false);
     setIsDetailsDrawerOpen(false);
+    setIsEdgeDetailsDrawerOpen?.(false);
   }
 
   function switchToNormalMode() {

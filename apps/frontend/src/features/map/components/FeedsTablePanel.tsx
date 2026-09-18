@@ -10,7 +10,7 @@ type FeedsTablePanelProps = {
   edges: GraphEdgeDto[];
   nodes: GraphNodeDto[];
   errorMessage?: string | null;
-  onRowClick?: (sourceId: string, sourceLabel: string) => void;
+  onRowClick?: (edge: GraphEdgeDto) => void;
 };
 
 function dash(value: string | null | undefined): string {
@@ -49,6 +49,7 @@ export function FeedsTablePanel({
         const connectionKind = prop(edge, 'connection_kind');
         return {
           id: edge.id,
+          edge,
           sourceId: edge.sourceId,
           targetId: edge.targetId,
           sourceLabel: labelById.get(edge.sourceId) ?? edge.sourceId,
@@ -113,13 +114,13 @@ export function FeedsTablePanel({
                   key={row.id}
                   className={`graph-table-row${onRowClick ? '' : ' graph-table-row--static'}`}
                   tabIndex={onRowClick ? 0 : undefined}
-                  onClick={onRowClick ? () => onRowClick(row.sourceId, row.sourceLabel) : undefined}
+                  onClick={onRowClick ? () => onRowClick(row.edge) : undefined}
                   onKeyDown={
                     onRowClick
                       ? (e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            onRowClick(row.sourceId, row.sourceLabel);
+                            onRowClick(row.edge);
                           }
                         }
                       : undefined

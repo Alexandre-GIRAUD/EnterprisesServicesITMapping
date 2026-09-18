@@ -57,9 +57,16 @@ import {
   sandboxLayoutClass,
   type SandboxDocument,
 } from '../utils/sandboxDocuments';
-import type { OrientedEdgeType } from './OrientedEdge';
+import type { OrientedEdgeData, OrientedEdgeType } from './OrientedEdge';
 import { FilterDrawer } from './FilterDrawer';
 import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
+import { EdgeDetailsDrawer } from './EdgeDetailsDrawer';
+import {
+  selectedEdgeFromDto,
+  selectedEdgeFromFlowEdge,
+  type SelectedEdgeDetails,
+} from '../utils/selectedEdgeFromDto';
+import { bindEdgeDetailsOpener } from '../utils/edgeDetailsSelection';
 import { ApplicationsTablePanel } from './ApplicationsTablePanel';
 import { FeedsTablePanel } from './FeedsTablePanel';
 import { snapDraggedNodeForStraighterEdges } from './alignNodes';
@@ -136,9 +143,12 @@ export function GraphCanvas() {
   >(null);
   const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
+  const [selectedEdge, setSelectedEdge] = useState<SelectedEdgeDetails | null>(null);
+  const [isEdgeDetailsDrawerOpen, setIsEdgeDetailsDrawerOpen] = useState(false);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
   const [nodeFilters, setNodeFilters] = useState<GraphNodeFilterDto[]>([]);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   // Hover takes priority; if no hover, the pinned node keeps the highlight.
   const focusedId = hoveredId ?? pinnedId;
@@ -220,6 +230,7 @@ export function GraphCanvas() {
     setIsDrawerOpen: setWorkspacePanelOpen,
     setIsFilterDrawerOpen: setFilterPanelOpen,
     setIsDetailsDrawerOpen,
+    setIsEdgeDetailsDrawerOpen,
     reloadGraph,
   });
   const { graphMode, sandboxDirty, graphModeRef, isSandbox, isViewsMode } = mode;
@@ -487,6 +498,8 @@ export function GraphCanvas() {
         setWorkspacePanelOpen(false);
         setFilterPanelOpen(false);
         setIsDetailsDrawerOpen(false);
+        setIsEdgeDetailsDrawerOpen(false);
+        setSelectedEdge(null);
         reloadGraph();
       }
     } else if (state.graphMode === 'sandbox') {
@@ -500,6 +513,8 @@ export function GraphCanvas() {
       setWorkspacePanelOpen(false);
       setFilterPanelOpen(false);
       setIsDetailsDrawerOpen(false);
+      setIsEdgeDetailsDrawerOpen(false);
+      setSelectedEdge(null);
     }
 
     if (state.sideMenuTool) {
@@ -763,18 +778,41 @@ export function GraphCanvas() {
     }));
   }, [nodes, focus]);
 
-  const displayEdges = useMemo(() => {
-    if (!focus) return edges;
-    return edges.map((e) => ({
-      ...e,
-      className: focus.edgeIds.has(e.id) ? 'is-focus' : 'is-faded',
-    }));
-  }, [edges, focus]);
+  const labelById = useMemo(() => {
+    const map = new Map<string, string>();
+    const source = isSandbox
+      ? (sandboxes.activeDoc?.graphNodes ?? graphNodes)
+      : graphNodes;
+    for (const node of source) {
+      map.set(node.id, node.label || node.id);
+    }
+    return map;
+  }, [graphNodes, isSandbox, sandboxes.activeDoc?.graphNodes]);
+
+  const closeEdgeDetails = useCallback(() => {
+    setIsEdgeDetailsDrawerOpen(false);
+    setSelectedEdge(null);
+  }, []);
+
+  const closeApplicationDetails = useCallback(() => {
+    setIsDetailsDrawerOpen(false);
+    setSelectedApplication(null);
+  }, []);
 
   const openApplicationDetails = useCallback((id: string, label: string) => {
+    closeEdgeDetails();
     setSelectedApplication({ id, label });
     setIsDetailsDrawerOpen(true);
+  }, [closeEdgeDetails]);
+
+  const openEdgeDetails = useCallback((details: SelectedEdgeDetails) => {
+    setIsDetailsDrawerOpen(false);
+    setSelectedApplication(null);
+    setSelectedEdge(details);
+    setIsEdgeDetailsDrawerOpen(true);
   }, []);
+
+  const openEdgeByIdRef = useRef<(edgeId: string) => void>(() => undefined);
 
   const refreshApplications = useCallback(async () => {
     try {
@@ -798,16 +836,26 @@ export function GraphCanvas() {
     void refreshNodeFilters();
   }, [refreshApplications, refreshNodeFilters]);
 
-  // Escape closes the application details drawer.
+  // Escape closes the application / edge details drawers.
   useEffect(() => {
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsDetailsDrawerOpen(false);
+      if (event.key !== 'Escape') return;
+      if (isEdgeDetailsDrawerOpen) {
+        closeEdgeDetails();
+        return;
+      }
+      if (isDetailsDrawerOpen) {
+        closeApplicationDetails();
       }
     };
     window.addEventListener('keydown', onEscape);
     return () => window.removeEventListener('keydown', onEscape);
-  }, []);
+  }, [
+    closeApplicationDetails,
+    closeEdgeDetails,
+    isDetailsDrawerOpen,
+    isEdgeDetailsDrawerOpen,
+  ]);
 
   const clearPendingNodeClick = useCallback(() => {
     if (nodeClickTimeoutRef.current) {
@@ -829,11 +877,12 @@ export function GraphCanvas() {
       if (isSandboxId(applicationId)) return;
       clearPendingNodeClick();
       lastNodeClickRef.current = null;
-      setIsDetailsDrawerOpen(false);
+      closeApplicationDetails();
+      closeEdgeDetails();
       setModuleGraphApp({ id: applicationId, label: label ?? applicationId });
       setDisplayMode('graph');
     },
-    [clearPendingNodeClick]
+    [clearPendingNodeClick, closeApplicationDetails, closeEdgeDetails]
   );
 
   useEffect(() => {
@@ -888,11 +937,87 @@ export function GraphCanvas() {
     [openApplicationDetails, clearPendingNodeClick, openModuleGraph]
   );
 
+  // React Flow fires this only for clicks that land on the pane itself, so an
+  // edge or node click never reaches it.
   const handlePaneClick = useCallback(() => {
     clearPendingNodeClick();
     lastNodeClickRef.current = null;
     setPinnedId(null);
-  }, [clearPendingNodeClick]);
+    setHoveredEdgeId(null);
+    closeEdgeDetails();
+  }, [clearPendingNodeClick, closeEdgeDetails]);
+
+  const handleEdgeClick = useCallback(
+    (_event: ReactMouseEvent, edge: Edge) => {
+      const data = edge.data as OrientedEdgeData | undefined;
+      if (data?.indirect) return;
+
+      const sandboxEdge = isSandbox || isSandboxId(edge.id);
+      const edgeCatalog: GraphEdgeDto[] = isSandbox
+        ? (sandboxes.activeDoc?.graphEdges ?? graphEdges)
+        : graphEdges;
+      const dto = edgeCatalog.find((e) => e.id === edge.id);
+      if (dto) {
+        openEdgeDetails(selectedEdgeFromDto(dto, labelById, sandboxEdge));
+        return;
+      }
+
+      const fallback = selectedEdgeFromFlowEdge(edge, labelById, sandboxEdge);
+      if (fallback) openEdgeDetails(fallback);
+    },
+    [graphEdges, isSandbox, labelById, openEdgeDetails, sandboxes.activeDoc?.graphEdges]
+  );
+
+  openEdgeByIdRef.current = (edgeId: string) => {
+    const fromRf = edges.find((e) => e.id === edgeId);
+    if (fromRf) {
+      handleEdgeClick(
+        { stopPropagation() {}, preventDefault() {} } as ReactMouseEvent,
+        fromRf
+      );
+      return;
+    }
+    const edgeCatalog: GraphEdgeDto[] = isSandbox
+      ? (sandboxes.activeDoc?.graphEdges ?? graphEdges)
+      : graphEdges;
+    const dto = edgeCatalog.find((e) => e.id === edgeId);
+    if (!dto) return;
+    openEdgeDetails(
+      selectedEdgeFromDto(dto, labelById, isSandbox || isSandboxId(edgeId))
+    );
+  };
+
+  useEffect(() => {
+    return bindEdgeDetailsOpener((edgeId) => openEdgeByIdRef.current(edgeId));
+  }, []);
+
+  const displayEdges = useMemo(() => {
+    const selectedId = isEdgeDetailsDrawerOpen ? selectedEdge?.id : null;
+    return edges.map((e) => {
+      const focused = focus ? focus.edgeIds.has(e.id) : true;
+      const hovered = hoveredEdgeId === e.id;
+      const className = [
+        focus ? (focused ? 'is-focus' : 'is-faded') : undefined,
+        selectedId === e.id ? 'is-selected' : undefined,
+        hovered ? 'is-hovered' : undefined,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const data = e.data as OrientedEdgeData | undefined;
+      return {
+        ...e,
+        selected: selectedId === e.id,
+        className: className || e.className,
+        data: {
+          ...data,
+          hovered: hovered && !data?.indirect,
+          onSelect: data?.indirect
+            ? undefined
+            : () => openEdgeByIdRef.current(e.id),
+        },
+      };
+    });
+  }, [edges, focus, hoveredEdgeId, isEdgeDetailsDrawerOpen, selectedEdge?.id]);
 
   const handleNodeDoubleClick = useCallback(
     (_: ReactMouseEvent, node: AppNode) => {
@@ -907,6 +1032,10 @@ export function GraphCanvas() {
     []
   );
   const handleNodeMouseLeave = useCallback(() => setHoveredId(null), []);
+  const handleEdgeMouseEnter = useCallback((_: ReactMouseEvent, edge: Edge) => {
+    setHoveredEdgeId(edge.id);
+  }, []);
+  const handleEdgeMouseLeave = useCallback(() => setHoveredEdgeId(null), []);
 
   const handleNodeDragStop = useCallback(
     (_event: MouseEvent | TouchEvent, _node: AppNode) => {
@@ -1122,6 +1251,8 @@ export function GraphCanvas() {
     );
     setSelectedApplication(null);
     setIsDetailsDrawerOpen(false);
+    setSelectedEdge(null);
+    setIsEdgeDetailsDrawerOpen(false);
   }
 
   function handleApplicationUpdated(applicationId: string, patch: ApplicationUpdatePatch) {
@@ -1530,6 +1661,25 @@ export function GraphCanvas() {
                     onHideNode={(nodeId) => sandboxes.hideNode(doc.id, nodeId)}
                     onShowHidden={(ids) => sandboxes.showHidden(doc.id, ids)}
                     onOpenDetails={(nodeId, label) => openApplicationDetails(nodeId, label)}
+                    onOpenEdgeDetails={(edgeId) => {
+                      sandboxes.setActiveId(doc.id);
+                      const map = new Map(
+                        doc.graphNodes.map((n) => [n.id, n.label || n.id] as const)
+                      );
+                      const dto = doc.graphEdges.find((e) => e.id === edgeId);
+                      if (dto) {
+                        openEdgeDetails(selectedEdgeFromDto(dto, map, true));
+                        return;
+                      }
+                      const rfEdge = doc.edges.find((e) => e.id === edgeId);
+                      if (!rfEdge) return;
+                      const fallback = selectedEdgeFromFlowEdge(rfEdge, map, true);
+                      if (fallback) openEdgeDetails(fallback);
+                    }}
+                    onClearDetails={() => {
+                      closeApplicationDetails();
+                      closeEdgeDetails();
+                    }}
                     onOpenModules={(nodeId, label) => openModuleGraphById(nodeId, label)}
                     placingIconKey={iconPlacement?.iconKey ?? null}
                     onPlaceIcon={(x, y) => {
@@ -1610,15 +1760,20 @@ export function GraphCanvas() {
                   rfRef.current = instance;
                 }}
                 onNodeClick={handleNodeClick}
+                onEdgeClick={handleEdgeClick}
                 onNodeDoubleClick={handleNodeDoubleClick}
                 onNodeMouseEnter={handleNodeMouseEnter}
                 onNodeMouseLeave={handleNodeMouseLeave}
+                onEdgeMouseEnter={handleEdgeMouseEnter}
+                onEdgeMouseLeave={handleEdgeMouseLeave}
                 onNodeDragStop={handleNodeDragStop}
                 onPaneClick={handlePaneClick}
                 nodesDraggable
                 nodeDragThreshold={8}
                 nodesConnectable={false}
                 elementsSelectable
+                edgesFocusable
+                elevateEdgesOnSelect
                 snapToGrid
                 snapGrid={[GRID, GRID]}
                 minZoom={0.05}
@@ -1697,7 +1852,11 @@ export function GraphCanvas() {
                       edges={graphEdges}
                       nodes={graphNodes}
                       errorMessage={status === 'error' ? message : null}
-                      onRowClick={openApplicationDetails}
+                      onRowClick={(edge) =>
+                        openEdgeDetails(
+                          selectedEdgeFromDto(edge, labelById, isSandboxId(edge.id))
+                        )
+                      }
                     />
                   )}
                 </section>
@@ -1712,14 +1871,19 @@ export function GraphCanvas() {
 
             <button
               type="button"
-              className={`graph-panel-overlay graph-panel-overlay--details${isDetailsDrawerOpen ? ' is-visible' : ''}`}
+              className={`graph-panel-overlay graph-panel-overlay--details${
+                isDetailsDrawerOpen || isEdgeDetailsDrawerOpen ? ' is-visible' : ''
+              }`}
               aria-label="Close details panel"
-              onClick={() => setIsDetailsDrawerOpen(false)}
+              onClick={() => {
+                closeApplicationDetails();
+                closeEdgeDetails();
+              }}
             />
             <ApplicationDetailsDrawer
               isOpen={isDetailsDrawerOpen}
               application={selectedApplication}
-              onClose={() => setIsDetailsDrawerOpen(false)}
+              onClose={closeApplicationDetails}
               sandboxMode={isSandbox}
               resolveSandboxApplication={resolveSandboxApplication}
               onApplicationUpdated={handleApplicationUpdated}
@@ -1731,6 +1895,12 @@ export function GraphCanvas() {
                 openModuleGraphById(applicationId, label);
               }}
               onApplicationDeleted={onApplicationDeletedHandler}
+            />
+            <EdgeDetailsDrawer
+              isOpen={isEdgeDetailsDrawerOpen}
+              edge={selectedEdge}
+              onClose={closeEdgeDetails}
+              onOpenApplication={openApplicationDetails}
             />
           </div>
         </div>

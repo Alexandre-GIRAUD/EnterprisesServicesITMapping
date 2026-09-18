@@ -20,6 +20,7 @@ import { fetchGraphNodeFilters } from '../api/graphApi';
 import { moduleGraphMapState } from '../utils/mapNavigation';
 import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 import { isSandboxId } from '../utils/sandboxGraph';
+import { CommentsSection } from '@/features/comments/components/CommentsSection';
 
 type ApplicationDetails = {
   id: string;
@@ -747,6 +748,12 @@ export function ApplicationDetailsDrawer({
                 )}
               </form>
             )}
+
+            <CommentsSection
+              targetType="APPLICATION"
+              targetId={application?.id ?? null}
+              enabled={!sandboxMode && !isSandboxId(application?.id ?? '')}
+            />
           </>
         )}
       </div>
