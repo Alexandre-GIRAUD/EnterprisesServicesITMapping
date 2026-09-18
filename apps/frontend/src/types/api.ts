@@ -279,3 +279,38 @@ export type DataModelResponse = {
 export type DataModelPutRequest = {
   fields: DataModelFieldDto[];
 };
+
+/** {@code GET/POST/PATCH/DELETE /api/comments} — notes on applications or edges. */
+export type CommentTargetType = 'APPLICATION' | 'EDGE';
+
+export type CommentDto = {
+  id: string;
+  targetType: CommentTargetType;
+  targetId: string;
+  body: string;
+  authorUsername: string;
+  authorUserId: string;
+  createdAt: string;
+  updatedAt: string;
+  edited: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+};
+
+export type CommentPageDto = {
+  items: CommentDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  hasMore: boolean;
+};
+
+export type CreateCommentRequest = {
+  targetType: CommentTargetType;
+  targetId: string;
+  body: string;
+};
+
+export type UpdateCommentRequest = {
+  body: string;
+};

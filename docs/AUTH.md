@@ -28,8 +28,10 @@ Variable `APP_CORS_ALLOWED_ORIGINS` : origines navigateur séparées par des vir
 
 | Contexte | Exemple |
 |----------|---------|
-| Dev local | `http://localhost:5173,http://localhost:3000` (défaut du backend hors Docker) |
+| Dev local | `http://localhost:*,http://127.0.0.1:*` (défaut backend hors Docker — couvre tous les ports) |
 | Docker / VPS | `*` (défaut Compose) ou `http://IP:3000,https://mondomaine.fr` |
+
+`http://localhost:3000` et `http://127.0.0.1:3000` sont deux origines **différentes**. Si tu ouvres l’URL avec `127.0.0.1` alors que CORS n’autorise que `localhost`, tu as un 403.
 
 `Invalid CORS request` (403) au login signifie que `Origin` du navigateur n’est pas dans cette liste. Même si nginx proxifie `/api` (même site), Spring lit l’en-tête `Origin` (`http://IP:3000`, `https://domaine`, etc.) et refuse tout ce qui n’est pas listé. `localhost` ne couvre pas l’IP ni le nom de domaine du VPS.
 

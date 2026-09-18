@@ -92,7 +92,8 @@ app:
       username: ${ADMIN_BOOTSTRAP_USERNAME:}
       password: ${ADMIN_BOOTSTRAP_PASSWORD:}
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+    # Patterns: localhost vs 127.0.0.1 are different Origins; * ports cover Vite (3000) and 5173.
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*}
 
 # JWT: set JWT_SECRET (>= 32 UTF-8 bytes for HS256). First admin: ADMIN_BOOTSTRAP_USERNAME / ADMIN_BOOTSTRAP_PASSWORD when users table is empty.
 
