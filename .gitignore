@@ -49,3 +49,6 @@ query.cypher
 seed-app-db.cypher
 
 graphify-out/
+
+# Local agent notes (specs, tickets, screenshots) — never ship
+.scratch/
