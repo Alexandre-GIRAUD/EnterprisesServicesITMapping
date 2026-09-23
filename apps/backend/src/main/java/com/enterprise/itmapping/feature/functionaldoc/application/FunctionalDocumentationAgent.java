@@ -3,6 +3,8 @@ package com.enterprise.itmapping.feature.functionaldoc.application;
 import com.enterprise.itmapping.feature.applications.application.ModuleDiscoveryTools;
 import com.enterprise.itmapping.feature.functionaldoc.application.dto.AiFunctionalDocPayload;
 import com.enterprise.itmapping.feature.integrations.llm.FunctionalDocumentationProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -25,17 +27,22 @@ public class FunctionalDocumentationAgent {
 
   private static final Logger log = LoggerFactory.getLogger(FunctionalDocumentationAgent.class);
   private static final String SYSTEM_PROMPT_LOCATION = "classpath:prompts/functional-doc-system.txt";
+  /** Cap for optional final-payload logs (chars). */
+  private static final int FINAL_PAYLOAD_LOG_MAX_CHARS = 8000;
 
   private final ChatClient chatClient;
   private final FunctionalDocumentationProperties properties;
+  private final ObjectMapper objectMapper;
   private final String systemPrompt;
 
   public FunctionalDocumentationAgent(
       ChatClient moduleDiscoveryChatClient,
       FunctionalDocumentationProperties properties,
+      ObjectMapper objectMapper,
       ResourceLoader resourceLoader) {
     this.chatClient = moduleDiscoveryChatClient;
     this.properties = properties;
+    this.objectMapper = objectMapper;
     this.systemPrompt = loadPrompt(resourceLoader);
   }
 
@@ -75,11 +82,25 @@ public class FunctionalDocumentationAgent {
     } catch (ResponseStatusException e) {
       throw e;
     } catch (Exception e) {
+      if (properties.logFinalPayload()) {
+        log.warn(
+            "Functional documentation agent failed before structured parse repo={}/{}: {}",
+            owner,
+            repo,
+            truncate(e.getMessage(), 500));
+      }
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY, "Functional documentation agent failed: " + e.getMessage(), e);
     }
 
     if (payload == null || payload.getSummary().isBlank()) {
+      if (properties.logFinalPayload()) {
+        log.warn(
+            "Functional documentation empty/unreadable final payload repo={}/{} payload={}",
+            owner,
+            repo,
+            truncate(toJson(payload), FINAL_PAYLOAD_LOG_MAX_CHARS));
+      }
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Empty or unreadable functional documentation response.");
     }
@@ -91,7 +112,35 @@ public class FunctionalDocumentationAgent {
         repo,
         payload.getTitle(),
         analyzedFiles.size());
+    if (properties.logFinalPayload()) {
+      log.info(
+          "Functional documentation final payload repo={}/{} json={}",
+          owner,
+          repo,
+          truncate(toJson(payload), FINAL_PAYLOAD_LOG_MAX_CHARS));
+    }
     return new DiscoveryResult(payload, analyzedFiles);
+  }
+
+  private String toJson(AiFunctionalDocPayload payload) {
+    if (payload == null) {
+      return "null";
+    }
+    try {
+      return objectMapper.writeValueAsString(payload);
+    } catch (JsonProcessingException e) {
+      return "<unserializable payload: " + e.getMessage() + ">";
+    }
+  }
+
+  private static String truncate(String value, int maxChars) {
+    if (value == null) {
+      return "";
+    }
+    if (value.length() <= maxChars) {
+      return value;
+    }
+    return value.substring(0, maxChars) + "…[truncated]";
   }
 
   private static String loadPrompt(ResourceLoader resourceLoader) {

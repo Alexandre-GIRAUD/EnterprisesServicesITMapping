@@ -84,6 +84,8 @@ app:
         max-tree-entries: 500
         clone-timeout-seconds: 120
         locale: en
+        # Final structured JSON only (truncated). Override: APP_FUNCTIONAL_DOC_LOG_FINAL_PAYLOAD=true
+        log-final-payload: ${APP_FUNCTIONAL_DOC_LOG_FINAL_PAYLOAD:false}
   sample-data:
     seed: ${SAMPLE_DATA_SEED:true} # set SAMPLE_DATA_SEED=false to disable
     # Neo4j may not accept Bolt immediately (Docker order, cold start, APOC). Retry before giving up.

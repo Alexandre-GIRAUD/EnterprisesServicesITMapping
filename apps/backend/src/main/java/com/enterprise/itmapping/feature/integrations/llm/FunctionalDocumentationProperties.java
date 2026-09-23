@@ -14,4 +14,9 @@ public record FunctionalDocumentationProperties(
     @DefaultValue("500") int maxTreeEntries,
     @DefaultValue("120") int cloneTimeoutSeconds,
     /** Output language for the generated documentation (v1: English). */
-    @DefaultValue("en") String locale) {}
+    @DefaultValue("en") String locale,
+    /**
+     * When true, logs the final structured JSON payload (truncated). Off by default; enable locally
+     * via {@code application-dev.yml} or {@code APP_FUNCTIONAL_DOC_LOG_FINAL_PAYLOAD}.
+     */
+    @DefaultValue("false") boolean logFinalPayload) {}

@@ -2,6 +2,12 @@ spring:
   neo4j:
     uri: bolt://localhost:7687
 
+app:
+  integrations:
+    llm:
+      functional-documentation:
+        log-final-payload: true
+
 logging:
   level:
     com.enterprise.itmapping: DEBUG
