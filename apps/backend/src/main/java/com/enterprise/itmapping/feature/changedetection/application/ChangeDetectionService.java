@@ -396,7 +396,7 @@ public class ChangeDetectionService {
         String key = String.valueOf(payload.get("key"));
         String value = String.valueOf(payload.get("value"));
         if (StringUtils.hasText(key) && StringUtils.hasText(value)) {
-          nodeAttributePatchService.patch(appId, Map.of(key, value));
+          nodeAttributePatchService.patchAi(appId, Map.of(key, value), "CHANGE_DETECTION_ACCEPT");
         }
       }
       case EDGE_ATTRIBUTE -> {

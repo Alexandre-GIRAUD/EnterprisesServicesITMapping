@@ -166,6 +166,29 @@ public class ApplicationConnectionEdgeWriter {
     return out;
   }
 
+  /**
+   * Bare {@code DEPENDS_ON} (no kind/channel) between endpoints — used before merge to snapshot
+   * Data Model props for audit.
+   */
+  public Optional<String> findBareEdgeId(String sourceId, String targetId) {
+    Map<String, Object> params = new HashMap<>();
+    params.put("s", sourceId);
+    params.put("t", targetId);
+    return neo4jClient
+        .query(
+            """
+            MATCH (s:Application {id: $s})-[r:DEPENDS_ON]->(t:Application {id: $t})
+            WHERE (r.connection_kind IS NULL OR r.connection_kind = '')
+              AND (r.channel IS NULL OR r.channel = '')
+            RETURN coalesce(r.id, '') AS id
+            LIMIT 1
+            """)
+        .bindAll(params)
+        .fetch()
+        .first()
+        .map(row -> stringOrGenerated(row.get("id")));
+  }
+
   private Optional<String> findDuplicate(
       String sourceId, String targetId, String kind, String channel) {
     Map<String, Object> params = new HashMap<>();

@@ -29,6 +29,7 @@ export interface GraphEdgeCreateRequest {
   sourceId: string;
   targetId: string;
   type: string;
+  changeMeta?: AttributeChangeMeta | null;
 }
 
 export interface GraphEdgeCreateResponse {
@@ -77,7 +78,51 @@ export type NodeRefSummary = {
 /** PATCH /applications/{id}/node-attributes — blank value clears the property. */
 export interface ApplicationNodeAttributesPatchRequest {
   attributes: Record<string, string>;
+  changeMeta?: AttributeChangeMeta | null;
 }
+
+export type HumanChangeReason =
+  | 'MissedOnScan'
+  | 'NotInSources'
+  | 'WrongData'
+  | 'WrongFormat'
+  | 'WrongSpelling'
+  | 'OutdatedData'
+  | 'Others';
+
+export type AttributeChangeMeta = {
+  reason: HumanChangeReason;
+  reasonComment?: string | null;
+};
+
+export type AuditTargetType = 'APPLICATION' | 'EDGE';
+export type AuditActorType = 'HUMAN' | 'AI';
+export type AuditFieldScope = 'NODE_ATTR' | 'EDGE_ATTR' | 'APP_FIELD' | 'EDGE_LINK';
+
+export type AttributeChangeEventDto = {
+  id: string;
+  targetType: AuditTargetType;
+  targetId: string;
+  fieldScope: AuditFieldScope;
+  fieldKey: string;
+  oldValue: string | null;
+  newValue: string | null;
+  actorType: AuditActorType;
+  actorUserId: string | null;
+  actorUsername: string | null;
+  aiSource: string | null;
+  humanReason: HumanChangeReason | null;
+  humanReasonComment: string | null;
+  createdAt: string;
+};
+
+export type AttributeChangePageDto = {
+  items: AttributeChangeEventDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  hasMore: boolean;
+};
 
 /** PATCH /applications/{id}/node-refs — replace CLASSIFIED_AS links by catalogue ref ids. */
 export interface ApplicationNodeRefsPatchRequest {
@@ -122,6 +167,32 @@ export type ChangeDetectionRunDto = {
   items: ChangeDetectionItemDto[];
   createdAt: string;
   updatedAt: string;
+};
+
+/** {@code GET /api/override-conflicts} — AI write blocked by human field override. */
+export type OverrideConflictStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED';
+
+export type AttributeOverrideConflictDto = {
+  id: string;
+  targetType: 'APPLICATION' | 'EDGE';
+  targetId: string;
+  fieldScope: 'NODE_ATTR' | 'EDGE_ATTR';
+  fieldKey: string;
+  protectedValue: string | null;
+  proposedValue: string | null;
+  aiSource: string | null;
+  status: OverrideConflictStatus;
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedByUserId: string | null;
+};
+
+export type AttributeOverrideConflictPageDto = {
+  items: AttributeOverrideConflictDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  hasMore: boolean;
 };
 
 /** {@code POST /api/applications/{id}/modules/suggest-from-github} */

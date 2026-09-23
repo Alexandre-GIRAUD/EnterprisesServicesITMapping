@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import type { GraphEdgeCreateResponse } from '@/types/api';
+import type { AttributeChangeMeta, GraphEdgeCreateResponse } from '@/types/api';
 import { createGraphEdge } from '../api/graphApi';
 
 type CreateEdgeInput = {
   sourceId: string;
   targetId: string;
   type: string;
+  changeMeta?: AttributeChangeMeta | null;
 };
 
 export function useCreateGraphEdge() {
@@ -20,6 +21,7 @@ export function useCreateGraphEdge() {
         sourceId: input.sourceId,
         targetId: input.targetId,
         type: input.type,
+        ...(input.changeMeta ? { changeMeta: input.changeMeta } : {}),
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to create the relationship');

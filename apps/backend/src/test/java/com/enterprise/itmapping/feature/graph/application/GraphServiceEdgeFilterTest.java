@@ -29,6 +29,7 @@ class GraphServiceEdgeFilterTest {
   @Mock Neo4jClient neo4jClient;
   @Mock ApplicationRepository applicationRepository;
   @Mock DataModelService dataModelService;
+  @Mock GraphEdgeLinkService edgeLinkService;
 
   private GraphService graphService;
 
@@ -40,7 +41,8 @@ class GraphServiceEdgeFilterTest {
             neo4jClient,
             applicationRepository,
             dataModelService,
-            new GraphNodeFilterResolver());
+            new GraphNodeFilterResolver(),
+            edgeLinkService);
     when(dataModelService.loadConfig())
         .thenReturn(config(nodeField("tier"), edgeField("data_category")));
   }

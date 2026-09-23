@@ -35,19 +35,22 @@ public class GraphService {
   private final ApplicationRepository applicationRepository;
   private final DataModelService dataModelService;
   private final GraphNodeFilterResolver nodeFilterResolver;
+  private final GraphEdgeLinkService edgeLinkService;
 
   public GraphService(
       GraphLoader graphLoader,
       Neo4jClient neo4jClient,
       ApplicationRepository applicationRepository,
       DataModelService dataModelService,
-      GraphNodeFilterResolver nodeFilterResolver
+      GraphNodeFilterResolver nodeFilterResolver,
+      GraphEdgeLinkService edgeLinkService
   ) {
     this.graphLoader = graphLoader;
     this.neo4jClient = neo4jClient;
     this.applicationRepository = applicationRepository;
     this.dataModelService = dataModelService;
     this.nodeFilterResolver = nodeFilterResolver;
+    this.edgeLinkService = edgeLinkService;
   }
 
   /**
@@ -262,21 +265,39 @@ public class GraphService {
         """
             .formatted(type);
 
-    return neo4jClient
-        .query(createCypher)
-        .bind(sourceId)
-        .to("sourceId")
-        .bind(targetId)
-        .to("targetId")
-        .bind(edgeId)
-        .to("edgeId")
-        .fetch()
-        .first()
-        .map(this::mapCreateEdgeResponse)
-        .orElseThrow(
-            () ->
-                new ResponseStatusException(
-                    HttpStatus.INTERNAL_SERVER_ERROR, "Echec lors de la creation de la relation."));
+    CreateGraphEdgeResponseDto created =
+        neo4jClient
+            .query(createCypher)
+            .bind(sourceId)
+            .to("sourceId")
+            .bind(targetId)
+            .to("targetId")
+            .bind(edgeId)
+            .to("edgeId")
+            .fetch()
+            .first()
+            .map(this::mapCreateEdgeResponse)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Echec lors de la creation de la relation."));
+
+    GraphEdgeLinkService.EdgeLinkSnapshot snapshot =
+        new GraphEdgeLinkService.EdgeLinkSnapshot(
+            created.sourceId(),
+            created.targetId(),
+            created.type(),
+            null,
+            null,
+            null,
+            Map.of());
+    if (request.changeMeta() != null) {
+      edgeLinkService.recordCreateHuman(created.id(), snapshot, request.changeMeta());
+    } else {
+      edgeLinkService.recordCreateAi(created.id(), snapshot, "API_CREATE");
+    }
+    return created;
   }
 
   private boolean countIsPositive(Map<String, Object> row) {

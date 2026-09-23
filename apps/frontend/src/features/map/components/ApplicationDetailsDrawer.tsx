@@ -21,6 +21,13 @@ import { moduleGraphMapState } from '../utils/mapNavigation';
 import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 import { isSandboxId } from '../utils/sandboxGraph';
 import { CommentsSection } from '@/features/comments/components/CommentsSection';
+import {
+  AttributeChangeReasonFields,
+  buildChangeMeta,
+  validateChangeMeta,
+} from './AttributeChangeReasonFields';
+import { AttributeHistorySection } from './AttributeHistorySection';
+import type { HumanChangeReason } from '@/types/api';
 
 type ApplicationDetails = {
   id: string;
@@ -93,6 +100,9 @@ export function ApplicationDetailsDrawer({
   const [formState, setFormState] = useState({ name: '', description: '' });
   const [attributeForm, setAttributeForm] = useState<Record<string, string>>({});
   const [refForm, setRefForm] = useState<Record<string, string[]>>({});
+  const [changeReason, setChangeReason] = useState<HumanChangeReason | ''>('');
+  const [changeReasonComment, setChangeReasonComment] = useState('');
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -222,7 +232,18 @@ export function ApplicationDetailsDrawer({
     setFormState({ name: source.name ?? '', description: source.description ?? '' });
     setAttributeForm(attributeValues(nodeFields, source.nodeAttributes));
     setRefForm(refIdValues(nodeRefFields, source.nodeRefs));
+    setChangeReason('');
+    setChangeReasonComment('');
     setIsEditing(true);
+  }
+
+  function attributesChanged(next: Record<string, string>): boolean {
+    const stored = details?.nodeAttributes ?? {};
+    return nodeFields.some((field) => {
+      const a = (next[field.key] ?? '').trim();
+      const b = (stored[field.key] ?? '').trim();
+      return a !== b;
+    });
   }
 
   async function onSave(event: FormEvent<HTMLFormElement>) {
@@ -260,6 +281,7 @@ export function ApplicationDetailsDrawer({
     const refs = Object.fromEntries(
       nodeRefFields.map((field) => [field.key, refForm[field.key] ?? []])
     );
+    const attrsDirty = attributesChanged(attributes);
 
     if (sandboxMode) {
       try {
@@ -301,13 +323,22 @@ export function ApplicationDetailsDrawer({
       return;
     }
 
+    if (attrsDirty) {
+      const reasonError = validateChangeMeta(changeReason, changeReasonComment);
+      if (reasonError) {
+        setFormErrorMessage(reasonError);
+        return;
+      }
+    }
+
     try {
       setIsSaving(true);
       setFormErrorMessage(null);
       setSaveSuccessMessage(null);
       await updateApplicationById(application.id, payload);
-      if (nodeFields.length > 0) {
-        await patchApplicationNodeAttributes(application.id, attributes);
+      if (nodeFields.length > 0 && attrsDirty) {
+        const changeMeta = buildChangeMeta(changeReason, changeReasonComment);
+        await patchApplicationNodeAttributes(application.id, attributes, changeMeta);
       }
       if (nodeRefFields.length > 0) {
         await patchApplicationNodeRefs(application.id, refs);
@@ -321,8 +352,13 @@ export function ApplicationDetailsDrawer({
         name: refreshed.name ?? name,
         description: refreshed.description,
       });
+      if (attrsDirty) {
+        setHistoryRefreshKey((k) => k + 1);
+      }
       setSaveSuccessMessage('Application updated.');
       setIsEditing(false);
+      setChangeReason('');
+      setChangeReasonComment('');
     } catch (e) {
       setFormErrorMessage(e instanceof Error ? e.message : 'Unable to save changes.');
     } finally {
@@ -338,6 +374,8 @@ export function ApplicationDetailsDrawer({
     setFormState({ name: details.name ?? '', description: details.description ?? '' });
     setAttributeForm(attributeValues(nodeFields, details.nodeAttributes));
     setRefForm(refIdValues(nodeRefFields, details.nodeRefs));
+    setChangeReason('');
+    setChangeReasonComment('');
     setFormErrorMessage(null);
     setSaveSuccessMessage(null);
     setShowDeleteConfirm(false);
@@ -662,6 +700,24 @@ export function ApplicationDetailsDrawer({
                   </fieldset>
                 ) : null}
 
+                {!sandboxMode && nodeFields.length > 0 ? (
+                  <AttributeChangeReasonFields
+                    reason={changeReason}
+                    reasonComment={changeReasonComment}
+                    onReasonChange={setChangeReason}
+                    onCommentChange={setChangeReasonComment}
+                    disabled={isSaving || isDeleting}
+                    required={attributesChanged(
+                      Object.fromEntries(
+                        nodeFields.map((field) => [
+                          field.key,
+                          (attributeForm[field.key] ?? '').trim(),
+                        ])
+                      )
+                    )}
+                  />
+                ) : null}
+
                 {formErrorMessage && (
                   <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
                     {formErrorMessage}
@@ -748,6 +804,13 @@ export function ApplicationDetailsDrawer({
                 )}
               </form>
             )}
+
+            <AttributeHistorySection
+              targetType="APPLICATION"
+              targetId={application?.id ?? null}
+              enabled={!sandboxMode && !isSandboxId(application?.id ?? '')}
+              refreshKey={historyRefreshKey}
+            />
 
             <CommentsSection
               targetType="APPLICATION"

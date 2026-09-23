@@ -9,6 +9,7 @@
  */
 
 import type {
+  AttributeChangeMeta,
   GraphEdgeCreateRequest,
   GraphEdgeCreateResponse,
   GraphNodeFilterDto,
@@ -115,6 +116,63 @@ export async function createGraphEdge(
     }
     throw new Error(
       `Create edge API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+
+  return res.json();
+}
+
+/**
+ * Deletes a graph edge and records an EDGE_LINK audit event. Human deletes must pass changeMeta.
+ */
+export async function deleteGraphEdge(
+  edgeId: string,
+  changeMeta?: AttributeChangeMeta | null
+): Promise<void> {
+  const res = await authenticatedFetch(
+    resolveApiUrl(`/api/graph/edges/${encodeURIComponent(edgeId)}`),
+    {
+      method: 'DELETE',
+      headers: {
+        Accept: 'application/json',
+        ...(changeMeta ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: changeMeta ? JSON.stringify({ changeMeta }) : undefined,
+    }
+  );
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Delete edge ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+}
+
+export async function patchGraphEdgeAttributes(
+  edgeId: string,
+  attributes: Record<string, string>,
+  changeMeta?: AttributeChangeMeta | null
+): Promise<Record<string, string>> {
+  const res = await authenticatedFetch(
+    resolveApiUrl(`/api/graph/edges/${encodeURIComponent(edgeId)}/attributes`),
+    {
+      method: 'PATCH',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        attributes,
+        ...(changeMeta ? { changeMeta } : {}),
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Edge attributes ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
     );
   }
 

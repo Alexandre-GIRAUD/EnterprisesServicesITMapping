@@ -88,6 +88,7 @@ import { PendingChangesPanel, pendingItemsCount } from './PendingChangesPanel';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { listChangeDetections } from '../api/changeDetectionsApi';
+import { fetchOverrideConflictPendingCount } from '../api/overrideConflictsApi';
 import { GraphExportMenu } from './GraphExportMenu';
 import {
   buildGraphExportFileName,
@@ -214,13 +215,12 @@ export function GraphCanvas() {
 
   useEffect(() => {
     let cancelled = false;
-    void listChangeDetections()
-      .then((runs) => {
-        if (!cancelled) setPendingChangeCount(pendingItemsCount(runs));
-      })
-      .catch(() => {
-        if (!cancelled) setPendingChangeCount(0);
-      });
+    void Promise.all([
+      listChangeDetections().catch(() => [] as Awaited<ReturnType<typeof listChangeDetections>>),
+      fetchOverrideConflictPendingCount().catch(() => 0),
+    ]).then(([runs, overridePending]) => {
+      if (!cancelled) setPendingChangeCount(pendingItemsCount(runs) + overridePending);
+    });
     return () => {
       cancelled = true;
     };
@@ -794,6 +794,53 @@ export function GraphCanvas() {
     setIsEdgeDetailsDrawerOpen(false);
     setSelectedEdge(null);
   }, []);
+
+  const handleEdgeAttributesUpdated = useCallback(
+    (edgeId: string, properties: Record<string, string>) => {
+      setSelectedEdge((prev) =>
+        prev && prev.id === edgeId ? { ...prev, properties } : prev
+      );
+      setGraphEdges((prev) =>
+        prev.map((e) => (e.id === edgeId ? { ...e, properties } : e))
+      );
+      setEdges((prev) =>
+        prev.map((e) =>
+          e.id === edgeId
+            ? { ...e, data: { ...(e.data as object), properties } }
+            : e
+        )
+      );
+      const docId = sandboxes.activeDoc?.id;
+      if (isSandbox && docId) {
+        sandboxes.patchDoc(docId, (doc) => ({
+          ...doc,
+          dirty: true,
+          graphEdges: doc.graphEdges.map((e) =>
+            e.id === edgeId ? { ...e, properties } : e
+          ),
+        }));
+      }
+    },
+    [isSandbox, sandboxes, setEdges, setGraphEdges]
+  );
+
+  const handleEdgeDeleted = useCallback(
+    (edgeId: string) => {
+      setGraphEdges((prev) => prev.filter((e) => e.id !== edgeId));
+      setEdges((prev) => prev.filter((e) => e.id !== edgeId));
+      setSelectedEdge((prev) => (prev?.id === edgeId ? null : prev));
+      setIsEdgeDetailsDrawerOpen(false);
+      const docId = sandboxes.activeDoc?.id;
+      if (isSandbox && docId) {
+        sandboxes.patchDoc(docId, (doc) => ({
+          ...doc,
+          dirty: true,
+          graphEdges: doc.graphEdges.filter((e) => e.id !== edgeId),
+        }));
+      }
+    },
+    [isSandbox, sandboxes, setEdges, setGraphEdges]
+  );
 
   const closeApplicationDetails = useCallback(() => {
     setIsDetailsDrawerOpen(false);
@@ -1908,6 +1955,8 @@ export function GraphCanvas() {
               edge={selectedEdge}
               onClose={closeEdgeDetails}
               onOpenApplication={openApplicationDetails}
+              onEdgeAttributesUpdated={handleEdgeAttributesUpdated}
+              onEdgeDeleted={handleEdgeDeleted}
             />
           </div>
         </div>
