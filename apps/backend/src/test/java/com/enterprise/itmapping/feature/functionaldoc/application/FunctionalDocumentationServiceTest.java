@@ -43,7 +43,7 @@ class FunctionalDocumentationServiceTest {
   @Mock ObjectProvider<FunctionalDocumentationService> self;
 
   FunctionalDocumentationProperties properties =
-      new FunctionalDocumentationProperties(25, 50, 12000, 500, 120, "en");
+      new FunctionalDocumentationProperties(25, 50, 12000, 500, 120, "en", false);
 
   FunctionalDocumentationService service;
 
