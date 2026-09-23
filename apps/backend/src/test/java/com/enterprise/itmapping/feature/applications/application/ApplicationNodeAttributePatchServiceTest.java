@@ -7,11 +7,17 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
+import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService.AttributeChangeRequest;
+import com.enterprise.itmapping.feature.attributeaudit.domain.AuditActorType;
+import com.enterprise.itmapping.feature.attributeaudit.domain.HumanChangeReason;
+import com.enterprise.itmapping.feature.attributeaudit.presentation.dto.AttributeChangeMetaDto;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +37,8 @@ class ApplicationNodeAttributePatchServiceTest {
 
   @Mock DataModelService dataModelService;
   @Mock ApplicationNodeAttributeWriter writer;
+  @Mock ApplicationNodeAttributeReader reader;
+  @Mock AttributeChangeAuditService auditService;
 
   @InjectMocks ApplicationNodeAttributePatchService service;
 
@@ -38,6 +46,7 @@ class ApplicationNodeAttributePatchServiceTest {
   void writesDeclaredKeysAndIgnoresOthers() {
     when(dataModelService.loadConfig())
         .thenReturn(config(nodeField("tier", List.of(), false), edgeField("channel")));
+    when(reader.read(APP_ID)).thenReturn(Map.of());
 
     Map<String, String> raw = new LinkedHashMap<>();
     raw.put("tier", " GOLD ");
@@ -50,11 +59,13 @@ class ApplicationNodeAttributePatchServiceTest {
     ArgumentCaptor<Map<String, String>> written = ArgumentCaptor.forClass(Map.class);
     verify(writer).write(eq(APP_ID), written.capture(), eq(Set.of("tier")));
     assertThat(written.getValue()).containsExactly(Map.entry("tier", "GOLD"));
+    verify(auditService).recordAll(any());
   }
 
   @Test
   void blankValueClearsTheProperty() {
     when(dataModelService.loadConfig()).thenReturn(config(nodeField("tier", List.of(), false)));
+    when(reader.read(APP_ID)).thenReturn(Map.of("tier", "GOLD"));
 
     service.patch(APP_ID, Map.of("tier", "   "));
 
@@ -65,6 +76,7 @@ class ApplicationNodeAttributePatchServiceTest {
   void enforcedEnumRejectsUnknownValue() {
     when(dataModelService.loadConfig())
         .thenReturn(config(nodeField("tier", List.of("GOLD", "SILVER"), true)));
+    when(reader.read(APP_ID)).thenReturn(Map.of());
 
     assertThatThrownBy(() -> service.patch(APP_ID, Map.of("tier", "PLATINUM")))
         .isInstanceOf(ResponseStatusException.class);
@@ -74,6 +86,7 @@ class ApplicationNodeAttributePatchServiceTest {
   void enforcedEnumNormalizesCaseToTheDeclaredValue() {
     when(dataModelService.loadConfig())
         .thenReturn(config(nodeField("tier", List.of("GOLD"), true)));
+    when(reader.read(APP_ID)).thenReturn(Map.of());
 
     service.patch(APP_ID, Map.of("tier", "gold"));
 
@@ -81,6 +94,48 @@ class ApplicationNodeAttributePatchServiceTest {
     ArgumentCaptor<Map<String, String>> written = ArgumentCaptor.forClass(Map.class);
     verify(writer).write(eq(APP_ID), written.capture(), any());
     assertThat(written.getValue()).containsEntry("tier", "GOLD");
+  }
+
+  @Test
+  void humanPatchRequiresReason() {
+    assertThatThrownBy(
+            () -> service.patchHuman(APP_ID, Map.of("tier", "GOLD"), null))
+        .isInstanceOf(ResponseStatusException.class);
+  }
+
+  @Test
+  void humanPatchRecordsHumanActor() {
+    when(dataModelService.loadConfig()).thenReturn(config(nodeField("tier", List.of(), false)));
+    when(reader.read(APP_ID)).thenReturn(Map.of());
+
+    service.patchHuman(
+        APP_ID,
+        Map.of("tier", "GOLD"),
+        new AttributeChangeMetaDto(HumanChangeReason.WrongData, null));
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Collection<AttributeChangeRequest>> events =
+        ArgumentCaptor.forClass(Collection.class);
+    verify(auditService).recordAll(events.capture());
+    AttributeChangeRequest event = events.getValue().iterator().next();
+    assertThat(event.actorType()).isEqualTo(AuditActorType.HUMAN);
+    assertThat(event.humanReason()).isEqualTo(HumanChangeReason.WrongData);
+    assertThat(event.aiSource()).isNull();
+  }
+
+  @Test
+  void noOpWhenValueUnchangedStillCallsAudit_serviceFilters() {
+    when(dataModelService.loadConfig()).thenReturn(config(nodeField("tier", List.of(), false)));
+    when(reader.read(APP_ID)).thenReturn(Map.of("tier", "GOLD"));
+
+    service.patchAi(APP_ID, Map.of("tier", "GOLD"), "TEST");
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Collection<AttributeChangeRequest>> events =
+        ArgumentCaptor.forClass(Collection.class);
+    verify(auditService).recordAll(events.capture());
+    assertThat(events.getValue()).hasSize(1);
+    assertThat(events.getValue().iterator().next().actorType()).isEqualTo(AuditActorType.AI);
   }
 
   private static DataModelConfig config(DataModelField... fields) {

@@ -1,4 +1,4 @@
-package com.enterprise.itmapping.feature.applications.application;
+package com.enterprise.itmapping.feature.graph.application;
 
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService.AttributeChangeRequest;
@@ -24,26 +24,23 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Manual / AI edition of the Data Model {@code target=NODE} attributes of an Application.
- *
- * <p>Only keys declared as Data Model NODE fields are accepted. A blank value clears the property.
- * Human edits require {@link AttributeChangeMetaDto}; AI edits pass {@code aiSource}.
+ * Manual / AI edition of Data Model {@code target=EDGE} attributes on a {@code DEPENDS_ON}
+ * relationship.
  */
 @Service
-public class ApplicationNodeAttributePatchService {
+public class GraphEdgeAttributePatchService {
 
-  private static final Logger log =
-      LoggerFactory.getLogger(ApplicationNodeAttributePatchService.class);
+  private static final Logger log = LoggerFactory.getLogger(GraphEdgeAttributePatchService.class);
 
   private final DataModelService dataModelService;
-  private final ApplicationNodeAttributeWriter writer;
-  private final ApplicationNodeAttributeReader reader;
+  private final GraphEdgeAttributeWriter writer;
+  private final GraphEdgeAttributeReader reader;
   private final AttributeChangeAuditService auditService;
 
-  public ApplicationNodeAttributePatchService(
+  public GraphEdgeAttributePatchService(
       DataModelService dataModelService,
-      ApplicationNodeAttributeWriter writer,
-      ApplicationNodeAttributeReader reader,
+      GraphEdgeAttributeWriter writer,
+      GraphEdgeAttributeReader reader,
       AttributeChangeAuditService auditService) {
     this.dataModelService = dataModelService;
     this.writer = writer;
@@ -51,46 +48,43 @@ public class ApplicationNodeAttributePatchService {
     this.auditService = auditService;
   }
 
-  /** Human drawer edit — requires changeMeta.reason. */
   @Transactional
-  public void patchHuman(
-      String applicationId, Map<String, String> rawAttributes, AttributeChangeMetaDto changeMeta) {
+  public Map<String, String> patchHuman(
+      String edgeId, Map<String, String> rawAttributes, AttributeChangeMetaDto changeMeta) {
     if (changeMeta == null || changeMeta.reason() == null) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "changeMeta.reason is required for human edits.");
     }
-    apply(applicationId, rawAttributes, changeMeta.reason(), changeMeta.reasonComment(), null);
+    return apply(edgeId, rawAttributes, changeMeta.reason(), changeMeta.reasonComment(), null);
   }
 
-  /** AI / system edit — no human reason; records actor=AI. */
   @Transactional
-  public void patchAi(String applicationId, Map<String, String> rawAttributes, String aiSource) {
-    apply(applicationId, rawAttributes, null, null, aiSource != null ? aiSource : "AI");
+  public Map<String, String> patchAi(
+      String edgeId, Map<String, String> rawAttributes, String aiSource) {
+    return apply(edgeId, rawAttributes, null, null, aiSource != null ? aiSource : "AI");
   }
 
-  /** @deprecated Prefer {@link #patchHuman} or {@link #patchAi}. Defaults to AI for backward compat. */
-  @Transactional
-  public void patch(String applicationId, Map<String, String> rawAttributes) {
-    patchAi(applicationId, rawAttributes, "LEGACY_PATCH");
-  }
-
-  private void apply(
-      String applicationId,
+  private Map<String, String> apply(
+      String edgeId,
       Map<String, String> rawAttributes,
       HumanChangeReason humanReason,
       String humanReasonComment,
       String aiSource) {
-    List<DataModelField> nodeFields = dataModelService.loadConfig().nodeFields();
-    if (nodeFields.isEmpty() || rawAttributes == null || rawAttributes.isEmpty()) {
-      return;
+    if (!StringUtils.hasText(edgeId) || !reader.exists(edgeId)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Edge not found: " + edgeId);
+    }
+
+    List<DataModelField> edgeFields = dataModelService.loadConfig().edgeFields();
+    if (edgeFields.isEmpty() || rawAttributes == null || rawAttributes.isEmpty()) {
+      return reader.read(edgeId);
     }
 
     Map<String, DataModelField> byKey = new LinkedHashMap<>();
-    for (DataModelField field : nodeFields) {
+    for (DataModelField field : edgeFields) {
       byKey.put(field.key(), field);
     }
 
-    Map<String, String> current = reader.read(applicationId);
+    Map<String, String> current = reader.read(edgeId);
     Map<String, String> toSet = new LinkedHashMap<>();
     Set<String> toRemove = new LinkedHashSet<>();
     List<AttributeChangeRequest> events = new ArrayList<>();
@@ -99,28 +93,31 @@ public class ApplicationNodeAttributePatchService {
       String key = normalizeKey(entry.getKey());
       DataModelField field = byKey.get(key);
       if (field == null) {
-        log.debug("Node attribute patch ignored key={} (not a Data Model NODE field)", key);
+        log.debug("Edge attribute patch ignored key={} (not a Data Model EDGE field)", key);
         continue;
       }
       String value = entry.getValue() != null ? entry.getValue().trim() : "";
       String oldValue = current.get(key);
       if (!StringUtils.hasText(value)) {
         toRemove.add(key);
-        events.add(buildEvent(applicationId, key, oldValue, null, humanReason, humanReasonComment, aiSource));
+        events.add(
+            buildEvent(edgeId, key, oldValue, null, humanReason, humanReasonComment, aiSource));
         continue;
       }
       String allowed = requireAllowedValue(field, value);
       toSet.put(key, allowed);
-      events.add(buildEvent(applicationId, key, oldValue, allowed, humanReason, humanReasonComment, aiSource));
+      events.add(
+          buildEvent(edgeId, key, oldValue, allowed, humanReason, humanReasonComment, aiSource));
     }
 
-    writer.write(applicationId, toSet, byKey.keySet());
-    writer.remove(applicationId, toRemove);
+    writer.write(edgeId, toSet, byKey.keySet());
+    writer.remove(edgeId, toRemove);
     auditService.recordAll(events);
+    return reader.read(edgeId);
   }
 
   private static AttributeChangeRequest buildEvent(
-      String applicationId,
+      String edgeId,
       String key,
       String oldValue,
       String newValue,
@@ -129,9 +126,9 @@ public class ApplicationNodeAttributePatchService {
       String aiSource) {
     if (humanReason != null) {
       return AttributeChangeRequest.human(
-          AuditTargetType.APPLICATION,
-          applicationId,
-          AuditFieldScope.NODE_ATTR,
+          AuditTargetType.EDGE,
+          edgeId,
+          AuditFieldScope.EDGE_ATTR,
           key,
           oldValue,
           newValue,
@@ -139,9 +136,9 @@ public class ApplicationNodeAttributePatchService {
           humanReasonComment);
     }
     return AttributeChangeRequest.ai(
-        AuditTargetType.APPLICATION,
-        applicationId,
-        AuditFieldScope.NODE_ATTR,
+        AuditTargetType.EDGE,
+        edgeId,
+        AuditFieldScope.EDGE_ATTR,
         key,
         oldValue,
         newValue,
@@ -158,8 +155,7 @@ public class ApplicationNodeAttributePatchService {
       }
     }
     throw new ResponseStatusException(
-        HttpStatus.BAD_REQUEST,
-        "Valeur non autorisee pour " + field.key() + ": " + value);
+        HttpStatus.BAD_REQUEST, "Valeur non autorisee pour " + field.key() + ": " + value);
   }
 
   private static String normalizeKey(String key) {

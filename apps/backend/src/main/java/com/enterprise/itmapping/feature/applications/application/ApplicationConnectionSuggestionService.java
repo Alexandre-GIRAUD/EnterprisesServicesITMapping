@@ -8,7 +8,12 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestCon
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse.CreatedConnectionItem;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse.SkippedItem;
+import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
+import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService.AttributeChangeRequest;
+import com.enterprise.itmapping.feature.attributeaudit.domain.AuditFieldScope;
+import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelAttributeResolver;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributeReader;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelAttributeResolver.ValidationResult;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelPromptBuilder;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
@@ -73,7 +78,10 @@ public class ApplicationConnectionSuggestionService {
   private final ApplicationCatalogQuery catalogQuery;
   private final ApplicationConnectionEdgeWriter edgeWriter;
   private final ApplicationNodeAttributeWriter nodeAttributeWriter;
+  private final ApplicationNodeAttributeReader nodeAttributeReader;
   private final ApplicationNodeRefLinkWriter nodeRefLinkWriter;
+  private final GraphEdgeAttributeReader edgeAttributeReader;
+  private final AttributeChangeAuditService attributeChangeAuditService;
   private final DataModelService dataModelService;
   private final DataModelPromptBuilder dataModelPromptBuilder;
   private final DataModelAttributeResolver dataModelAttributeResolver;
@@ -86,7 +94,10 @@ public class ApplicationConnectionSuggestionService {
       ApplicationCatalogQuery catalogQuery,
       ApplicationConnectionEdgeWriter edgeWriter,
       ApplicationNodeAttributeWriter nodeAttributeWriter,
+      ApplicationNodeAttributeReader nodeAttributeReader,
       ApplicationNodeRefLinkWriter nodeRefLinkWriter,
+      GraphEdgeAttributeReader edgeAttributeReader,
+      AttributeChangeAuditService attributeChangeAuditService,
       DataModelService dataModelService,
       DataModelPromptBuilder dataModelPromptBuilder,
       DataModelAttributeResolver dataModelAttributeResolver) {
@@ -97,7 +108,10 @@ public class ApplicationConnectionSuggestionService {
     this.catalogQuery = catalogQuery;
     this.edgeWriter = edgeWriter;
     this.nodeAttributeWriter = nodeAttributeWriter;
+    this.nodeAttributeReader = nodeAttributeReader;
     this.nodeRefLinkWriter = nodeRefLinkWriter;
+    this.edgeAttributeReader = edgeAttributeReader;
+    this.attributeChangeAuditService = attributeChangeAuditService;
     this.dataModelService = dataModelService;
     this.dataModelPromptBuilder = dataModelPromptBuilder;
     this.dataModelAttributeResolver = dataModelAttributeResolver;
@@ -269,6 +283,15 @@ public class ApplicationConnectionSuggestionService {
         targetId = applicationId;
       }
 
+      Map<String, String> beforeEdgeAttrs = Map.of();
+      if (!validatedAttributes.isEmpty()) {
+        beforeEdgeAttrs =
+            edgeWriter
+                .findBareEdgeId(sourceId, targetId)
+                .map(edgeAttributeReader::read)
+                .orElse(Map.of());
+      }
+
       var result =
           edgeWriter.createOrMerge(
               sourceId,
@@ -301,6 +324,8 @@ public class ApplicationConnectionSuggestionService {
           } else {
             inbound++;
           }
+          recordEdgeAttributeAiEvents(
+              result.edgeId(), validatedAttributes, beforeEdgeAttrs, result.outcome());
         }
       }
     }
@@ -373,11 +398,52 @@ public class ApplicationConnectionSuggestionService {
 
     Set<String> allowedNodeKeys =
         dataModelAttributeResolver.allowedKeys(dataModelConfig, DataModelTarget.NODE);
+    Map<String, String> before = nodeAttributeReader.read(applicationId);
     int written = nodeAttributeWriter.write(applicationId, attrs, allowedNodeKeys);
     log.debug(
         "Application node Data Model write applicationId={} propsWritten={}",
         applicationId,
         written);
+    List<AttributeChangeRequest> events = new ArrayList<>();
+    for (Map.Entry<String, String> attr : attrs.entrySet()) {
+      events.add(
+          AttributeChangeRequest.ai(
+              AuditTargetType.APPLICATION,
+              applicationId,
+              AuditFieldScope.NODE_ATTR,
+              attr.getKey(),
+              before.get(attr.getKey()),
+              attr.getValue(),
+              "CONNECTION_SUGGESTION"));
+    }
+    attributeChangeAuditService.recordAll(events);
+  }
+
+  private void recordEdgeAttributeAiEvents(
+      String edgeId,
+      Map<String, String> attrs,
+      Map<String, String> beforeAttrs,
+      ApplicationConnectionEdgeWriter.Outcome outcome) {
+    if (attrs == null || attrs.isEmpty() || !StringUtils.hasText(edgeId)) {
+      return;
+    }
+    Map<String, String> before =
+        outcome == ApplicationConnectionEdgeWriter.Outcome.CREATED
+            ? Map.of()
+            : (beforeAttrs != null ? beforeAttrs : Map.of());
+    List<AttributeChangeRequest> events = new ArrayList<>();
+    for (Map.Entry<String, String> attr : attrs.entrySet()) {
+      events.add(
+          AttributeChangeRequest.ai(
+              AuditTargetType.EDGE,
+              edgeId,
+              AuditFieldScope.EDGE_ATTR,
+              attr.getKey(),
+              before.get(attr.getKey()),
+              attr.getValue(),
+              "CONNECTION_SUGGESTION"));
+    }
+    attributeChangeAuditService.recordAll(events);
   }
 
   /**

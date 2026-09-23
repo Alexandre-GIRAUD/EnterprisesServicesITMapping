@@ -9,6 +9,7 @@
  */
 
 import type {
+  AttributeChangeMeta,
   GraphEdgeCreateRequest,
   GraphEdgeCreateResponse,
   GraphNodeFilterDto,
@@ -115,6 +116,40 @@ export async function createGraphEdge(
     }
     throw new Error(
       `Create edge API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+
+  return res.json();
+}
+
+/**
+ * Updates Data Model `target=EDGE` attributes on a DEPENDS_ON relationship.
+ * Blank values clear the property. Human edits should pass {@code changeMeta}.
+ */
+export async function patchGraphEdgeAttributes(
+  edgeId: string,
+  attributes: Record<string, string>,
+  changeMeta?: AttributeChangeMeta | null
+): Promise<Record<string, string>> {
+  const res = await authenticatedFetch(
+    resolveApiUrl(`/api/graph/edges/${encodeURIComponent(edgeId)}/attributes`),
+    {
+      method: 'PATCH',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        attributes,
+        ...(changeMeta ? { changeMeta } : {}),
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Edge attributes ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
     );
   }
 

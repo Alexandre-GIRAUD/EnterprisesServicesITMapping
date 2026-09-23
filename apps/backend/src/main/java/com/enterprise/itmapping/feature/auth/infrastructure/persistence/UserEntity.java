@@ -49,6 +49,11 @@ public class UserEntity {
     return id;
   }
 
+  /** For tests that construct users without going through {@code @PrePersist}. */
+  public void setId(UUID id) {
+    this.id = id;
+  }
+
   public String getUsername() {
     return username;
   }

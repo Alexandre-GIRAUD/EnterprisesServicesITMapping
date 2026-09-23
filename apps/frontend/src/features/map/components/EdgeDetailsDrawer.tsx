@@ -1,15 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { DataModelFieldDto } from '@/types/api';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import type { DataModelFieldDto, HumanChangeReason } from '@/types/api';
 import { getDataModelRequest } from '@/features/datamodel/api/dataModelApi';
+import { patchGraphEdgeAttributes } from '../api/graphApi';
 import type { SelectedEdgeDetails } from '../utils/selectedEdgeFromDto';
 import { legendLabelForData } from './graphTheme';
 import { CommentsSection } from '@/features/comments/components/CommentsSection';
+import {
+  AttributeChangeReasonFields,
+  buildChangeMeta,
+  validateChangeMeta,
+} from './AttributeChangeReasonFields';
+import { AttributeHistorySection } from './AttributeHistorySection';
 
 type EdgeDetailsDrawerProps = {
   isOpen: boolean;
   edge: SelectedEdgeDetails | null;
   onClose: () => void;
   onOpenApplication?: (applicationId: string, label: string) => void;
+  /** Invoked after a successful edge attribute patch so the parent can refresh the graph. */
+  onEdgeAttributesUpdated?: (edgeId: string, properties: Record<string, string>) => void;
 };
 
 function dash(value: string | null | undefined): string {
@@ -23,17 +32,34 @@ function titleForEdge(edge: SelectedEdgeDetails): string {
   return edge.type || 'Connection';
 }
 
+function attributeValues(
+  fields: DataModelFieldDto[],
+  attributes: Record<string, string> | undefined
+): Record<string, string> {
+  return Object.fromEntries(fields.map((f) => [f.key, attributes?.[f.key] ?? '']));
+}
+
 /**
  * Right-hand details panel for a graph edge (DEPENDS_ON / etc.).
- * Mirrors ApplicationDetailsDrawer layout; read-only in v1.
+ * Edge Data Model attributes are editable (with change reason); sandbox stays local-only.
  */
 export function EdgeDetailsDrawer({
   isOpen,
   edge,
   onClose,
   onOpenApplication,
+  onEdgeAttributesUpdated,
 }: EdgeDetailsDrawerProps) {
   const [edgeFields, setEdgeFields] = useState<DataModelFieldDto[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [attributeForm, setAttributeForm] = useState<Record<string, string>>({});
+  const [localProperties, setLocalProperties] = useState<Record<string, string>>({});
+  const [changeReason, setChangeReason] = useState<HumanChangeReason | ''>('');
+  const [changeReasonComment, setChangeReasonComment] = useState('');
+  const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -51,8 +77,31 @@ export function EdgeDetailsDrawer({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || !edge) return;
+    setLocalProperties(edge.properties ?? {});
+    setIsEditing(false);
+    setIsSaving(false);
+    setFormErrorMessage(null);
+    setSaveSuccessMessage(null);
+    setChangeReason('');
+    setChangeReasonComment('');
+    setAttributeForm(attributeValues(edgeFields, edge.properties));
+  }, [edge, edgeFields, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsEditing(false);
+      setIsSaving(false);
+      setFormErrorMessage(null);
+      setSaveSuccessMessage(null);
+      setChangeReason('');
+      setChangeReasonComment('');
+    }
+  }, [isOpen]);
+
   const attributeRows = useMemo(() => {
-    const stored = edge?.properties ?? {};
+    const stored = localProperties;
     const rows = edgeFields.map((field) => ({
       key: field.key,
       label: field.label || field.key,
@@ -65,9 +114,143 @@ export function EdgeDetailsDrawer({
       }
     }
     return rows;
-  }, [edge?.properties, edgeFields]);
+  }, [localProperties, edgeFields]);
 
   const title = edge ? titleForEdge(edge) : 'Connection';
+  const sandbox = Boolean(edge?.sandbox);
+
+  function attributesChanged(next: Record<string, string>): boolean {
+    return edgeFields.some((field) => {
+      const a = (next[field.key] ?? '').trim();
+      const b = (localProperties[field.key] ?? '').trim();
+      return a !== b;
+    });
+  }
+
+  function startEditing() {
+    if (!edge) return;
+    setAttributeForm(attributeValues(edgeFields, localProperties));
+    setChangeReason('');
+    setChangeReasonComment('');
+    setFormErrorMessage(null);
+    setSaveSuccessMessage(null);
+    setIsEditing(true);
+  }
+
+  function onCancelEdit() {
+    setAttributeForm(attributeValues(edgeFields, localProperties));
+    setChangeReason('');
+    setChangeReasonComment('');
+    setFormErrorMessage(null);
+    setIsEditing(false);
+  }
+
+  async function onSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!edge) return;
+
+    const missing = edgeFields.find(
+      (field) => field.required && !(attributeForm[field.key] ?? '').trim()
+    );
+    if (missing) {
+      setFormErrorMessage(`${missing.label || missing.key} is required.`);
+      return;
+    }
+
+    const attributes = Object.fromEntries(
+      edgeFields.map((field) => [field.key, (attributeForm[field.key] ?? '').trim()])
+    );
+    const dirty = attributesChanged(attributes);
+    if (!dirty) {
+      setIsEditing(false);
+      return;
+    }
+
+    if (sandbox) {
+      const nextProps = Object.fromEntries(
+        Object.entries(attributes).filter(([, value]) => value.length > 0)
+      );
+      setLocalProperties(nextProps);
+      onEdgeAttributesUpdated?.(edge.id, nextProps);
+      setSaveSuccessMessage('Connection updated (sandbox, not saved).');
+      setIsEditing(false);
+      return;
+    }
+
+    const reasonError = validateChangeMeta(changeReason, changeReasonComment);
+    if (reasonError) {
+      setFormErrorMessage(reasonError);
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setFormErrorMessage(null);
+      setSaveSuccessMessage(null);
+      const changeMeta = buildChangeMeta(changeReason, changeReasonComment);
+      const updated = await patchGraphEdgeAttributes(edge.id, attributes, changeMeta);
+      setLocalProperties(updated);
+      onEdgeAttributesUpdated?.(edge.id, updated);
+      setHistoryRefreshKey((k) => k + 1);
+      setSaveSuccessMessage('Connection attributes updated.');
+      setIsEditing(false);
+      setChangeReason('');
+      setChangeReasonComment('');
+    } catch (e) {
+      setFormErrorMessage(e instanceof Error ? e.message : 'Unable to save changes.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function renderAttributeInput(field: DataModelFieldDto) {
+    const value = attributeForm[field.key] ?? '';
+    const label = field.label || field.key;
+    if (field.allowedValues && field.allowedValues.length > 0) {
+      return (
+        <label className="graph-drawer-field" key={field.key}>
+          <span className="graph-drawer-field-label">
+            {label}
+            {field.required ? ' *' : ''}
+          </span>
+          <select
+            className="graph-drawer-input"
+            value={value}
+            onChange={(e) =>
+              setAttributeForm((prev) => ({ ...prev, [field.key]: e.target.value }))
+            }
+            disabled={isSaving}
+            required={field.required}
+          >
+            <option value="">—</option>
+            {field.allowedValues.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </label>
+      );
+    }
+    return (
+      <label className="graph-drawer-field" key={field.key}>
+        <span className="graph-drawer-field-label">
+          {label}
+          {field.required ? ' *' : ''}
+        </span>
+        <input
+          className="graph-drawer-input"
+          type="text"
+          value={value}
+          onChange={(e) =>
+            setAttributeForm((prev) => ({ ...prev, [field.key]: e.target.value }))
+          }
+          disabled={isSaving}
+          required={field.required}
+        />
+      </label>
+    );
+  }
 
   return (
     <aside
@@ -77,7 +260,7 @@ export function EdgeDetailsDrawer({
     >
       <header className="graph-details-header">
         <p className="graph-drawer-eyebrow">
-          {edge?.sandbox ? 'Connection (sandbox)' : 'Connection'}
+          {sandbox ? 'Connection (sandbox)' : 'Connection'}
         </p>
         <div className="graph-drawer-title-row">
           <div className="graph-details-header-main">
@@ -106,6 +289,12 @@ export function EdgeDetailsDrawer({
           <p className="graph-details-text">No connection selected.</p>
         ) : (
           <>
+            {saveSuccessMessage && !isEditing ? (
+              <p className="graph-drawer-feedback graph-drawer-feedback-success" role="status">
+                {saveSuccessMessage}
+              </p>
+            ) : null}
+
             <section className="graph-details-section">
               <h3 className="graph-details-section-title">Endpoints</h3>
               <dl className="graph-details-attribute-list">
@@ -162,35 +351,104 @@ export function EdgeDetailsDrawer({
               </dl>
             </section>
 
-            <section className="graph-details-section">
-              <h3 className="graph-details-section-title">Edge attributes</h3>
-              {attributeRows.length === 0 ? (
-                <p className="graph-details-text">
-                  No edge attribute configured. Add Data Model fields targeting Connection
-                  (edge) to describe this link.
-                </p>
-              ) : (
-                <dl className="graph-details-attribute-list">
-                  {attributeRows.map((row) => (
-                    <div className="graph-details-attribute-row" key={row.key}>
-                      <dt className="graph-details-attribute-label">{row.label}</dt>
-                      <dd className="graph-details-text">
-                        {row.value.trim() ? row.value : 'Not provided'}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              )}
-            </section>
+            {!isEditing ? (
+              <section className="graph-details-section">
+                <h3 className="graph-details-section-title">Edge attributes</h3>
+                {attributeRows.length === 0 ? (
+                  <p className="graph-details-text">
+                    No edge attribute configured. Add Data Model fields targeting Connection
+                    (edge) to describe this link.
+                  </p>
+                ) : (
+                  <dl className="graph-details-attribute-list">
+                    {attributeRows.map((row) => (
+                      <div className="graph-details-attribute-row" key={row.key}>
+                        <dt className="graph-details-attribute-label">{row.label}</dt>
+                        <dd className="graph-details-text">
+                          {row.value.trim() ? row.value : 'Not provided'}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+              </section>
+            ) : (
+              <form className="graph-drawer-form" onSubmit={(e) => void onSave(e)}>
+                {edgeFields.length > 0 ? (
+                  <fieldset className="graph-drawer-field graph-drawer-fieldset">
+                    <legend className="graph-drawer-field-label">Edge attributes</legend>
+                    {edgeFields.map((field) => renderAttributeInput(field))}
+                    <p className="graph-drawer-field-hint">
+                      Defined in the Data Model. Leave empty to clear the value.
+                    </p>
+                  </fieldset>
+                ) : (
+                  <p className="graph-details-text">
+                    No edge attribute configured in the Data Model. Add Connection (edge) fields
+                    to edit values here.
+                  </p>
+                )}
 
-            <CommentsSection
+                {!sandbox && edgeFields.length > 0 ? (
+                  <AttributeChangeReasonFields
+                    reason={changeReason}
+                    reasonComment={changeReasonComment}
+                    onReasonChange={setChangeReason}
+                    onCommentChange={setChangeReasonComment}
+                    disabled={isSaving}
+                    required
+                  />
+                ) : null}
+
+                {formErrorMessage ? (
+                  <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
+                    {formErrorMessage}
+                  </p>
+                ) : null}
+
+                <div className="graph-drawer-form-actions">
+                  {edgeFields.length > 0 ? (
+                    <button
+                      type="submit"
+                      className="graph-drawer-action graph-drawer-action-primary"
+                      disabled={isSaving}
+                    >
+                      <span className="graph-drawer-action-title">
+                        {isSaving ? 'Saving…' : 'Save'}
+                      </span>
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="graph-drawer-action"
+                    onClick={onCancelEdit}
+                    disabled={isSaving}
+                  >
+                    <span className="graph-drawer-action-title">Cancel</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <AttributeHistorySection
               targetType="EDGE"
               targetId={edge.id}
-              enabled={!edge.sandbox}
+              enabled={!sandbox}
+              refreshKey={historyRefreshKey}
             />
+
+            <CommentsSection targetType="EDGE" targetId={edge.id} enabled={!sandbox} />
           </>
         )}
       </div>
+
+      {edge && !isEditing ? (
+        <div className="graph-details-actions">
+          <button type="button" className="graph-drawer-action" onClick={startEditing}>
+            <span className="graph-drawer-action-title">Edit</span>
+          </button>
+        </div>
+      ) : null}
     </aside>
   );
 }

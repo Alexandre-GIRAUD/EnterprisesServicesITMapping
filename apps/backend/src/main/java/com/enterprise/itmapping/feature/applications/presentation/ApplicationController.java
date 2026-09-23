@@ -139,7 +139,12 @@ public class ApplicationController {
       return ResponseEntity.notFound().build();
     }
     Map<String, String> attributes = body != null ? body.attributes() : Map.of();
-    nodeAttributePatchService.patch(id, attributes);
+    if (body != null && body.changeMeta() != null) {
+      nodeAttributePatchService.patchHuman(id, attributes, body.changeMeta());
+    } else {
+      // AI / legacy callers without changeMeta
+      nodeAttributePatchService.patchAi(id, attributes, "API_PATCH");
+    }
     return applicationService
         .findById(id)
         .map(ResponseEntity::ok)

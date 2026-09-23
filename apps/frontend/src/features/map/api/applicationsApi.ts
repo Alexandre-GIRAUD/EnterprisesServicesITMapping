@@ -1,4 +1,5 @@
 import type {
+  ApplicationNodeAttributesPatchRequest,
   ApplicationRequest,
   ApplicationResponse,
   SuggestConnectionsFromGithubRequest,
@@ -64,22 +65,27 @@ export async function fetchApplicationById(applicationId: string): Promise<Appli
 
 /**
  * Updates the Data Model `target=NODE` attributes of an application. Only the submitted keys are
- * touched; a blank value clears the property.
+ * touched; a blank value clears the property. Human edits should pass {@code changeMeta}.
  */
 export async function patchApplicationNodeAttributes(
   applicationId: string,
-  attributes: Record<string, string>
+  attributes: Record<string, string>,
+  changeMeta?: ApplicationNodeAttributesPatchRequest['changeMeta']
 ): Promise<ApplicationResponse> {
   const url = resolveApiUrl(
     `/api/applications/${encodeURIComponent(applicationId)}/node-attributes`
   );
+  const body: ApplicationNodeAttributesPatchRequest = { attributes };
+  if (changeMeta) {
+    body.changeMeta = changeMeta;
+  }
   const res = await authenticatedFetch(url, {
     method: 'PATCH',
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ attributes }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {

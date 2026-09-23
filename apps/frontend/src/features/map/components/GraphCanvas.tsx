@@ -795,6 +795,35 @@ export function GraphCanvas() {
     setSelectedEdge(null);
   }, []);
 
+  const handleEdgeAttributesUpdated = useCallback(
+    (edgeId: string, properties: Record<string, string>) => {
+      setSelectedEdge((prev) =>
+        prev && prev.id === edgeId ? { ...prev, properties } : prev
+      );
+      setGraphEdges((prev) =>
+        prev.map((e) => (e.id === edgeId ? { ...e, properties } : e))
+      );
+      setEdges((prev) =>
+        prev.map((e) =>
+          e.id === edgeId
+            ? { ...e, data: { ...(e.data as object), properties } }
+            : e
+        )
+      );
+      const docId = sandboxes.activeDoc?.id;
+      if (isSandbox && docId) {
+        sandboxes.patchDoc(docId, (doc) => ({
+          ...doc,
+          dirty: true,
+          graphEdges: doc.graphEdges.map((e) =>
+            e.id === edgeId ? { ...e, properties } : e
+          ),
+        }));
+      }
+    },
+    [isSandbox, sandboxes, setEdges, setGraphEdges]
+  );
+
   const closeApplicationDetails = useCallback(() => {
     setIsDetailsDrawerOpen(false);
     setSelectedApplication(null);
@@ -1908,6 +1937,7 @@ export function GraphCanvas() {
               edge={selectedEdge}
               onClose={closeEdgeDetails}
               onOpenApplication={openApplicationDetails}
+              onEdgeAttributesUpdated={handleEdgeAttributesUpdated}
             />
           </div>
         </div>

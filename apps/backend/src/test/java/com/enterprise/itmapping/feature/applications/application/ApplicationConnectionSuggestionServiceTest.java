@@ -22,6 +22,7 @@ import com.enterprise.itmapping.feature.applications.infrastructure.persistence.
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse;
+import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelAttributeResolver;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelPromptBuilder;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
@@ -29,6 +30,7 @@ import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributeReader;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService;
 import com.enterprise.itmapping.feature.integrations.llm.ConnectionDiscoveryProperties;
 import java.nio.file.Path;
@@ -56,7 +58,10 @@ class ApplicationConnectionSuggestionServiceTest {
   @Mock ApplicationCatalogQuery catalogQuery;
   @Mock ApplicationConnectionEdgeWriter edgeWriter;
   @Mock ApplicationNodeAttributeWriter nodeAttributeWriter;
+  @Mock ApplicationNodeAttributeReader nodeAttributeReader;
   @Mock ApplicationNodeRefLinkWriter nodeRefLinkWriter;
+  @Mock GraphEdgeAttributeReader edgeAttributeReader;
+  @Mock AttributeChangeAuditService attributeChangeAuditService;
   @Mock DataModelService dataModelService;
   @Mock DataModelPromptBuilder dataModelPromptBuilder;
   @Mock DataModelAttributeResolver dataModelAttributeResolver;
@@ -76,7 +81,10 @@ class ApplicationConnectionSuggestionServiceTest {
             catalogQuery,
             edgeWriter,
             nodeAttributeWriter,
+            nodeAttributeReader,
             nodeRefLinkWriter,
+            edgeAttributeReader,
+            attributeChangeAuditService,
             dataModelService,
             dataModelPromptBuilder,
             dataModelAttributeResolver);
@@ -94,6 +102,9 @@ class ApplicationConnectionSuggestionServiceTest {
     lenient()
         .when(dataModelAttributeResolver.allowedKeys(any(), eq(DataModelTarget.NODE)))
         .thenReturn(Set.of());
+    lenient().when(edgeWriter.findBareEdgeId(anyString(), anyString())).thenReturn(Optional.empty());
+    lenient().when(nodeAttributeReader.read(anyString())).thenReturn(Map.of());
+    lenient().when(edgeAttributeReader.read(anyString())).thenReturn(Map.of());
   }
 
   @Test
