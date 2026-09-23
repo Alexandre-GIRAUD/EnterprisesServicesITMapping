@@ -29,6 +29,7 @@ export interface GraphEdgeCreateRequest {
   sourceId: string;
   targetId: string;
   type: string;
+  changeMeta?: AttributeChangeMeta | null;
 }
 
 export interface GraphEdgeCreateResponse {
@@ -166,6 +167,32 @@ export type ChangeDetectionRunDto = {
   items: ChangeDetectionItemDto[];
   createdAt: string;
   updatedAt: string;
+};
+
+/** {@code GET /api/override-conflicts} — AI write blocked by human field override. */
+export type OverrideConflictStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED';
+
+export type AttributeOverrideConflictDto = {
+  id: string;
+  targetType: 'APPLICATION' | 'EDGE';
+  targetId: string;
+  fieldScope: 'NODE_ATTR' | 'EDGE_ATTR';
+  fieldKey: string;
+  protectedValue: string | null;
+  proposedValue: string | null;
+  aiSource: string | null;
+  status: OverrideConflictStatus;
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedByUserId: string | null;
+};
+
+export type AttributeOverrideConflictPageDto = {
+  items: AttributeOverrideConflictDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  hasMore: boolean;
 };
 
 /** {@code POST /api/applications/{id}/modules/suggest-from-github} */

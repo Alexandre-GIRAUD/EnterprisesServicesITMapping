@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.graph.presentation;
 
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributePatchService;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeLinkService;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetService;
 import com.enterprise.itmapping.feature.graph.application.GraphService;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeRequestDto;
@@ -8,6 +9,7 @@ import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeRes
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import com.enterprise.itmapping.feature.graph.presentation.dto.GraphEdgeAttributesPatchRequest;
+import com.enterprise.itmapping.feature.graph.presentation.dto.GraphEdgeDeleteRequest;
 import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -16,6 +18,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,14 +44,17 @@ public class GraphController {
   private final GraphService graphService;
   private final GraphNodeFilterFacetService nodeFilterFacetService;
   private final GraphEdgeAttributePatchService edgeAttributePatchService;
+  private final GraphEdgeLinkService edgeLinkService;
 
   public GraphController(
       GraphService graphService,
       GraphNodeFilterFacetService nodeFilterFacetService,
-      GraphEdgeAttributePatchService edgeAttributePatchService) {
+      GraphEdgeAttributePatchService edgeAttributePatchService,
+      GraphEdgeLinkService edgeLinkService) {
     this.graphService = graphService;
     this.nodeFilterFacetService = nodeFilterFacetService;
     this.edgeAttributePatchService = edgeAttributePatchService;
+    this.edgeLinkService = edgeLinkService;
   }
 
   /**
@@ -109,6 +115,22 @@ public class GraphController {
       updated = edgeAttributePatchService.patchAi(id, attributes, "API_PATCH");
     }
     return ResponseEntity.ok(updated);
+  }
+
+  /**
+   * Deletes a graph edge and records an {@code EDGE_LINK} audit event. Human deletes require
+   * {@code changeMeta.reason}.
+   */
+  @DeleteMapping("/edges/{id}")
+  public ResponseEntity<Void> deleteEdge(
+      @PathVariable String id,
+      @RequestBody(required = false) GraphEdgeDeleteRequest body) {
+    if (body != null && body.changeMeta() != null) {
+      edgeLinkService.deleteHuman(id, body.changeMeta());
+    } else {
+      edgeLinkService.deleteAi(id, "API_DELETE");
+    }
+    return ResponseEntity.noContent().build();
   }
 
   static Map<String, List<String>> nodeAttributeFilters(MultiValueMap<String, String> allParams) {

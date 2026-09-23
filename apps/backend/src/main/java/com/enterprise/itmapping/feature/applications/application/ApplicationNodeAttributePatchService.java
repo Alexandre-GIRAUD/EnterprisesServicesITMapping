@@ -2,6 +2,8 @@ package com.enterprise.itmapping.feature.applications.application;
 
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService.AttributeChangeRequest;
+import com.enterprise.itmapping.feature.attributeaudit.application.HumanFieldOverrideGuard;
+import com.enterprise.itmapping.feature.attributeaudit.application.HumanFieldOverrideGuard.Decision;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditFieldScope;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
 import com.enterprise.itmapping.feature.attributeaudit.domain.HumanChangeReason;
@@ -39,16 +41,19 @@ public class ApplicationNodeAttributePatchService {
   private final ApplicationNodeAttributeWriter writer;
   private final ApplicationNodeAttributeReader reader;
   private final AttributeChangeAuditService auditService;
+  private final HumanFieldOverrideGuard overrideGuard;
 
   public ApplicationNodeAttributePatchService(
       DataModelService dataModelService,
       ApplicationNodeAttributeWriter writer,
       ApplicationNodeAttributeReader reader,
-      AttributeChangeAuditService auditService) {
+      AttributeChangeAuditService auditService,
+      HumanFieldOverrideGuard overrideGuard) {
     this.dataModelService = dataModelService;
     this.writer = writer;
     this.reader = reader;
     this.auditService = auditService;
+    this.overrideGuard = overrideGuard;
   }
 
   /** Human drawer edit — requires changeMeta.reason. */
@@ -104,14 +109,29 @@ public class ApplicationNodeAttributePatchService {
       }
       String value = entry.getValue() != null ? entry.getValue().trim() : "";
       String oldValue = current.get(key);
-      if (!StringUtils.hasText(value)) {
+      String newValue = StringUtils.hasText(value) ? requireAllowedValue(field, value) : null;
+
+      if (aiSource != null) {
+        Decision decision =
+            overrideGuard.checkAiWrite(
+                AuditTargetType.APPLICATION,
+                applicationId,
+                AuditFieldScope.NODE_ATTR,
+                key,
+                newValue,
+                aiSource);
+        if (decision == Decision.BLOCK_AND_ENQUEUE) {
+          continue;
+        }
+      }
+
+      if (newValue == null) {
         toRemove.add(key);
         events.add(buildEvent(applicationId, key, oldValue, null, humanReason, humanReasonComment, aiSource));
         continue;
       }
-      String allowed = requireAllowedValue(field, value);
-      toSet.put(key, allowed);
-      events.add(buildEvent(applicationId, key, oldValue, allowed, humanReason, humanReasonComment, aiSource));
+      toSet.put(key, newValue);
+      events.add(buildEvent(applicationId, key, oldValue, newValue, humanReason, humanReasonComment, aiSource));
     }
 
     writer.write(applicationId, toSet, byKey.keySet());

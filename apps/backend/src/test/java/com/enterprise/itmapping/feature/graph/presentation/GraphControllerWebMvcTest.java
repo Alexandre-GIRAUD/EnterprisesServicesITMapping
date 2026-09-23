@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributePatchService;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeLinkService;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetService;
 import com.enterprise.itmapping.feature.graph.application.GraphService;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto;
@@ -32,6 +33,7 @@ class GraphControllerWebMvcTest {
   @MockBean GraphService graphService;
   @MockBean GraphNodeFilterFacetService nodeFilterFacetService;
   @MockBean GraphEdgeAttributePatchService edgeAttributePatchService;
+  @MockBean GraphEdgeLinkService edgeLinkService;
 
   @Test
   void getGraphForwardsApplicationIds() throws Exception {

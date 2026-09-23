@@ -123,9 +123,32 @@ export async function createGraphEdge(
 }
 
 /**
- * Updates Data Model `target=EDGE` attributes on a DEPENDS_ON relationship.
- * Blank values clear the property. Human edits should pass {@code changeMeta}.
+ * Deletes a graph edge and records an EDGE_LINK audit event. Human deletes must pass changeMeta.
  */
+export async function deleteGraphEdge(
+  edgeId: string,
+  changeMeta?: AttributeChangeMeta | null
+): Promise<void> {
+  const res = await authenticatedFetch(
+    resolveApiUrl(`/api/graph/edges/${encodeURIComponent(edgeId)}`),
+    {
+      method: 'DELETE',
+      headers: {
+        Accept: 'application/json',
+        ...(changeMeta ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: changeMeta ? JSON.stringify({ changeMeta }) : undefined,
+    }
+  );
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Delete edge ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+}
+
 export async function patchGraphEdgeAttributes(
   edgeId: string,
   attributes: Record<string, string>,

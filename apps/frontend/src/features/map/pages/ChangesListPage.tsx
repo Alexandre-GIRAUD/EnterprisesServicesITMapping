@@ -29,7 +29,7 @@ export function ChangesListPage() {
       <div className="changes-list-header">
         <h1>Changes</h1>
         <p className="changes-list-lead">
-          Review GitHub webhook suggestions before writing to Neo4j.
+          Review GitHub webhook suggestions and AI writes blocked by human field overrides.
         </p>
         <Link
           to="/map"

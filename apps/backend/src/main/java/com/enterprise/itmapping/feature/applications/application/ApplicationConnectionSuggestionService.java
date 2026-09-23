@@ -10,10 +10,13 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestCon
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse.SkippedItem;
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService.AttributeChangeRequest;
+import com.enterprise.itmapping.feature.attributeaudit.application.HumanFieldOverrideGuard;
+import com.enterprise.itmapping.feature.attributeaudit.application.HumanFieldOverrideGuard.Decision;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditFieldScope;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelAttributeResolver;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributeReader;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeLinkService;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelAttributeResolver.ValidationResult;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelPromptBuilder;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
@@ -30,9 +33,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -77,11 +82,12 @@ public class ApplicationConnectionSuggestionService {
   private final ConnectionDiscoveryProperties properties;
   private final ApplicationCatalogQuery catalogQuery;
   private final ApplicationConnectionEdgeWriter edgeWriter;
-  private final ApplicationNodeAttributeWriter nodeAttributeWriter;
-  private final ApplicationNodeAttributeReader nodeAttributeReader;
+  private final ApplicationNodeAttributePatchService nodeAttributePatchService;
   private final ApplicationNodeRefLinkWriter nodeRefLinkWriter;
   private final GraphEdgeAttributeReader edgeAttributeReader;
   private final AttributeChangeAuditService attributeChangeAuditService;
+  private final GraphEdgeLinkService edgeLinkService;
+  private final HumanFieldOverrideGuard overrideGuard;
   private final DataModelService dataModelService;
   private final DataModelPromptBuilder dataModelPromptBuilder;
   private final DataModelAttributeResolver dataModelAttributeResolver;
@@ -93,11 +99,12 @@ public class ApplicationConnectionSuggestionService {
       ConnectionDiscoveryProperties properties,
       ApplicationCatalogQuery catalogQuery,
       ApplicationConnectionEdgeWriter edgeWriter,
-      ApplicationNodeAttributeWriter nodeAttributeWriter,
-      ApplicationNodeAttributeReader nodeAttributeReader,
+      @Lazy ApplicationNodeAttributePatchService nodeAttributePatchService,
       ApplicationNodeRefLinkWriter nodeRefLinkWriter,
       GraphEdgeAttributeReader edgeAttributeReader,
       AttributeChangeAuditService attributeChangeAuditService,
+      GraphEdgeLinkService edgeLinkService,
+      HumanFieldOverrideGuard overrideGuard,
       DataModelService dataModelService,
       DataModelPromptBuilder dataModelPromptBuilder,
       DataModelAttributeResolver dataModelAttributeResolver) {
@@ -107,11 +114,12 @@ public class ApplicationConnectionSuggestionService {
     this.properties = properties;
     this.catalogQuery = catalogQuery;
     this.edgeWriter = edgeWriter;
-    this.nodeAttributeWriter = nodeAttributeWriter;
-    this.nodeAttributeReader = nodeAttributeReader;
+    this.nodeAttributePatchService = nodeAttributePatchService;
     this.nodeRefLinkWriter = nodeRefLinkWriter;
     this.edgeAttributeReader = edgeAttributeReader;
     this.attributeChangeAuditService = attributeChangeAuditService;
+    this.edgeLinkService = edgeLinkService;
+    this.overrideGuard = overrideGuard;
     this.dataModelService = dataModelService;
     this.dataModelPromptBuilder = dataModelPromptBuilder;
     this.dataModelAttributeResolver = dataModelAttributeResolver;
@@ -284,12 +292,15 @@ public class ApplicationConnectionSuggestionService {
       }
 
       Map<String, String> beforeEdgeAttrs = Map.of();
+      Map<String, String> attrsForWrite = validatedAttributes;
+      Optional<String> bareEdgeId = Optional.empty();
       if (!validatedAttributes.isEmpty()) {
-        beforeEdgeAttrs =
-            edgeWriter
-                .findBareEdgeId(sourceId, targetId)
-                .map(edgeAttributeReader::read)
-                .orElse(Map.of());
+        bareEdgeId = edgeWriter.findBareEdgeId(sourceId, targetId);
+        beforeEdgeAttrs = bareEdgeId.map(edgeAttributeReader::read).orElse(Map.of());
+        if (bareEdgeId.isPresent()) {
+          attrsForWrite =
+              filterAiAllowedEdgeAttrs(bareEdgeId.get(), validatedAttributes, "CONNECTION_SUGGESTION");
+        }
       }
 
       var result =
@@ -301,7 +312,7 @@ public class ApplicationConnectionSuggestionService {
               direction,
               confidence,
               applicationId,
-              validatedAttributes,
+              attrsForWrite,
               allowedEdgeKeys);
 
       switch (result.outcome()) {
@@ -325,7 +336,19 @@ public class ApplicationConnectionSuggestionService {
             inbound++;
           }
           recordEdgeAttributeAiEvents(
-              result.edgeId(), validatedAttributes, beforeEdgeAttrs, result.outcome());
+              result.edgeId(), attrsForWrite, beforeEdgeAttrs, result.outcome());
+          if (result.outcome() == ApplicationConnectionEdgeWriter.Outcome.CREATED) {
+            edgeLinkService.recordCreateAiFromIds(
+                result.edgeId(),
+                sourceId,
+                targetId,
+                "DEPENDS_ON",
+                attrsForWrite,
+                kind,
+                entry.getChannel(),
+                null,
+                "CONNECTION_SUGGESTION");
+          }
         }
       }
     }
@@ -398,25 +421,32 @@ public class ApplicationConnectionSuggestionService {
 
     Set<String> allowedNodeKeys =
         dataModelAttributeResolver.allowedKeys(dataModelConfig, DataModelTarget.NODE);
-    Map<String, String> before = nodeAttributeReader.read(applicationId);
-    int written = nodeAttributeWriter.write(applicationId, attrs, allowedNodeKeys);
+    // Routes through patchAi so human overrides block + enqueue Conflicts.
+    nodeAttributePatchService.patchAi(applicationId, attrs, "CONNECTION_SUGGESTION");
     log.debug(
-        "Application node Data Model write applicationId={} propsWritten={}",
+        "Application node Data Model write via patchAi applicationId={} keys={} allowed={}",
         applicationId,
-        written);
-    List<AttributeChangeRequest> events = new ArrayList<>();
+        attrs.keySet(),
+        allowedNodeKeys);
+  }
+
+  private Map<String, String> filterAiAllowedEdgeAttrs(
+      String edgeId, Map<String, String> attrs, String aiSource) {
+    Map<String, String> allowed = new LinkedHashMap<>();
     for (Map.Entry<String, String> attr : attrs.entrySet()) {
-      events.add(
-          AttributeChangeRequest.ai(
-              AuditTargetType.APPLICATION,
-              applicationId,
-              AuditFieldScope.NODE_ATTR,
+      Decision decision =
+          overrideGuard.checkAiWrite(
+              AuditTargetType.EDGE,
+              edgeId,
+              AuditFieldScope.EDGE_ATTR,
               attr.getKey(),
-              before.get(attr.getKey()),
               attr.getValue(),
-              "CONNECTION_SUGGESTION"));
+              aiSource);
+      if (decision == Decision.ALLOW) {
+        allowed.put(attr.getKey(), attr.getValue());
+      }
     }
-    attributeChangeAuditService.recordAll(events);
+    return allowed;
   }
 
   private void recordEdgeAttributeAiEvents(

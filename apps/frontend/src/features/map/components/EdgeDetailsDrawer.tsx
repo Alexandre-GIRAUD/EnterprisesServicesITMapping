@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import type { DataModelFieldDto, HumanChangeReason } from '@/types/api';
 import { getDataModelRequest } from '@/features/datamodel/api/dataModelApi';
-import { patchGraphEdgeAttributes } from '../api/graphApi';
+import { patchGraphEdgeAttributes, deleteGraphEdge } from '../api/graphApi';
 import type { SelectedEdgeDetails } from '../utils/selectedEdgeFromDto';
 import { legendLabelForData } from './graphTheme';
 import { CommentsSection } from '@/features/comments/components/CommentsSection';
@@ -19,6 +19,8 @@ type EdgeDetailsDrawerProps = {
   onOpenApplication?: (applicationId: string, label: string) => void;
   /** Invoked after a successful edge attribute patch so the parent can refresh the graph. */
   onEdgeAttributesUpdated?: (edgeId: string, properties: Record<string, string>) => void;
+  /** Invoked after a successful edge delete so the parent can remove it from the graph. */
+  onEdgeDeleted?: (edgeId: string) => void;
 };
 
 function dash(value: string | null | undefined): string {
@@ -49,6 +51,7 @@ export function EdgeDetailsDrawer({
   onClose,
   onOpenApplication,
   onEdgeAttributesUpdated,
+  onEdgeDeleted,
 }: EdgeDetailsDrawerProps) {
   const [edgeFields, setEdgeFields] = useState<DataModelFieldDto[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -60,6 +63,11 @@ export function EdgeDetailsDrawer({
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState<HumanChangeReason | ''>('');
+  const [deleteReasonComment, setDeleteReasonComment] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -86,6 +94,11 @@ export function EdgeDetailsDrawer({
     setSaveSuccessMessage(null);
     setChangeReason('');
     setChangeReasonComment('');
+    setShowDeleteConfirm(false);
+    setIsDeleting(false);
+    setDeleteErrorMessage(null);
+    setDeleteReason('');
+    setDeleteReasonComment('');
     setAttributeForm(attributeValues(edgeFields, edge.properties));
   }, [edge, edgeFields, isOpen]);
 
@@ -97,6 +110,11 @@ export function EdgeDetailsDrawer({
       setSaveSuccessMessage(null);
       setChangeReason('');
       setChangeReasonComment('');
+      setShowDeleteConfirm(false);
+      setIsDeleting(false);
+      setDeleteErrorMessage(null);
+      setDeleteReason('');
+      setDeleteReasonComment('');
     }
   }, [isOpen]);
 
@@ -134,6 +152,8 @@ export function EdgeDetailsDrawer({
     setChangeReasonComment('');
     setFormErrorMessage(null);
     setSaveSuccessMessage(null);
+    setShowDeleteConfirm(false);
+    setDeleteErrorMessage(null);
     setIsEditing(true);
   }
 
@@ -143,6 +163,41 @@ export function EdgeDetailsDrawer({
     setChangeReasonComment('');
     setFormErrorMessage(null);
     setIsEditing(false);
+  }
+
+  async function onConfirmDelete() {
+    if (!edge) return;
+
+    if (sandbox) {
+      try {
+        setIsDeleting(true);
+        setDeleteErrorMessage(null);
+        onEdgeDeleted?.(edge.id);
+        onClose();
+      } finally {
+        setIsDeleting(false);
+      }
+      return;
+    }
+
+    const reasonError = validateChangeMeta(deleteReason, deleteReasonComment);
+    if (reasonError) {
+      setDeleteErrorMessage(reasonError);
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      setDeleteErrorMessage(null);
+      const changeMeta = buildChangeMeta(deleteReason, deleteReasonComment);
+      await deleteGraphEdge(edge.id, changeMeta);
+      onEdgeDeleted?.(edge.id);
+      onClose();
+    } catch (e) {
+      setDeleteErrorMessage(e instanceof Error ? e.message : 'Unable to delete connection.');
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   async function onSave(event: FormEvent<HTMLFormElement>) {
@@ -442,11 +497,92 @@ export function EdgeDetailsDrawer({
         )}
       </div>
 
-      {edge && !isEditing ? (
+      {edge ? (
         <div className="graph-details-actions">
-          <button type="button" className="graph-drawer-action" onClick={startEditing}>
-            <span className="graph-drawer-action-title">Edit</span>
-          </button>
+          {!isEditing ? (
+            <button
+              type="button"
+              className="graph-drawer-action"
+              onClick={startEditing}
+              disabled={isDeleting}
+            >
+              <span className="graph-drawer-action-title">Edit</span>
+            </button>
+          ) : null}
+          {!showDeleteConfirm ? (
+            <button
+              type="button"
+              className="graph-drawer-action graph-drawer-action-danger"
+              disabled={isDeleting || isSaving}
+              onClick={() => {
+                setDeleteErrorMessage(null);
+                setDeleteReason('');
+                setDeleteReasonComment('');
+                setShowDeleteConfirm(true);
+              }}
+            >
+              <span className="graph-drawer-action-title">Delete</span>
+              <span className="graph-drawer-action-meta" aria-hidden="true">
+                {sandbox ? 'Local' : 'Neo4j'}
+              </span>
+            </button>
+          ) : (
+            <div
+              className="graph-details-delete-confirm"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="graph-edge-delete-confirm-title"
+            >
+              <p
+                id="graph-edge-delete-confirm-title"
+                className="graph-details-delete-confirm-title"
+              >
+                {sandbox
+                  ? 'Remove this connection from the sandbox graph? No database data will be changed.'
+                  : 'Delete this connection permanently from Neo4j?'}
+              </p>
+              {!sandbox ? (
+                <AttributeChangeReasonFields
+                  reason={deleteReason}
+                  reasonComment={deleteReasonComment}
+                  onReasonChange={setDeleteReason}
+                  onCommentChange={setDeleteReasonComment}
+                  disabled={isDeleting}
+                  required
+                />
+              ) : null}
+              {deleteErrorMessage ? (
+                <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
+                  {deleteErrorMessage}
+                </p>
+              ) : null}
+              <div className="graph-details-delete-confirm-actions">
+                <button
+                  type="button"
+                  className="graph-drawer-action graph-drawer-action-danger-solid"
+                  disabled={isDeleting}
+                  onClick={() => void onConfirmDelete()}
+                >
+                  <span className="graph-drawer-action-title">
+                    {isDeleting ? 'Deleting…' : 'Confirm deletion'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="graph-drawer-action"
+                  disabled={isDeleting}
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteErrorMessage(null);
+                    setDeleteReason('');
+                    setDeleteReasonComment('');
+                  }}
+                >
+                  <span className="graph-drawer-action-title">Cancel</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
     </aside>

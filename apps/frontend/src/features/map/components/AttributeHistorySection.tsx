@@ -24,6 +24,36 @@ function displayValue(value: string | null): string {
   return value;
 }
 
+function linkEventSummary(event: AttributeChangeEventDto): { title: string; detail: string | null } {
+  const created = !event.oldValue && Boolean(event.newValue);
+  const deleted = Boolean(event.oldValue) && !event.newValue;
+  const raw = created ? event.newValue : deleted ? event.oldValue : null;
+  let detail: string | null = null;
+  if (raw) {
+    try {
+      const snap = JSON.parse(raw) as {
+        sourceId?: string;
+        targetId?: string;
+        type?: string;
+        connection_kind?: string;
+        channel?: string;
+      };
+      const parts = [
+        snap.type,
+        snap.connection_kind,
+        snap.channel,
+        snap.sourceId && snap.targetId ? `${snap.sourceId} → ${snap.targetId}` : null,
+      ].filter(Boolean);
+      detail = parts.join(' · ');
+    } catch {
+      detail = raw.slice(0, 120);
+    }
+  }
+  if (created) return { title: 'Connection created', detail };
+  if (deleted) return { title: 'Connection deleted', detail };
+  return { title: 'Connection updated', detail };
+}
+
 function actorLabel(event: AttributeChangeEventDto): string {
   if (event.actorType === 'HUMAN') {
     const who = event.actorUsername?.trim();
@@ -135,7 +165,11 @@ export function AttributeHistorySection({
       ) : (
         <>
           <ul className="attribute-history-list">
-            {items.map((event) => (
+            {items.map((event) => {
+              const isLink =
+                event.fieldScope === 'EDGE_LINK' || event.fieldKey === '__link__';
+              const link = isLink ? linkEventSummary(event) : null;
+              return (
               <li key={event.id} className="attribute-history-item">
                 <div className="attribute-history-item__meta">
                   <span
@@ -145,19 +179,33 @@ export function AttributeHistorySection({
                   </span>
                   <time dateTime={event.createdAt}>{formatWhen(event.createdAt)}</time>
                 </div>
-                <p className="attribute-history-item__field">
-                  <strong>{event.fieldKey}</strong>
-                </p>
-                <p className="attribute-history-item__diff">
-                  <span className="attribute-history-old">{displayValue(event.oldValue)}</span>
-                  <span aria-hidden="true"> → </span>
-                  <span className="attribute-history-new">{displayValue(event.newValue)}</span>
-                </p>
+                {link ? (
+                  <>
+                    <p className="attribute-history-item__field">
+                      <strong>{link.title}</strong>
+                    </p>
+                    {link.detail ? (
+                      <p className="attribute-history-item__diff">{link.detail}</p>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <p className="attribute-history-item__field">
+                      <strong>{event.fieldKey}</strong>
+                    </p>
+                    <p className="attribute-history-item__diff">
+                      <span className="attribute-history-old">{displayValue(event.oldValue)}</span>
+                      <span aria-hidden="true"> → </span>
+                      <span className="attribute-history-new">{displayValue(event.newValue)}</span>
+                    </p>
+                  </>
+                )}
                 {reasonLabel(event) ? (
                   <p className="attribute-history-item__reason">{reasonLabel(event)}</p>
                 ) : null}
               </li>
-            ))}
+              );
+            })}
           </ul>
           {errorMessage ? (
             <p className="graph-details-text graph-details-text-error">{errorMessage}</p>

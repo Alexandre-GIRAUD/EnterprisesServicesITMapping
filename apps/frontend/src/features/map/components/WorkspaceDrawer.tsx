@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { ApplicationResponse, GraphEdgeCreateResponse } from '@/types/api';
+import type { ApplicationResponse, GraphEdgeCreateResponse, HumanChangeReason } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
 import { useCreateApplicationNode } from '../hooks/useCreateApplicationNode';
 import { useCreateGraphEdge } from '../hooks/useCreateGraphEdge';
@@ -16,6 +16,11 @@ import {
 } from '../utils/sandboxGraph';
 import { SANDBOX_ICON_PALETTE } from '../utils/sandboxDocuments';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
+import {
+  AttributeChangeReasonFields,
+  buildChangeMeta,
+  validateChangeMeta,
+} from './AttributeChangeReasonFields';
 
 type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-icons';
 
@@ -110,6 +115,8 @@ export function WorkspaceDrawer({
   const [view, setView] = useState<DrawerView>('menu');
   const [nodeFormState, setNodeFormState] = useState<AddNodeFormState>(DEFAULT_FORM_STATE);
   const [edgeFormState, setEdgeFormState] = useState<AddEdgeFormState>(DEFAULT_EDGE_FORM_STATE);
+  const [edgeChangeReason, setEdgeChangeReason] = useState<HumanChangeReason | ''>('');
+  const [edgeChangeReasonComment, setEdgeChangeReasonComment] = useState('');
   const [selectedSourceApp, setSelectedSourceApp] = useState<ApplicationResponse | null>(null);
   const [selectedTargetApp, setSelectedTargetApp] = useState<ApplicationResponse | null>(null);
   const [allApps, setAllApps] = useState<ApplicationResponse[] | null>(null);
@@ -244,6 +251,8 @@ export function WorkspaceDrawer({
     setSelectedSourceApp(null);
     setSelectedTargetApp(null);
     setEdgeFormState(DEFAULT_EDGE_FORM_STATE);
+    setEdgeChangeReason('');
+    setEdgeChangeReasonComment('');
   }
 
   useEffect(() => {
@@ -410,6 +419,16 @@ export function WorkspaceDrawer({
       return;
     }
 
+    let changeMeta = null as ReturnType<typeof buildChangeMeta>;
+    if (!sandboxMode) {
+      const reasonError = validateChangeMeta(edgeChangeReason, edgeChangeReasonComment);
+      if (reasonError) {
+        setLocalError(reasonError);
+        return;
+      }
+      changeMeta = buildChangeMeta(edgeChangeReason, edgeChangeReasonComment);
+    }
+
     let created: GraphEdgeCreateResponse | null;
     if (sandboxMode) {
       // Relation type kept for rendering; visible label starts empty (no DEPENDS_ON).
@@ -419,7 +438,7 @@ export function WorkspaceDrawer({
         type: type || 'DEPENDS_ON',
       });
     } else {
-      created = await createEdge({ sourceId, targetId, type });
+      created = await createEdge({ sourceId, targetId, type, changeMeta });
     }
     if (!created) return;
 
@@ -430,6 +449,8 @@ export function WorkspaceDrawer({
     }
 
     setEdgeFormState(DEFAULT_EDGE_FORM_STATE);
+    setEdgeChangeReason('');
+    setEdgeChangeReasonComment('');
     setSelectedSourceApp(null);
     setSelectedTargetApp(null);
     setIsSourceSuggestionsOpen(false);
@@ -737,6 +758,17 @@ export function WorkspaceDrawer({
               />
             </label>
           )}
+
+          {!sandboxMode ? (
+            <AttributeChangeReasonFields
+              reason={edgeChangeReason}
+              reasonComment={edgeChangeReasonComment}
+              onReasonChange={setEdgeChangeReason}
+              onCommentChange={setEdgeChangeReasonComment}
+              disabled={isSubmitting}
+              required
+            />
+          ) : null}
 
           <div className="graph-drawer-form-actions">
             <button

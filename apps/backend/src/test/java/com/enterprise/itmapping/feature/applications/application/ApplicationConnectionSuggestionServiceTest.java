@@ -23,6 +23,7 @@ import com.enterprise.itmapping.feature.applications.infrastructure.persistence.
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse;
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
+import com.enterprise.itmapping.feature.attributeaudit.application.HumanFieldOverrideGuard;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelAttributeResolver;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelPromptBuilder;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
@@ -31,6 +32,7 @@ import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributeReader;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeLinkService;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService;
 import com.enterprise.itmapping.feature.integrations.llm.ConnectionDiscoveryProperties;
 import java.nio.file.Path;
@@ -57,11 +59,12 @@ class ApplicationConnectionSuggestionServiceTest {
   @Mock ConnectionDiscoveryAgent agent;
   @Mock ApplicationCatalogQuery catalogQuery;
   @Mock ApplicationConnectionEdgeWriter edgeWriter;
-  @Mock ApplicationNodeAttributeWriter nodeAttributeWriter;
-  @Mock ApplicationNodeAttributeReader nodeAttributeReader;
+  @Mock ApplicationNodeAttributePatchService nodeAttributePatchService;
   @Mock ApplicationNodeRefLinkWriter nodeRefLinkWriter;
   @Mock GraphEdgeAttributeReader edgeAttributeReader;
   @Mock AttributeChangeAuditService attributeChangeAuditService;
+  @Mock GraphEdgeLinkService edgeLinkService;
+  @Mock HumanFieldOverrideGuard overrideGuard;
   @Mock DataModelService dataModelService;
   @Mock DataModelPromptBuilder dataModelPromptBuilder;
   @Mock DataModelAttributeResolver dataModelAttributeResolver;
@@ -80,11 +83,12 @@ class ApplicationConnectionSuggestionServiceTest {
             props,
             catalogQuery,
             edgeWriter,
-            nodeAttributeWriter,
-            nodeAttributeReader,
+            nodeAttributePatchService,
             nodeRefLinkWriter,
             edgeAttributeReader,
             attributeChangeAuditService,
+            edgeLinkService,
+            overrideGuard,
             dataModelService,
             dataModelPromptBuilder,
             dataModelAttributeResolver);
@@ -103,8 +107,10 @@ class ApplicationConnectionSuggestionServiceTest {
         .when(dataModelAttributeResolver.allowedKeys(any(), eq(DataModelTarget.NODE)))
         .thenReturn(Set.of());
     lenient().when(edgeWriter.findBareEdgeId(anyString(), anyString())).thenReturn(Optional.empty());
-    lenient().when(nodeAttributeReader.read(anyString())).thenReturn(Map.of());
     lenient().when(edgeAttributeReader.read(anyString())).thenReturn(Map.of());
+    lenient()
+        .when(overrideGuard.checkAiWrite(any(), anyString(), any(), anyString(), any(), anyString()))
+        .thenReturn(HumanFieldOverrideGuard.Decision.ALLOW);
   }
 
   @Test
@@ -142,7 +148,7 @@ class ApplicationConnectionSuggestionServiceTest {
     assertThat(tgt.getValue()).isEqualTo("id-b");
     assertThat(res.created()).hasSize(1);
     assertThat(res.created().get(0).direction()).isEqualTo("outbound");
-    verify(nodeAttributeWriter, never()).write(anyString(), any(), anySet());
+    verify(nodeAttributePatchService, never()).patchAi(anyString(), any(), anyString());
   }
 
   @Test
@@ -311,7 +317,7 @@ class ApplicationConnectionSuggestionServiceTest {
             eq(Map.of()),
             eq(Set.of()));
     verify(dataModelAttributeResolver, never()).validate(any(), any(), eq(DataModelTarget.EDGE));
-    verify(nodeAttributeWriter, never()).write(anyString(), any(), anySet());
+    verify(nodeAttributePatchService, never()).patchAi(anyString(), any(), anyString());
   }
 
   @Test
@@ -433,7 +439,6 @@ class ApplicationConnectionSuggestionServiceTest {
     Map<String, String> nodeAttrs = Map.of("tier", "T1");
     when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.NODE)))
         .thenReturn(new DataModelAttributeResolver.ValidationResult(true, nodeAttrs, null, null));
-    when(nodeAttributeWriter.write(eq(APP_ID), eq(nodeAttrs), eq(Set.of("tier")))).thenReturn(1);
 
     AiApplicationConnectionPayload payload = new AiApplicationConnectionPayload();
     payload.setConnections(
@@ -457,7 +462,7 @@ class ApplicationConnectionSuggestionServiceTest {
         service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
 
     assertThat(res.created()).hasSize(1);
-    verify(nodeAttributeWriter).write(APP_ID, nodeAttrs, Set.of("tier"));
+    verify(nodeAttributePatchService).patchAi(APP_ID, nodeAttrs, "CONNECTION_SUGGESTION");
     verify(dataModelAttributeResolver, never()).validate(any(), any(), eq(DataModelTarget.EDGE));
   }
 
@@ -498,7 +503,7 @@ class ApplicationConnectionSuggestionServiceTest {
 
     service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
 
-    verify(nodeAttributeWriter, never()).write(anyString(), any(), anySet());
+    verify(nodeAttributePatchService, never()).patchAi(anyString(), any(), anyString());
     verify(dataModelAttributeResolver, never()).validate(any(), any(), eq(DataModelTarget.NODE));
   }
 
@@ -562,7 +567,7 @@ class ApplicationConnectionSuggestionServiceTest {
         service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
 
     assertThat(res.created()).hasSize(1);
-    verify(nodeAttributeWriter, never()).write(anyString(), any(), anySet());
+    verify(nodeAttributePatchService, never()).patchAi(anyString(), any(), anyString());
   }
 
   private void stubAgent(AiConnectionEntry... entries) {

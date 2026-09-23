@@ -2,6 +2,8 @@ package com.enterprise.itmapping.feature.graph.application;
 
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService.AttributeChangeRequest;
+import com.enterprise.itmapping.feature.attributeaudit.application.HumanFieldOverrideGuard;
+import com.enterprise.itmapping.feature.attributeaudit.application.HumanFieldOverrideGuard.Decision;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditFieldScope;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
 import com.enterprise.itmapping.feature.attributeaudit.domain.HumanChangeReason;
@@ -36,16 +38,19 @@ public class GraphEdgeAttributePatchService {
   private final GraphEdgeAttributeWriter writer;
   private final GraphEdgeAttributeReader reader;
   private final AttributeChangeAuditService auditService;
+  private final HumanFieldOverrideGuard overrideGuard;
 
   public GraphEdgeAttributePatchService(
       DataModelService dataModelService,
       GraphEdgeAttributeWriter writer,
       GraphEdgeAttributeReader reader,
-      AttributeChangeAuditService auditService) {
+      AttributeChangeAuditService auditService,
+      HumanFieldOverrideGuard overrideGuard) {
     this.dataModelService = dataModelService;
     this.writer = writer;
     this.reader = reader;
     this.auditService = auditService;
+    this.overrideGuard = overrideGuard;
   }
 
   @Transactional
@@ -98,16 +103,26 @@ public class GraphEdgeAttributePatchService {
       }
       String value = entry.getValue() != null ? entry.getValue().trim() : "";
       String oldValue = current.get(key);
-      if (!StringUtils.hasText(value)) {
+      String newValue = StringUtils.hasText(value) ? requireAllowedValue(field, value) : null;
+
+      if (aiSource != null) {
+        Decision decision =
+            overrideGuard.checkAiWrite(
+                AuditTargetType.EDGE, edgeId, AuditFieldScope.EDGE_ATTR, key, newValue, aiSource);
+        if (decision == Decision.BLOCK_AND_ENQUEUE) {
+          continue;
+        }
+      }
+
+      if (newValue == null) {
         toRemove.add(key);
         events.add(
             buildEvent(edgeId, key, oldValue, null, humanReason, humanReasonComment, aiSource));
         continue;
       }
-      String allowed = requireAllowedValue(field, value);
-      toSet.put(key, allowed);
+      toSet.put(key, newValue);
       events.add(
-          buildEvent(edgeId, key, oldValue, allowed, humanReason, humanReasonComment, aiSource));
+          buildEvent(edgeId, key, oldValue, newValue, humanReason, humanReasonComment, aiSource));
     }
 
     writer.write(edgeId, toSet, byKey.keySet());
