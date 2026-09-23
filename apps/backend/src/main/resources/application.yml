@@ -76,6 +76,14 @@ app:
         clone-timeout-seconds: 120
         skip-low-confidence: false
         max-catalog-apps-in-prompt: 500
+      # Functional documentation agent (business/product doc under module map).
+      functional-documentation:
+        max-tool-iterations: 25
+        max-grep-hits: 50
+        max-read-chars-per-file: 12000
+        max-tree-entries: 500
+        clone-timeout-seconds: 120
+        locale: en
   sample-data:
     seed: ${SAMPLE_DATA_SEED:true} # set SAMPLE_DATA_SEED=false to disable
     # Neo4j may not accept Bolt immediately (Docker order, cold start, APOC). Retry before giving up.
@@ -106,4 +114,6 @@ logging:
     com.enterprise.itmapping.feature.applications.application.ApplicationConnectionSuggestionService: DEBUG
     com.enterprise.itmapping.feature.applications.application.ConnectionDiscoveryAgent: DEBUG
     com.enterprise.itmapping.feature.applications.application.ApplicationConnectionEdgeWriter: DEBUG
+    com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocumentationService: INFO
+    com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocumentationAgent: DEBUG
     com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService: INFO

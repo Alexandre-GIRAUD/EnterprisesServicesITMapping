@@ -314,3 +314,46 @@ export type CreateCommentRequest = {
 export type UpdateCommentRequest = {
   body: string;
 };
+
+/** {@code GET/POST …/applications/{id}/functional-documentation} */
+export type FunctionalDocStatus = 'MISSING' | 'PENDING' | 'READY' | 'FAILED';
+
+export type FunctionalDocNamedItem = {
+  name: string;
+  description: string;
+};
+
+export type FunctionalDocActor = {
+  name: string;
+  role: string;
+};
+
+export type FunctionalDocIntegration = {
+  name: string;
+  purpose: string;
+};
+
+export type FunctionalDocPayload = {
+  title: string;
+  summary: string;
+  business_capabilities: FunctionalDocNamedItem[];
+  users_and_actors: FunctionalDocActor[];
+  main_flows: FunctionalDocNamedItem[];
+  data_concepts: FunctionalDocNamedItem[];
+  integrations_functional: FunctionalDocIntegration[];
+  out_of_scope: string[];
+  assumptions: string[];
+  limitations: string[];
+  sources: string[];
+};
+
+export type FunctionalDocumentationDto = {
+  applicationId: string;
+  status: FunctionalDocStatus;
+  locale: string;
+  payload: FunctionalDocPayload | null;
+  sourceRepo: string | null;
+  analyzedFiles: string[];
+  generatedAt: string | null;
+  errorMessage: string | null;
+};

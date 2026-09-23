@@ -7,6 +7,7 @@ import {
   suggestConnectionsFromGithub,
   suggestModulesFromGithub,
 } from '../api/applicationsApi';
+import { generateFunctionalDocumentation } from '../api/functionalDocumentationApi';
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
 import { navigateToModuleGraph } from '../utils/mapNavigation';
 import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
@@ -112,6 +113,10 @@ export function GitHubImportPage() {
           });
           setApplications((prev) => [...prev, created]);
           createdNames.push(normalizeName(repo.fullName));
+          // Fire-and-forget: async functional doc generation (poll on module view).
+          void generateFunctionalDocumentation(created.id).catch(() => {
+            /* import succeeds even if doc generation fails to start */
+          });
         } catch (e) {
           errors.push(`${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`);
         }

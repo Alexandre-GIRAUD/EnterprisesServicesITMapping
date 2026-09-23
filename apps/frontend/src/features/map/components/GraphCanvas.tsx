@@ -76,6 +76,7 @@ import { OrientedEdge } from './OrientedEdge';
 import { computeFocus } from './graphFocus';
 import { applicationResponseFromGraphNode, isSandboxId } from '../utils/sandboxGraph';
 import { ApplicationModuleGraph } from './ApplicationModuleGraph';
+import { ApplicationFunctionalDocPanel } from './ApplicationFunctionalDocPanel';
 import type { ApplicationUpdatePatch } from './ApplicationDetailsDrawer';
 import { SelfServiceBurger, SelfServiceSideMenu, type SideMenuTool } from './SelfServiceSideMenu';
 import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle';
@@ -1562,7 +1563,13 @@ export function GraphCanvas() {
                 </button>
                 <span className="module-map-title">{moduleGraphApp.label}</span>
               </div>
-              <ApplicationModuleGraph applicationId={moduleGraphApp.id} />
+              <div className="module-map-canvas">
+                <ApplicationModuleGraph applicationId={moduleGraphApp.id} />
+              </div>
+              <ApplicationFunctionalDocPanel
+                applicationId={moduleGraphApp.id}
+                applicationName={moduleGraphApp.label}
+              />
             </div>
             ) : displayMode === 'graph' && isSandbox ? (
             <div
