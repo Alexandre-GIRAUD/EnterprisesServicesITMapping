@@ -69,6 +69,8 @@ import {
 import { bindEdgeDetailsOpener } from '../utils/edgeDetailsSelection';
 import { ApplicationsTablePanel } from './ApplicationsTablePanel';
 import { FeedsTablePanel } from './FeedsTablePanel';
+import { TableColumnsPicker } from './TableColumnsPicker';
+import { useTableColumns } from '../hooks/useTableColumns';
 import { snapDraggedNodeForStraighterEdges } from './alignNodes';
 import { GraphLegend } from './GraphLegend';
 import { AppGraphNode } from './AppGraphNode';
@@ -163,6 +165,7 @@ export function GraphCanvas() {
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [displayMode, setDisplayMode] = useState<GraphDisplayMode>('graph');
   const [tableContent, setTableContent] = useState<TableContentMode>('apps');
+  const tableColumns = useTableColumns(tableContent, nodeFilters);
   const [moduleGraphApp, setModuleGraphApp] = useState<{ id: string; label: string } | null>(null);
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
   const [pendingChangeCount, setPendingChangeCount] = useState(0);
@@ -1955,7 +1958,7 @@ export function GraphCanvas() {
                       status={status}
                       nodes={graphNodes}
                       applicationsCatalog={applications}
-                      nodeFilters={nodeFilters}
+                      columns={tableColumns.displayed}
                       errorMessage={status === 'error' ? message : null}
                       onRowClick={openApplicationDetails}
                     />
@@ -1966,6 +1969,8 @@ export function GraphCanvas() {
                       status={status}
                       edges={graphEdges}
                       nodes={graphNodes}
+                      columns={tableColumns.displayed}
+                      edgeFilters={nodeFilters.filter((f) => f.kind === 'EDGE')}
                       errorMessage={status === 'error' ? message : null}
                       onRowClick={(edge) =>
                         openEdgeDetails(
@@ -2032,6 +2037,18 @@ export function GraphCanvas() {
           activeTool={activeSideMenuTool}
           onActiveToolChange={setActiveSideMenuTool}
           pendingChangeCount={pendingChangeCount}
+          columnsOnly={displayMode === 'table'}
+          columnsDetail={
+            <TableColumnsPicker
+              table={tableContent}
+              displayed={tableColumns.displayed}
+              hidden={tableColumns.hidden}
+              onHide={tableColumns.hide}
+              onShow={tableColumns.show}
+              onShowAt={tableColumns.showAt}
+              onMoveInDisplay={tableColumns.moveInDisplay}
+            />
+          }
           onModeChange={(nextMode) => {
             setDisplayMode('graph');
             setModuleGraphApp(null);
