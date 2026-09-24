@@ -137,6 +137,8 @@ export function GraphCanvas() {
     iconKey: string;
     sticky: boolean;
   } | null>(null);
+  const [textPlacement, setTextPlacement] = useState(false);
+  const [pendingEditTextId, setPendingEditTextId] = useState<string | null>(null);
   const [iconGhostPos, setIconGhostPos] = useState({ x: 0, y: 0 });
   const [recentSandboxIcons, setRecentSandboxIcons] = useState<string[]>(() =>
     loadRecentSandboxIcons()
@@ -364,17 +366,22 @@ export function GraphCanvas() {
   }, [sandboxToast]);
 
   useEffect(() => {
-    if (!iconPlacement) return;
+    if (!iconPlacement && !textPlacement) return;
     const onMove = (e: MouseEvent) => setIconGhostPos({ x: e.clientX, y: e.clientY });
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIconPlacement(null);
+      if (e.key === 'Escape') {
+        setIconPlacement(null);
+        setTextPlacement(false);
+      }
     };
     const onDown = (e: MouseEvent) => {
       const t = e.target as Element | null;
       if (!t) return;
       if (t.closest('.sandbox-pane')) return;
       if (t.closest('.graph-drawer-icon-palette') || t.closest('.graph-drawer-icon-btn')) return;
+      if (t.closest('.graph-drawer-action')) return;
       setIconPlacement(null);
+      setTextPlacement(false);
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('keydown', onKey);
@@ -384,7 +391,7 @@ export function GraphCanvas() {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('mousedown', onDown, true);
     };
-  }, [iconPlacement]);
+  }, [iconPlacement, textPlacement]);
 
   // Keep sandbox edge stroke/label colors aligned with active legend coding.
   useEffect(() => {
@@ -1505,11 +1512,21 @@ export function GraphCanvas() {
                 setSandboxToast('Open a sandbox to place an icon.');
                 return;
               }
+              setTextPlacement(false);
               rememberSandboxIcon(iconKey);
               setIconGhostPos({ x: 0, y: 0 });
               setIconPlacement({ iconKey, sticky });
             }}
             onClearIconPlacement={() => setIconPlacement(null)}
+            onStartTextPlacement={() => {
+              if (sandboxes.openDocs.length === 0) {
+                setSandboxToast('Open a sandbox to place text.');
+                return;
+              }
+              setIconPlacement(null);
+              setTextPlacement(true);
+              setIconGhostPos({ x: 0, y: 0 });
+            }}
             requestedView={toolkitRequest}
             onRequestedViewConsumed={() => setToolkitRequest(null)}
           />
@@ -1637,7 +1654,7 @@ export function GraphCanvas() {
             <div
               id="graph-canvas-pane"
               className={`graph-canvas is-sandbox sandbox-stage${
-                iconPlacement ? ' is-placing-icon' : ''
+                iconPlacement || textPlacement ? ' is-placing-icon' : ''
               }`}
               role="tabpanel"
               aria-labelledby="graph-mode-tab-sandbox"
@@ -1699,6 +1716,7 @@ export function GraphCanvas() {
                     recentIcons={recentSandboxIcons}
                     onPickRecentIcon={(iconKey) => {
                       sandboxes.setActiveId(doc.id);
+                      setTextPlacement(false);
                       rememberSandboxIcon(iconKey);
                       setIconGhostPos({ x: 0, y: 0 });
                       setIconPlacement({ iconKey, sticky: false });
@@ -1727,6 +1745,13 @@ export function GraphCanvas() {
                       }));
                     }}
                     onIconDelete={(iconId) => sandboxes.removeIcon(doc.id, iconId)}
+                    onTextMove={(textId, x, y) => {
+                      sandboxes.updateTextBox(doc.id, textId, { x, y });
+                    }}
+                    onTextChange={(textId, patch) => {
+                      sandboxes.updateTextBox(doc.id, textId, patch);
+                    }}
+                    onTextDelete={(textId) => sandboxes.removeTextBox(doc.id, textId)}
                     onHideNode={(nodeId) => sandboxes.hideNode(doc.id, nodeId)}
                     onShowHidden={(ids) => sandboxes.showHidden(doc.id, ids)}
                     onOpenDetails={(nodeId, label) => openApplicationDetails(nodeId, label)}
@@ -1759,6 +1784,18 @@ export function GraphCanvas() {
                       setSandboxToast('Icon added');
                       if (!iconPlacement.sticky) setIconPlacement(null);
                     }}
+                    placingText={textPlacement}
+                    onPlaceText={(x, y) => {
+                      const id = sandboxes.addTextBox(doc.id, x, y);
+                      sandboxes.setActiveId(doc.id);
+                      setPendingEditTextId(id);
+                      setTextPlacement(false);
+                      setSandboxToast('Text box added — double-click to edit');
+                    }}
+                    editingTextId={pendingEditTextId}
+                    onTextEditStarted={(textId) => {
+                      if (pendingEditTextId === textId) setPendingEditTextId(null);
+                    }}
                   />
                 ))}
               </div>
@@ -1769,6 +1806,15 @@ export function GraphCanvas() {
                   aria-hidden
                 >
                   <SandboxIconGlyph iconKey={iconPlacement.iconKey} />
+                </div>
+              ) : null}
+              {textPlacement ? (
+                <div
+                  className="sandbox-text-ghost"
+                  style={{ left: iconGhostPos.x, top: iconGhostPos.y }}
+                  aria-hidden
+                >
+                  Text
                 </div>
               ) : null}
               <div className="sandbox-shared-legend">

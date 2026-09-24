@@ -12,8 +12,11 @@ import {
   normalizeSandboxDocument,
   sandboxIconLabel,
   storeSavedSandboxes,
+  createSandboxTextBoxId,
+  DEFAULT_SANDBOX_TEXT_WIDTH,
   type SandboxDocument,
   type SandboxIcon,
+  type SandboxTextBox,
   type SandboxLayoutMode,
   type SavedSandboxMeta,
   coerceSandboxLayout,
@@ -209,6 +212,51 @@ export function useSandboxes() {
     }));
   }, [patchDoc]);
 
+  const addTextBox = useCallback((docId: string, x: number, y: number) => {
+    const box: SandboxTextBox = {
+      id: createSandboxTextBoxId(),
+      text: '',
+      x,
+      y,
+      width: DEFAULT_SANDBOX_TEXT_WIDTH,
+      fontSize: 'md',
+      align: 'left',
+    };
+    patchDoc(docId, (d) => ({
+      ...d,
+      dirty: true,
+      textBoxes: [...(d.textBoxes ?? []), box],
+    }));
+    return box.id;
+  }, [patchDoc]);
+
+  const updateTextBox = useCallback(
+    (
+      docId: string,
+      textId: string,
+      patch: Partial<
+        Pick<SandboxTextBox, 'text' | 'x' | 'y' | 'width' | 'fontSize' | 'align'>
+      >
+    ) => {
+      patchDoc(docId, (d) => ({
+        ...d,
+        dirty: true,
+        textBoxes: (d.textBoxes ?? []).map((t) =>
+          t.id === textId ? { ...t, ...patch } : t
+        ),
+      }));
+    },
+    [patchDoc]
+  );
+
+  const removeTextBox = useCallback((docId: string, textId: string) => {
+    patchDoc(docId, (d) => ({
+      ...d,
+      dirty: true,
+      textBoxes: (d.textBoxes ?? []).filter((t) => t.id !== textId),
+    }));
+  }, [patchDoc]);
+
   const hideNode = useCallback((docId: string, nodeId: string) => {
     patchDoc(docId, (d) => {
       const hidden = d.hiddenNodeIds ?? [];
@@ -249,6 +297,9 @@ export function useSandboxes() {
     addIcon,
     updateIconLabel,
     removeIcon,
+    addTextBox,
+    updateTextBox,
+    removeTextBox,
     hideNode,
     showHidden,
   };
