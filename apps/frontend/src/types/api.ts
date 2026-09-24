@@ -195,6 +195,26 @@ export type AttributeOverrideConflictPageDto = {
   hasMore: boolean;
 };
 
+/** {@code POST /api/chat/ask} — IT mapping chatbot. */
+export type ChatCitationType = 'APPLICATION' | 'EDGE' | 'FUNCTIONAL_DOC' | 'MODULE';
+
+export type ChatCitationDto = {
+  type: ChatCitationType;
+  id: string;
+  label: string;
+};
+
+export type ChatHistoryMessageDto = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+export type ChatAskResponseDto = {
+  answerMarkdown: string;
+  citations: ChatCitationDto[];
+  warnings: string[];
+};
+
 /** {@code POST /api/applications/{id}/modules/suggest-from-github} */
 export interface SuggestModulesFromGithubRequest {
   fullName?: string | null;

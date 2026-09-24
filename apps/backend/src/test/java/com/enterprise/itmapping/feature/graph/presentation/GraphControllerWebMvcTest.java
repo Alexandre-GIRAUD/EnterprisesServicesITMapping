@@ -34,6 +34,8 @@ class GraphControllerWebMvcTest {
   @MockBean GraphNodeFilterFacetService nodeFilterFacetService;
   @MockBean GraphEdgeAttributePatchService edgeAttributePatchService;
   @MockBean GraphEdgeLinkService edgeLinkService;
+  @MockBean com.enterprise.itmapping.feature.graph.application.GraphNeighborhoodService
+      neighborhoodService;
 
   @Test
   void getGraphForwardsApplicationIds() throws Exception {

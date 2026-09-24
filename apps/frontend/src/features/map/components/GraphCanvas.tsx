@@ -85,6 +85,7 @@ import { fitGraphView, ensureNodesVisible } from './fitGraphView';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { PendingChangesPanel, pendingItemsCount } from './PendingChangesPanel';
+import { MappingChatPanel } from './MappingChatPanel';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { listChangeDetections } from '../api/changeDetectionsApi';
@@ -1422,6 +1423,19 @@ export function GraphCanvas() {
             onPendingCountChange={setPendingChangeCount}
           />
         );
+      case 'chat':
+        if (!isExplorer) return null;
+        return (
+          <MappingChatPanel
+            onFocusApplication={(applicationId) => {
+              const app = applications.find((a) => a.id === applicationId);
+              openApplicationDetails(applicationId, app?.name ?? applicationId);
+            }}
+            onFocusEdge={(edgeId) => {
+              openEdgeByIdRef.current(edgeId);
+            }}
+          />
+        );
       case 'search':
         if (!isSandbox) return null;
         return <ApplicationSearchBar variant="menu" />;
@@ -1552,6 +1566,7 @@ export function GraphCanvas() {
     onEdgeCreatedHandler,
     filtersActive,
     noopClose,
+    openApplicationDetails,
     sandboxes,
     sandboxSeed,
     status,
@@ -1975,7 +1990,9 @@ export function GraphCanvas() {
             setDisplayMode('graph');
             setModuleGraphApp(null);
             setActiveSideMenuTool((current) => {
-              if (nextMode === 'sandbox' && current === 'changes') return 'search';
+              if (nextMode === 'sandbox' && (current === 'changes' || current === 'chat')) {
+                return 'search';
+              }
               if (nextMode === 'normal' && current === 'search') return 'changes';
               return current;
             });

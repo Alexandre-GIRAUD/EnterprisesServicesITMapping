@@ -6,6 +6,8 @@ import com.enterprise.itmapping.feature.auth.security.JwtProperties;
 import com.enterprise.itmapping.feature.integrations.github.GitHubIntegrationProperties;
 import com.enterprise.itmapping.feature.integrations.llm.ConnectionDiscoveryProperties;
 import com.enterprise.itmapping.feature.integrations.llm.FunctionalDocumentationProperties;
+import com.enterprise.itmapping.feature.integrations.llm.MappingChatProperties;
+import com.enterprise.itmapping.feature.integrations.llm.MappingRagProperties;
 import com.enterprise.itmapping.feature.integrations.llm.ModuleDiscoveryProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -17,6 +19,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
   ModuleDiscoveryProperties.class,
   ConnectionDiscoveryProperties.class,
   FunctionalDocumentationProperties.class,
+  MappingChatProperties.class,
+  MappingRagProperties.class,
   JwtProperties.class,
   BootstrapAdminProperties.class,
   CorsProperties.class
