@@ -2,12 +2,15 @@ package com.enterprise.itmapping.feature.graph.presentation;
 
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributePatchService;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeLinkService;
+import com.enterprise.itmapping.feature.graph.application.GraphNeighborhoodService;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetService;
 import com.enterprise.itmapping.feature.graph.application.GraphService;
+import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeRequestDto;
 import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeResponseDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
+import com.enterprise.itmapping.feature.graph.domain.NeighborhoodDirection;
 import com.enterprise.itmapping.feature.graph.presentation.dto.GraphEdgeAttributesPatchRequest;
 import com.enterprise.itmapping.feature.graph.presentation.dto.GraphEdgeDeleteRequest;
 import jakarta.validation.Valid;
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/graph")
@@ -45,16 +49,19 @@ public class GraphController {
   private final GraphNodeFilterFacetService nodeFilterFacetService;
   private final GraphEdgeAttributePatchService edgeAttributePatchService;
   private final GraphEdgeLinkService edgeLinkService;
+  private final GraphNeighborhoodService neighborhoodService;
 
   public GraphController(
       GraphService graphService,
       GraphNodeFilterFacetService nodeFilterFacetService,
       GraphEdgeAttributePatchService edgeAttributePatchService,
-      GraphEdgeLinkService edgeLinkService) {
+      GraphEdgeLinkService edgeLinkService,
+      GraphNeighborhoodService neighborhoodService) {
     this.graphService = graphService;
     this.nodeFilterFacetService = nodeFilterFacetService;
     this.edgeAttributePatchService = edgeAttributePatchService;
     this.edgeLinkService = edgeLinkService;
+    this.neighborhoodService = neighborhoodService;
   }
 
   /**
@@ -89,6 +96,25 @@ public class GraphController {
   @GetMapping("/node-filters")
   public List<GraphNodeFilterDto> nodeFilters() {
     return nodeFilterFacetService.listNodeFilters();
+  }
+
+  /**
+   * Incident {@code DEPENDS_ON} neighborhood for one application (OUT / IN / BOTH). Unlike {@code
+   * GET /graph?applicationIds=}, both ends of each edge need not be in a closed filter set.
+   */
+  @GetMapping("/applications/{id}/neighborhood")
+  public ApplicationNeighborhoodDto neighborhood(
+      @PathVariable String id,
+      @RequestParam(required = false, defaultValue = "BOTH") String direction,
+      @RequestParam(required = false, defaultValue = "50") int maxEdges) {
+    NeighborhoodDirection dir;
+    try {
+      dir = NeighborhoodDirection.fromParam(direction);
+    } catch (IllegalArgumentException ex) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "direction must be BOTH, OUT, or IN.");
+    }
+    return neighborhoodService.getNeighborhood(id, dir, maxEdges);
   }
 
   @PostMapping("/edges")

@@ -86,6 +86,15 @@ app:
         locale: en
         # Final structured JSON only (truncated). Override: APP_FUNCTIONAL_DOC_LOG_FINAL_PAYLOAD=true
         log-final-payload: ${APP_FUNCTIONAL_DOC_LOG_FINAL_PAYLOAD:false}
+      # Read-only IT mapping chatbot (graph + functional docs tools; no RAG).
+      mapping-chat:
+        enabled: true
+        max-tool-iterations: 8
+        max-neighborhood-edges: 50
+        max-doc-chars: 8000
+        max-history-messages: 10
+        max-resolve-results: 10
+        max-modules-in-summary: 40
   sample-data:
     seed: ${SAMPLE_DATA_SEED:true} # set SAMPLE_DATA_SEED=false to disable
     # Neo4j may not accept Bolt immediately (Docker order, cold start, APOC). Retry before giving up.
@@ -118,4 +127,5 @@ logging:
     com.enterprise.itmapping.feature.applications.application.ApplicationConnectionEdgeWriter: DEBUG
     com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocumentationService: INFO
     com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocumentationAgent: DEBUG
+    com.enterprise.itmapping.feature.chat.application.MappingChatAgent: INFO
     com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService: INFO

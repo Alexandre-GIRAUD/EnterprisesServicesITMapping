@@ -43,6 +43,7 @@ const VIEWS: { mode: GraphMode; label: string; tabId: string; accent: string }[]
 
 const TOOL_DETAIL_TITLES: Record<SideMenuTool, string> = {
   changes: 'Pending changes',
+  chat: 'IT mapping chat',
   search: 'Search applications',
   filters: 'Filters',
   actions: 'Corrections',

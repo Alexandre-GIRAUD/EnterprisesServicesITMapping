@@ -93,6 +93,13 @@ Dependencies point inward: presentation → application → domain; infrastructu
 - Authenticated APIs: `GET /api/change-detections`, `POST .../items/{id}/accept|reject`. Accept reuses existing suggest/patch writers (connections, modules, NODE attrs). EDGE attribute accept is acknowledgement-only in v1.
 - UI: Cartography left rail **Pending changes** shows pending runs/items (Accept/Reject). Link Application via existing GitHub import identity (`owner/repo` name or `GitHub:` description).
 
+### IT mapping chatbot (v1)
+
+- Read-only Spring AI agent with deterministic tools (no vector RAG): resolve apps, neighborhood `DEPENDS_ON`, profile, functional docs, module graph.
+- `GET /api/graph/applications/{id}/neighborhood?direction=BOTH|OUT|IN`
+- `POST /api/chat/ask` — body `{ message, messages? }` (short client history, max 10); response `{ answerMarkdown, citations[], warnings[] }`.
+- UI: Production side-menu **IT mapping chat** (hidden in Sandbox). Requires `OPENAI_API_KEY`. Config: `app.integrations.llm.mapping-chat.*`.
+
 ### Scalability (Thousands of Nodes)
 
 - **Backend**: Pagination and bounded graph queries (e.g. by application id, depth, or time window); avoid “load entire graph” APIs; use Neo4j indexes and projection for hot paths.
