@@ -9,6 +9,7 @@ import com.enterprise.itmapping.feature.functionaldoc.infrastructure.persistence
 import com.enterprise.itmapping.feature.functionaldoc.presentation.dto.FunctionalDocumentationResponse;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService;
 import com.enterprise.itmapping.feature.integrations.llm.FunctionalDocumentationProperties;
+import com.enterprise.itmapping.feature.rag.application.FunctionalDocIndexer;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -35,6 +36,7 @@ public class FunctionalDocumentationService {
   private final FunctionalDocumentationAgent agent;
   private final FunctionalDocumentationProperties properties;
   private final ObjectProvider<FunctionalDocumentationService> self;
+  private final ObjectProvider<FunctionalDocIndexer> indexer;
 
   public FunctionalDocumentationService(
       ApplicationRepository applicationRepository,
@@ -42,13 +44,15 @@ public class FunctionalDocumentationService {
       GitHubRepoCloneService cloneService,
       FunctionalDocumentationAgent agent,
       FunctionalDocumentationProperties properties,
-      ObjectProvider<FunctionalDocumentationService> self) {
+      ObjectProvider<FunctionalDocumentationService> self,
+      ObjectProvider<FunctionalDocIndexer> indexer) {
     this.applicationRepository = applicationRepository;
     this.docRepository = docRepository;
     this.cloneService = cloneService;
     this.agent = agent;
     this.properties = properties;
     this.self = self;
+    this.indexer = indexer;
   }
 
   @Transactional(readOnly = true)
@@ -108,6 +112,7 @@ public class FunctionalDocumentationService {
     entity.setErrorMessage(null);
     entity.setGeneratedAt(null);
     docRepository.save(entity);
+    clearRagIndex(applicationId);
     return toResponse(entity);
   }
 
@@ -166,6 +171,7 @@ public class FunctionalDocumentationService {
       entity.setGeneratedAt(Instant.now());
       docRepository.save(entity);
       log.info("Functional documentation generate done applicationId={}", applicationId);
+      reindexRag(applicationId);
     } finally {
       cloneService.deleteQuietly(workspace);
     }
@@ -181,7 +187,33 @@ public class FunctionalDocumentationService {
               entity.setErrorMessage(truncate(message, 2000));
               entity.setPayload(null);
               docRepository.save(entity);
+              clearRagIndex(applicationId);
             });
+  }
+
+  private void reindexRag(String applicationId) {
+    try {
+      FunctionalDocIndexer rag = indexer.getIfAvailable();
+      if (rag != null) {
+        rag.reindex(applicationId);
+      }
+    } catch (Exception e) {
+      log.warn(
+          "RAG reindex failed after READY (doc kept) applicationId={}: {}",
+          applicationId,
+          e.getMessage());
+    }
+  }
+
+  private void clearRagIndex(String applicationId) {
+    try {
+      FunctionalDocIndexer rag = indexer.getIfAvailable();
+      if (rag != null) {
+        rag.deleteByApplicationId(applicationId);
+      }
+    } catch (Exception e) {
+      log.warn("RAG index clear failed applicationId={}: {}", applicationId, e.getMessage());
+    }
   }
 
   private void requireApplication(String applicationId) {

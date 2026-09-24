@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -21,6 +22,9 @@ import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighbo
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto.NeighborhoodEdgeDto;
 import com.enterprise.itmapping.feature.graph.domain.NeighborhoodDirection;
 import com.enterprise.itmapping.feature.integrations.llm.MappingChatProperties;
+import com.enterprise.itmapping.feature.rag.application.FunctionalDocSearchService;
+import com.enterprise.itmapping.feature.rag.presentation.dto.FunctionalDocSearchResponse;
+import com.enterprise.itmapping.feature.rag.presentation.dto.FunctionalDocSearchResponse.HitDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
@@ -37,9 +41,10 @@ class MappingChatToolsTest {
   @Mock ApplicationService applicationService;
   @Mock FunctionalDocumentationService documentationService;
   @Mock ModuleGraphService moduleGraphService;
+  @Mock FunctionalDocSearchService docSearchService;
 
   private final MappingChatProperties properties =
-      new MappingChatProperties(true, 8, 50, 8000, 10, 10, 40);
+      new MappingChatProperties(true, 10, 50, 8000, 10, 10, 40);
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Test
@@ -75,6 +80,30 @@ class MappingChatToolsTest {
   }
 
   @Test
+  void searchFunctionalDocsAddsDocCitations() {
+    when(docSearchService.search(eq("payments"), isNull(), isNull()))
+        .thenReturn(
+            new FunctionalDocSearchResponse(
+                "payments",
+                List.of(
+                    new HitDto(
+                        "a1",
+                        "Billing",
+                        "capability",
+                        "Payments",
+                        "Handles payments",
+                        0.9)),
+                "ok"));
+
+    MappingChatTools tools = tools();
+    String json = tools.searchFunctionalDocs("payments", null);
+
+    assertThat(json).contains("Billing").contains("Payments");
+    assertThat(tools.citations()).hasSize(1);
+    assertThat(tools.citations().get(0).type()).isEqualTo(ChatCitationType.FUNCTIONAL_DOC);
+  }
+
+  @Test
   void serviceAskDelegatesToAgentAndReturnsCitations() {
     MappingChatAgent agent = org.mockito.Mockito.mock(MappingChatAgent.class);
     when(agent.ask(anyString(), any(), any())).thenReturn("Réponse test");
@@ -88,6 +117,7 @@ class MappingChatToolsTest {
             applicationService,
             documentationService,
             moduleGraphService,
+            docSearchService,
             objectMapper,
             "sk-test");
 
@@ -103,6 +133,7 @@ class MappingChatToolsTest {
         applicationService,
         documentationService,
         moduleGraphService,
+        docSearchService,
         properties,
         objectMapper);
   }

@@ -8,6 +8,7 @@ import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskResponse;
 import com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocumentationService;
 import com.enterprise.itmapping.feature.graph.application.GraphNeighborhoodService;
 import com.enterprise.itmapping.feature.integrations.llm.MappingChatProperties;
+import com.enterprise.itmapping.feature.rag.application.FunctionalDocSearchService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,7 @@ public class MappingChatService {
   private final ApplicationService applicationService;
   private final FunctionalDocumentationService documentationService;
   private final ModuleGraphService moduleGraphService;
+  private final FunctionalDocSearchService docSearchService;
   private final ObjectMapper objectMapper;
   private final String openAiApiKey;
 
@@ -36,6 +38,7 @@ public class MappingChatService {
       ApplicationService applicationService,
       FunctionalDocumentationService documentationService,
       ModuleGraphService moduleGraphService,
+      FunctionalDocSearchService docSearchService,
       ObjectMapper objectMapper,
       @Value("${spring.ai.openai.api-key:}") String openAiApiKey) {
     this.agent = agent;
@@ -45,6 +48,7 @@ public class MappingChatService {
     this.applicationService = applicationService;
     this.documentationService = documentationService;
     this.moduleGraphService = moduleGraphService;
+    this.docSearchService = docSearchService;
     this.objectMapper = objectMapper;
     this.openAiApiKey = openAiApiKey;
   }
@@ -70,6 +74,7 @@ public class MappingChatService {
             applicationService,
             documentationService,
             moduleGraphService,
+            docSearchService,
             properties,
             objectMapper);
 

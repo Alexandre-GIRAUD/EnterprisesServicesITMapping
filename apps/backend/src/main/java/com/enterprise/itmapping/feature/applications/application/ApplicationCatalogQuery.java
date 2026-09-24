@@ -51,6 +51,36 @@ public class ApplicationCatalogQuery {
     return rows;
   }
 
+  /** All named applications, ordered by name (lightweight id+name+description). */
+  public List<CatalogRow> loadAllNamed() {
+    List<CatalogRow> rows = new ArrayList<>();
+    neo4jClient
+        .query(
+            """
+            MATCH (a:Application)
+            WHERE a.name IS NOT NULL AND trim(a.name) <> ''
+            RETURN a.id AS id, a.name AS name, a.description AS description
+            ORDER BY a.name
+            """)
+        .fetch()
+        .all()
+        .forEach(
+            row -> {
+              Object id = row.get("id");
+              Object name = row.get("name");
+              if (id != null && name != null) {
+                rows.add(
+                    new CatalogRow(
+                        String.valueOf(id),
+                        String.valueOf(name),
+                        row.get("description") != null
+                            ? String.valueOf(row.get("description"))
+                            : null));
+              }
+            });
+    return rows;
+  }
+
   /**
    * Case-insensitive name search ({@code CONTAINS}). Exact (ignore-case) matches are listed first,
    * then alphabetical. Empty / blank {@code query} returns an empty list.

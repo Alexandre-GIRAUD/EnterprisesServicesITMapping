@@ -41,6 +41,8 @@ class FunctionalDocumentationServiceTest {
   @Mock GitHubRepoCloneService cloneService;
   @Mock FunctionalDocumentationAgent agent;
   @Mock ObjectProvider<FunctionalDocumentationService> self;
+  @Mock ObjectProvider<com.enterprise.itmapping.feature.rag.application.FunctionalDocIndexer>
+      indexer;
 
   FunctionalDocumentationProperties properties =
       new FunctionalDocumentationProperties(25, 50, 12000, 500, 120, "en", false);
@@ -52,8 +54,15 @@ class FunctionalDocumentationServiceTest {
     service =
         spy(
             new FunctionalDocumentationService(
-                applicationRepository, docRepository, cloneService, agent, properties, self));
+                applicationRepository,
+                docRepository,
+                cloneService,
+                agent,
+                properties,
+                self,
+                indexer));
     lenient().when(self.getObject()).thenReturn(service);
+    lenient().when(indexer.getIfAvailable()).thenReturn(null);
   }
 
   @Test

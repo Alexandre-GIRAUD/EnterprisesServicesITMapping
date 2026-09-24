@@ -131,7 +131,7 @@ export function MappingChatPanel({ onFocusApplication, onFocusEdge }: MappingCha
     <section className="mapping-chat-panel" aria-label="IT mapping chat">
       <p className="mapping-chat-lead">
         Posez une question sur le graphe Production ou la documentation fonctionnelle (ex. « Qui
-        est connecté à … ? », « Que fait … ? »).
+        est connecté à … ? », « Que fait … ? », « Quelles apps gèrent les paiements ? »).
       </p>
 
       <div className="mapping-chat-transcript">

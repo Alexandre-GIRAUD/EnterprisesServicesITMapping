@@ -18,6 +18,9 @@ import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import com.enterprise.itmapping.feature.graph.domain.NeighborhoodDirection;
 import com.enterprise.itmapping.feature.integrations.llm.MappingChatProperties;
+import com.enterprise.itmapping.feature.rag.application.FunctionalDocSearchService;
+import com.enterprise.itmapping.feature.rag.presentation.dto.FunctionalDocSearchResponse;
+import com.enterprise.itmapping.feature.rag.presentation.dto.FunctionalDocSearchResponse.HitDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -43,6 +46,7 @@ public class MappingChatTools {
   private final ApplicationService applicationService;
   private final FunctionalDocumentationService documentationService;
   private final ModuleGraphService moduleGraphService;
+  private final FunctionalDocSearchService docSearchService;
   private final MappingChatProperties properties;
   private final ObjectMapper objectMapper;
 
@@ -56,6 +60,7 @@ public class MappingChatTools {
       ApplicationService applicationService,
       FunctionalDocumentationService documentationService,
       ModuleGraphService moduleGraphService,
+      FunctionalDocSearchService docSearchService,
       MappingChatProperties properties,
       ObjectMapper objectMapper) {
     this.catalogQuery = catalogQuery;
@@ -63,6 +68,7 @@ public class MappingChatTools {
     this.applicationService = applicationService;
     this.documentationService = documentationService;
     this.moduleGraphService = moduleGraphService;
+    this.docSearchService = docSearchService;
     this.properties = properties;
     this.objectMapper = objectMapper;
   }
@@ -73,6 +79,59 @@ public class MappingChatTools {
 
   public List<String> warnings() {
     return List.copyOf(warnings);
+  }
+
+  @Tool(
+      description =
+          "Semantic search across stored functional documentation (READY docs only). "
+              + "Use for business questions when the application name is unknown or fuzzy "
+              + "(e.g. which apps handle payments, claims, onboarding). "
+              + "Optional applicationId scopes search to one app. "
+              + "Do NOT use this for topology / DEPENDS_ON / who-is-connected questions.")
+  public String searchFunctionalDocs(
+      @ToolParam(description = "Natural language query") String query,
+      @ToolParam(description = "Optional application id to scope search", required = false)
+          String applicationId) {
+    if (docSearchService == null) {
+      return toJson(Map.of("note", "empty", "hits", List.of(), "error", "rag_unavailable"));
+    }
+    try {
+      FunctionalDocSearchResponse res = docSearchService.search(query, applicationId, null);
+      if (res.hits().isEmpty()) {
+        warnings.add("No relevant functional documentation chunks found for this query.");
+      }
+      List<Map<String, Object>> hits = new ArrayList<>();
+      for (HitDto hit : res.hits()) {
+        String label =
+            "Doc · "
+                + (hit.sectionTitle() != null ? hit.sectionTitle() : hit.sectionKey())
+                + " · "
+                + hit.applicationName();
+        addCitation(ChatCitationType.FUNCTIONAL_DOC, hit.applicationId(), label);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("applicationId", hit.applicationId());
+        m.put("applicationName", hit.applicationName());
+        m.put("sectionKey", hit.sectionKey());
+        m.put("sectionTitle", hit.sectionTitle());
+        m.put("content", hit.content());
+        m.put("score", hit.score());
+        hits.add(m);
+      }
+      Map<String, Object> out = new LinkedHashMap<>();
+      out.put("query", res.query());
+      out.put("hits", hits);
+      out.put("note", res.note());
+      return toJson(out);
+    } catch (ResponseStatusException ex) {
+      return toJson(
+          Map.of(
+              "note",
+              "empty",
+              "hits",
+              List.of(),
+              "error",
+              ex.getReason() != null ? ex.getReason() : ex.getStatusCode().toString()));
+    }
   }
 
   @Tool(
