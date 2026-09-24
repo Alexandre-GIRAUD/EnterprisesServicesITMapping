@@ -24,6 +24,8 @@ import {
 
 type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-icons';
 
+type DrawerActionId = 'add-node' | 'add-edge' | 'edit-flow-props' | 'add-icons' | 'add-text';
+
 type WorkspaceDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -37,6 +39,8 @@ type WorkspaceDrawerProps = {
   onPickIcon?: (iconKey: string, sticky: boolean) => void;
   /** Clear cursor placement when leaving Icons via ✓. */
   onClearIconPlacement?: () => void;
+  /** Start placing a text annotation on the sandbox canvas. */
+  onStartTextPlacement?: () => void;
   /** Open a toolkit form from outside (e.g. sandbox pane context menu). */
   requestedView?: Extract<DrawerView, 'add-node-form' | 'add-edge-form'> | null;
   onRequestedViewConsumed?: () => void;
@@ -64,8 +68,6 @@ const DEFAULT_EDGE_FORM_STATE: AddEdgeFormState = {
   type: 'DEPENDS_ON',
 };
 
-type DrawerActionId = 'add-node' | 'add-edge' | 'edit-flow-props' | 'add-icons';
-
 type DrawerActionItem = {
   id: DrawerActionId;
   label: string;
@@ -81,6 +83,7 @@ const TOOLKIT_ACTIONS: DrawerActionItem[] = [
   { id: 'add-node', label: 'Nodes' },
   { id: 'add-edge', label: 'Edges' },
   { id: 'add-icons', label: 'Icons' },
+  { id: 'add-text', label: 'Text' },
 ];
 
 function actionHandler(
@@ -89,11 +92,13 @@ function actionHandler(
     openAddNodeForm: () => void;
     openAddEdgeForm: () => void;
     openAddIcons: () => void;
+    startTextPlacement: () => void;
   }
 ): (() => void) | undefined {
   if (id === 'add-node') return handlers.openAddNodeForm;
   if (id === 'add-edge') return handlers.openAddEdgeForm;
   if (id === 'add-icons') return handlers.openAddIcons;
+  if (id === 'add-text') return handlers.startTextPlacement;
   return undefined;
 }
 
@@ -107,6 +112,7 @@ export function WorkspaceDrawer({
   onEdgeCreated,
   onPickIcon,
   onClearIconPlacement,
+  onStartTextPlacement,
   requestedView = null,
   onRequestedViewConsumed,
 }: WorkspaceDrawerProps) {
@@ -187,6 +193,12 @@ export function WorkspaceDrawer({
     setIconQuery('');
     setLocalError(null);
     setFeedbackMessage(null);
+  }
+
+  function startTextPlacement() {
+    onClearIconPlacement?.();
+    onStartTextPlacement?.();
+    setFeedbackMessage('Click on the sandbox to place a text box. Esc to cancel.');
   }
 
   useEffect(() => {
@@ -538,6 +550,7 @@ export function WorkspaceDrawer({
                 openAddNodeForm,
                 openAddEdgeForm,
                 openAddIcons,
+                startTextPlacement,
               });
               return (
                 <button

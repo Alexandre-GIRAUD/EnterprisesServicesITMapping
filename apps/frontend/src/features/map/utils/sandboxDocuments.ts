@@ -122,6 +122,23 @@ export type SandboxIcon = {
   y: number;
 };
 
+export type SandboxTextFontSize = 'sm' | 'md' | 'lg' | 'title';
+export type SandboxTextAlign = 'left' | 'center';
+
+/** Decorative text annotation on a sandbox canvas (not persisted to Neo4j). */
+export type SandboxTextBox = {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  fontSize: SandboxTextFontSize;
+  align: SandboxTextAlign;
+};
+
+export const DEFAULT_SANDBOX_TEXT_WIDTH = 220;
+export const DEFAULT_SANDBOX_TEXT_PLACEHOLDER = 'Double-cliquez pour éditer…';
+
 /** Serializable sandbox graph (display-only overrides; never writes Neo4j attrs). */
 export type SandboxDocument = {
   id: string;
@@ -132,6 +149,7 @@ export type SandboxDocument = {
   nodes: AppNode[];
   edges: OrientedEdgeType[];
   icons: SandboxIcon[];
+  textBoxes: SandboxTextBox[];
   /** Display-only label overrides (node id → text). */
   nodeLabelOverrides: Record<string, string>;
   /** Display-only label overrides (edge id → text). */
@@ -526,6 +544,34 @@ export function createSandboxIconId(): string {
   return `sandbox-icon-${createClientUuid()}`;
 }
 
+export function createSandboxTextBoxId(): string {
+  return `sandbox-text-${createClientUuid()}`;
+}
+
+function normalizeTextBox(raw: Partial<SandboxTextBox> & { id: string }): SandboxTextBox {
+  const fontSize =
+    raw.fontSize === 'sm' ||
+    raw.fontSize === 'md' ||
+    raw.fontSize === 'lg' ||
+    raw.fontSize === 'title'
+      ? raw.fontSize
+      : 'md';
+  const align = raw.align === 'center' ? 'center' : 'left';
+  const width =
+    typeof raw.width === 'number' && raw.width >= 80
+      ? Math.min(640, raw.width)
+      : DEFAULT_SANDBOX_TEXT_WIDTH;
+  return {
+    id: raw.id,
+    text: typeof raw.text === 'string' ? raw.text : '',
+    x: typeof raw.x === 'number' ? raw.x : 0,
+    y: typeof raw.y === 'number' ? raw.y : 0,
+    width,
+    fontSize,
+    align,
+  };
+}
+
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
@@ -547,6 +593,7 @@ export function cloneIntoSandboxDocument(
     nodes: cloneJson(nodes) as AppNode[],
     edges: cloneJson(edges) as OrientedEdgeType[],
     icons: [],
+    textBoxes: [],
     nodeLabelOverrides: {},
     edgeLabelOverrides: {},
     hiddenNodeIds: [],
@@ -569,9 +616,14 @@ export function cloneSandboxDocument(source: SandboxDocument, name: string): San
 
 /** Normalize older saved docs that may omit newer fields. */
 export function normalizeSandboxDocument(doc: SandboxDocument): SandboxDocument {
+  const rawBoxes = Array.isArray(doc.textBoxes) ? doc.textBoxes : [];
+  const textBoxes = rawBoxes
+    .filter((t): t is SandboxTextBox => Boolean(t && typeof t === 'object' && 'id' in t && t.id))
+    .map((t) => normalizeTextBox(t));
   return {
     ...doc,
     icons: doc.icons ?? [],
+    textBoxes,
     nodeLabelOverrides: doc.nodeLabelOverrides ?? {},
     edgeLabelOverrides: doc.edgeLabelOverrides ?? {},
     hiddenNodeIds: doc.hiddenNodeIds ?? [],

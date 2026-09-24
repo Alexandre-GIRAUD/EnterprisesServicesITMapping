@@ -3657,6 +3657,129 @@ body {
   box-shadow: none;
 }
 
+.sandbox-text-node {
+  position: relative;
+  min-height: 1.4em;
+  padding: 0.15rem 0.25rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: #0f172a;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: default;
+  box-sizing: border-box;
+}
+
+.sandbox-text-node.is-selected {
+  border-color: #94a3b8;
+}
+
+.sandbox-text-node.is-editing {
+  border-color: #64748b;
+}
+
+.sandbox-text-node--sm {
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.sandbox-text-node--md {
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.sandbox-text-node--lg {
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.sandbox-text-node--title {
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.sandbox-text-node__body.is-placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+  font-style: italic;
+}
+
+.sandbox-text-node__editor {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  line-height: inherit;
+  overflow: hidden;
+}
+
+.sandbox-text-node__toolbar {
+  position: absolute;
+  top: -1.85rem;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.1rem 0.15rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 12%);
+  z-index: 2;
+}
+
+.sandbox-text-node__size,
+.sandbox-text-node__align,
+.sandbox-text-node__delete {
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.2rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #475569;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sandbox-text-node__size.is-active,
+.sandbox-text-node__align.is-active {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.sandbox-text-node__delete {
+  color: #64748b;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.sandbox-text-node__delete:hover {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.sandbox-text-node__resize {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+}
+
 /* Placed icons: same visual height as flag glyphs (21px). */
 .sandbox-icon-node .sandbox-icon-glyph {
   width: auto;
@@ -3931,6 +4054,23 @@ body {
   /* Cursor tip = exact center of the 32×32 icon box (matches placed node). */
   transform: translate(-50%, -50%);
   filter: drop-shadow(0 1px 2px rgb(15 23 42 / 20%));
+}
+
+.sandbox-text-ghost {
+  position: fixed;
+  z-index: 80;
+  pointer-events: none;
+  margin: 0;
+  padding: 0.15rem 0.4rem;
+  border: 1px dashed #94a3b8;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 85%);
+  color: #64748b;
+  font-size: 0.8rem;
+  font-style: italic;
+  line-height: 1.2;
+  transform: translate(-0.15rem, -0.15rem);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 10%);
 }
 
 .sandbox-icon-ghost .sandbox-icon-glyph {

@@ -27,11 +27,13 @@ import { AppGraphNode } from './AppGraphNode';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { OrientedEdge } from './OrientedEdge';
 import { SandboxIconNode } from './SandboxIconNode';
+import { SandboxTextNode } from './SandboxTextNode';
 import {
   sandboxFilterVisibleIds,
   sandboxIconLabel,
   type SandboxDocument,
   type SandboxIcon,
+  type SandboxTextBox,
 } from '../utils/sandboxDocuments';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 
@@ -57,6 +59,12 @@ type Props = {
   onEdgeDisplayLabel: (edgeId: string, label: string) => void;
   onIconMove: (iconId: string, x: number, y: number) => void;
   onIconDelete: (iconId: string) => void;
+  onTextMove: (textId: string, x: number, y: number) => void;
+  onTextChange: (
+    textId: string,
+    patch: Partial<Pick<SandboxTextBox, 'text' | 'width' | 'fontSize' | 'align'>>
+  ) => void;
+  onTextDelete: (textId: string) => void;
   onHideNode: (nodeId: string) => void;
   onShowHidden: (ids: string[]) => void;
   onOpenDetails: (nodeId: string, label: string) => void;
@@ -66,6 +74,12 @@ type Props = {
   /** When set, pane click places this icon at flow coords. */
   placingIconKey?: string | null;
   onPlaceIcon?: (x: number, y: number) => void;
+  /** When true, pane click places a text box. */
+  placingText?: boolean;
+  onPlaceText?: (x: number, y: number) => void;
+  /** Text box id that should open in edit mode once (after place). */
+  editingTextId?: string | null;
+  onTextEditStarted?: (textId: string) => void;
 };
 
 function iconNodesFromDoc(icons: SandboxIcon[], onDelete: (id: string) => void): Node[] {
@@ -81,6 +95,42 @@ function iconNodesFromDoc(icons: SandboxIcon[], onDelete: (id: string) => void):
     draggable: true,
     selectable: true,
   }));
+}
+
+function textNodesFromDoc(
+  boxes: SandboxTextBox[],
+  handlers: {
+    onDelete: (id: string) => void;
+    onChange: Props['onTextChange'];
+    editingTextId?: string | null;
+    onTextEditStarted?: (textId: string) => void;
+  }
+): Node[] {
+  return boxes.map((box) => ({
+    id: box.id,
+    type: 'sandboxText',
+    position: { x: box.x, y: box.y },
+    data: {
+      text: box.text,
+      fontSize: box.fontSize,
+      align: box.align,
+      width: box.width,
+      onDelete: () => handlers.onDelete(box.id),
+      onChangeText: (text: string) => handlers.onChange(box.id, { text }),
+      onChangeFontSize: (fontSize: SandboxTextBox['fontSize']) =>
+        handlers.onChange(box.id, { fontSize }),
+      onChangeAlign: (align: SandboxTextBox['align']) => handlers.onChange(box.id, { align }),
+      onChangeWidth: (width: number) => handlers.onChange(box.id, { width }),
+      startEditing: handlers.editingTextId === box.id,
+      onStartedEditing: () => handlers.onTextEditStarted?.(box.id),
+    },
+    draggable: true,
+    selectable: true,
+  }));
+}
+
+function isAnnotationNode(node: Node): boolean {
+  return node.type === 'sandboxIcon' || node.type === 'sandboxText';
 }
 
 function SandboxPaneInner({
@@ -105,6 +155,9 @@ function SandboxPaneInner({
   onEdgeDisplayLabel,
   onIconMove,
   onIconDelete,
+  onTextMove,
+  onTextChange,
+  onTextDelete,
   onHideNode,
   onShowHidden,
   onOpenDetails,
@@ -113,6 +166,10 @@ function SandboxPaneInner({
   onOpenModules,
   placingIconKey,
   onPlaceIcon,
+  placingText,
+  onPlaceText,
+  editingTextId,
+  onTextEditStarted,
 }: Props) {
   const { screenToFlowPosition } = useReactFlow();
   const [editingTitle, setEditingTitle] = useState(false);
@@ -205,8 +262,26 @@ function SandboxPaneInner({
   );
 
   const mergedNodes = useMemo(
-    () => [...appNodes, ...iconNodesFromDoc(doc.icons, onIconDelete)],
-    [appNodes, doc.icons, onIconDelete]
+    () => [
+      ...appNodes,
+      ...iconNodesFromDoc(doc.icons, onIconDelete),
+      ...textNodesFromDoc(doc.textBoxes ?? [], {
+        onDelete: onTextDelete,
+        onChange: onTextChange,
+        editingTextId,
+        onTextEditStarted,
+      }),
+    ],
+    [
+      appNodes,
+      doc.icons,
+      doc.textBoxes,
+      onIconDelete,
+      onTextDelete,
+      onTextChange,
+      editingTextId,
+      onTextEditStarted,
+    ]
   );
 
   const [nodes, setNodes, onNodesChangeLocal] = useNodesState(mergedNodes);
@@ -235,7 +310,7 @@ function SandboxPaneInner({
   }, [appEdges, setEdges]);
 
   const nodeTypes = useMemo<NodeTypes>(
-    () => ({ app: AppGraphNode, sandboxIcon: SandboxIconNode }),
+    () => ({ app: AppGraphNode, sandboxIcon: SandboxIconNode, sandboxText: SandboxTextNode }),
     []
   );
   const edgeTypes = useMemo<EdgeTypes>(() => ({ oriented: OrientedEdge }), []);
@@ -271,6 +346,12 @@ function SandboxPaneInner({
   }
 
   function placeAtClient(clientX: number, clientY: number) {
+    if (placingText && onPlaceText) {
+      const p = screenToFlowPosition({ x: clientX, y: clientY });
+      onActivate();
+      onPlaceText(p.x, p.y);
+      return true;
+    }
     if (!placingIconKey || !onPlaceIcon) return false;
     // Ghost is centered on the cursor; RF node position is top-left — offset by half icon size.
     const ICON_HALF = 16;
@@ -289,6 +370,7 @@ function SandboxPaneInner({
   function handleNodeClick(event: ReactMouseEvent, node: Node) {
     if (placeAtClient(event.clientX, event.clientY)) return;
     if (String(node.id).startsWith('sandbox-icon-')) return;
+    if (String(node.id).startsWith('sandbox-text-')) return;
     onActivate();
 
     const now = Date.now();
@@ -325,16 +407,19 @@ function SandboxPaneInner({
   }
 
   function handleNodeDoubleClick(_event: ReactMouseEvent, node: Node) {
-    if (placingIconKey) return;
+    if (placingIconKey || placingText) return;
     if (String(node.id).startsWith('sandbox-icon-')) return;
+    if (String(node.id).startsWith('sandbox-text-')) return;
     clearPendingNodeClick();
     lastNodeClickRef.current = null;
     onOpenModules(node.id, nodeLabel(node));
   }
 
+  const placing = Boolean(placingIconKey || placingText);
+
   return (
     <div
-      className={`sandbox-pane${active ? ' is-active' : ''}${placingIconKey ? ' is-placing-icon' : ''}`}
+      className={`sandbox-pane${active ? ' is-active' : ''}${placing ? ' is-placing-icon' : ''}`}
       onMouseDown={onActivate}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -513,14 +598,22 @@ function SandboxPaneInner({
               onIconMove(node.id, node.position.x, node.position.y);
               return;
             }
+            if (String(node.id).startsWith('sandbox-text-')) {
+              onTextMove(node.id, node.position.x, node.position.y);
+              return;
+            }
             setNodes((curr) => {
-              onDocNodes(curr.filter((n) => n.type !== 'sandboxIcon'));
+              onDocNodes(curr.filter((n) => !isAnnotationNode(n)));
               return curr;
             });
           }}
-          onNodesDelete={() => {
+          onNodesDelete={(deleted) => {
+            for (const n of deleted) {
+              if (String(n.id).startsWith('sandbox-icon-')) onIconDelete(n.id);
+              if (String(n.id).startsWith('sandbox-text-')) onTextDelete(n.id);
+            }
             setNodes((curr) => {
-              onDocNodes(curr.filter((n) => n.type !== 'sandboxIcon'));
+              onDocNodes(curr.filter((n) => !isAnnotationNode(n)));
               return curr;
             });
           }}
