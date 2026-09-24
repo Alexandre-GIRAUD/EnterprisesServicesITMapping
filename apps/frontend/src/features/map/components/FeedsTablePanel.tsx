@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
-import { legendLabelForData } from './graphTheme';
+import type { GraphEdgeDto, GraphNodeDto, GraphNodeFilterDto } from '@/types/api';
 import { isSandboxId } from '../utils/sandboxGraph';
+import type { TableColumnDef } from '../utils/tableColumns';
 
 type FeedsTablePanelProps = {
   isOpen: boolean;
@@ -9,6 +9,9 @@ type FeedsTablePanelProps = {
   status: 'loading' | 'ready' | 'error';
   edges: GraphEdgeDto[];
   nodes: GraphNodeDto[];
+  columns: TableColumnDef[];
+  /** EDGE dimensions (for allowedValues / option labels). */
+  edgeFilters?: GraphNodeFilterDto[];
   errorMessage?: string | null;
   onRowClick?: (edge: GraphEdgeDto) => void;
 };
@@ -18,11 +21,23 @@ function dash(value: string | null | undefined): string {
   return t ? t : '—';
 }
 
-function prop(edge: GraphEdgeDto, key: string): string | undefined {
+function edgeProp(edge: GraphEdgeDto, key: string): string | undefined {
   const fromProps = edge.properties?.[key]?.trim();
   if (fromProps) return fromProps;
   if (key === 'data' && edge.data?.trim()) return edge.data.trim();
   return undefined;
+}
+
+function labelForEdgeValue(
+  key: string,
+  raw: string | undefined,
+  edgeFilters: GraphNodeFilterDto[]
+): string {
+  if (!raw) return '';
+  const dimension = edgeFilters.find((f) => f.key === key);
+  const fromOptions = dimension?.options?.find((o) => o.id === raw || o.name === raw)?.name;
+  if (fromOptions?.trim()) return fromOptions.trim();
+  return raw;
 }
 
 export function FeedsTablePanel({
@@ -31,6 +46,8 @@ export function FeedsTablePanel({
   status,
   edges,
   nodes,
+  columns,
+  edgeFilters = [],
   errorMessage,
   onRowClick,
 }: FeedsTablePanelProps) {
@@ -44,29 +61,35 @@ export function FeedsTablePanel({
 
   const rows = useMemo(() => {
     return edges
-      .map((edge) => {
-        const data = prop(edge, 'data');
-        const connectionKind = prop(edge, 'connection_kind');
-        return {
-          id: edge.id,
-          edge,
-          sourceId: edge.sourceId,
-          targetId: edge.targetId,
-          sourceLabel: labelById.get(edge.sourceId) ?? edge.sourceId,
-          targetLabel: labelById.get(edge.targetId) ?? edge.targetId,
-          type: edge.type,
-          data,
-          dataLabel: data ? legendLabelForData(data) : undefined,
-          connectionKind,
-          connectionKindLabel: connectionKind ? legendLabelForData(connectionKind) : undefined,
-        };
-      })
+      .map((edge) => ({
+        id: edge.id,
+        edge,
+        sourceId: edge.sourceId,
+        targetId: edge.targetId,
+        sourceLabel: labelById.get(edge.sourceId) ?? edge.sourceId,
+        targetLabel: labelById.get(edge.targetId) ?? edge.targetId,
+        type: edge.type,
+      }))
       .sort((a, b) => {
-        const bySource = a.sourceLabel.localeCompare(b.sourceLabel, undefined, { sensitivity: 'base' });
+        const bySource = a.sourceLabel.localeCompare(b.sourceLabel, undefined, {
+          sensitivity: 'base',
+        });
         if (bySource !== 0) return bySource;
         return a.targetLabel.localeCompare(b.targetLabel, undefined, { sensitivity: 'base' });
       });
   }, [edges, labelById]);
+
+  function cellValue(row: (typeof rows)[number], column: TableColumnDef): string {
+    if (column.kind === 'structural') {
+      if (column.key === 'source') return row.sourceLabel;
+      if (column.key === 'target') return row.targetLabel;
+      if (column.key === 'id') return row.id;
+      if (column.key === 'type') return dash(row.type);
+      return '—';
+    }
+    const raw = edgeProp(row.edge, column.key);
+    return dash(labelForEdgeValue(column.key, raw, edgeFilters));
+  }
 
   if (!isOpen) return null;
 
@@ -95,17 +118,19 @@ export function FeedsTablePanel({
       {status === 'ready' && rows.length === 0 && (
         <p className="graph-table-message">No flows to display.</p>
       )}
-      {status === 'ready' && rows.length > 0 && (
+      {status === 'ready' && rows.length > 0 && columns.length === 0 && (
+        <p className="graph-table-message">No columns to display. Open the menu to choose columns.</p>
+      )}
+      {status === 'ready' && rows.length > 0 && columns.length > 0 && (
         <div className="graph-table-scroll">
           <table className="graph-table" aria-label="Flows">
             <thead>
               <tr>
-                <th scope="col">Source</th>
-                <th scope="col">Target</th>
-                <th scope="col">ID</th>
-                <th scope="col">Exchanged data</th>
-                <th scope="col">Integration kind</th>
-                <th scope="col">Type</th>
+                {columns.map((column) => (
+                  <th scope="col" key={column.id}>
+                    {column.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -126,18 +151,21 @@ export function FeedsTablePanel({
                       : undefined
                   }
                 >
-                  <td>{row.sourceLabel}</td>
-                  <td>{row.targetLabel}</td>
-                  <td>
-                    <code
-                      className={`graph-table-id${isSandboxId(row.id) ? ' graph-table-id--sandbox' : ''}`}
-                    >
-                      {row.id}
-                    </code>
-                  </td>
-                  <td>{dash(row.dataLabel ?? row.data)}</td>
-                  <td>{dash(row.connectionKindLabel ?? row.connectionKind)}</td>
-                  <td>{dash(row.type)}</td>
+                  {columns.map((column) => {
+                    const value = cellValue(row, column);
+                    if (column.kind === 'structural' && column.key === 'id') {
+                      return (
+                        <td key={column.id}>
+                          <code
+                            className={`graph-table-id${isSandboxId(row.id) ? ' graph-table-id--sandbox' : ''}`}
+                          >
+                            {value}
+                          </code>
+                        </td>
+                      );
+                    }
+                    return <td key={column.id}>{value}</td>;
+                  })}
                 </tr>
               ))}
             </tbody>

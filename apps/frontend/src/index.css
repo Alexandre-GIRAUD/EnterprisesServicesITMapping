@@ -2184,6 +2184,112 @@ body {
   flex-shrink: 0;
 }
 
+.table-columns-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: 0;
+}
+
+.table-columns-picker__subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.table-columns-picker__zone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 3.5rem;
+  padding: 0.45rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.table-columns-picker__zone-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+}
+
+.table-columns-picker__empty {
+  margin: 0;
+  padding: 0.35rem 0.2rem;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.table-columns-picker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.table-columns-picker__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  cursor: grab;
+}
+
+.table-columns-picker__item.is-drop-target {
+  border-color: #64748b;
+  box-shadow: inset 0 0 0 1px #64748b;
+}
+
+.table-columns-picker__label {
+  font-size: 0.8rem;
+  color: #0f172a;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-columns-picker__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+.table-columns-picker__actions button {
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.3rem;
+  border: none;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.table-columns-picker__actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.table-columns-picker__actions button:not(:disabled):hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
 .self-service-side-menu-section + .self-service-side-menu-section {
   margin-top: 1.1rem;
   padding-top: 1rem;

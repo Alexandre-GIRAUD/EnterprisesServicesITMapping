@@ -18,6 +18,9 @@ type SelfServiceSideMenuProps = {
   onModeChange: (mode: GraphMode) => void;
   toolDetail: ReactNode;
   pendingChangeCount?: number;
+  /** When true (table view), hide tool rail and show Columns panel only. */
+  columnsOnly?: boolean;
+  columnsDetail?: ReactNode;
 };
 
 const VIEWS: { mode: GraphMode; label: string; tabId: string; accent: string }[] = [
@@ -76,10 +79,13 @@ export function SelfServiceSideMenu({
   onModeChange,
   toolDetail,
   pendingChangeCount = 0,
+  columnsOnly = false,
+  columnsDetail = null,
 }: SelfServiceSideMenuProps) {
   const showGraphTools = graphMode === 'normal' || graphMode === 'sandbox';
-  const toolDetailTitle =
-    activeTool === 'actions'
+  const toolDetailTitle = columnsOnly
+    ? 'Columns'
+    : activeTool === 'actions'
       ? graphMode === 'sandbox'
         ? 'Toolkit'
         : 'Corrections'
@@ -140,20 +146,22 @@ export function SelfServiceSideMenu({
 
           {showGraphTools ? (
             <>
-              <SelfServiceToolBar
-                graphMode={graphMode}
-                filtersActive={filtersActive}
-                activeTool={activeTool}
-                onChange={onActiveToolChange}
-                pendingChangeCount={pendingChangeCount}
-              />
+              {columnsOnly ? null : (
+                <SelfServiceToolBar
+                  graphMode={graphMode}
+                  filtersActive={filtersActive}
+                  activeTool={activeTool}
+                  onChange={onActiveToolChange}
+                  pendingChangeCount={pendingChangeCount}
+                />
+              )}
               <div
                 className="self-service-tool-detail"
                 role="tabpanel"
                 aria-label={toolDetailTitle}
               >
                 <h3 className="self-service-tool-detail-title">{toolDetailTitle}</h3>
-                {toolDetail}
+                {columnsOnly ? columnsDetail : toolDetail}
               </div>
             </>
           ) : null}
