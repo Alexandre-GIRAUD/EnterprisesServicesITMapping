@@ -30,6 +30,7 @@ import type {
 import { fetchApplications } from '../api/applicationsApi';
 import { fetchGraphNodeFilters } from '../api/graphApi';
 import { createGraphSnapshot } from '../api/graphSnapshotsApi';
+import { shareSavedSandbox } from '../api/sandboxSharesApi';
 import { useGraphSnapshotsRefresh } from '../context/GraphSnapshotsContext';
 import type { MapLocationState } from '../utils/mapNavigation';
 import {
@@ -1593,6 +1594,17 @@ export function GraphCanvas() {
               }
             }}
             onDeleteSavedSandbox={sandboxes.deleteSaved}
+            onShareSavedSandbox={async (id, username) => {
+              const meta = sandboxes.saved.find((item) => item.id === id);
+              if (!meta) return;
+              try {
+                await shareSavedSandbox(username, meta.name, meta.document);
+                setSandboxToast(`Shared with ${username}.`);
+              } catch (error) {
+                setSandboxToast(error instanceof Error ? error.message : 'Unable to share.');
+                throw error;
+              }
+            }}
           />
         );
       default:

@@ -16,6 +16,7 @@ type SandboxesPanelProps = {
   savedSandboxes: SavedSandboxMeta[];
   onLoadSandbox: (id: string) => void;
   onDeleteSavedSandbox: (id: string) => void;
+  onShareSavedSandbox: (id: string, username: string) => Promise<void>;
 };
 
 const LAYOUT_LABELS: Record<SandboxLayoutMode, string> = {
@@ -88,11 +89,24 @@ export function SandboxesPanel({
   savedSandboxes,
   onLoadSandbox,
   onDeleteSavedSandbox,
+  onShareSavedSandbox,
 }: SandboxesPanelProps) {
   const [selectedSavedId, setSelectedSavedId] = useState('');
+  const [draftUsername, setDraftUsername] = useState('');
   const layouts = sandboxLayoutsForCount(openSandboxCount);
   const activeLayout =
     layouts.includes(layoutMode) || layouts.length === 0 ? layoutMode : layouts[0];
+
+  async function shareSelected() {
+    const username = draftUsername.trim();
+    if (!username || !selectedSavedId) return;
+    try {
+      await onShareSavedSandbox(selectedSavedId, username);
+      setDraftUsername('');
+    } catch {
+      // The caller reports the failure.
+    }
+  }
 
   return (
     <div className="graph-drawer-sandbox-manage">
@@ -166,16 +180,40 @@ export function SandboxesPanel({
             </button>
           </div>
           {selectedSavedId ? (
-            <button
-              type="button"
-              className="graph-drawer-action"
-              onClick={() => {
-                onDeleteSavedSandbox(selectedSavedId);
-                setSelectedSavedId('');
-              }}
-            >
-              <span className="graph-drawer-action-title">Delete</span>
-            </button>
+            <>
+              <div className="sandbox-manage-load-row">
+                <input
+                  className="graph-drawer-input"
+                  aria-label="Username to receive this sandbox"
+                  placeholder="Username"
+                  value={draftUsername}
+                  onChange={(event) => setDraftUsername(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return;
+                    event.preventDefault();
+                    void shareSelected();
+                  }}
+                />
+                <button
+                  type="button"
+                  className="graph-drawer-action sandbox-manage-load-btn"
+                  disabled={!draftUsername.trim()}
+                  onClick={() => void shareSelected()}
+                >
+                  <span className="graph-drawer-action-title">Share</span>
+                </button>
+              </div>
+              <button
+                type="button"
+                className="graph-drawer-action"
+                onClick={() => {
+                  onDeleteSavedSandbox(selectedSavedId);
+                  setSelectedSavedId('');
+                }}
+              >
+                <span className="graph-drawer-action-title">Delete</span>
+              </button>
+            </>
           ) : null}
         </>
       )}
