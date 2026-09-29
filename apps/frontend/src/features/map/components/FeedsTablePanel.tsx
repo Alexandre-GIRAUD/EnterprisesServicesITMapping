@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { GraphEdgeDto, GraphNodeDto, GraphNodeFilterDto } from '@/types/api';
 import { isSandboxId } from '../utils/sandboxGraph';
+import type { TableGrid } from '../utils/tableFile';
 import type { TableColumnDef } from '../utils/tableColumns';
 
 type FeedsTablePanelProps = {
@@ -14,6 +15,7 @@ type FeedsTablePanelProps = {
   edgeFilters?: GraphNodeFilterDto[];
   errorMessage?: string | null;
   onRowClick?: (edge: GraphEdgeDto) => void;
+  onVisibleGrid?: (grid: TableGrid) => void;
 };
 
 function dash(value: string | null | undefined): string {
@@ -50,6 +52,7 @@ export function FeedsTablePanel({
   edgeFilters = [],
   errorMessage,
   onRowClick,
+  onVisibleGrid,
 }: FeedsTablePanelProps) {
   const labelById = useMemo(() => {
     const map = new Map<string, string>();
@@ -78,6 +81,13 @@ export function FeedsTablePanel({
         return a.targetLabel.localeCompare(b.targetLabel, undefined, { sensitivity: 'base' });
       });
   }, [edges, labelById]);
+
+  useEffect(() => {
+    onVisibleGrid?.({
+      headers: columns.map((column) => column.label),
+      rows: rows.map((row) => columns.map((column) => cellValue(row, column))),
+    });
+  }, [columns, rows, edgeFilters, onVisibleGrid]);
 
   function cellValue(row: (typeof rows)[number], column: TableColumnDef): string {
     if (column.kind === 'structural') {

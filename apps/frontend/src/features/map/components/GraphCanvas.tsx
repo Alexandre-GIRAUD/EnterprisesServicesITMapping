@@ -84,6 +84,7 @@ import { SelfServiceBurger, SelfServiceSideMenu, type SideMenuTool } from './Sel
 import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle';
 import { TableContentToggle, type TableContentMode } from './TableContentToggle';
 import { fitGraphView, ensureNodesVisible } from './fitGraphView';
+import { downloadTableFile, tableToCsv, tableToExcelXml, type TableGrid } from '../utils/tableFile';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
@@ -94,6 +95,7 @@ import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { listChangeDetections } from '../api/changeDetectionsApi';
 import { fetchOverrideConflictPendingCount } from '../api/overrideConflictsApi';
 import { GraphExportMenu } from './GraphExportMenu';
+import { TableExportMenu } from './TableExportMenu';
 import {
   buildGraphExportFileName,
   exportGraphImage,
@@ -1364,6 +1366,32 @@ export function GraphCanvas() {
     (graphMode === 'normal' || graphMode === 'sandbox') &&
     displayMode === 'graph' &&
     moduleGraphApp == null;
+  const showTableExport =
+    (graphMode === 'normal' || graphMode === 'sandbox') &&
+    displayMode === 'table' &&
+    moduleGraphApp == null;
+  const [tableGrid, setTableGrid] = useState<TableGrid>({ headers: [], rows: [] });
+
+  const handleExportTable = useCallback(
+    (format: 'csv' | 'excel') => {
+      if (tableGrid.headers.length === 0) return;
+      const baseName = tableContent === 'apps' ? 'apps' : 'flows';
+      if (format === 'csv') {
+        downloadTableFile(
+          `${baseName}.csv`,
+          tableToCsv(tableGrid.headers, tableGrid.rows),
+          'text/csv;charset=utf-8',
+        );
+        return;
+      }
+      downloadTableFile(
+        `${baseName}.xls`,
+        tableToExcelXml(tableGrid.headers, tableGrid.rows),
+        'application/vnd.ms-excel',
+      );
+    },
+    [tableContent, tableGrid],
+  );
 
   const handleSideMenuToggle = useCallback(() => {
     setIsSideMenuOpen((open) => !open);
@@ -1621,6 +1649,12 @@ export function GraphCanvas() {
                   disabled={status !== 'ready'}
                   busy={isExportingGraph}
                   onExport={handleExportGraph}
+                />
+              ) : null}
+              {showTableExport ? (
+                <TableExportMenu
+                  disabled={status !== 'ready' || tableGrid.rows.length === 0 || tableGrid.headers.length === 0}
+                  onExport={handleExportTable}
                 />
               ) : null}
               {showGraphDisplayToggle ? (
@@ -1963,6 +1997,7 @@ export function GraphCanvas() {
                       columns={tableColumns.displayed}
                       errorMessage={status === 'error' ? message : null}
                       onRowClick={openApplicationDetails}
+                      onVisibleGrid={setTableGrid}
                     />
                   ) : (
                     <FeedsTablePanel
@@ -1979,6 +2014,7 @@ export function GraphCanvas() {
                           selectedEdgeFromDto(edge, labelById, isSandboxId(edge.id))
                         )
                       }
+                      onVisibleGrid={setTableGrid}
                     />
                   )}
                 </section>
