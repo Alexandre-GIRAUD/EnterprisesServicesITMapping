@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.feature.graphsnapshot.application;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -10,6 +11,7 @@ import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistence.GraphSnapshotEntity;
 import com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistence.GraphSnapshotRepository;
+import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -68,5 +70,43 @@ class GraphSnapshotServiceTest {
     graphSnapshotService.deleteForCurrentUser(snapshotId);
 
     verify(graphSnapshotRepository).delete(entity);
+  }
+
+  @Test
+  void renameForCurrentUserUpdatesName() {
+    GraphSnapshotEntity entity = new GraphSnapshotEntity();
+    entity.setName("Old");
+    when(currentUserResolver.requireCurrentUser()).thenReturn(userA);
+    when(userA.getId()).thenReturn(userAId);
+    when(graphSnapshotRepository.findByIdAndUser_Id(snapshotId, userAId))
+        .thenReturn(Optional.of(entity));
+    when(graphSnapshotRepository.existsByUser_IdAndNameIgnoreCaseAndIdNot(
+            userAId, "Payments", snapshotId))
+        .thenReturn(false);
+    when(graphSnapshotRepository.save(entity)).thenReturn(entity);
+
+    GraphSnapshotResponse response = graphSnapshotService.renameForCurrentUser(snapshotId, " Payments ");
+
+    assertEquals("Payments", response.name());
+    assertEquals("Payments", entity.getName());
+  }
+
+  @Test
+  void renameForCurrentUserRejectsDuplicateName() {
+    GraphSnapshotEntity entity = new GraphSnapshotEntity();
+    entity.setName("Old");
+    when(currentUserResolver.requireCurrentUser()).thenReturn(userA);
+    when(userA.getId()).thenReturn(userAId);
+    when(graphSnapshotRepository.findByIdAndUser_Id(snapshotId, userAId))
+        .thenReturn(Optional.of(entity));
+    when(graphSnapshotRepository.existsByUser_IdAndNameIgnoreCaseAndIdNot(
+            userAId, "Payments", snapshotId))
+        .thenReturn(true);
+
+    assertThrows(
+        ResponseStatusException.class,
+        () -> graphSnapshotService.renameForCurrentUser(snapshotId, "Payments"));
+
+    verify(graphSnapshotRepository, never()).save(any());
   }
 }

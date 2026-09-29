@@ -12,4 +12,6 @@ public interface GraphSnapshotRepository extends JpaRepository<GraphSnapshotEnti
   Optional<GraphSnapshotEntity> findByIdAndUser_Id(UUID id, UUID userId);
 
   boolean existsByUser_IdAndNameIgnoreCase(UUID userId, String name);
+
+  boolean existsByUser_IdAndNameIgnoreCaseAndIdNot(UUID userId, String name, UUID id);
 }

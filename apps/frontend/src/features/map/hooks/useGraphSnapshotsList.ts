@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { deleteGraphSnapshot, listGraphSnapshots } from '../api/graphSnapshotsApi';
+import { deleteGraphSnapshot, listGraphSnapshots, renameGraphSnapshot } from '../api/graphSnapshotsApi';
 import { useGraphSnapshotsRefresh } from '../context/GraphSnapshotsContext';
 import type { GraphSnapshotDto } from '@/types/api';
 
@@ -32,6 +32,18 @@ export function useGraphSnapshotsList() {
     void loadSnapshots();
   }, [version, loadSnapshots]);
 
+  const renameSnapshot = useCallback(async (id: string, name: string) => {
+    try {
+      const updated = await renameGraphSnapshot(id, name);
+      setSnapshots((prev) => prev.map((snapshot) => (snapshot.id === id ? updated : snapshot)));
+      setErrorMessage(null);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unable to rename.';
+      setErrorMessage(message);
+      throw e;
+    }
+  }, []);
+
   const deleteSnapshot = useCallback(async (id: string, name: string) => {
     if (!window.confirm(`Delete view "${name}"?`)) return;
     try {
@@ -42,5 +54,5 @@ export function useGraphSnapshotsList() {
     }
   }, []);
 
-  return { snapshots, status, errorMessage, loadSnapshots, deleteSnapshot };
+  return { snapshots, status, errorMessage, loadSnapshots, renameSnapshot, deleteSnapshot };
 }

@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.graphsnapshot.presentation;
 import com.enterprise.itmapping.feature.graphsnapshot.application.GraphSnapshotService;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.CreateGraphSnapshotRequest;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
+import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.RenameGraphSnapshotRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,6 +37,12 @@ public class GraphSnapshotController {
   public ResponseEntity<GraphSnapshotResponse> create(
       @Valid @RequestBody CreateGraphSnapshotRequest request) {
     return ResponseEntity.status(HttpStatus.CREATED).body(graphSnapshotService.create(request));
+  }
+
+  @PatchMapping("/{id}")
+  public GraphSnapshotResponse rename(
+      @PathVariable UUID id, @Valid @RequestBody RenameGraphSnapshotRequest request) {
+    return graphSnapshotService.renameForCurrentUser(id, request.name());
   }
 
   @DeleteMapping("/{id}")

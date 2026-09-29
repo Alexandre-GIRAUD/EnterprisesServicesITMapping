@@ -65,6 +65,22 @@ public class GraphSnapshotService {
   }
 
   @Transactional
+  public GraphSnapshotResponse renameForCurrentUser(UUID id, String rawName) {
+    UserEntity user = currentUserResolver.requireCurrentUser();
+    String name = normalizeName(rawName);
+    GraphSnapshotEntity entity =
+        graphSnapshotRepository
+            .findByIdAndUser_Id(id, user.getId())
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vue introuvable."));
+    if (graphSnapshotRepository.existsByUser_IdAndNameIgnoreCaseAndIdNot(user.getId(), name, id)) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Une vue avec ce nom existe déjà.");
+    }
+    entity.setName(name);
+    return toResponse(graphSnapshotRepository.save(entity));
+  }
+
+  @Transactional
   public void deleteForCurrentUser(UUID id) {
     UserEntity user = currentUserResolver.requireCurrentUser();
     GraphSnapshotEntity entity =

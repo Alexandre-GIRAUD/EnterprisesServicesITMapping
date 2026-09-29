@@ -42,6 +42,35 @@ export async function createGraphSnapshot(
   }
 }
 
+export async function renameGraphSnapshot(id: string, name: string): Promise<GraphSnapshotDto> {
+  const res = await authenticatedFetch(
+    resolveApiUrl(`/api/users/me/graph-snapshots/${encodeURIComponent(id)}`),
+    {
+      method: 'PATCH',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name }),
+    }
+  );
+  const text = await res.text().catch(() => '');
+  if (res.status === 409) {
+    throw new Error('A view with this name already exists.');
+  }
+  if (res.status === 404) {
+    throw new Error('View not found.');
+  }
+  if (!res.ok) {
+    throw new Error(`Rename view ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`);
+  }
+  try {
+    return JSON.parse(text) as GraphSnapshotDto;
+  } catch {
+    throw new Error('Invalid server response after rename.');
+  }
+}
+
 export async function deleteGraphSnapshot(id: string): Promise<void> {
   const res = await authenticatedFetch(
     resolveApiUrl(`/api/users/me/graph-snapshots/${encodeURIComponent(id)}`),
