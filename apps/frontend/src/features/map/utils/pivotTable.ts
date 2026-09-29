@@ -37,6 +37,8 @@ type GraphApp = {
   label: string;
   type: string;
   properties?: Record<string, string>;
+  /** Catalogue names already resolved on the graph payload (field key → names). */
+  nodeRefs?: Record<string, string[]>;
 };
 
 type CatalogApp = {
@@ -74,6 +76,10 @@ export function buildPivotTable(apps: readonly PivotApp[], setup: PivotSetup): P
 
 function readValues(node: GraphApp, detail: CatalogApp | undefined, dimension: PivotDimension): string[] {
   if (dimension.kind === 'NODE_REF') {
+    const fromNode = (node.nodeRefs?.[dimension.key] ?? [])
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (fromNode.length > 0) return fromNode;
     const refs = detail?.nodeRefs?.[dimension.key] ?? [];
     return refs
       .map((ref) => ref.name?.trim() || ref.value?.trim() || ref.id)

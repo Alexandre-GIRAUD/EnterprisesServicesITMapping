@@ -112,7 +112,8 @@ public class GraphService {
                         a.name() != null ? a.name() : a.id(),
                         "Application",
                         null,
-                        a.properties()))
+                        a.properties(),
+                        a.nodeRefs()))
             .collect(Collectors.toList());
 
     List<GraphEdgeDto> edgeDtos = new ArrayList<>();

@@ -1,4 +1,4 @@
-import { useMemo, useState, type Ref } from 'react';
+import { useEffect, useMemo, useState, type Ref } from 'react';
 import type { ApplicationResponse, GraphNodeDto, GraphNodeFilterDto } from '@/types/api';
 import { nodeFillColorForValue } from './edgeColorProperty';
 import {
@@ -69,7 +69,11 @@ export function CustomPivotPanel({
   const axisLabel = (key: string) => labels.get(key) ?? key;
 
   return (
-    <div ref={exportRootRef} className="pivot-table" aria-label="Custom table">
+    <div
+      ref={exportRootRef}
+      className="pivot-table graph-table-panel graph-table-panel--main graph-table-panel--light"
+      aria-label="Custom table"
+    >
       <p className="pivot-table-caption">
         {axisLabel(setup.rowKey)} × {axisLabel(setup.columnKey)}
       </p>
@@ -77,7 +81,7 @@ export function CustomPivotPanel({
         <p className="graph-table-message">No apps to display.</p>
       ) : (
         <div className="graph-table-scroll">
-          <table>
+          <table className="graph-table">
             <thead>
               <tr>
                 <th>{axisLabel(setup.rowKey)}</th>
@@ -139,9 +143,14 @@ function PivotSetupForm({
   const [labelKey, setLabelKey] = useState(initial?.labelKey ?? NONE_AXIS);
   const [colorKey, setColorKey] = useState(initial?.colorKey ?? NONE_AXIS);
 
+  useEffect(() => {
+    if (!rowKey && axes[0]) setRowKey(axes[0].key);
+    if (!columnKey && axes[0]) setColumnKey(axes[1]?.key ?? axes[0].key);
+  }, [axes, rowKey, columnKey]);
+
   return (
     <form
-      className="pivot-setup"
+      className="pivot-setup graph-table-panel graph-table-panel--main graph-table-panel--light"
       onSubmit={(event) => {
         event.preventDefault();
         if (!rowKey || !columnKey) return;

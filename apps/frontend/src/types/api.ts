@@ -11,6 +11,8 @@ export interface GraphNodeDto {
   description?: string | null;
   /** Dynamic business properties of the node (Data Model target=NODE keys); empty on module-graph. */
   properties?: Record<string, string>;
+  /** Catalogue names (Data Model target=NODE_REF): field key → ref names. */
+  nodeRefs?: Record<string, string[]>;
 }
 
 /** Graph edge as returned by /api/graph */

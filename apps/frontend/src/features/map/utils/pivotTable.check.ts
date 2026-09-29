@@ -56,4 +56,11 @@ assert.equal(split.cells[0][0][0]?.text, 'Pay');
 assert.equal(split.cells[1][0][0]?.text, 'Pay');
 assert.equal(split.cells[0][0][0]?.appId, 'e');
 
+const fromGraph = collectPivotApps(
+  [{ id: 'a', label: 'Alpha', type: 'Application', nodeRefs: { region: ['EMEA', 'AMER'] } }],
+  [],
+  [{ key: 'region', kind: 'NODE_REF' }],
+);
+assert.deepEqual(fromGraph[0]?.values.region, ['EMEA', 'AMER']);
+
 console.log('pivotTable.check: ok');
