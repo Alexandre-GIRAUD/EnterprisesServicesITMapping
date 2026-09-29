@@ -25,6 +25,9 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
   const [dropParentId, setDropParentId] = useState<string | 'root' | null>(null);
   const [moving, setMoving] = useState<DragItem | null>(null);
+  const [sharing, setSharing] = useState<DragItem | null>(null);
+  const [draftUsername, setDraftUsername] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
 
   const folderNodes = useMemo<FolderNode[]>(
     () => library.folders.map((folder) => ({ id: folder.id, parentId: folder.parentId, name: folder.name })),
@@ -62,6 +65,20 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
     } catch {
       setEditing(item);
       setDraftName(nextName);
+    }
+  }
+
+  async function commitShare(item: DragItem) {
+    const username = draftUsername.trim();
+    if (!username) return;
+    try {
+      if (item.kind === 'view') await library.shareSnapshot(item.id, username);
+      else await library.shareFolder(item.id, username);
+      setSharing(null);
+      setDraftUsername('');
+      setNotice(`Shared with ${username}.`);
+    } catch {
+      // The hook surfaces the message.
     }
   }
 
@@ -148,6 +165,8 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
       </header>
       {library.errorMessage ? (
         <p className="graph-views-state graph-views-state-error" role="alert">{library.errorMessage}</p>
+      ) : notice ? (
+        <p className="graph-views-state" role="status">{notice}</p>
       ) : null}
       {rows.length === 0 ? (
         <p className="graph-views-state">{currentFolderId ? 'This folder is empty.' : 'No saved views yet. Pin a view from Production.'}</p>
@@ -233,6 +252,20 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
                 </button>
                 <button
                   type="button"
+                  className="graph-views-item-rename"
+                  aria-label={`Share ${row.name}`}
+                  title="Share a copy"
+                  onClick={() => {
+                    setMoving(null);
+                    setSharing(sharing?.id === row.id && sharing.kind === row.kind ? null : item);
+                    setDraftUsername('');
+                    setNotice(null);
+                  }}
+                >
+                  Share
+                </button>
+                <button
+                  type="button"
                   className="graph-views-item-delete"
                   aria-label={`Delete ${row.name}`}
                   onClick={() => {
@@ -253,6 +286,26 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
                     viewNames={viewNames}
                     snapshots={library.snapshots}
                     onMove={(parentId) => void place(item, parentId)}
+                  />
+                ) : null}
+                {sharing?.kind === row.kind && sharing.id === row.id ? (
+                  <input
+                    className="graph-views-item-name-input"
+                    aria-label={`Username to receive ${row.name}`}
+                    placeholder="Username"
+                    value={draftUsername}
+                    autoFocus
+                    onChange={(event) => setDraftUsername(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        void commitShare(item);
+                      }
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        setSharing(null);
+                      }
+                    }}
                   />
                 ) : null}
               </li>

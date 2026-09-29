@@ -5,12 +5,14 @@ import {
   listGraphViewFolders,
   moveGraphViewFolder,
   renameGraphViewFolder,
+  shareGraphViewFolder,
 } from '../api/graphViewFoldersApi';
 import {
   deleteGraphSnapshot,
   listGraphSnapshots,
   moveGraphSnapshot,
   renameGraphSnapshot,
+  shareGraphSnapshot,
 } from '../api/graphSnapshotsApi';
 import { useGraphSnapshotsRefresh } from '../context/GraphSnapshotsContext';
 import type { GraphSnapshotDto, GraphViewFolderDto } from '@/types/api';
@@ -109,6 +111,28 @@ export function useGraphSnapshotsList() {
     [refreshQuietly],
   );
 
+  const shareSnapshot = useCallback(async (id: string, username: string) => {
+    try {
+      await shareGraphSnapshot(id, username);
+      setErrorMessage(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to share.';
+      setErrorMessage(message);
+      throw error;
+    }
+  }, []);
+
+  const shareFolder = useCallback(async (id: string, username: string) => {
+    try {
+      await shareGraphViewFolder(id, username);
+      setErrorMessage(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to share.';
+      setErrorMessage(message);
+      throw error;
+    }
+  }, []);
+
   const deleteFolder = useCallback(
     async (id: string) => {
       await deleteGraphViewFolder(id);
@@ -131,5 +155,7 @@ export function useGraphSnapshotsList() {
     renameFolder,
     moveFolder,
     deleteFolder,
+    shareSnapshot,
+    shareFolder,
   };
 }

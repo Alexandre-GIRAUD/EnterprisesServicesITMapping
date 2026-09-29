@@ -1,10 +1,12 @@
 package com.enterprise.itmapping.feature.graphsnapshot.presentation;
 
 import com.enterprise.itmapping.feature.graphsnapshot.application.GraphSnapshotService;
+import com.enterprise.itmapping.feature.graphsnapshot.application.ShareLibraryService;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.CreateGraphSnapshotRequest;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.MoveGraphSnapshotRequest;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.RenameGraphSnapshotRequest;
+import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.ShareWithUserRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -24,9 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class GraphSnapshotController {
 
   private final GraphSnapshotService graphSnapshotService;
+  private final ShareLibraryService shareLibraryService;
 
-  public GraphSnapshotController(GraphSnapshotService graphSnapshotService) {
+  public GraphSnapshotController(
+      GraphSnapshotService graphSnapshotService, ShareLibraryService shareLibraryService) {
     this.graphSnapshotService = graphSnapshotService;
+    this.shareLibraryService = shareLibraryService;
   }
 
   @GetMapping
@@ -50,6 +55,13 @@ public class GraphSnapshotController {
   public GraphSnapshotResponse move(
       @PathVariable UUID id, @RequestBody MoveGraphSnapshotRequest request) {
     return graphSnapshotService.moveToFolder(id, request.folderId());
+  }
+
+  @PostMapping("/{id}/share")
+  public ResponseEntity<Void> share(
+      @PathVariable UUID id, @Valid @RequestBody ShareWithUserRequest request) {
+    shareLibraryService.shareView(id, request.username());
+    return ResponseEntity.noContent().build();
   }
 
   @DeleteMapping("/{id}")

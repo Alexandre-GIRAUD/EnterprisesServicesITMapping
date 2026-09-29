@@ -56,6 +56,23 @@ export async function moveGraphViewFolder(id: string, parentId: string | null): 
   return res.json();
 }
 
+export async function shareGraphViewFolder(id: string, username: string): Promise<void> {
+  const res = await authenticatedFetch(
+    resolveApiUrl(`/api/users/me/graph-view-folders/${encodeURIComponent(id)}/share`),
+    {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username }),
+    },
+  );
+  if (res.status === 204) return;
+  const detail = await res.text().catch(() => '');
+  if (detail.includes('partager avec vous')) throw new Error('You cannot share with yourself.');
+  if (detail.includes('Utilisateur introuvable')) throw new Error('No user with that username.');
+  if (res.status === 404) throw new Error('Folder not found.');
+  throw new Error(`Share folder ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`);
+}
+
 export async function deleteGraphViewFolder(id: string): Promise<void> {
   const res = await authenticatedFetch(
     resolveApiUrl(`/api/users/me/graph-view-folders/${encodeURIComponent(id)}`),

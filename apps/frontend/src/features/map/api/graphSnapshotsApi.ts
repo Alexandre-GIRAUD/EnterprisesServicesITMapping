@@ -89,6 +89,23 @@ export async function moveGraphSnapshot(id: string, folderId: string | null): Pr
   return JSON.parse(text) as GraphSnapshotDto;
 }
 
+export async function shareGraphSnapshot(id: string, username: string): Promise<void> {
+  const res = await authenticatedFetch(
+    resolveApiUrl(`/api/users/me/graph-snapshots/${encodeURIComponent(id)}/share`),
+    {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username }),
+    },
+  );
+  if (res.status === 204) return;
+  const detail = await res.text().catch(() => '');
+  if (detail.includes('partager avec vous')) throw new Error('You cannot share with yourself.');
+  if (detail.includes('Utilisateur introuvable')) throw new Error('No user with that username.');
+  if (res.status === 404) throw new Error('View not found.');
+  throw new Error(`Share view ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`);
+}
+
 export async function deleteGraphSnapshot(id: string): Promise<void> {
   const res = await authenticatedFetch(
     resolveApiUrl(`/api/users/me/graph-snapshots/${encodeURIComponent(id)}`),

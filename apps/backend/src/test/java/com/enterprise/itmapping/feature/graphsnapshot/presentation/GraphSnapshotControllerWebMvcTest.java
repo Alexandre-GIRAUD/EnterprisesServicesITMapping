@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.enterprise.itmapping.feature.graphsnapshot.application.GraphSnapshotService;
+import com.enterprise.itmapping.feature.graphsnapshot.application.ShareLibraryService;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotFiltersDto;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.NodePositionDto;
@@ -31,6 +32,7 @@ class GraphSnapshotControllerWebMvcTest {
   @Autowired MockMvc mockMvc;
 
   @MockBean GraphSnapshotService graphSnapshotService;
+  @MockBean ShareLibraryService shareLibraryService;
 
   @Test
   void listReturnsSnapshots() throws Exception {
