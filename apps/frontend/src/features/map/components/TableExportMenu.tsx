@@ -1,13 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 
-export type TableFileFormat = 'csv' | 'excel';
+export type TableFileFormat = 'csv' | 'excel' | 'png' | 'pdf';
 
 type TableExportMenuProps = {
   disabled?: boolean;
+  mode?: 'grid' | 'image';
   onExport: (format: TableFileFormat) => void;
 };
 
-export function TableExportMenu({ disabled = false, onExport }: TableExportMenuProps) {
+const GRID_ITEMS: { format: TableFileFormat; label: string }[] = [
+  { format: 'csv', label: 'Export CSV' },
+  { format: 'excel', label: 'Export Excel' },
+];
+
+const IMAGE_ITEMS: { format: TableFileFormat; label: string }[] = [
+  { format: 'png', label: 'Export PNG' },
+  { format: 'pdf', label: 'Export PDF' },
+];
+
+export function TableExportMenu({ disabled = false, mode = 'grid', onExport }: TableExportMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -35,6 +46,7 @@ export function TableExportMenu({ disabled = false, onExport }: TableExportMenuP
     setOpen(false);
     onExport(format);
   };
+  const items = mode === 'image' ? IMAGE_ITEMS : GRID_ITEMS;
 
   return (
     <div className="graph-export-menu" ref={rootRef}>
@@ -52,12 +64,17 @@ export function TableExportMenu({ disabled = false, onExport }: TableExportMenuP
       </button>
       {open ? (
         <div className="graph-export-menu-popover" role="menu" aria-label="Export format">
-          <button type="button" role="menuitem" className="graph-export-menu-item" onClick={() => handleExport('csv')}>
-            Export CSV
-          </button>
-          <button type="button" role="menuitem" className="graph-export-menu-item" onClick={() => handleExport('excel')}>
-            Export Excel
-          </button>
+          {items.map((item) => (
+            <button
+              key={item.format}
+              type="button"
+              role="menuitem"
+              className="graph-export-menu-item"
+              onClick={() => handleExport(item.format)}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       ) : null}
     </div>
