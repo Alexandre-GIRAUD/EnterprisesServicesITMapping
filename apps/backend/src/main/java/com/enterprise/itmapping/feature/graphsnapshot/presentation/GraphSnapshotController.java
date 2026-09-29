@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.graphsnapshot.presentation;
 import com.enterprise.itmapping.feature.graphsnapshot.application.GraphSnapshotService;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.CreateGraphSnapshotRequest;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
+import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.MoveGraphSnapshotRequest;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.RenameGraphSnapshotRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -43,6 +44,12 @@ public class GraphSnapshotController {
   public GraphSnapshotResponse rename(
       @PathVariable UUID id, @Valid @RequestBody RenameGraphSnapshotRequest request) {
     return graphSnapshotService.renameForCurrentUser(id, request.name());
+  }
+
+  @PatchMapping("/{id}/folder")
+  public GraphSnapshotResponse move(
+      @PathVariable UUID id, @RequestBody MoveGraphSnapshotRequest request) {
+    return graphSnapshotService.moveToFolder(id, request.folderId());
   }
 
   @DeleteMapping("/{id}")

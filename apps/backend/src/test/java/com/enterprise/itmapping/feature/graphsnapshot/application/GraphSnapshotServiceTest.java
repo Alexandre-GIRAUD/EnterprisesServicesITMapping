@@ -11,6 +11,7 @@ import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistence.GraphSnapshotEntity;
 import com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistence.GraphSnapshotRepository;
+import com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistence.GraphViewFolderRepository;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +30,7 @@ import org.springframework.web.server.ResponseStatusException;
 class GraphSnapshotServiceTest {
 
   @Mock GraphSnapshotRepository graphSnapshotRepository;
+  @Mock GraphViewFolderRepository graphViewFolderRepository;
   @Mock CurrentUserResolver currentUserResolver;
   @Mock UserEntity userA;
 
@@ -80,8 +82,7 @@ class GraphSnapshotServiceTest {
     when(userA.getId()).thenReturn(userAId);
     when(graphSnapshotRepository.findByIdAndUser_Id(snapshotId, userAId))
         .thenReturn(Optional.of(entity));
-    when(graphSnapshotRepository.existsByUser_IdAndNameIgnoreCaseAndIdNot(
-            userAId, "Payments", snapshotId))
+    when(graphSnapshotRepository.existsSiblingName(userAId, null, "Payments", snapshotId))
         .thenReturn(false);
     when(graphSnapshotRepository.save(entity)).thenReturn(entity);
 
@@ -99,8 +100,7 @@ class GraphSnapshotServiceTest {
     when(userA.getId()).thenReturn(userAId);
     when(graphSnapshotRepository.findByIdAndUser_Id(snapshotId, userAId))
         .thenReturn(Optional.of(entity));
-    when(graphSnapshotRepository.existsByUser_IdAndNameIgnoreCaseAndIdNot(
-            userAId, "Payments", snapshotId))
+    when(graphSnapshotRepository.existsSiblingName(userAId, null, "Payments", snapshotId))
         .thenReturn(true);
 
     assertThrows(

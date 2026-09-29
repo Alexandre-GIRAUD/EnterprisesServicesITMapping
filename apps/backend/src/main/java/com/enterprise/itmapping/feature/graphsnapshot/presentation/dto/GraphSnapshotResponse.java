@@ -8,4 +8,15 @@ public record GraphSnapshotResponse(
     String name,
     GraphSnapshotFiltersDto filters,
     Instant createdAt,
-    Instant updatedAt) {}
+    Instant updatedAt,
+    UUID folderId) {
+
+  public GraphSnapshotResponse(
+      UUID id,
+      String name,
+      GraphSnapshotFiltersDto filters,
+      Instant createdAt,
+      Instant updatedAt) {
+    this(id, name, filters, createdAt, updatedAt, null);
+  }
+}

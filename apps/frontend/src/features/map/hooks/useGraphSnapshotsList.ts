@@ -1,36 +1,64 @@
 import { useCallback, useEffect, useState } from 'react';
-import { deleteGraphSnapshot, listGraphSnapshots, renameGraphSnapshot } from '../api/graphSnapshotsApi';
+import {
+  createGraphViewFolder,
+  deleteGraphViewFolder,
+  listGraphViewFolders,
+  moveGraphViewFolder,
+  renameGraphViewFolder,
+} from '../api/graphViewFoldersApi';
+import {
+  deleteGraphSnapshot,
+  listGraphSnapshots,
+  moveGraphSnapshot,
+  renameGraphSnapshot,
+} from '../api/graphSnapshotsApi';
 import { useGraphSnapshotsRefresh } from '../context/GraphSnapshotsContext';
-import type { GraphSnapshotDto } from '@/types/api';
+import type { GraphSnapshotDto, GraphViewFolderDto } from '@/types/api';
 
 export type GraphSnapshotsListStatus = 'loading' | 'ready' | 'error';
 
 /**
- * Loads the current user's saved graph views and keeps them in sync with the
- * shared refresh signal. Reloads whenever a snapshot is created elsewhere.
+ * Loads the current user's saved views and view folders.
  */
 export function useGraphSnapshotsList() {
   const { version } = useGraphSnapshotsRefresh();
   const [snapshots, setSnapshots] = useState<GraphSnapshotDto[]>([]);
+  const [folders, setFolders] = useState<GraphViewFolderDto[]>([]);
   const [status, setStatus] = useState<GraphSnapshotsListStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    const [views, folderList] = await Promise.all([listGraphSnapshots(), listGraphViewFolders()]);
+    setSnapshots(views);
+    setFolders(folderList);
+  }, []);
 
   const loadSnapshots = useCallback(async () => {
     setStatus('loading');
     setErrorMessage(null);
     try {
-      const data = await listGraphSnapshots();
-      setSnapshots(data);
+      await reload();
       setStatus('ready');
     } catch (e) {
       setStatus('error');
       setErrorMessage(e instanceof Error ? e.message : 'Unable to load views.');
     }
-  }, []);
+  }, [reload]);
 
   useEffect(() => {
     void loadSnapshots();
   }, [version, loadSnapshots]);
+
+  const refreshQuietly = useCallback(async () => {
+    try {
+      await reload();
+      setErrorMessage(null);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unable to update views.';
+      setErrorMessage(message);
+      throw e;
+    }
+  }, [reload]);
 
   const renameSnapshot = useCallback(async (id: string, name: string) => {
     try {
@@ -44,15 +72,64 @@ export function useGraphSnapshotsList() {
     }
   }, []);
 
-  const deleteSnapshot = useCallback(async (id: string, name: string) => {
-    if (!window.confirm(`Delete view "${name}"?`)) return;
-    try {
-      await deleteGraphSnapshot(id);
-      setSnapshots((prev) => prev.filter((s) => s.id !== id));
-    } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : 'Unable to delete.');
-    }
+  const deleteSnapshot = useCallback(async (id: string) => {
+    await deleteGraphSnapshot(id);
+    setSnapshots((prev) => prev.filter((snapshot) => snapshot.id !== id));
   }, []);
 
-  return { snapshots, status, errorMessage, loadSnapshots, renameSnapshot, deleteSnapshot };
+  const moveSnapshot = useCallback(
+    async (id: string, folderId: string | null) => {
+      await moveGraphSnapshot(id, folderId);
+      await refreshQuietly();
+    },
+    [refreshQuietly],
+  );
+
+  const createFolder = useCallback(
+    async (name: string, parentId: string | null) => {
+      await createGraphViewFolder(name, parentId);
+      await refreshQuietly();
+    },
+    [refreshQuietly],
+  );
+
+  const renameFolder = useCallback(
+    async (id: string, name: string) => {
+      await renameGraphViewFolder(id, name);
+      await refreshQuietly();
+    },
+    [refreshQuietly],
+  );
+
+  const moveFolder = useCallback(
+    async (id: string, parentId: string | null) => {
+      await moveGraphViewFolder(id, parentId);
+      await refreshQuietly();
+    },
+    [refreshQuietly],
+  );
+
+  const deleteFolder = useCallback(
+    async (id: string) => {
+      await deleteGraphViewFolder(id);
+      await refreshQuietly();
+    },
+    [refreshQuietly],
+  );
+
+  return {
+    snapshots,
+    folders,
+    status,
+    errorMessage,
+    setErrorMessage,
+    loadSnapshots,
+    renameSnapshot,
+    deleteSnapshot,
+    moveSnapshot,
+    createFolder,
+    renameFolder,
+    moveFolder,
+    deleteFolder,
+  };
 }

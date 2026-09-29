@@ -336,6 +336,15 @@ export type GraphSnapshotDto = {
   filters: GraphSnapshotFilters;
   createdAt: string;
   updatedAt: string;
+  folderId?: string | null;
+};
+
+export type GraphViewFolderDto = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 /** How AI connection suggestion treats this field. */
