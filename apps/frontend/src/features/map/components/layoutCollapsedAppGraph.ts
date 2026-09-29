@@ -10,7 +10,7 @@ import {
 import type { LegendColorMaps } from './edgeColorProperty';
 import { computeBridges } from './bridges';
 import { projectCollapsedGraph } from './collapseGraph';
-import { elkLayout } from './elkLayout';
+import { placeApplicationGraph } from './graphvizLayout';
 import { layoutGraph } from './graphLayout';
 import { attachRoute, buildOrientedEdge } from './orientedEdgeBuilders';
 import type { OrientedEdgeData, OrientedEdgeType } from './OrientedEdge';
@@ -248,7 +248,7 @@ export async function layoutCollapsedAppGraph(params: {
   let routedEdges: OrientedEdgeType[];
 
   try {
-    const { nodes: laidOut, routes } = await elkLayout(baseNodes, builtEdges, {
+    const { nodes: laidOut, routes } = await placeApplicationGraph(baseNodes, builtEdges, {
       nodeWidth: NODE_WIDTH,
       nodeHeight: NODE_HEIGHT,
       nodeSeparation: 70,

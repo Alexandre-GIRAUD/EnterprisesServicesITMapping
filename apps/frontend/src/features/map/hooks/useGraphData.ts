@@ -18,7 +18,7 @@ import {
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import { fetchGraph } from '../api/graphApi';
 import { layoutGraph } from '../components/graphLayout';
-import { elkLayout } from '../components/elkLayout';
+import { placeApplicationGraph } from '../components/graphvizLayout';
 import { computeBridges } from '../components/bridges';
 import {
   collectLegendColorValues,
@@ -524,7 +524,7 @@ export function useGraphData({
         const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
 
         try {
-          const { nodes: laidOut, routes } = await elkLayout(baseNodes, builtEdges, {
+          const { nodes: laidOut, routes } = await placeApplicationGraph(baseNodes, builtEdges, {
             nodeWidth: NODE_WIDTH,
             nodeHeight: NODE_HEIGHT,
             nodeSeparation: 70,
