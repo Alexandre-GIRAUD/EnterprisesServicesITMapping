@@ -85,6 +85,7 @@ import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle'
 import { TableContentToggle, type TableContentMode } from './TableContentToggle';
 import { fitGraphView, ensureNodesVisible } from './fitGraphView';
 import { GraphViewsPanel } from './GraphViewsPanel';
+import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { PendingChangesPanel, pendingItemsCount } from './PendingChangesPanel';
 import { MappingChatPanel } from './MappingChatPanel';
@@ -1899,6 +1900,7 @@ export function GraphCanvas() {
                 proOptions={{ hideAttribution: true }}
               >
                 <Background color="#e2e8f0" gap={GRID} />
+                <ComponentZoneOverlay nodes={displayNodes} edges={displayEdges} />
                 <Controls showInteractive={false} />
                 <Panel position="top-left">
                   <GraphLegend

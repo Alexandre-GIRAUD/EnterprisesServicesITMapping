@@ -140,6 +140,58 @@ export function packComponentOffsets(
   return offsets;
 }
 
+/** Gap between a diagram's nodes and its dashed zone. */
+export const ZONE_PADDING = 28;
+
+const FALLBACK_NODE_WIDTH = 160;
+const FALLBACK_NODE_HEIGHT = 48;
+
+export type ZoneFrame = { x: number; y: number; width: number; height: number };
+
+type ZoneNode = {
+  id: string;
+  position: { x: number; y: number };
+  width?: number | null;
+  height?: number | null;
+};
+
+/** One padded frame per disconnected diagram. A single diagram returns none. */
+export function componentZoneFrames(
+  nodes: readonly ZoneNode[],
+  edges: readonly { source: string; target: string }[],
+  padding: number = ZONE_PADDING,
+): ZoneFrame[] {
+  const components = findConnectedComponents(
+    nodes.map((node) => node.id),
+    edges,
+  );
+  if (components.length < 2) return [];
+
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  return components.map((ids) => {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const id of ids) {
+      const node = nodeById.get(id);
+      if (!node) continue;
+      const width = node.width ?? FALLBACK_NODE_WIDTH;
+      const height = node.height ?? FALLBACK_NODE_HEIGHT;
+      minX = Math.min(minX, node.position.x);
+      minY = Math.min(minY, node.position.y);
+      maxX = Math.max(maxX, node.position.x + width);
+      maxY = Math.max(maxY, node.position.y + height);
+    }
+    return {
+      x: minX - padding,
+      y: minY - padding,
+      width: maxX - minX + padding * 2,
+      height: maxY - minY + padding * 2,
+    };
+  });
+}
+
 /** Apply a translation to every node position and route point in a component. */
 export function translateComponentLayout(
   nodeIds: string[],
