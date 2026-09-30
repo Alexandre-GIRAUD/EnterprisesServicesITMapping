@@ -8,6 +8,7 @@ import {
   buildCustomTable,
   collectCustomTableFacts,
   customTableGrid,
+  fieldsFromGraph,
   loadSavedCustomTables,
   normalizeSetup,
   optionsForSlot,
@@ -53,10 +54,19 @@ export function CreateTablePanel({
   exportRootRef,
   onViewChange,
 }: CreateTablePanelProps) {
-  const options = useMemo(() => buildAxisOptions(dimensions), [dimensions]);
+  const fields = useMemo(() => {
+    const catalogById = new Map(applications.map((app) => [app.id, app]));
+    const described = nodes.map((node) => ({
+      type: node.type,
+      description: node.description || catalogById.get(node.id)?.description,
+      properties: node.properties,
+    }));
+    return [...dimensions, ...fieldsFromGraph(described, edges, dimensions)];
+  }, [dimensions, nodes, edges, applications]);
+  const options = useMemo(() => buildAxisOptions(fields), [fields]);
   const facts = useMemo(
-    () => collectCustomTableFacts(nodes, applications, edges, dimensions),
-    [nodes, applications, edges, dimensions],
+    () => collectCustomTableFacts(nodes, applications, edges, fields),
+    [nodes, applications, edges, fields],
   );
   const [setup, setSetup] = useState<CustomTableSetup>(EMPTY_SETUP);
   const [savedTables, setSavedTables] = useState<SavedCustomTable[]>(loadSavedCustomTables);

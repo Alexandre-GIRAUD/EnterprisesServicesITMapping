@@ -9,6 +9,7 @@ import {
   collectCustomTableFacts,
   customTableExportFormats,
   customTableGrid,
+  fieldsFromGraph,
   normalizeSetup,
   optionsForSlot,
   reconcileSavedTable,
@@ -282,5 +283,40 @@ const fromCatalog = collectCustomTableFacts(
   [{ key: 'tier', kind: 'NODE' }],
 );
 assert.deepEqual(fromCatalog.apps[0]?.values.tier, ['Gold']);
+
+const graphFields = fieldsFromGraph(
+  [{ type: 'Application', description: 'Pays invoices', properties: { year: '2020' } }],
+  [{ data: 'orders', properties: { frequency: 'Daily', id: 'e1', asset_class: 'Ref' } }],
+  [],
+);
+assert.deepEqual(
+  graphFields.map((field) => field.key),
+  ['description', 'year', 'asset_class', 'data', 'frequency'],
+);
+assert.equal(graphFields.find((field) => field.key === 'frequency')?.kind, 'EDGE');
+assert.equal(graphFields.find((field) => field.key === 'frequency')?.label, 'Frequency');
+assert.equal(graphFields.find((field) => field.key === 'description')?.kind, 'NODE');
+assert.deepEqual(
+  fieldsFromGraph([], [{ properties: { frequency: 'Daily' } }], [{ key: 'frequency', kind: 'EDGE', label: 'Cadence' }]),
+  [],
+);
+
+const withGraphValues = collectCustomTableFacts(
+  [{ id: 'a', label: 'Alpha', type: 'Application', description: 'Pays invoices' }],
+  [],
+  [{ id: 'f1', sourceId: 'a', targetId: 'b', data: 'orders', properties: { frequency: 'Daily' } }],
+  graphFields,
+);
+assert.deepEqual(withGraphValues.apps[0]?.values.description, ['Pays invoices']);
+assert.equal(withGraphValues.flows[0]?.values.frequency, 'Daily');
+assert.equal(withGraphValues.flows[0]?.values.data, 'orders');
+
+const descriptionFromCatalog = collectCustomTableFacts(
+  [{ id: 'a', label: 'Alpha', type: 'Application' }],
+  [{ id: 'a', description: 'Pays invoices' }],
+  [],
+  [{ key: 'description', kind: 'NODE', label: 'Description' }],
+);
+assert.deepEqual(descriptionFromCatalog.apps[0]?.values.description, ['Pays invoices']);
 
 console.log('customTable.check: ok');

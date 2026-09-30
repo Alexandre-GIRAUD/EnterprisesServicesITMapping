@@ -80,6 +80,62 @@ export function buildAxisOptions(fields: readonly AxisCatalogField[]): AxisOptio
   return options;
 }
 
+const SKIPPED_GRAPH_KEYS = new Set(['id', 'name', 'validFrom', 'validTo']);
+
+const KNOWN_GRAPH_LABELS: Record<string, string> = {
+  description: 'Description',
+  year: 'Year',
+  data: 'Exchanged data',
+  connection_kind: 'Integration kind',
+  asset_class: 'Asset class',
+  frequency: 'Frequency',
+  creation_date: 'Creation year',
+};
+
+/**
+ * Attribute keys stored on the visible graph but not yet declared in the Data Model.
+ * Data Model fields keep their own label and kind.
+ */
+export function fieldsFromGraph(
+  nodes: readonly { type?: string; description?: string | null; properties?: Record<string, string> }[],
+  flows: readonly { data?: string | null; properties?: Record<string, string> }[],
+  modelFields: readonly AxisCatalogField[],
+): AxisCatalogField[] {
+  const declared = new Set(modelFields.map((field) => field.key));
+  const nodeKeys = new Set<string>();
+  const edgeKeys = new Set<string>();
+  for (const node of nodes) {
+    if (node.type && node.type !== 'Application') continue;
+    if (node.description?.trim()) nodeKeys.add('description');
+    collectKeys(node.properties, nodeKeys);
+  }
+  for (const flow of flows) {
+    if (flow.data?.trim()) edgeKeys.add('data');
+    collectKeys(flow.properties, edgeKeys);
+  }
+  return [
+    ...sortedFields(nodeKeys, declared, 'NODE'),
+    ...sortedFields(edgeKeys, declared, 'EDGE'),
+  ];
+}
+
+function collectKeys(properties: Record<string, string> | undefined, keys: Set<string>): void {
+  for (const key of Object.keys(properties ?? {})) {
+    if (!SKIPPED_GRAPH_KEYS.has(key)) keys.add(key);
+  }
+}
+
+function sortedFields(
+  keys: Set<string>,
+  declared: Set<string>,
+  kind: 'NODE' | 'EDGE',
+): AxisCatalogField[] {
+  return [...keys]
+    .filter((key) => !declared.has(key))
+    .sort((left, right) => left.localeCompare(right))
+    .map((key) => ({ key, kind, label: KNOWN_GRAPH_LABELS[key] ?? key.replaceAll('_', ' ') }));
+}
+
 export type CustomTableApp = {
   id: string;
   name: string;
@@ -523,15 +579,23 @@ export function collectCustomTableFacts(
     id: string;
     label: string;
     type: string;
+    description?: string | null;
     properties?: Record<string, string>;
     nodeRefs?: Record<string, string[]>;
   }[],
   catalog: readonly {
     id: string;
+    description?: string | null;
     nodeAttributes?: Record<string, string>;
     nodeRefs?: Record<string, Array<{ id: string; name?: string; value?: string }>>;
   }[],
-  flows: readonly { id: string; sourceId: string; targetId: string; properties?: Record<string, string> }[],
+  flows: readonly {
+    id: string;
+    sourceId: string;
+    targetId: string;
+    data?: string | null;
+    properties?: Record<string, string>;
+  }[],
   fields: readonly AxisCatalogField[],
 ): { apps: CustomTableApp[]; flows: CustomTableFlow[] } {
   const catalogById = new Map(catalog.map((app) => [app.id, app]));
@@ -589,8 +653,8 @@ function cellText(cell: CustomTableCell | undefined): string {
 }
 
 function readAppValues(
-  node: { properties?: Record<string, string>; nodeRefs?: Record<string, string[]> },
-  detail: { nodeAttributes?: Record<string, string>; nodeRefs?: Record<string, Array<{ id: string; name?: string; value?: string }>> } | undefined,
+  node: { description?: string | null; properties?: Record<string, string>; nodeRefs?: Record<string, string[]> },
+  detail: { description?: string | null; nodeAttributes?: Record<string, string>; nodeRefs?: Record<string, Array<{ id: string; name?: string; value?: string }>> } | undefined,
   fields: readonly AxisCatalogField[],
 ): Record<string, string[]> {
   const values: Record<string, string[]> = {};
@@ -607,19 +671,23 @@ function readAppValues(
         .filter((value): value is string => Boolean(value));
       continue;
     }
-    const value = node.properties?.[field.key]?.trim() || detail?.nodeAttributes?.[field.key]?.trim() || '';
+    const fromProperty = node.properties?.[field.key]?.trim() || detail?.nodeAttributes?.[field.key]?.trim() || '';
+    const fromDescription = field.key === 'description' ? node.description?.trim() || detail?.description?.trim() || '' : '';
+    const value = fromProperty || fromDescription;
     values[field.key] = value ? [value] : [];
   }
   return values;
 }
 
 function readFlowValues(
-  flow: { properties?: Record<string, string> },
+  flow: { data?: string | null; properties?: Record<string, string> },
   edgeKeys: readonly string[],
 ): Record<string, string> {
   const values: Record<string, string> = {};
   for (const key of edgeKeys) {
-    const value = flow.properties?.[key]?.trim();
+    const fromProperty = flow.properties?.[key]?.trim();
+    const fromData = key === 'data' ? flow.data?.trim() : '';
+    const value = fromProperty || fromData;
     if (value) values[key] = value;
   }
   return values;
