@@ -62,6 +62,7 @@ export function CreateTablePanel({
   const [savedTables, setSavedTables] = useState<SavedCustomTable[]>(loadSavedCustomTables);
   const [selectedId, setSelectedId] = useState('');
   const [tableName, setTableName] = useState('');
+  const [missingLabels, setMissingLabels] = useState<string[]>([]);
 
   const reconciled = useMemo(
     () =>
@@ -78,8 +79,10 @@ export function CreateTablePanel({
   );
 
   useEffect(() => {
-    if (reconciled.missingLabels.length > 0) setSetup(activeSetup);
-  }, [reconciled.missingLabels.length, activeSetup]);
+    if (reconciled.missingLabels.length === 0) return;
+    setMissingLabels(reconciled.missingLabels);
+    setSetup(activeSetup);
+  }, [reconciled.missingLabels, activeSetup]);
 
   useEffect(() => {
     onViewChange({ setup: activeSetup, status: model.status, grid: customTableGrid(model) });
@@ -91,6 +94,7 @@ export function CreateTablePanel({
 
   const choose = (slot: 'row' | 'column' | 'label' | 'color', optionId: string) => {
     const option = options.find((item) => item.id === optionId) ?? null;
+    setMissingLabels([]);
     setSetup(normalizeSetup({ ...activeSetup, [slot]: option }));
   };
 
@@ -134,6 +138,7 @@ export function CreateTablePanel({
     const selected = savedTables.find((table) => table.id === tableId);
     if (!selected) return;
     const applied = reconcileSavedTable(selected, options);
+    setMissingLabels(applied.missingLabels);
     setSetup(applied.setup);
     setTableName(selected.name);
   };
@@ -159,9 +164,9 @@ export function CreateTablePanel({
           <button type="button" className="graph-drawer-action" disabled={!selectedId} onClick={deleteTable}><span className="graph-drawer-action-title">Delete</span></button>
         </div>
       </form>
-      {reconciled.missingLabels.length > 0 ? (
+      {missingLabels.length > 0 ? (
         <p className="graph-table-message" role="status">
-          Missing field: {reconciled.missingLabels.join(', ')}. That axis was cleared.
+          Missing field: {missingLabels.join(', ')}. That axis was cleared.
         </p>
       ) : null}
       {status === 'loading' ? (
