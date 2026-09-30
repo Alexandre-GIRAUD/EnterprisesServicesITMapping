@@ -79,3 +79,65 @@ export function buildAxisOptions(fields: readonly AxisCatalogField[]): AxisOptio
   }
   return options;
 }
+
+export type CustomTableApp = {
+  id: string;
+  name: string;
+  values: Record<string, string[]>;
+};
+
+export type CustomTableFlow = {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  values: Record<string, string>;
+};
+
+export type CustomTableSetup = {
+  row: AxisOption | null;
+  column: AxisOption | null;
+  label: AxisOption | null;
+  color: AxisOption | null;
+};
+
+export type CustomTableBadge = {
+  text: string;
+  colorValue: string | null;
+};
+
+export type CustomTableCell =
+  | { kind: 'badges'; badges: CustomTableBadge[] }
+  | { kind: 'count'; value: number };
+
+export type CustomTableLegendAxis = {
+  role: 'Rows' | 'Columns' | 'Label' | 'Color';
+  label: string;
+};
+
+export type CustomTableModel = {
+  status: 'need-axis' | 'no-data' | 'too-large' | 'ready';
+  rowLabels: string[];
+  columnLabels: string[];
+  cells: CustomTableCell[][];
+  legendAxes: CustomTableLegendAxis[];
+  swatches: string[];
+  countCaption: 'number of flows' | 'number of applications' | null;
+  message: string | null;
+};
+
+export function buildCustomTable(_input: {
+  setup: CustomTableSetup;
+  apps: readonly CustomTableApp[];
+  flows: readonly CustomTableFlow[];
+}): CustomTableModel {
+  return {
+    status: 'need-axis',
+    rowLabels: [],
+    columnLabels: [],
+    cells: [],
+    legendAxes: [],
+    swatches: [],
+    countCaption: null,
+    message: null,
+  };
+}
