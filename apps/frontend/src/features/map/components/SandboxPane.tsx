@@ -552,6 +552,19 @@ function SandboxPaneInner({
           >
             Add edge
           </button>
+          {onPlaceText ? (
+            <button
+              type="button"
+              className="sandbox-pane__ctx-item"
+              onClick={() => {
+                const point = screenToFlowPosition({ x: ctxMenu.x, y: ctxMenu.y });
+                setCtxMenu(null);
+                onPlaceText(point.x, point.y);
+              }}
+            >
+              Add text
+            </button>
+          ) : null}
           {recentIcons.length > 0 ? (
             <>
               <div className="sandbox-pane__ctx-sep" role="separator" />
