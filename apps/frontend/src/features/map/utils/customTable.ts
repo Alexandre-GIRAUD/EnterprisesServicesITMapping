@@ -133,7 +133,7 @@ function sortedFields(
   return [...keys]
     .filter((key) => !declared.has(key))
     .sort((left, right) => left.localeCompare(right))
-    .map((key) => ({ key, kind, label: KNOWN_GRAPH_LABELS[key] ?? key.replaceAll('_', ' ') }));
+    .map((key) => ({ key, kind, label: KNOWN_GRAPH_LABELS[key] ?? key.split('_').join(' ') }));
 }
 
 export type CustomTableApp = {

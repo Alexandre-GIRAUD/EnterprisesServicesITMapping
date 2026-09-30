@@ -296,6 +296,12 @@ assert.deepEqual(
 assert.equal(graphFields.find((field) => field.key === 'frequency')?.kind, 'EDGE');
 assert.equal(graphFields.find((field) => field.key === 'frequency')?.label, 'Frequency');
 assert.equal(graphFields.find((field) => field.key === 'description')?.kind, 'NODE');
+const unknownLabel = fieldsFromGraph(
+  [{ type: 'Application', properties: { creation_source: 'manual' } }],
+  [],
+  [],
+);
+assert.equal(unknownLabel.find((field) => field.key === 'creation_source')?.label, 'creation source');
 assert.deepEqual(
   fieldsFromGraph([], [{ properties: { frequency: 'Daily' } }], [{ key: 'frequency', kind: 'EDGE', label: 'Cadence' }]),
   [],
