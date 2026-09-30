@@ -125,7 +125,7 @@ export type CustomTableModel = {
   message: string | null;
 };
 
-const EMPTY_CUSTOM_VALUE = '(Empty)';
+export const EMPTY_CUSTOM_VALUE = '(Empty)';
 const MAX_CUSTOM_TABLE_ROWS = 200;
 const MAX_CUSTOM_TABLE_COLUMNS = 50;
 const NEED_AXIS_MESSAGE = 'Choose a row or a column.';
@@ -416,4 +416,217 @@ function uniqueSorted(values: readonly string[]): string[] {
     if (right === EMPTY_CUSTOM_VALUE) return -1;
     return left.localeCompare(right);
   });
+}
+
+export type SavedAxisRef = { id: string; label: string };
+
+export type SavedCustomTable = {
+  id: string;
+  name: string;
+  row: SavedAxisRef | null;
+  column: SavedAxisRef | null;
+  label: SavedAxisRef | null;
+  color: SavedAxisRef | null;
+};
+
+export type CustomTableFileFormat = 'csv' | 'excel' | 'png' | 'pdf';
+
+const CUSTOM_TABLES_STORAGE_KEY = 'flowra.table.customTables';
+const EXPORT_FORMATS_WIDE: CustomTableFileFormat[] = ['png', 'pdf'];
+const EXPORT_FORMATS_NARROW: CustomTableFileFormat[] = ['csv', 'excel', 'png', 'pdf'];
+const MAX_NARROW_AXIS_COUNT = 2;
+
+export function axisRef(option: AxisOption | null): SavedAxisRef | null {
+  if (!option) return null;
+  return { id: option.id, label: option.label };
+}
+
+export function normalizeSetup(setup: CustomTableSetup): CustomTableSetup {
+  if (!setup.row && !setup.column) return { row: null, column: null, label: null, color: null };
+  const edgeCount = [setup.row, setup.column].filter((axis) => axis?.kind === 'EDGE').length;
+  let next = setup;
+  if (edgeCount === 1) next = { ...next, label: null, color: null };
+  if (edgeCount === 2 && !next.label) next = { ...next, color: null };
+  if (next.label?.kind === 'EDGE') next = { ...next, label: null };
+  if (next.color && next.color.kind !== 'NODE' && next.color.kind !== 'NODE_REF') next = { ...next, color: null };
+  return next;
+}
+
+export function optionsForSlot(
+  slot: 'row' | 'column' | 'label' | 'color',
+  setup: CustomTableSetup,
+  options: readonly AxisOption[],
+): AxisOption[] {
+  const normalized = normalizeSetup(setup);
+  if (!isSlotEnabled(slot, normalized)) return [];
+  const taken = new Set(
+    (['row', 'column', 'label', 'color'] as const)
+      .filter((key) => key !== slot)
+      .map((key) => normalized[key]?.id)
+      .filter((id): id is string => Boolean(id)),
+  );
+  return options.filter((option) => {
+    if (taken.has(option.id)) return false;
+    if (slot === 'label') return option.kind !== 'EDGE';
+    if (slot === 'color') return option.kind === 'NODE' || option.kind === 'NODE_REF';
+    return true;
+  });
+}
+
+export function reconcileSavedTable(
+  saved: SavedCustomTable,
+  options: readonly AxisOption[],
+): { setup: CustomTableSetup; missingLabels: string[] } {
+  const missingLabels: string[] = [];
+  const resolve = (ref: SavedAxisRef | null): AxisOption | null => {
+    if (!ref) return null;
+    const live = options.find((option) => option.id === ref.id);
+    if (live) return live;
+    missingLabels.push(ref.label);
+    return null;
+  };
+  return {
+    setup: normalizeSetup({
+      row: resolve(saved.row),
+      column: resolve(saved.column),
+      label: resolve(saved.label),
+      color: resolve(saved.color),
+    }),
+    missingLabels,
+  };
+}
+
+export function customTableExportFormats(
+  setup: CustomTableSetup,
+  status: CustomTableModel['status'],
+): CustomTableFileFormat[] {
+  if (status !== 'ready') return [];
+  const axisCount = [setup.row, setup.column, setup.label, setup.color].filter(Boolean).length;
+  if (axisCount === 0) return [];
+  return axisCount <= MAX_NARROW_AXIS_COUNT ? EXPORT_FORMATS_NARROW : EXPORT_FORMATS_WIDE;
+}
+
+export function customTableGrid(model: CustomTableModel): { headers: string[]; rows: string[][] } | null {
+  if (model.status !== 'ready') return null;
+  const rowHeader = model.legendAxes.find((axis) => axis.role === 'Rows')?.label ?? '';
+  return {
+    headers: [rowHeader, ...model.columnLabels],
+    rows: model.rowLabels.map((label, rowIndex) => [
+      label,
+      ...model.columnLabels.map((_, columnIndex) => cellText(model.cells[rowIndex]?.[columnIndex])),
+    ]),
+  };
+}
+
+export function collectCustomTableFacts(
+  nodes: readonly {
+    id: string;
+    label: string;
+    type: string;
+    properties?: Record<string, string>;
+    nodeRefs?: Record<string, string[]>;
+  }[],
+  catalog: readonly {
+    id: string;
+    nodeAttributes?: Record<string, string>;
+    nodeRefs?: Record<string, Array<{ id: string; name?: string; value?: string }>>;
+  }[],
+  flows: readonly { id: string; sourceId: string; targetId: string; properties?: Record<string, string> }[],
+  fields: readonly AxisCatalogField[],
+): { apps: CustomTableApp[]; flows: CustomTableFlow[] } {
+  const catalogById = new Map(catalog.map((app) => [app.id, app]));
+  const edgeKeys = fields.filter((field) => field.kind === 'EDGE').map((field) => field.key);
+  return {
+    apps: nodes
+      .filter((node) => node.type === 'Application')
+      .map((node) => ({
+        id: node.id,
+        name: node.label || node.id,
+        values: readAppValues(node, catalogById.get(node.id), fields),
+      })),
+    flows: flows.map((flow) => ({
+      id: flow.id,
+      sourceId: flow.sourceId,
+      targetId: flow.targetId,
+      values: readFlowValues(flow, edgeKeys),
+    })),
+  };
+}
+
+export function loadSavedCustomTables(): SavedCustomTable[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_TABLES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isSavedCustomTable);
+  } catch {
+    return [];
+  }
+}
+
+export function storeSavedCustomTables(tables: readonly SavedCustomTable[]): void {
+  try {
+    localStorage.setItem(CUSTOM_TABLES_STORAGE_KEY, JSON.stringify(tables));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function isSlotEnabled(slot: 'row' | 'column' | 'label' | 'color', setup: CustomTableSetup): boolean {
+  if (slot === 'row' || slot === 'column') return true;
+  if (!setup.row && !setup.column) return false;
+  const edgeCount = [setup.row, setup.column].filter((axis) => axis?.kind === 'EDGE').length;
+  if (edgeCount === 1) return false;
+  if (slot === 'color' && edgeCount === 2 && !setup.label) return false;
+  return true;
+}
+
+function cellText(cell: CustomTableCell | undefined): string {
+  if (!cell) return '';
+  if (cell.kind === 'count') return String(cell.value);
+  return cell.badges.map((badge) => badge.text).join(', ');
+}
+
+function readAppValues(
+  node: { properties?: Record<string, string>; nodeRefs?: Record<string, string[]> },
+  detail: { nodeAttributes?: Record<string, string>; nodeRefs?: Record<string, Array<{ id: string; name?: string; value?: string }>> } | undefined,
+  fields: readonly AxisCatalogField[],
+): Record<string, string[]> {
+  const values: Record<string, string[]> = {};
+  for (const field of fields) {
+    if (field.kind === 'EDGE') continue;
+    if (field.kind === 'NODE_REF') {
+      const fromNode = (node.nodeRefs?.[field.key] ?? []).map((value) => value.trim()).filter(Boolean);
+      if (fromNode.length > 0) {
+        values[field.key] = fromNode;
+        continue;
+      }
+      values[field.key] = (detail?.nodeRefs?.[field.key] ?? [])
+        .map((ref) => ref.name?.trim() || ref.value?.trim() || ref.id)
+        .filter((value): value is string => Boolean(value));
+      continue;
+    }
+    const value = node.properties?.[field.key]?.trim() || detail?.nodeAttributes?.[field.key]?.trim() || '';
+    values[field.key] = value ? [value] : [];
+  }
+  return values;
+}
+
+function readFlowValues(
+  flow: { properties?: Record<string, string> },
+  edgeKeys: readonly string[],
+): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const key of edgeKeys) {
+    const value = flow.properties?.[key]?.trim();
+    if (value) values[key] = value;
+  }
+  return values;
+}
+
+function isSavedCustomTable(value: unknown): value is SavedCustomTable {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as SavedCustomTable;
+  return typeof record.id === 'string' && typeof record.name === 'string';
 }

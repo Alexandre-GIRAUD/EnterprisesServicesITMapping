@@ -3,7 +3,18 @@
  * Run: npx --yes tsx src/features/map/utils/customTable.check.ts
  */
 import assert from 'node:assert/strict';
-import { buildAxisOptions, buildCustomTable, type AxisOption, type CustomTableCell } from './customTable.ts';
+import {
+  buildAxisOptions,
+  buildCustomTable,
+  collectCustomTableFacts,
+  customTableExportFormats,
+  customTableGrid,
+  normalizeSetup,
+  optionsForSlot,
+  reconcileSavedTable,
+  type AxisOption,
+  type CustomTableCell,
+} from './customTable.ts';
 
 const options = buildAxisOptions([
   { key: 'domain', label: 'Domain', kind: 'NODE' },
@@ -200,5 +211,76 @@ const fits = buildCustomTable({
 });
 assert.equal(fits.status, 'ready');
 assert.equal(fits.columnLabels.length, 50);
+
+const normalized = normalizeSetup({ row: application, column: frequencyIn, label: status, color: status });
+assert.equal(normalized.label, null);
+assert.equal(normalized.color, null);
+
+const catalogue = buildAxisOptions([
+  { key: 'domain', label: 'Business domain', kind: 'NODE' },
+  { key: 'frequency', label: 'Frequency', kind: 'EDGE' },
+]);
+const reconciled = reconcileSavedTable(
+  {
+    id: '1',
+    name: 'Mine',
+    row: { id: 'node:domain', label: 'Domain' },
+    column: { id: 'edge:rhythm:incoming', label: 'Rhythm — incoming' },
+    label: null,
+    color: null,
+  },
+  catalogue,
+);
+assert.equal(reconciled.setup.row?.label, 'Business domain');
+assert.equal(reconciled.setup.column, null);
+assert.deepEqual(reconciled.missingLabels, ['Rhythm — incoming']);
+
+assert.deepEqual(
+  customTableExportFormats({ row: domain, column: null, label: null, color: null }, 'ready'),
+  ['csv', 'excel', 'png', 'pdf'],
+);
+assert.deepEqual(
+  customTableExportFormats({ row: domain, column: region, label: status, color: null }, 'ready'),
+  ['png', 'pdf'],
+);
+assert.deepEqual(customTableExportFormats({ row: domain, column: null, label: null, color: null }, 'too-large'), []);
+
+const grid = customTableGrid(domainRows);
+assert.deepEqual(grid?.headers, ['Domain', 'Application']);
+assert.deepEqual(grid?.rows[0], ['Pay', 'Alpha, Beta']);
+
+const slotOptions = buildAxisOptions([
+  { key: 'domain', label: 'Domain', kind: 'NODE' },
+  { key: 'status', label: 'Status', kind: 'NODE' },
+  { key: 'frequency', label: 'Frequency', kind: 'EDGE' },
+]);
+const labelChoices = optionsForSlot('label', { row: domain, column: null, label: null, color: null }, slotOptions);
+assert.equal(labelChoices.some((option) => option.id === 'node:domain'), false);
+assert.equal(labelChoices.some((option) => option.kind === 'EDGE'), false);
+assert.equal(labelChoices.some((option) => option.kind === 'APPLICATION'), true);
+assert.deepEqual(optionsForSlot('label', { row: application, column: frequencyIn, label: null, color: null }, slotOptions), []);
+
+const facts = collectCustomTableFacts(
+  [{ id: 'a', label: 'Alpha', type: 'Application', properties: { domain: 'Pay' }, nodeRefs: { region: ['EMEA'] } }],
+  [{ id: 'b', nodeAttributes: { tier: 'Gold' } }],
+  [{ id: 'f1', sourceId: 'a', targetId: 'b', properties: { rhythm: 'Daily' } }],
+  [
+    { key: 'domain', kind: 'NODE' },
+    { key: 'region', kind: 'NODE_REF' },
+    { key: 'tier', kind: 'NODE' },
+    { key: 'rhythm', kind: 'EDGE' },
+  ],
+);
+assert.deepEqual(facts.apps[0]?.values.domain, ['Pay']);
+assert.deepEqual(facts.apps[0]?.values.region, ['EMEA']);
+assert.equal(facts.flows[0]?.values.rhythm, 'Daily');
+
+const fromCatalog = collectCustomTableFacts(
+  [{ id: 'b', label: 'Beta', type: 'Application' }],
+  [{ id: 'b', nodeAttributes: { tier: 'Gold' } }],
+  [],
+  [{ key: 'tier', kind: 'NODE' }],
+);
+assert.deepEqual(fromCatalog.apps[0]?.values.tier, ['Gold']);
 
 console.log('customTable.check: ok');
