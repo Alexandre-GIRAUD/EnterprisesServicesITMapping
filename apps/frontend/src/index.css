@@ -1771,18 +1771,21 @@ body {
     inset 0 3px 0 rgb(34 197 94 / 35%);
 }
 
-.map-graph-panel.is-views-mode .graph-views-item-btn:hover {
+.map-graph-panel.is-views-mode .graph-views-item--view .graph-views-item-btn:hover {
   border-color: var(--ss-accent-border);
-  background: var(--ss-accent-surface);
+  background: #ffffff;
   box-shadow: 0 4px 14px var(--ss-accent-shadow);
+}
+
+.map-graph-panel.is-views-mode .graph-views-item--folder .graph-views-item-btn,
+.map-graph-panel.is-views-mode .graph-views-item--folder .graph-views-item-btn:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  box-shadow: none;
 }
 
 .map-graph-panel.is-views-mode .graph-views-item-btn:focus-visible {
   outline-color: var(--ss-accent-focus);
-}
-
-.map-graph-panel.is-views-mode .graph-views-item-hint {
-  color: var(--ss-accent);
 }
 
 .map-graph-panel.is-views-mode .self-service-view-item--views.is-active {
@@ -4541,8 +4544,8 @@ body {
   min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  justify-content: flex-start;
+  gap: 0.55rem;
   padding: 0.75rem 0.9rem;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
@@ -4553,6 +4556,22 @@ body {
     border-color 160ms ease,
     box-shadow 160ms ease,
     background-color 160ms ease;
+}
+
+.graph-views-item--folder .graph-views-item-btn,
+.graph-views-item--folder .graph-views-item-btn:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  box-shadow: none;
+}
+
+.graph-views-item--folder .graph-views-item-mark {
+  color: #2563eb;
+}
+
+.graph-views-item-mark {
+  flex-shrink: 0;
+  color: #64748b;
 }
 
 .graph-views-item-btn:hover {
@@ -4569,10 +4588,6 @@ body {
 .graph-views-item-name {
   flex: 1;
   min-width: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: inherit;
   font-size: 0.92rem;
   font-weight: 600;
   color: #0f172a;
@@ -4580,7 +4595,66 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: text;
+}
+
+.graph-views-actions {
+  position: relative;
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.graph-views-actions-btn {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.graph-views-actions-btn:hover,
+.graph-views-actions-btn[aria-expanded='true'] {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.graph-views-actions-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.graph-views-actions-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.2rem);
+  z-index: 8;
+  min-width: 8.5rem;
+  padding: 0.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
+}
+
+.graph-views-actions-menu button {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0.4rem 0.55rem;
+  font: inherit;
+  font-size: 0.78rem;
+  color: #334155;
+  text-align: left;
+  cursor: pointer;
+}
+
+.graph-views-actions-menu button:hover {
+  background: #f1f5f9;
 }
 
 .graph-views-item-name-input {
@@ -4599,63 +4673,6 @@ body {
 .graph-views-item-name-input:focus {
   outline: none;
   border-bottom-color: #2563eb;
-}
-
-.graph-views-item-hint {
-  flex-shrink: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #2563eb;
-  cursor: pointer;
-}
-
-.graph-views-item-rename {
-  flex-shrink: 0;
-  width: 2.35rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #64748b;
-  cursor: pointer;
-}
-
-.graph-views-item-rename:hover {
-  color: #2563eb;
-  border-color: #bfdbfe;
-  background: #f8fafc;
-}
-
-.graph-views-item-rename:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-.graph-views-item-delete {
-  flex-shrink: 0;
-  width: 2.35rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #94a3b8;
-  font-size: 1.1rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.graph-views-item-delete:hover {
-  color: #dc2626;
-  border-color: #fecaca;
-  background: #fef2f2;
-}
-
-.graph-views-item-delete:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
 }
 
 /* ===== Graph legend ===== */
