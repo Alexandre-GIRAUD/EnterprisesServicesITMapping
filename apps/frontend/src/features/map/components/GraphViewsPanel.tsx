@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGraphSnapshotsList } from '../hooks/useGraphSnapshotsList';
 import type { GraphSnapshotDto, GraphSnapshotFilters, GraphViewFolderDto } from '@/types/api';
 import {
@@ -26,8 +26,27 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
   const [dropParentId, setDropParentId] = useState<string | 'root' | null>(null);
   const [moving, setMoving] = useState<DragItem | null>(null);
   const [sharing, setSharing] = useState<DragItem | null>(null);
+  const [menu, setMenu] = useState<DragItem | null>(null);
   const [draftUsername, setDraftUsername] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') setMenu(null);
+    }
+    function onPointer(event: MouseEvent) {
+      if (menuRef.current?.contains(event.target as Node)) return;
+      setMenu(null);
+    }
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onPointer);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onPointer);
+    };
+  }, [menu]);
 
   const folderNodes = useMemo<FolderNode[]>(
     () => library.folders.map((folder) => ({ id: folder.id, parentId: folder.parentId, name: folder.name })),
@@ -51,8 +70,34 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
   ].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
   function startRename(item: DragItem, name: string) {
+    setMenu(null);
+    setMoving(null);
+    setSharing(null);
     setEditing(item);
     setDraftName(name);
+  }
+
+  function startMove(item: DragItem) {
+    setMenu(null);
+    setSharing(null);
+    setMoving(item);
+  }
+
+  function startShare(item: DragItem) {
+    setMenu(null);
+    setMoving(null);
+    setSharing(item);
+    setDraftUsername('');
+    setNotice(null);
+  }
+
+  function deleteRow(row: { kind: 'view' | 'folder'; id: string; name: string; folder?: GraphViewFolderDto }) {
+    setMenu(null);
+    if (row.kind === 'view') {
+      if (window.confirm(`Delete view "${row.name}"?`)) void library.deleteSnapshot(row.id);
+      return;
+    }
+    if (row.folder) confirmDeleteFolder(row.folder);
   }
 
   async function commitRename(item: DragItem, currentName: string) {
@@ -178,7 +223,7 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
             return (
               <li
                 key={`${row.kind}-${row.id}`}
-                className={`graph-views-item${dropParentId === row.id ? ' is-drop-target' : ''}`}
+                className={`graph-views-item graph-views-item--${row.kind}${dropParentId === row.id ? ' is-drop-target' : ''}`}
                 draggable={!isEditing}
                 onDragStart={() => setDragItem(item)}
                 onDragEnd={() => {
@@ -198,7 +243,27 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
                   setDropParentId(null);
                 }}
               >
-                <div className="graph-views-item-btn">
+                <div
+                  className="graph-views-item-btn"
+                  role={row.kind === 'folder' && !isEditing ? 'button' : undefined}
+                  tabIndex={row.kind === 'folder' && !isEditing ? 0 : undefined}
+                  onClick={() => {
+                    if (isEditing || row.kind !== 'folder') return;
+                    setMenu(null);
+                    setCurrentFolderId(row.id);
+                  }}
+                  onDoubleClick={() => {
+                    if (row.kind === 'view' && row.view) onApply(row.view.filters);
+                  }}
+                  onKeyDown={(event) => {
+                    if (row.kind !== 'folder' || isEditing) return;
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    setMenu(null);
+                    setCurrentFolderId(row.id);
+                  }}
+                >
+                  {row.kind === 'folder' ? <FolderMark /> : <ViewMark />}
                   {isEditing ? (
                     <input
                       className="graph-views-item-name-input"
@@ -206,7 +271,9 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
                       value={draftName}
                       autoFocus
                       onChange={(event) => setDraftName(event.target.value)}
+                      onClick={(event) => event.stopPropagation()}
                       onKeyDown={(event) => {
+                        event.stopPropagation();
                         if (event.key === 'Enter') {
                           event.preventDefault();
                           void commitRename(item, row.name);
@@ -218,66 +285,40 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
                       }}
                     />
                   ) : (
-                    <button type="button" className="graph-views-item-name" onClick={() => startRename(item, row.name)}>
-                      {row.name}
-                    </button>
-                  )}
-                  {row.kind === 'view' && row.view ? (
-                    <button type="button" className="graph-views-item-hint" onClick={() => onApply(row.view.filters)}>
-                      Apply to graph
-                    </button>
-                  ) : (
-                    <button type="button" className="graph-views-item-hint" onClick={() => setCurrentFolderId(row.id)}>
-                      Open
-                    </button>
+                    <span className="graph-views-item-name">{row.name}</span>
                   )}
                 </div>
-                <button
-                  type="button"
-                  className="graph-views-item-rename"
-                  aria-label={`Rename ${row.name}`}
-                  title="Rename"
-                  onClick={() => startRename(item, row.name)}
+                <div
+                  className="graph-views-actions"
+                  ref={menu?.kind === row.kind && menu.id === row.id ? menuRef : undefined}
                 >
-                  <PencilIcon />
-                </button>
-                <button
-                  type="button"
-                  className="graph-views-item-rename"
-                  aria-label={`Move ${row.name}`}
-                  title="Move to…"
-                  onClick={() => setMoving(moving?.id === row.id && moving.kind === row.kind ? null : item)}
-                >
-                  Move
-                </button>
-                <button
-                  type="button"
-                  className="graph-views-item-rename"
-                  aria-label={`Share ${row.name}`}
-                  title="Share a copy"
-                  onClick={() => {
-                    setMoving(null);
-                    setSharing(sharing?.id === row.id && sharing.kind === row.kind ? null : item);
-                    setDraftUsername('');
-                    setNotice(null);
-                  }}
-                >
-                  Share
-                </button>
-                <button
-                  type="button"
-                  className="graph-views-item-delete"
-                  aria-label={`Delete ${row.name}`}
-                  onClick={() => {
-                    if (row.kind === 'view') {
-                      if (window.confirm(`Delete view "${row.name}"?`)) void library.deleteSnapshot(row.id);
-                      return;
-                    }
-                    if (row.folder) confirmDeleteFolder(row.folder);
-                  }}
-                >
-                  ×
-                </button>
+                  <button
+                    type="button"
+                    className="graph-views-actions-btn"
+                    aria-label={`Actions for ${row.name}`}
+                    aria-haspopup="menu"
+                    aria-expanded={menu?.kind === row.kind && menu.id === row.id}
+                    onClick={() => setMenu(menu?.kind === row.kind && menu.id === row.id ? null : item)}
+                  >
+                    <KebabIcon />
+                  </button>
+                  {menu?.kind === row.kind && menu.id === row.id ? (
+                    <div className="graph-views-actions-menu" role="menu">
+                      <button type="button" role="menuitem" onClick={() => startRename(item, row.name)}>
+                        Rename
+                      </button>
+                      <button type="button" role="menuitem" onClick={() => startMove(item)}>
+                        Move
+                      </button>
+                      <button type="button" role="menuitem" onClick={() => startShare(item)}>
+                        Share
+                      </button>
+                      <button type="button" role="menuitem" onClick={() => deleteRow(row)}>
+                        Delete
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
                 {moving?.kind === row.kind && moving.id === row.id ? (
                   <MoveSelect
                     item={item}
@@ -415,17 +456,41 @@ function breadcrumb(folders: GraphViewFolderDto[], currentFolderId: string | nul
   return path.reverse();
 }
 
-function PencilIcon() {
+function FolderMark() {
   return (
-    <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
+    <svg className="graph-views-item-mark" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
       <path
-        d="M12.2 4.2 L15.8 7.8 L8.2 15.4 H4.6 V11.8 Z"
+        d="M3 6.5 A1.5 1.5 0 0 1 4.5 5 H8 L9.5 6.8 H15.5 A1.5 1.5 0 0 1 17 8.3 V14.5 A1.5 1.5 0 0 1 15.5 16 H4.5 A1.5 1.5 0 0 1 3 14.5 Z"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.5"
         strokeLinejoin="round"
       />
-      <path d="M10.6 5.8 L14.2 9.4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ViewMark() {
+  return (
+    <svg className="graph-views-item-mark" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
+      <path
+        d="M5 3.5 H12 L15.5 7 V16.5 A1 1 0 0 1 14.5 17.5 H5 A1 1 0 0 1 4 16.5 V4.5 A1 1 0 0 1 5 3.5 Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M12 3.5 V7 H15.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function KebabIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
+      <circle cx="10" cy="4.5" r="1.3" fill="currentColor" />
+      <circle cx="10" cy="10" r="1.3" fill="currentColor" />
+      <circle cx="10" cy="15.5" r="1.3" fill="currentColor" />
     </svg>
   );
 }
