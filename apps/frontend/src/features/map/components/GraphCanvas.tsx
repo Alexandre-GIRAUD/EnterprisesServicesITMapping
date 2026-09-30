@@ -83,13 +83,13 @@ import { ApplicationFunctionalDocPanel } from './ApplicationFunctionalDocPanel';
 import type { ApplicationUpdatePatch } from './ApplicationDetailsDrawer';
 import { SelfServiceBurger, SelfServiceSideMenu, type SideMenuTool } from './SelfServiceSideMenu';
 import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle';
-import { TableContentToggle, type TableContentMode } from './TableContentToggle';
-import { CustomPivotPanel } from './CustomPivotPanel';
+import { TableContentToggle, type TableContentMode, type TableViewMode } from './TableContentToggle';
+import { CreateTablePanel, type CreateTableExportState } from './CreateTablePanel';
 import { fitGraphView, ensureNodesVisible } from './fitGraphView';
 import { toJpeg, toPng } from 'html-to-image';
 import { downloadTableFile, tableToCsv, tableToExcelXml, type TableGrid } from '../utils/tableFile';
 import { dataUrlToBytes, downloadBytes, downloadDataUrl, jpegPixelSize, jpegToPdf } from '../utils/jpegPdf';
-import type { PivotSetup } from '../utils/pivotTable';
+import { customTableExportFormats } from '../utils/customTable';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
@@ -184,10 +184,12 @@ export function GraphCanvas() {
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
   const [displayMode, setDisplayMode] = useState<GraphDisplayMode>('graph');
   const [tableContent, setTableContent] = useState<TableContentMode>('apps');
-  const [showingCustomTable, setShowingCustomTable] = useState(false);
-  const [pivotSetup, setPivotSetup] = useState<PivotSetup | null>(null);
-  const [pivotEditing, setPivotEditing] = useState(false);
+  const [tableView, setTableView] = useState<TableViewMode>('apps');
+  const [customExport, setCustomExport] = useState<CreateTableExportState | null>(null);
   const pivotExportRef = useRef<HTMLDivElement>(null);
+  const handleCustomTableView = useCallback((view: CreateTableExportState) => {
+    setCustomExport(view);
+  }, []);
   const tableColumns = useTableColumns(tableContent, nodeFilters);
   const [moduleGraphApp, setModuleGraphApp] = useState<{ id: string; label: string } | null>(null);
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
@@ -1400,23 +1402,16 @@ export function GraphCanvas() {
         void exportPivotElement(element, format);
         return;
       }
-      if (tableGrid.headers.length === 0) return;
-      const baseName = tableContent === 'apps' ? 'apps' : 'flows';
+      const grid = tableView === 'custom' ? customExport?.grid : tableGrid;
+      if (!grid || grid.headers.length === 0) return;
+      const baseName = tableView === 'custom' ? 'custom-table' : tableContent === 'apps' ? 'apps' : 'flows';
       if (format === 'csv') {
-        downloadTableFile(
-          `${baseName}.csv`,
-          tableToCsv(tableGrid.headers, tableGrid.rows),
-          'text/csv;charset=utf-8',
-        );
+        downloadTableFile(`${baseName}.csv`, tableToCsv(grid.headers, grid.rows), 'text/csv;charset=utf-8');
         return;
       }
-      downloadTableFile(
-        `${baseName}.xls`,
-        tableToExcelXml(tableGrid.headers, tableGrid.rows),
-        'application/vnd.ms-excel',
-      );
+      downloadTableFile(`${baseName}.xls`, tableToExcelXml(grid.headers, grid.rows), 'application/vnd.ms-excel');
     },
-    [tableContent, tableGrid],
+    [tableContent, tableGrid, tableView, customExport],
   );
 
   const handleSideMenuToggle = useCallback(() => {
@@ -1691,11 +1686,17 @@ export function GraphCanvas() {
               {showTableExport ? (
                 <TableExportMenu
                   disabled={
-                    showingCustomTable
-                      ? status !== 'ready' || !pivotSetup || pivotEditing
+                    tableView === 'custom'
+                      ? status !== 'ready' || !customExport || customTableExportFormats(customExport.setup, customExport.status).length === 0
                       : status !== 'ready' || tableGrid.rows.length === 0 || tableGrid.headers.length === 0
                   }
-                  mode={showingCustomTable ? 'image' : 'grid'}
+                  mode={
+                    tableView !== 'custom'
+                      ? 'grid'
+                      : customExport && customTableExportFormats(customExport.setup, customExport.status).includes('csv')
+                        ? 'both'
+                        : 'image'
+                  }
                   onExport={handleExportTable}
                 />
               ) : null}
@@ -2024,45 +2025,28 @@ export function GraphCanvas() {
               <div className="graph-tables-view">
                 <section
                   className="graph-table-section graph-table-section--single"
-                  aria-label={tableContent === 'apps' ? 'Apps' : 'Flows'}
+                  aria-label={tableView === 'custom' ? 'Create table' : tableView === 'apps' ? 'Apps' : 'Flows'}
                 >
                   <div className="graph-table-section-heading">
                     <TableContentToggle
-                      value={showingCustomTable ? 'custom' : tableContent}
+                      value={tableView}
                       onChange={(mode) => {
-                        setShowingCustomTable(false);
-                        setTableContent(mode);
+                        setTableView(mode);
+                        if (mode !== 'custom') setTableContent(mode);
                       }}
                     />
-                    <button
-                      type="button"
-                      className="graph-display-toggle-btn"
-                      disabled={nodeFilters.every((filter) => filter.kind === 'EDGE')}
-                      onClick={() => {
-                        setShowingCustomTable(true);
-                        setPivotEditing(true);
-                      }}
-                    >
-                      <span className="graph-display-toggle-label">Create table</span>
-                    </button>
                   </div>
-                  {showingCustomTable ? (
-                    <CustomPivotPanel
+                  {tableView === 'custom' ? (
+                    <CreateTablePanel
                       nodes={graphNodes}
                       applications={applications}
+                      edges={graphEdges}
                       dimensions={nodeFilters}
                       colorMap={legendColors.appFill}
-                      setup={pivotSetup}
-                      editing={pivotEditing || !pivotSetup}
-                      onApply={(setup) => {
-                        setPivotSetup(setup);
-                        setPivotEditing(false);
-                      }}
-                      onCancel={() => {
-                        setPivotEditing(false);
-                        if (!pivotSetup) setShowingCustomTable(false);
-                      }}
+                      status={status}
+                      errorMessage={status === 'error' ? message : null}
                       exportRootRef={pivotExportRef}
+                      onViewChange={handleCustomTableView}
                     />
                   ) : tableContent === 'apps' ? (
                     <ApplicationsTablePanel
@@ -2152,7 +2136,7 @@ export function GraphCanvas() {
           activeTool={activeSideMenuTool}
           onActiveToolChange={setActiveSideMenuTool}
           pendingChangeCount={pendingChangeCount}
-          columnsOnly={displayMode === 'table' && !showingCustomTable}
+          columnsOnly={displayMode === 'table' && tableView !== 'custom'}
           columnsDetail={
             <TableColumnsPicker
               table={tableContent}
