@@ -165,6 +165,8 @@ export type SavedSandboxMeta = {
   name: string;
   updatedAt: string;
   document: SandboxDocument;
+  /** Server inbox id already copied into this list. */
+  sourceShareId?: string;
 };
 
 export type SandboxIconDef = {

@@ -4,6 +4,7 @@ import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistence.GraphSnapshotEntity;
 import com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistence.GraphSnapshotRepository;
+import com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistence.GraphViewFolderRepository;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.CreateGraphSnapshotRequest;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotFiltersDto;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
@@ -24,11 +25,15 @@ import org.springframework.web.server.ResponseStatusException;
 public class GraphSnapshotService {
 
   private final GraphSnapshotRepository graphSnapshotRepository;
+  private final GraphViewFolderRepository graphViewFolderRepository;
   private final CurrentUserResolver currentUserResolver;
 
   public GraphSnapshotService(
-      GraphSnapshotRepository graphSnapshotRepository, CurrentUserResolver currentUserResolver) {
+      GraphSnapshotRepository graphSnapshotRepository,
+      GraphViewFolderRepository graphViewFolderRepository,
+      CurrentUserResolver currentUserResolver) {
     this.graphSnapshotRepository = graphSnapshotRepository;
+    this.graphViewFolderRepository = graphViewFolderRepository;
     this.currentUserResolver = currentUserResolver;
   }
 
@@ -44,7 +49,7 @@ public class GraphSnapshotService {
   public GraphSnapshotResponse create(CreateGraphSnapshotRequest request) {
     UserEntity user = currentUserResolver.requireCurrentUser();
     String name = normalizeName(request.name());
-    if (graphSnapshotRepository.existsByUser_IdAndNameIgnoreCase(user.getId(), name)) {
+    if (siblingNameTaken(user.getId(), null, name, null)) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Une vue avec ce nom existe déjà.");
     }
@@ -65,6 +70,22 @@ public class GraphSnapshotService {
   }
 
   @Transactional
+  public GraphSnapshotResponse renameForCurrentUser(UUID id, String rawName) {
+    UserEntity user = currentUserResolver.requireCurrentUser();
+    String name = normalizeName(rawName);
+    GraphSnapshotEntity entity =
+        graphSnapshotRepository
+            .findByIdAndUser_Id(id, user.getId())
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vue introuvable."));
+    if (siblingNameTaken(user.getId(), entity.getFolderId(), name, id)) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Une vue avec ce nom existe déjà.");
+    }
+    entity.setName(name);
+    return toResponse(graphSnapshotRepository.save(entity));
+  }
+
+  @Transactional
   public void deleteForCurrentUser(UUID id) {
     UserEntity user = currentUserResolver.requireCurrentUser();
     GraphSnapshotEntity entity =
@@ -73,6 +94,33 @@ public class GraphSnapshotService {
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vue introuvable."));
     graphSnapshotRepository.delete(entity);
+  }
+
+  @Transactional
+  public GraphSnapshotResponse moveToFolder(UUID id, UUID folderId) {
+    UserEntity user = currentUserResolver.requireCurrentUser();
+    GraphSnapshotEntity entity =
+        graphSnapshotRepository
+            .findByIdAndUser_Id(id, user.getId())
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vue introuvable."));
+    if (folderId != null) {
+      graphViewFolderRepository
+          .findByIdAndUser_Id(folderId, user.getId())
+          .orElseThrow(
+              () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Dossier introuvable."));
+    }
+    if (siblingNameTaken(user.getId(), folderId, entity.getName(), id)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Un élément avec ce nom existe déjà.");
+    }
+    entity.setFolderId(folderId);
+    return toResponse(graphSnapshotRepository.save(entity));
+  }
+
+  private boolean siblingNameTaken(UUID userId, UUID folderId, String name, UUID ignoreViewId) {
+    return graphSnapshotRepository.existsSiblingName(userId, folderId, name, ignoreViewId)
+        || graphViewFolderRepository.existsSiblingName(userId, folderId, name, null);
   }
 
   private static String normalizeName(String raw) {
@@ -171,6 +219,7 @@ public class GraphSnapshotService {
             Map.copyOf(entity.getNodePositions()),
             entity.getLegend()),
         entity.getCreatedAt(),
-        entity.getUpdatedAt());
+        entity.getUpdatedAt(),
+        entity.getFolderId());
   }
 }

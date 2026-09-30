@@ -1,7 +1,7 @@
 export type TableContentMode = 'apps' | 'flows';
 
 type TableContentToggleProps = {
-  value: TableContentMode;
+  value: TableContentMode | 'custom';
   onChange: (mode: TableContentMode) => void;
 };
 

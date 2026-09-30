@@ -63,11 +63,29 @@ function FiltersIcon() {
 function ActionsIcon() {
   return (
     <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
-      <path
-        d="M7.2 4.2 L12.8 5.4 L11.6 11 L6 9.8 Z M13.2 9.2 L15.8 14.2 L10.8 16.8 L8.2 11.8 Z"
+      <rect
+        x="2.75"
+        y="3.25"
+        width="10.5"
+        height="13.5"
+        rx="1.5"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.35"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M10.2 12.7 L14.6 8.3 L16.1 9.8 L11.7 14.2 Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10.2 12.7 L8.6 15.2 L11.7 14.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
     </svg>

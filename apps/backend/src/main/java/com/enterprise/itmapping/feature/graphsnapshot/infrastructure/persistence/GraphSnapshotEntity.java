@@ -36,6 +36,9 @@ public class GraphSnapshotEntity {
   @Column(nullable = false, length = 80)
   private String name;
 
+  @Column(name = "folder_id")
+  private UUID folderId;
+
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "application_ids", nullable = false, columnDefinition = "jsonb")
   private List<String> applicationIds = new ArrayList<>();
@@ -111,6 +114,14 @@ public class GraphSnapshotEntity {
 
   public void setName(String name) {
     this.name = name;
+  }
+
+  public UUID getFolderId() {
+    return folderId;
+  }
+
+  public void setFolderId(UUID folderId) {
+    this.folderId = folderId;
   }
 
   public List<String> getApplicationIds() {

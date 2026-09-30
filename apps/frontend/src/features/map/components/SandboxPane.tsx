@@ -24,6 +24,7 @@ import {
 } from 'react';
 import { GRID } from '../hooks/useGraphData';
 import { AppGraphNode } from './AppGraphNode';
+import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { OrientedEdge } from './OrientedEdge';
 import { SandboxIconNode } from './SandboxIconNode';
@@ -551,6 +552,19 @@ function SandboxPaneInner({
           >
             Add edge
           </button>
+          {onPlaceText ? (
+            <button
+              type="button"
+              className="sandbox-pane__ctx-item"
+              onClick={() => {
+                const point = screenToFlowPosition({ x: ctxMenu.x, y: ctxMenu.y });
+                setCtxMenu(null);
+                onPlaceText(point.x, point.y);
+              }}
+            >
+              Add text
+            </button>
+          ) : null}
           {recentIcons.length > 0 ? (
             <>
               <div className="sandbox-pane__ctx-sep" role="separator" />
@@ -635,6 +649,13 @@ function SandboxPaneInner({
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#e2e8f0" gap={GRID} />
+          <ComponentZoneOverlay
+            nodes={nodes.filter((node) => {
+              const id = String(node.id);
+              return !id.startsWith('sandbox-icon-') && !id.startsWith('sandbox-text-');
+            })}
+            edges={displayEdges}
+          />
           <Controls showInteractive={false} />
           {hiddenIds.length > 0 ? (
             <Panel position="top-right">

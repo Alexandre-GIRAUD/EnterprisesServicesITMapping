@@ -1,6 +1,6 @@
 ﻿import { useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { Handle, Position, useStore, type Node, type NodeProps } from '@xyflow/react';
-import { ZOOM_THRESHOLDS, nodeColorForType } from './graphTheme';
+import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
+import { nodeColorForType } from './graphTheme';
 
 export type AppGraphNodeData = {
   label: string;
@@ -20,10 +20,8 @@ export type AppGraphNodeData = {
 export type AppGraphNodeType = Node<AppGraphNodeData, 'app'>;
 
 export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
-  const zoom = useStore((s) => s.transform[2]);
   const borderColor = data.borderColor ?? nodeColorForType(data.nodeType);
   const fillColor = data.fillColor ?? '#ffffff';
-  const labelVisible = zoom >= ZOOM_THRESHOLDS.primaryLabel;
   const shown = data.displayLabel ?? data.label;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(shown);
@@ -100,9 +98,7 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
         />
       ) : (
         <span
-          className={`graph-node-card__label${labelVisible ? '' : ' is-hidden'}${
-            data.onDisplayLabelChange ? ' is-editable' : ''
-          }`}
+          className={`graph-node-card__label${data.onDisplayLabelChange ? ' is-editable' : ''}`}
           title={data.onDisplayLabelChange ? 'Click to rename' : shown}
           onClick={startLabelEdit}
           onMouseDown={(event) => {

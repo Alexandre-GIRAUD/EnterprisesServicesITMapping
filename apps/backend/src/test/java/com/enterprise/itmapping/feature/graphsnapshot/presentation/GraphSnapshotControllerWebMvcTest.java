@@ -4,11 +4,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.enterprise.itmapping.feature.graphsnapshot.application.GraphSnapshotService;
+import com.enterprise.itmapping.feature.graphsnapshot.application.ShareLibraryService;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotFiltersDto;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.NodePositionDto;
@@ -30,6 +32,7 @@ class GraphSnapshotControllerWebMvcTest {
   @Autowired MockMvc mockMvc;
 
   @MockBean GraphSnapshotService graphSnapshotService;
+  @MockBean ShareLibraryService shareLibraryService;
 
   @Test
   void listReturnsSnapshots() throws Exception {
@@ -101,6 +104,27 @@ class GraphSnapshotControllerWebMvcTest {
         .andExpect(jsonPath("$.filters.edgeAttributes.flow_nature[0]").value("SYNC"))
         .andExpect(jsonPath("$.filters.hiddenApplicationIds[0]").value("app-9"))
         .andExpect(jsonPath("$.filters.nodePositions['app-1'].y").value(80));
+  }
+
+  @Test
+  void renameReturnsUpdatedName() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(graphSnapshotService.renameForCurrentUser(any(), any()))
+        .thenReturn(
+            new GraphSnapshotResponse(
+                id,
+                "Payments",
+                new GraphSnapshotFiltersDto(List.of(), Map.of(), Map.of(), Map.of(), List.of(), Map.of()),
+                Instant.parse("2026-01-01T00:00:00Z"),
+                Instant.parse("2026-01-03T00:00:00Z")));
+
+    mockMvc
+        .perform(
+            patch("/users/me/graph-snapshots/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Payments\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.name").value("Payments"));
   }
 
   @Test

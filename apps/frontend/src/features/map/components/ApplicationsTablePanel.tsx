@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { ApplicationResponse, GraphNodeDto, NodeRefSummary } from '@/types/api';
 import { isSandboxId } from '../utils/sandboxGraph';
+import type { TableGrid } from '../utils/tableFile';
 import type { TableColumnDef } from '../utils/tableColumns';
 
 type ApplicationsTablePanelProps = {
@@ -12,6 +13,7 @@ type ApplicationsTablePanelProps = {
   columns: TableColumnDef[];
   errorMessage?: string | null;
   onRowClick: (id: string, label: string) => void;
+  onVisibleGrid?: (grid: TableGrid) => void;
 };
 
 function dash(value: string | null | undefined): string {
@@ -36,6 +38,7 @@ export function ApplicationsTablePanel({
   columns,
   errorMessage,
   onRowClick,
+  onVisibleGrid,
 }: ApplicationsTablePanelProps) {
   const catalogById = useMemo(() => {
     const map = new Map<string, ApplicationResponse>();
@@ -60,6 +63,13 @@ export function ApplicationsTablePanel({
       })
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   }, [nodes, catalogById]);
+
+  useEffect(() => {
+    onVisibleGrid?.({
+      headers: columns.map((column) => column.label),
+      rows: rows.map((row) => columns.map((column) => cellValue(row, column))),
+    });
+  }, [columns, rows, onVisibleGrid]);
 
   function cellValue(
     row: (typeof rows)[number],

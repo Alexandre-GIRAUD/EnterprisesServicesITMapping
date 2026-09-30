@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.graph.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeProjection;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeRow;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,15 +74,17 @@ public class GraphLoader {
       Map<String, List<String>> nodeAttributeFilters,
       Map<String, List<String>> nodeRefFilters) {
     String cypher = buildNodeCypher(nodeAttributeFilters, nodeRefFilters);
-    return neo4jClient
-        .query(cypher)
-        .bindAll(params(applicationIds, nodeAttributeFilters, nodeRefFilters, Map.of()))
-        .fetch()
-        .all()
-        .stream()
-        .map(Neo4jValueMapping::asMap)
-        .map(GraphLoader::mapNodeRow)
-        .toList();
+    List<GraphNodeRow> rows =
+        neo4jClient
+            .query(cypher)
+            .bindAll(params(applicationIds, nodeAttributeFilters, nodeRefFilters, Map.of()))
+            .fetch()
+            .all()
+            .stream()
+            .map(Neo4jValueMapping::asMap)
+            .map(GraphLoader::mapNodeRow)
+            .toList();
+    return attachCatalogueNames(rows);
   }
 
   public List<GraphEdgeProjection> loadEdges() {
@@ -229,6 +232,65 @@ public class GraphLoader {
 
   private static String edgeValuesParam(String key) {
     return "edgeAttr_" + key;
+  }
+
+  private List<GraphNodeRow> attachCatalogueNames(List<GraphNodeRow> rows) {
+    if (rows.isEmpty()) {
+      return rows;
+    }
+    List<String> ids = rows.stream().map(GraphNodeRow::id).toList();
+    Map<String, Map<String, List<String>>> byApp = loadCatalogueNames(ids);
+    return rows.stream()
+        .map(
+            row ->
+                new GraphNodeRow(
+                    row.id(),
+                    row.name(),
+                    row.description(),
+                    row.properties(),
+                    byApp.getOrDefault(row.id(), Map.of())))
+        .toList();
+  }
+
+  private Map<String, Map<String, List<String>>> loadCatalogueNames(List<String> ids) {
+    Map<String, Map<String, List<String>>> byApp = new LinkedHashMap<>();
+    neo4jClient
+        .query(
+            """
+            MATCH (a:Application)-[rel:CLASSIFIED_AS]->(r:DataModelRef)
+            WHERE a.id IN $ids
+            RETURN a.id AS appId, rel.fieldKey AS fieldKey, r.name AS name, r.value AS value
+            ORDER BY r.name
+            """)
+        .bind(ids)
+        .to("ids")
+        .fetch()
+        .all()
+        .forEach(row -> addCatalogueName(byApp, row));
+    return byApp;
+  }
+
+  private static void addCatalogueName(
+      Map<String, Map<String, List<String>>> byApp, Map<String, Object> row) {
+    String appId = Neo4jValueMapping.asString(row.get("appId"));
+    String fieldKey = Neo4jValueMapping.asString(row.get("fieldKey"));
+    String label = catalogueLabel(row.get("name"), row.get("value"));
+    if (appId == null || appId.isBlank() || fieldKey == null || fieldKey.isBlank() || label == null) {
+      return;
+    }
+    byApp
+        .computeIfAbsent(appId, key -> new LinkedHashMap<>())
+        .computeIfAbsent(fieldKey, key -> new ArrayList<>())
+        .add(label);
+  }
+
+  private static String catalogueLabel(Object name, Object value) {
+    String named = Neo4jValueMapping.asString(name);
+    if (named != null && !named.isBlank()) {
+      return named;
+    }
+    String fallback = Neo4jValueMapping.asString(value);
+    return fallback != null && !fallback.isBlank() ? fallback : null;
   }
 
   private static GraphNodeRow mapNodeRow(Map<String, Object> map) {

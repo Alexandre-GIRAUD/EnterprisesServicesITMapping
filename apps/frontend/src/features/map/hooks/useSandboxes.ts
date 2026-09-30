@@ -3,6 +3,10 @@ import type { Edge } from '@xyflow/react';
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import type { AppNode } from './useGraphData';
 import {
+  deleteSandboxShare,
+  listSandboxShares,
+} from '../api/sandboxSharesApi';
+import {
   MAX_OPEN_SANDBOXES,
   EMPTY_SANDBOX_FILTERS,
   cloneIntoSandboxDocument,
@@ -14,6 +18,7 @@ import {
   storeSavedSandboxes,
   createSandboxTextBoxId,
   DEFAULT_SANDBOX_TEXT_WIDTH,
+  createSandboxDocumentId,
   type SandboxDocument,
   type SandboxIcon,
   type SandboxTextBox,
@@ -21,6 +26,7 @@ import {
   type SavedSandboxMeta,
   coerceSandboxLayout,
 } from '../utils/sandboxDocuments';
+import { importSharedSandboxes } from '../utils/sandboxShare';
 
 type Seed = {
   graphNodes: GraphNodeDto[];
@@ -34,6 +40,34 @@ export function useSandboxes() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [layout, setLayoutState] = useState<SandboxLayoutMode>('horizontal');
   const [saved, setSaved] = useState<SavedSandboxMeta[]>(() => loadSavedSandboxes());
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const inbox = await listSandboxShares();
+        if (cancelled || inbox.length === 0) return;
+        setSaved((current) => {
+          const imported = importSharedSandboxes(
+            current,
+            inbox,
+            createSandboxDocumentId,
+            new Date().toISOString(),
+          );
+          storeSavedSandboxes(imported.saved);
+          for (const id of imported.acknowledgedIds) {
+            void deleteSandboxShare(id).catch(() => undefined);
+          }
+          return imported.saved;
+        });
+      } catch {
+        // Keep the local list when the inbox cannot be loaded.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const activeDoc = openDocs.find((d) => d.id === activeId) ?? openDocs[0] ?? null;
   const anyDirty = openDocs.some((d) => d.dirty);

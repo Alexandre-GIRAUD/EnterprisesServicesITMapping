@@ -61,13 +61,12 @@ export function nodeColorForType(type: string): string {
 }
 
 /**
- * Semantic-zoom thresholds (React Flow zoom factor). Secondary detail fades out
- * below these values so a screen-filling overview stays readable.
+ * Semantic-zoom thresholds (React Flow zoom factor).
+ * Node titles stay drawn at every zoom and scale with the node.
+ * Secondary text fades out below this value.
  */
 export const ZOOM_THRESHOLDS = {
-  /** Below this, node titles/labels fade out (overview = colored boxes only). */
-  primaryLabel: 0.45,
-  /** Below this, secondary text (descriptions) and edge labels fade out. */
+  /** Below this, descriptions and edge labels fade out. */
   secondaryDetail: 0.7,
 } as const;
 
