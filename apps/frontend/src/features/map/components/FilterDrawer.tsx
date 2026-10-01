@@ -1,4 +1,5 @@
 import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { CloseIcon } from './CloseIcon';
 import type { ApplicationResponse, GraphFilters, GraphNodeFilterDto } from '@/types/api';
 import {
   type FilterView,
@@ -388,7 +389,9 @@ export function FilterDrawer({
                     setSelectedApplicationIds((prev) => toggleSortedValue(prev, app.id));
                   }}
                 />
-                <span>{app.name ?? app.id}</span>
+                <span className="graph-filter-option-label" title={app.name ?? app.id}>
+                  {app.name ?? app.id}
+                </span>
               </label>
             ))
           )}
@@ -563,7 +566,7 @@ export function FilterDrawer({
               onClick={onClose}
               aria-label="Close filters"
             >
-              x
+              <CloseIcon />
             </button>
           ) : null}
         </header>

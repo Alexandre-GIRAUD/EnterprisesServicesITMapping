@@ -155,25 +155,44 @@ export function CreateTablePanel({
 
   return (
     <div className="pivot-table graph-table-panel graph-table-panel--main graph-table-panel--light">
-      <form className="pivot-setup" onSubmit={(event) => event.preventDefault()}>
-        <AxisSelect label="Rows" slot="row" setup={activeSetup} options={options} onChange={choose} />
-        <AxisSelect label="Columns" slot="column" setup={activeSetup} options={options} onChange={choose} />
-        <AxisSelect label="Label" slot="label" setup={activeSetup} options={options} onChange={choose} />
-        <AxisSelect label="Color" slot="color" setup={activeSetup} options={options} onChange={choose} />
-        <div className="pivot-saved">
-          <select className="graph-drawer-input" aria-label="Saved tables" value={selectedId} onChange={(event) => applySaved(event.target.value)}>
-            <option value="">Saved tables</option>
-            {savedTables.map((table) => (
-              <option key={table.id} value={table.id}>{table.name}</option>
-            ))}
-          </select>
-          <input className="graph-drawer-input" aria-label="Table name" value={tableName} onChange={(event) => setTableName(event.target.value)} />
-          <button type="button" className="graph-drawer-action" onClick={saveTable}><span className="graph-drawer-action-title">Save</span></button>
-          <button type="button" className="graph-drawer-action" disabled={!selectedId} onClick={renameTable}><span className="graph-drawer-action-title">Rename</span></button>
-          <button type="button" className="graph-drawer-action" disabled={!selectedId} onClick={duplicateTable}><span className="graph-drawer-action-title">Duplicate</span></button>
-          <button type="button" className="graph-drawer-action" disabled={!selectedId} onClick={deleteTable}><span className="graph-drawer-action-title">Delete</span></button>
-        </div>
-      </form>
+      <details className="pivot-config">
+        <summary className="pivot-config-summary">Table setup</summary>
+        <form className="pivot-setup" onSubmit={(event) => event.preventDefault()}>
+          <section className="pivot-section" aria-label="Configuration">
+            <h3 className="section-kicker">Configuration</h3>
+            <div className="pivot-setup-grid">
+              <AxisSelect label="Rows" slot="row" setup={activeSetup} options={options} onChange={choose} />
+              <AxisSelect label="Columns" slot="column" setup={activeSetup} options={options} onChange={choose} />
+              <AxisSelect label="Label" slot="label" setup={activeSetup} options={options} onChange={choose} />
+              <AxisSelect label="Color" slot="color" setup={activeSetup} options={options} onChange={choose} />
+            </div>
+          </section>
+          <section className="pivot-saved" aria-label="Saved tables">
+            <h3 className="section-kicker">Saved tables</h3>
+            <div className="pivot-saved-fields">
+              <label className="pivot-setup-field">
+                <span>Saved tables</span>
+                <select className="graph-drawer-input" aria-label="Saved tables" value={selectedId} onChange={(event) => applySaved(event.target.value)}>
+                  <option value="">None</option>
+                  {savedTables.map((table) => (
+                    <option key={table.id} value={table.id}>{table.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="pivot-setup-field">
+                <span>Table name</span>
+                <input className="graph-drawer-input" aria-label="Table name" value={tableName} onChange={(event) => setTableName(event.target.value)} />
+              </label>
+            </div>
+            <div className="pivot-actions">
+              <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
+              <button type="button" className="pivot-btn pivot-btn--secondary" disabled={!selectedId} onClick={renameTable}>Rename</button>
+              <button type="button" className="pivot-btn pivot-btn--secondary" disabled={!selectedId} onClick={duplicateTable}>Duplicate</button>
+              <button type="button" className="pivot-btn pivot-btn--danger" disabled={!selectedId} onClick={deleteTable}>Delete</button>
+            </div>
+          </section>
+        </form>
+      </details>
       {missingLabels.length > 0 ? (
         <p className="graph-table-message" role="status">
           Missing field: {missingLabels.join(', ')}. That axis was cleared.
