@@ -4,7 +4,7 @@ import { useAuth } from '@/features/auth/context/AuthContext';
 import { GraphSnapshotsProvider } from '@/features/map/context/GraphSnapshotsContext';
 import type { MapLocationState } from '@/features/map/utils/mapNavigation';
 
-function navClassName({ isActive }: { isActive: boolean }) {
+function navigationLinkClassName({ isActive }: { isActive: boolean }) {
   return `layout-header-link${isActive ? ' is-active' : ''}`;
 }
 
@@ -42,21 +42,21 @@ export function Layout() {
                   to="/map"
                   end
                   state={{ graphMode: 'normal' } satisfies MapLocationState}
-                  className={navClassName}
+                  className={navigationLinkClassName}
                 >
                   Cartography
                 </NavLink>
-                <NavLink to="/data-model" className={navClassName}>
+                <NavLink to="/data-model" className={navigationLinkClassName}>
                   Data Model
                 </NavLink>
-                <NavLink to="/map/import-github" className={navClassName}>
+                <NavLink to="/map/import-github" className={navigationLinkClassName}>
                   Sources
                 </NavLink>
-                <NavLink to="/admin/changes" className={navClassName}>
+                <NavLink to="/admin/changes" className={navigationLinkClassName}>
                   Changes
                 </NavLink>
                 {isAdmin ? (
-                  <NavLink to="/admin/users" className={navClassName}>
+                  <NavLink to="/admin/users" className={navigationLinkClassName}>
                     Admin
                   </NavLink>
                 ) : null}

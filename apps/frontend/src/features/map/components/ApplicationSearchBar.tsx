@@ -167,7 +167,7 @@ export function ApplicationSearchBar({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => openApplication(app)}
               >
-                <span className="application-search-item-name">{app.name}</span>
+                <span className="application-search-item-name" title={app.name}>{app.name}</span>
                 <span className="application-search-item-id">{app.id.slice(0, 12)}...</span>
               </button>
             ))}

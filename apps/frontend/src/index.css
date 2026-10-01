@@ -1335,6 +1335,11 @@ body {
 }
 
 .application-search-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 600;
   color: #0f172a;
 }
@@ -1463,15 +1468,6 @@ body {
 .graph-tables-view .graph-table-section--single .graph-table-panel--main {
   flex: 1;
   min-height: 0;
-}
-
-.graph-table-section-title {
-  margin: 0 0 0.15rem 0.25rem;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #64748b;
 }
 
 .graph-table-section-heading {
@@ -2189,8 +2185,8 @@ body {
 .self-service-tool-bar-btn:focus-visible::after {
   content: attr(title);
   position: absolute;
-  z-index: 4;
-  bottom: calc(100% + 6px);
+  z-index: 5;
+  top: calc(100% + 4px);
   left: 50%;
   transform: translateX(-50%);
   padding: 0.2rem 0.45rem;
@@ -2359,8 +2355,7 @@ body {
   cursor: pointer;
 }
 
-.self-service-view-item:hover,
-.self-service-view-item.is-active {
+.self-service-view-item:hover:not(.is-active) {
   background: #f1f5f9;
 }
 
@@ -2709,11 +2704,11 @@ body {
   box-sizing: border-box;
   padding: 0.48rem 0.7rem;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #ffffff;
   color: #0f172a;
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 15px;
   line-height: 1.3;
 }
 
