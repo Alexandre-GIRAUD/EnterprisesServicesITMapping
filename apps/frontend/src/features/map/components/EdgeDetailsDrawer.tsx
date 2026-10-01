@@ -11,6 +11,7 @@ import {
   validateChangeMeta,
 } from './AttributeChangeReasonFields';
 import { AttributeHistorySection } from './AttributeHistorySection';
+import { CloseIcon } from './CloseIcon';
 
 type EdgeDetailsDrawerProps = {
   isOpen: boolean;
@@ -334,7 +335,7 @@ export function EdgeDetailsDrawer({
             onClick={onClose}
             aria-label="Close connection details"
           >
-            x
+            <CloseIcon />
           </button>
         </div>
       </header>
