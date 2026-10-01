@@ -4,7 +4,7 @@ export type TableFileFormat = 'csv' | 'excel' | 'png' | 'pdf';
 
 type TableExportMenuProps = {
   disabled?: boolean;
-  mode?: 'grid' | 'image';
+  mode?: 'grid' | 'image' | 'both';
   onExport: (format: TableFileFormat) => void;
 };
 
@@ -46,7 +46,7 @@ export function TableExportMenu({ disabled = false, mode = 'grid', onExport }: T
     setOpen(false);
     onExport(format);
   };
-  const items = mode === 'image' ? IMAGE_ITEMS : GRID_ITEMS;
+  const items = mode === 'both' ? [...GRID_ITEMS, ...IMAGE_ITEMS] : mode === 'image' ? IMAGE_ITEMS : GRID_ITEMS;
 
   return (
     <div className="graph-export-menu" ref={rootRef}>
