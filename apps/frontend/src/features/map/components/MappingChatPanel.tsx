@@ -105,7 +105,7 @@ export function MappingChatPanel({ onFocusApplication, onFocusEdge }: MappingCha
         ...prev,
         {
           role: 'assistant',
-          content: "Désolé, je n'ai pas pu répondre. Vérifiez la configuration LLM ou réessayez.",
+          content: 'Sorry, I could not answer. Check the LLM configuration or try again.',
         },
       ]);
     } finally {
@@ -128,15 +128,15 @@ export function MappingChatPanel({ onFocusApplication, onFocusEdge }: MappingCha
   }
 
   return (
-    <section className="mapping-chat-panel" aria-label="IT mapping chat">
+    <section className="mapping-chat-panel" aria-label="Ask Flora">
       <p className="mapping-chat-lead">
-        Posez une question sur le graphe Production ou la documentation fonctionnelle (ex. « Qui
-        est connecté à … ? », « Que fait … ? », « Quelles apps gèrent les paiements ? »).
+        Ask a question about the Production graph or the functional documentation (for example
+        “Who is connected to …?”, “What does … do?”, “Which apps handle payments?”).
       </p>
 
       <div className="mapping-chat-transcript">
         {turns.length === 0 ? (
-          <p className="mapping-chat-hint">Aucune conversation pour l’instant.</p>
+          <p className="mapping-chat-hint">No conversation yet.</p>
         ) : (
           turns.map((turn, i) => (
             <div
@@ -178,7 +178,7 @@ export function MappingChatPanel({ onFocusApplication, onFocusEdge }: MappingCha
             </div>
           ))
         )}
-        {busy ? <p className="mapping-chat-hint">Réflexion…</p> : null}
+        {busy ? <p className="mapping-chat-hint">Thinking…</p> : null}
         <div ref={bottomRef} />
       </div>
 
@@ -200,7 +200,7 @@ export function MappingChatPanel({ onFocusApplication, onFocusEdge }: MappingCha
           rows={3}
           value={input}
           disabled={busy}
-          placeholder="Votre question…"
+          placeholder="Your question…"
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -214,7 +214,7 @@ export function MappingChatPanel({ onFocusApplication, onFocusEdge }: MappingCha
           className="graph-drawer-action graph-drawer-action-primary mapping-chat-send"
           disabled={busy || !input.trim()}
         >
-          <span className="graph-drawer-action-title">{busy ? '…' : 'Envoyer'}</span>
+          <span className="graph-drawer-action-title">{busy ? '…' : 'Send'}</span>
         </button>
       </form>
     </section>

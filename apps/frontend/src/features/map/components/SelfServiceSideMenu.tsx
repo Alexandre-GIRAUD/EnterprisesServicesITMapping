@@ -58,7 +58,7 @@ const NARROW_MENU_QUERY = '(max-width: 640px)';
 
 const TOOL_DETAIL_TITLES: Record<SideMenuTool, string> = {
   changes: 'Pending changes',
-  chat: 'IT mapping chat',
+  chat: 'Ask Flora',
   search: 'Search applications',
   filters: 'Filters',
   actions: 'Corrections',

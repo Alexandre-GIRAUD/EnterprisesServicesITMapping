@@ -49,7 +49,7 @@ class MappingChatToolsTest {
 
   @Test
   void resolveApplicationsAddsCitations() {
-    when(catalogQuery.loadMatching("bill", 10))
+    when(catalogQuery.loadAllNamed())
         .thenReturn(List.of(new CatalogRow("a1", "Billing", "desc")));
 
     MappingChatTools tools = tools();

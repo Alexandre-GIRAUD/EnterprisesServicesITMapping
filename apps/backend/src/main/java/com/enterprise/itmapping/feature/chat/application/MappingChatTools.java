@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.chat.application;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery;
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery.CatalogRow;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNameMatch;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
@@ -96,7 +97,8 @@ public class MappingChatTools {
       return toJson(Map.of("note", "empty", "hits", List.of(), "error", "rag_unavailable"));
     }
     try {
-      FunctionalDocSearchResponse res = docSearchService.search(query, applicationId, null);
+      FunctionalDocSearchResponse res =
+          docSearchService.search(query, storedApplicationId(applicationId), null);
       if (res.hits().isEmpty()) {
         warnings.add("No relevant functional documentation chunks found for this query.");
       }
@@ -136,11 +138,13 @@ public class MappingChatTools {
 
   @Tool(
       description =
-          "Resolve application names to catalogue entries (id, name, description). "
-              + "Call this first when the user mentions an application by name.")
+          "Resolve an application name or id, including a small typo or a difference of spaces and underscores. "
+              + "Call this first when the user mentions an application. "
+              + "If several matches are similarly close, ask which one is meant.")
   public String resolveApplications(
-      @ToolParam(description = "Application name or partial name") String query) {
-    List<CatalogRow> rows = catalogQuery.loadMatching(query, properties.maxResolveResults());
+      @ToolParam(description = "Application name or id, as the user wrote it") String query) {
+    List<CatalogRow> rows =
+        ApplicationNameMatch.closest(query, catalogQuery.loadAllNamed(), properties.maxResolveResults());
     if (rows.isEmpty()) {
       return toJson(Map.of("matches", List.of(), "note", "none"));
     }
@@ -174,7 +178,7 @@ public class MappingChatTools {
     try {
       ApplicationNeighborhoodDto nb =
           neighborhoodService.getNeighborhood(
-              applicationId, dir, properties.maxNeighborhoodEdges());
+              storedApplicationId(applicationId), dir, properties.maxNeighborhoodEdges());
       addCitation(
           ChatCitationType.APPLICATION,
           nb.application().id(),
@@ -219,7 +223,8 @@ public class MappingChatTools {
           "Get application profile: id, name, description, node attributes and NODE_REF classifications.")
   public String getApplicationProfile(
       @ToolParam(description = "Application id") String applicationId) {
-    Optional<ApplicationResponse> opt = applicationService.findById(applicationId);
+    Optional<ApplicationResponse> opt =
+        applicationService.findById(storedApplicationId(applicationId));
     if (opt.isEmpty()) {
       return toJson(Map.of("error", "application_not_found", "applicationId", applicationId));
     }
@@ -241,7 +246,8 @@ public class MappingChatTools {
               + "data concepts, integrations). Returns status if not READY.")
   public String getFunctionalDocumentation(
       @ToolParam(description = "Application id") String applicationId) {
-    FunctionalDocumentationResponse doc = documentationService.get(applicationId);
+    FunctionalDocumentationResponse doc =
+        documentationService.get(storedApplicationId(applicationId));
     Map<String, Object> out = new LinkedHashMap<>();
     out.put("applicationId", doc.applicationId());
     out.put("status", doc.status() != null ? doc.status().name() : "MISSING");
@@ -266,12 +272,13 @@ public class MappingChatTools {
           "Summarize the internal module composition graph (CONTAINS) for an application.")
   public String getModuleGraph(
       @ToolParam(description = "Application id") String applicationId) {
-    Optional<GraphResponseDto> opt = moduleGraphService.getModuleGraph(applicationId);
+    String storedId = storedApplicationId(applicationId);
+    Optional<GraphResponseDto> opt = moduleGraphService.getModuleGraph(storedId);
     if (opt.isEmpty()) {
       return toJson(Map.of("error", "application_not_found", "applicationId", applicationId));
     }
     GraphResponseDto graph = opt.get();
-    addCitation(ChatCitationType.APPLICATION, applicationId, applicationId);
+    addCitation(ChatCitationType.APPLICATION, storedId, storedId);
     List<Map<String, String>> modules = new ArrayList<>();
     int cap = properties.maxModulesInSummary();
     int count = 0;
@@ -294,7 +301,7 @@ public class MappingChatTools {
       count++;
     }
     Map<String, Object> out = new LinkedHashMap<>();
-    out.put("applicationId", applicationId);
+    out.put("applicationId", storedId);
     out.put("moduleCount", modules.size());
     out.put("modules", modules);
     out.put("edgeCount", graph.edges() != null ? graph.edges().size() : 0);
@@ -315,6 +322,16 @@ public class MappingChatTools {
     view.put("dataConcepts", payload.getDataConcepts());
     view.put("integrationsFunctional", payload.getIntegrationsFunctional());
     return view;
+  }
+
+  private String storedApplicationId(String raw) {
+    if (!StringUtils.hasText(raw)) {
+      return raw;
+    }
+    String trimmed = raw.trim();
+    List<CatalogRow> catalogue = catalogQuery.loadAllNamed();
+    CatalogRow unique = ApplicationNameMatch.uniqueClosest(trimmed, catalogue);
+    return unique != null ? unique.id() : trimmed;
   }
 
   private void addCitation(ChatCitationType type, String id, String label) {
