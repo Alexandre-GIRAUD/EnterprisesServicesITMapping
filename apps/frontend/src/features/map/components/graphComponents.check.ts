@@ -31,4 +31,12 @@ const square = packComponentOffsets([box, box, box], 140, 1);
 const rows = new Set(square.map((offset) => offset.y));
 assert.ok(rows.size > 1);
 
+const many = Array.from({ length: 40 }, () => ({ width: 400, height: 200 }));
+const packed = packComponentOffsets(many, 140, 16 / 9);
+const maxX = Math.max(...packed.map((offset) => offset.x));
+const maxY = Math.max(...packed.map((offset) => offset.y));
+assert.ok(Number.isFinite(maxX) && Number.isFinite(maxY));
+assert.ok(maxX < 40 * 400 * 4);
+assert.ok(maxY < 40 * 200 * 4);
+
 console.log('graphComponents.check: ok');

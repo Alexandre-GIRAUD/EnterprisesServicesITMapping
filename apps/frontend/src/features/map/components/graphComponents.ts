@@ -156,15 +156,19 @@ function rowsOf(items: IndexedSize[], columns: number): IndexedSize[][] {
 function gapMatchingFit(rows: IndexedSize[][], aspectRatio: number): number {
   const { spanX, gapsX, spanY, gapsY } = rowSpans(rows);
   const paddingRatio = FIT_PADDING / (1 - 2 * FIT_PADDING);
-  let gap = MIN_ISLAND_GAP;
-  for (let step = 0; step < 8; step += 1) {
-    const nodeW = spanX + gapsX * (2 * ZONE_PADDING + gap);
-    const nodeH = spanY + gapsY * (2 * ZONE_PADDING + gap);
-    const widthLimits = nodeH <= 0 || nodeW / nodeH >= aspectRatio;
-    const span = widthLimits ? nodeW : nodeH;
-    gap = Math.max(MIN_ISLAND_GAP, paddingRatio * span - ZONE_PADDING);
-  }
-  return gap;
+  const seedW = spanX + gapsX * (2 * ZONE_PADDING + MIN_ISLAND_GAP);
+  const seedH = spanY + gapsY * (2 * ZONE_PADDING + MIN_ISLAND_GAP);
+  const widthLimits = seedH <= 0 || seedW / seedH >= aspectRatio;
+  const span = widthLimits ? spanX : spanY;
+  const gaps = widthLimits ? gapsX : gapsY;
+  if (gaps === 0) return MIN_ISLAND_GAP;
+  // ponytail: more gaps than the fit padding can absorb has no finite equal margin.
+  // Keep the minimum gap so a large graph still fits on screen.
+  const denom = 1 - paddingRatio * gaps;
+  if (denom <= 0.25) return MIN_ISLAND_GAP;
+  const solved = (paddingRatio * span + ZONE_PADDING * (2 * paddingRatio * gaps - 1)) / denom;
+  const cap = span / gaps;
+  return Math.min(cap, Math.max(MIN_ISLAND_GAP, solved));
 }
 
 function rowSpans(rows: IndexedSize[][]) {
