@@ -2,7 +2,7 @@ package com.enterprise.itmapping.feature.chat.application;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery;
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery.CatalogRow;
-import com.enterprise.itmapping.feature.applications.application.ApplicationIdSpelling;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNameMatch;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
@@ -138,12 +138,13 @@ public class MappingChatTools {
 
   @Tool(
       description =
-          "Resolve an application name or id to catalogue entries (id, name, description). "
-              + "app_1, app 1, and app1 are the same id. "
-              + "Call this first when the user mentions an application.")
+          "Resolve an application name or id, including a small typo or a difference of spaces and underscores. "
+              + "Call this first when the user mentions an application. "
+              + "If several matches are similarly close, ask which one is meant.")
   public String resolveApplications(
-      @ToolParam(description = "Application name, or an id such as app_1, app 1, or app1") String query) {
-    List<CatalogRow> rows = catalogQuery.loadMatching(query, properties.maxResolveResults());
+      @ToolParam(description = "Application name or id, as the user wrote it") String query) {
+    List<CatalogRow> rows =
+        ApplicationNameMatch.closest(query, catalogQuery.loadAllNamed(), properties.maxResolveResults());
     if (rows.isEmpty()) {
       return toJson(Map.of("matches", List.of(), "note", "none"));
     }
@@ -328,13 +329,9 @@ public class MappingChatTools {
       return raw;
     }
     String trimmed = raw.trim();
-    String key = ApplicationIdSpelling.compact(trimmed);
-    for (CatalogRow row : catalogQuery.loadMatching(trimmed, properties.maxResolveResults())) {
-      if (trimmed.equals(row.id()) || key.equals(ApplicationIdSpelling.compact(row.id()))) {
-        return row.id();
-      }
-    }
-    return trimmed;
+    List<CatalogRow> catalogue = catalogQuery.loadAllNamed();
+    CatalogRow unique = ApplicationNameMatch.uniqueClosest(trimmed, catalogue);
+    return unique != null ? unique.id() : trimmed;
   }
 
   private void addCitation(ChatCitationType type, String id, String label) {
