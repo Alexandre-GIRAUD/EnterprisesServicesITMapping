@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { CloseIcon } from './CloseIcon';
 import type { GraphMode } from './GraphModeTabs';
 import { SelfServiceToolBar, type SideMenuTool } from './SelfServiceToolBar';
 
@@ -63,7 +64,7 @@ export function SelfServiceBurger({ isOpen, onToggle }: SelfServiceBurgerProps) 
       aria-controls="self-service-side-menu"
       aria-label={isOpen ? 'Close menu' : 'Open menu'}
     >
-      <span className="self-service-burger-icon" aria-hidden="true" />
+      {isOpen ? <CloseIcon /> : <span className="self-service-burger-icon" aria-hidden="true" />}
     </button>
   );
 }
@@ -109,7 +110,7 @@ export function SelfServiceSideMenu({
             onClick={onToggle}
             aria-label="Close menu"
           >
-            x
+            <CloseIcon />
           </button>
         </header>
 

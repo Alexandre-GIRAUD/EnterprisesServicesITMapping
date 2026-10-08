@@ -27,6 +27,7 @@ import {
   validateChangeMeta,
 } from './AttributeChangeReasonFields';
 import { AttributeHistorySection } from './AttributeHistorySection';
+import { CloseIcon } from './CloseIcon';
 import type { HumanChangeReason } from '@/types/api';
 
 type ApplicationDetails = {
@@ -587,7 +588,7 @@ export function ApplicationDetailsDrawer({
             onClick={onClose}
             aria-label="Close application details"
           >
-            x
+            <CloseIcon />
           </button>
         </div>
       </header>

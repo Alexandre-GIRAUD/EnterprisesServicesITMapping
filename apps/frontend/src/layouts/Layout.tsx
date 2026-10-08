@@ -1,8 +1,12 @@
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import flowraLogo from '@/assets/flowra.svg.svg';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { GraphSnapshotsProvider } from '@/features/map/context/GraphSnapshotsContext';
 import type { MapLocationState } from '@/features/map/utils/mapNavigation';
+
+function navigationLinkClassName({ isActive }: { isActive: boolean }) {
+  return `layout-header-link${isActive ? ' is-active' : ''}`;
+}
 
 export function Layout() {
   const { user, isAdmin, logout } = useAuth();
@@ -34,26 +38,27 @@ export function Layout() {
             </div>
             {user ? (
               <div className="layout-header-actions">
-                <Link
+                <NavLink
                   to="/map"
+                  end
                   state={{ graphMode: 'normal' } satisfies MapLocationState}
-                  className="layout-header-link"
+                  className={navigationLinkClassName}
                 >
                   Cartography
-                </Link>
-                <Link to="/data-model" className="layout-header-link">
+                </NavLink>
+                <NavLink to="/data-model" className={navigationLinkClassName}>
                   Data Model
-                </Link>
-                <Link to="/map/import-github" className="layout-header-link">
+                </NavLink>
+                <NavLink to="/map/import-github" className={navigationLinkClassName}>
                   Sources
-                </Link>
-                <Link to="/admin/changes" className="layout-header-link">
+                </NavLink>
+                <NavLink to="/admin/changes" className={navigationLinkClassName}>
                   Changes
-                </Link>
+                </NavLink>
                 {isAdmin ? (
-                  <Link to="/admin/users" className="layout-header-link">
+                  <NavLink to="/admin/users" className={navigationLinkClassName}>
                     Admin
-                  </Link>
+                  </NavLink>
                 ) : null}
                 <button
                   type="button"

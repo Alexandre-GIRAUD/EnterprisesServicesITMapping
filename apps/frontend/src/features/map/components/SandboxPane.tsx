@@ -36,6 +36,7 @@ import {
   type SandboxIcon,
   type SandboxTextBox,
 } from '../utils/sandboxDocuments';
+import { CloseIcon } from './CloseIcon';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 
 type Props = {
@@ -466,7 +467,7 @@ function SandboxPaneInner({
             onClose();
           }}
         >
-          ×
+          <CloseIcon />
         </button>
       </header>
       {active && toast ? (

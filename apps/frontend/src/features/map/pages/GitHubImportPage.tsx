@@ -334,7 +334,9 @@ export function GitHubImportPage() {
                 />
                 <span className="github-import-card-body">
                   <span className="github-import-card-title">
-                    {repo.fullName}
+                    <span className="github-import-card-name" title={repo.fullName}>
+                      {repo.fullName}
+                    </span>
                     {repo.repoPrivate && (
                       <span className="github-import-badge github-import-badge-private">
                         Private
