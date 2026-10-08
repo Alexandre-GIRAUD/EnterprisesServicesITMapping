@@ -754,9 +754,11 @@ export function ApplicationDetailsDrawer({
                     }}
                   >
                     <span className="graph-drawer-action-title">Delete application</span>
-                    <span className="graph-drawer-action-meta" aria-hidden="true">
-                      {sandboxMode ? 'Local' : 'Neo4j'}
-                    </span>
+                    {sandboxMode ? (
+                      <span className="graph-drawer-action-meta" aria-hidden="true">
+                        Local
+                      </span>
+                    ) : null}
                   </button>
                 ) : (
                   <div
