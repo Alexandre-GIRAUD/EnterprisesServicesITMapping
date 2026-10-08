@@ -100,9 +100,20 @@ export function normalizeComponentLayout(
 }
 
 /**
- * Compute top-left offsets that place each component in its own zone. Components
- * are packed row-by-row with {@link COMPONENT_GAP} between zones; row width
- * adapts to the viewport aspect ratio when provided.
+ * Same ratio as `FIT_VIEW_PADDING` in fitGraphView. Duplicated so this module
+ * does not import the fitter (that import would cycle through the layout).
+ */
+const FIT_PADDING = 0.15;
+
+/** Frames stay apart even when the fit margin is smaller than the zone padding. */
+const MIN_ISLAND_GAP = 8;
+
+type IndexedSize = Size & { i: number; area: number };
+
+/**
+ * Top-left of each island's nodes. Two or more islands are packed so their
+ * dashed frames do not touch and the gap matches the default fit margin.
+ * One island stays at (0, 0).
  */
 export function packComponentOffsets(
   bounds: Size[],
@@ -111,21 +122,108 @@ export function packComponentOffsets(
 ): Pos[] {
   if (bounds.length === 0) return [];
   if (bounds.length === 1) return [{ x: 0, y: 0 }];
+  if (!aspectRatio || aspectRatio <= 0) return shelfPack(bounds, gap);
 
-  const indexed = bounds.map((b, i) => ({ i, area: b.width * b.height, ...b }));
-  indexed.sort((a, b) => b.area - a.area);
+  const items = bounds.map((bound, i) => ({ ...bound, i, area: bound.width * bound.height }));
+  items.sort((a, b) => b.area - a.area || a.i - b.i);
+  const narrowest = Math.min(...bounds.map((bound) => bound.width));
 
-  const totalArea = bounds.reduce((sum, b) => sum + b.width * b.height, 0);
-  const rowWidth =
-    aspectRatio && aspectRatio > 0
-      ? Math.max(...bounds.map((b) => b.width), Math.sqrt(totalArea * aspectRatio))
-      : bounds.reduce((sum, b) => sum + b.width, 0) + gap * (bounds.length - 1);
+  let bestScore = Infinity;
+  let best: Pos[] = shelfPack(bounds, gap);
+  for (let columns = 1; columns <= items.length; columns += 1) {
+    const rows = rowsOf(items, columns);
+    const gapSize = gapMatchingFit(rows, aspectRatio);
+    const placed = placeRows(rows, gapSize);
+    const score = arrangementScore(rows, gapSize, aspectRatio, narrowest);
+    if (score < bestScore) {
+      bestScore = score;
+      best = placed;
+    }
+  }
+  return best;
+}
 
-  const offsets: Pos[] = new Array(bounds.length);
+function rowsOf(items: IndexedSize[], columns: number): IndexedSize[][] {
+  const rows: IndexedSize[][] = [];
+  for (const item of items) {
+    const row = rows[rows.length - 1];
+    if (!row || row.length >= columns) rows.push([item]);
+    else row.push(item);
+  }
+  return rows;
+}
+
+function gapMatchingFit(rows: IndexedSize[][], aspectRatio: number): number {
+  const { spanX, gapsX, spanY, gapsY } = rowSpans(rows);
+  const paddingRatio = FIT_PADDING / (1 - 2 * FIT_PADDING);
+  let gap = MIN_ISLAND_GAP;
+  for (let step = 0; step < 8; step += 1) {
+    const nodeW = spanX + gapsX * (2 * ZONE_PADDING + gap);
+    const nodeH = spanY + gapsY * (2 * ZONE_PADDING + gap);
+    const widthLimits = nodeH <= 0 || nodeW / nodeH >= aspectRatio;
+    const span = widthLimits ? nodeW : nodeH;
+    gap = Math.max(MIN_ISLAND_GAP, paddingRatio * span - ZONE_PADDING);
+  }
+  return gap;
+}
+
+function rowSpans(rows: IndexedSize[][]) {
+  let spanX = 0;
+  let gapsX = 0;
+  let spanY = 0;
+  for (const row of rows) {
+    spanX = Math.max(spanX, row.reduce((sum, item) => sum + item.width, 0));
+    gapsX = Math.max(gapsX, Math.max(0, row.length - 1));
+    spanY += row.reduce((max, item) => Math.max(max, item.height), 0);
+  }
+  return { spanX, gapsX, spanY, gapsY: Math.max(0, rows.length - 1) };
+}
+
+function placeRows(rows: IndexedSize[][], gap: number): Pos[] {
+  const offsets: Pos[] = [];
+  let y = 0;
+  for (const row of rows) {
+    let x = 0;
+    let rowHeight = 0;
+    for (const item of row) {
+      offsets[item.i] = { x: x + ZONE_PADDING, y: y + ZONE_PADDING };
+      x += item.width + 2 * ZONE_PADDING + gap;
+      rowHeight = Math.max(rowHeight, item.height + 2 * ZONE_PADDING);
+    }
+    y += rowHeight + gap;
+  }
+  return offsets;
+}
+
+function arrangementScore(
+  rows: IndexedSize[][],
+  gap: number,
+  aspectRatio: number,
+  narrowest: number,
+): number {
+  const { spanX, gapsX, spanY, gapsY } = rowSpans(rows);
+  const nodeW = spanX + gapsX * (2 * ZONE_PADDING + gap);
+  const nodeH = spanY + gapsY * (2 * ZONE_PADDING + gap);
+  const aspect = nodeH > 0 ? nodeW / nodeH : aspectRatio;
+  let score = Math.abs(Math.log(aspect / aspectRatio));
+  const fullSpan = spanX + gapsX * (2 * ZONE_PADDING + gap);
+  for (const row of rows) {
+    const rowSpan =
+      row.reduce((sum, item) => sum + item.width, 0) +
+      Math.max(0, row.length - 1) * (2 * ZONE_PADDING + gap);
+    if (fullSpan - rowSpan > narrowest) score += 10;
+  }
+  return score;
+}
+
+function shelfPack(bounds: Size[], gap: number): Pos[] {
+  const indexed = bounds.map((bound, i) => ({ ...bound, i, area: bound.width * bound.height }));
+  indexed.sort((a, b) => b.area - a.area || a.i - b.i);
+  const rowWidth = bounds.reduce((sum, bound) => sum + bound.width, 0) + gap * (bounds.length - 1);
+  const offsets: Pos[] = [];
   let x = 0;
   let y = 0;
   let rowHeight = 0;
-
   for (const item of indexed) {
     if (x > 0 && x + item.width > rowWidth) {
       x = 0;
@@ -136,7 +234,6 @@ export function packComponentOffsets(
     x += item.width + gap;
     rowHeight = Math.max(rowHeight, item.height);
   }
-
   return offsets;
 }
 
