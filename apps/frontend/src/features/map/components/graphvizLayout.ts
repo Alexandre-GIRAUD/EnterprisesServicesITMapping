@@ -1,6 +1,13 @@
 import type { Edge, Node } from '@xyflow/react';
 import { instance } from '@viz-js/viz';
 import { elkLayout, type ElkLayoutOptions, type ElkLayoutResult, type Point } from './elkLayout';
+import {
+  COMPONENT_GAP,
+  findConnectedComponents,
+  normalizeComponentLayout,
+  packComponentOffsets,
+  translateComponentLayout,
+} from './graphComponents';
 import { buildDot, parsePlainLayout } from './graphvizPlain';
 
 const DEFAULT_NODE_WIDTH = 160;
@@ -47,13 +54,62 @@ export async function graphvizLayout<N extends Node>(
     if (points && points.length > 0) routes.set(edge.id, points);
   }
 
-  return {
-    nodes: nodes.map((node) => ({
-      ...node,
-      position: parsed.positions.get(node.id) ?? node.position,
-    })),
-    routes,
-  };
+  const placedNodes = nodes.map((node) => ({
+    ...node,
+    position: parsed.positions.get(node.id) ?? node.position,
+  }));
+  return repackIslands(placedNodes, edges, routes, nodeWidth, nodeHeight, options.aspectRatio);
+}
+
+function repackIslands<N extends Node>(
+  nodes: N[],
+  edges: Edge[],
+  routes: Map<string, Point[]>,
+  nodeWidth: number,
+  nodeHeight: number,
+  aspectRatio?: number,
+): ElkLayoutResult<N> {
+  const components = findConnectedComponents(
+    nodes.map((node) => node.id),
+    edges.map((edge) => ({ source: edge.source, target: edge.target })),
+  );
+  if (components.length <= 1) return { nodes, routes };
+
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const bounds: { width: number; height: number }[] = [];
+  const parts: {
+    nodeIds: string[];
+    edgeIds: string[];
+    positions: Map<string, { x: number; y: number }>;
+    routes: Map<string, Point[]>;
+    nodes: N[];
+  }[] = [];
+
+  for (const nodeIds of components) {
+    const idSet = new Set(nodeIds);
+    const compNodes = nodeIds
+      .map((id) => nodeById.get(id))
+      .filter((node): node is N => node !== undefined);
+    const edgeIds = edges.filter((edge) => idSet.has(edge.source) && idSet.has(edge.target)).map((edge) => edge.id);
+    const positions = new Map(compNodes.map((node) => [node.id, { ...node.position }]));
+    const compRoutes = new Map(edgeIds.map((id) => [id, routes.get(id) ?? []]));
+    const size = normalizeComponentLayout(nodeIds, positions, compRoutes, compNodes, nodeWidth, nodeHeight);
+    bounds.push(size);
+    parts.push({ nodeIds, edgeIds, positions, routes: compRoutes, nodes: compNodes });
+  }
+
+  const offsets = packComponentOffsets(bounds, COMPONENT_GAP, aspectRatio);
+  const mergedRoutes = new Map<string, Point[]>();
+  const mergedNodes: N[] = [];
+  for (let index = 0; index < parts.length; index += 1) {
+    const part = parts[index];
+    translateComponentLayout(part.nodeIds, part.positions, part.routes, part.edgeIds, offsets[index] ?? { x: 0, y: 0 });
+    for (const [id, route] of part.routes) mergedRoutes.set(id, route);
+    for (const node of part.nodes) {
+      mergedNodes.push({ ...node, position: part.positions.get(node.id) ?? node.position });
+    }
+  }
+  return { nodes: mergedNodes, routes: mergedRoutes };
 }
 
 /** Graphviz first. ELK when Graphviz does not answer. */
