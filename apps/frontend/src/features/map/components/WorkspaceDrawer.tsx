@@ -25,7 +25,7 @@ import {
 
 type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-icons';
 
-type DrawerActionId = 'add-node' | 'add-edge' | 'edit-flow-props' | 'add-icons' | 'add-text';
+type DrawerActionId = 'add-node' | 'add-edge' | 'add-icons' | 'add-text';
 
 type WorkspaceDrawerProps = {
   isOpen: boolean;
@@ -75,9 +75,8 @@ type DrawerActionItem = {
 };
 
 const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
-  { id: 'add-node', label: 'Add object' },
+  { id: 'add-node', label: 'Add App' },
   { id: 'add-edge', label: 'Add flow' },
-  { id: 'edit-flow-props', label: 'Edit flow properties' },
 ];
 
 const TOOLKIT_ACTIONS: DrawerActionItem[] = [
@@ -563,7 +562,7 @@ export function WorkspaceDrawer({
                   disabled={!onClick}
                 >
                   <span className="graph-drawer-action-title">{action.label}</span>
-                  <span className="graph-drawer-action-meta">Open</span>
+                  {sandboxMode ? <span className="graph-drawer-action-meta">Open</span> : null}
                 </button>
               );
             })}
