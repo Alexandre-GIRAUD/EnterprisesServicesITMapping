@@ -2055,6 +2055,7 @@ body {
 }
 
 .self-service-side-menu-shell {
+  position: relative;
   flex: 0 0 0;
   width: 0;
   min-width: 0;
@@ -2066,6 +2067,29 @@ body {
     flex-basis 220ms ease,
     width 220ms ease,
     min-width 220ms ease;
+}
+
+.self-service-side-menu-shell.is-resizing {
+  transition: none;
+}
+
+.self-service-menu-resize {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 10px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.self-service-menu-resize:hover,
+.self-service-menu-resize:focus-visible {
+  background: #93c5fd;
 }
 
 .map-graph-panel.is-menu-open .self-service-side-menu-shell {
@@ -6267,6 +6291,10 @@ body {
 
   .map-graph-panel.is-menu-open .self-service-side-menu-shell.is-expanded {
     width: 100%;
+  }
+
+  .self-service-menu-resize {
+    display: none;
   }
 
   .self-service-side-menu {

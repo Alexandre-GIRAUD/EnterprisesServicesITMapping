@@ -1,7 +1,15 @@
-import { type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CloseIcon } from './CloseIcon';
 import type { GraphMode } from './GraphModeTabs';
 import { SelfServiceToolBar, type SideMenuTool } from './SelfServiceToolBar';
+import {
+  DEFAULT_MENU_WIDTH,
+  EXPANDED_MENU_WIDTH,
+  MENU_RESIZE_STEP,
+  MAX_MENU_WIDTH,
+  MIN_MENU_WIDTH,
+  clampMenuWidth,
+} from './sideMenuWidth';
 
 type SelfServiceBurgerProps = {
   isOpen: boolean;
@@ -45,6 +53,9 @@ const VIEWS: { mode: GraphMode; label: string; tabId: string; accent: string }[]
   },
 ];
 
+const MENU_WIDTH_STORAGE_KEY = 'flowra.sideMenu.width';
+const NARROW_MENU_QUERY = '(max-width: 640px)';
+
 const TOOL_DETAIL_TITLES: Record<SideMenuTool, string> = {
   changes: 'Pending changes',
   chat: 'IT mapping chat',
@@ -53,6 +64,105 @@ const TOOL_DETAIL_TITLES: Record<SideMenuTool, string> = {
   actions: 'Corrections',
   sandboxes: 'My sandboxes',
 };
+
+function useResizableMenu(isOpen: boolean, defaultWidth: number) {
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ startX: number; startWidth: number; panelWidth: number } | null>(null);
+  const [userWidth, setUserWidth] = useState<number | null>(readStoredMenuWidth);
+  const [isResizing, setIsResizing] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia(NARROW_MENU_QUERY).matches);
+
+  useEffect(() => {
+    const query = window.matchMedia(NARROW_MENU_QUERY);
+    const onChange = () => setIsNarrow(query.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    function onResize() {
+      const panel = shellRef.current?.parentElement?.clientWidth;
+      if (panel == null) return;
+      setUserWidth((current) => {
+        if (current == null) return current;
+        const next = clampMenuWidth(current, panel);
+        if (next === current) return current;
+        localStorage.setItem(MENU_WIDTH_STORAGE_KEY, String(next));
+        return next;
+      });
+    }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  function panelWidth(): number {
+    return shellRef.current?.parentElement?.clientWidth ?? window.innerWidth;
+  }
+
+  function storeWidth(next: number) {
+    setUserWidth(next);
+    localStorage.setItem(MENU_WIDTH_STORAGE_KEY, String(next));
+  }
+
+  function restoreDefault() {
+    setUserWidth(null);
+    localStorage.removeItem(MENU_WIDTH_STORAGE_KEY);
+  }
+
+  function onResizePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      startX: event.clientX,
+      startWidth: shellRef.current?.getBoundingClientRect().width ?? defaultWidth,
+      panelWidth: panelWidth(),
+    };
+    setIsResizing(true);
+  }
+
+  function onResizePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    storeWidth(clampMenuWidth(drag.startWidth + (drag.startX - event.clientX), drag.panelWidth));
+  }
+
+  function onResizePointerUp() {
+    dragRef.current = null;
+    setIsResizing(false);
+  }
+
+  function onResizeKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    const current = userWidth ?? defaultWidth;
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      storeWidth(clampMenuWidth(current + MENU_RESIZE_STEP, panelWidth()));
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      storeWidth(clampMenuWidth(current - MENU_RESIZE_STEP, panelWidth()));
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      restoreDefault();
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      storeWidth(clampMenuWidth(MAX_MENU_WIDTH, panelWidth()));
+    }
+  }
+
+  const customWidth = isOpen && !isNarrow && userWidth != null ? userWidth : null;
+  return {
+    shellRef,
+    isResizing,
+    isNarrow,
+    customWidth,
+    currentWidth: customWidth ?? defaultWidth,
+    maxWidth: Math.min(MAX_MENU_WIDTH, panelWidth() / 2),
+    restoreDefault,
+    onResizePointerDown,
+    onResizePointerMove,
+    onResizePointerUp,
+    onResizeKeyDown,
+  };
+}
 
 export function SelfServiceBurger({ isOpen, onToggle }: SelfServiceBurgerProps) {
   return (
@@ -84,6 +194,8 @@ export function SelfServiceSideMenu({
   columnsDetail = null,
 }: SelfServiceSideMenuProps) {
   const showGraphTools = graphMode === 'normal' || graphMode === 'sandbox';
+  const defaultWidth = showGraphTools ? EXPANDED_MENU_WIDTH : DEFAULT_MENU_WIDTH;
+  const resize = useResizableMenu(isOpen, defaultWidth);
   const toolDetailTitle = columnsOnly
     ? 'Columns'
     : activeTool === 'actions'
@@ -94,9 +206,33 @@ export function SelfServiceSideMenu({
 
   return (
     <div
-      className={`self-service-side-menu-shell${isOpen ? ' is-open' : ''}${showGraphTools ? ' is-expanded' : ''}`}
+      ref={resize.shellRef}
+      className={`self-service-side-menu-shell${isOpen ? ' is-open' : ''}${showGraphTools ? ' is-expanded' : ''}${resize.isResizing ? ' is-resizing' : ''}`}
+      style={
+        resize.customWidth != null
+          ? { width: resize.customWidth, flexBasis: resize.customWidth, minWidth: resize.customWidth }
+          : undefined
+      }
       aria-hidden={!isOpen}
     >
+      {isOpen && !resize.isNarrow ? (
+        <div
+          className="self-service-menu-resize"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize menu"
+          aria-valuemin={MIN_MENU_WIDTH}
+          aria-valuemax={resize.maxWidth}
+          aria-valuenow={resize.currentWidth}
+          tabIndex={0}
+          onPointerDown={resize.onResizePointerDown}
+          onPointerMove={resize.onResizePointerMove}
+          onPointerUp={resize.onResizePointerUp}
+          onPointerCancel={resize.onResizePointerUp}
+          onDoubleClick={resize.restoreDefault}
+          onKeyDown={resize.onResizeKeyDown}
+        />
+      ) : null}
       <nav
         id="self-service-side-menu"
         className="self-service-side-menu"
@@ -170,6 +306,13 @@ export function SelfServiceSideMenu({
       </nav>
     </div>
   );
+}
+
+function readStoredMenuWidth(): number | null {
+  const raw = localStorage.getItem(MENU_WIDTH_STORAGE_KEY);
+  if (!raw) return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
 }
 
 export type { SideMenuTool } from './SelfServiceToolBar';
