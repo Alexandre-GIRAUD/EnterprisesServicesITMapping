@@ -82,8 +82,8 @@ public class ApplicationCatalogQuery {
   }
 
   /**
-   * Case-insensitive name search ({@code CONTAINS}). Exact (ignore-case) matches are listed first,
-   * then alphabetical. Empty / blank {@code query} returns an empty list.
+   * Case-insensitive name search ({@code CONTAINS}), plus an id match that ignores spaces and
+   * underscores. Exact id and exact name matches are listed first. Empty query returns nothing.
    */
   public List<CatalogRow> loadMatching(String query, int limit) {
     if (query == null || query.isBlank()) {
@@ -91,20 +91,30 @@ public class ApplicationCatalogQuery {
     }
     int safeLimit = Math.min(50, Math.max(1, limit));
     String q = query.trim();
+    String idKey = ApplicationIdSpelling.compact(q);
     List<CatalogRow> rows = new ArrayList<>();
     neo4jClient
         .query(
             """
             MATCH (a:Application)
             WHERE a.name IS NOT NULL AND trim(a.name) <> ''
-              AND toLower(a.name) CONTAINS toLower($q)
+              AND (
+                toLower(a.name) CONTAINS toLower($q)
+                OR replace(replace(toLower(a.id), '_', ''), ' ', '') = $idKey
+              )
             RETURN a.id AS id, a.name AS name, a.description AS description,
-                   CASE WHEN toLower(trim(a.name)) = toLower($q) THEN 0 ELSE 1 END AS rank
+                   CASE
+                     WHEN replace(replace(toLower(a.id), '_', ''), ' ', '') = $idKey THEN 0
+                     WHEN toLower(trim(a.name)) = toLower($q) THEN 1
+                     ELSE 2
+                   END AS rank
             ORDER BY rank, a.name
             LIMIT $limit
             """)
         .bind(q)
         .to("q")
+        .bind(idKey)
+        .to("idKey")
         .bind(safeLimit)
         .to("limit")
         .fetch()
