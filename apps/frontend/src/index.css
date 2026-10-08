@@ -4069,8 +4069,79 @@ body {
 
 .sandbox-manage-actions {
   display: flex;
-  flex-direction: column;
   gap: 0.35rem;
+}
+
+.sandbox-manage-chip {
+  flex: 1;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.4rem 0.65rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.sandbox-manage-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sandbox-manage-section {
+  margin: 0.2rem 0 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.sandbox-manage-open {
+  display: flex;
+  width: 100%;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sandbox-manage-open.is-active {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.sandbox-manage-saved {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.sandbox-manage-mini {
+  flex: 0 0 auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 0.2rem 0.4rem;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.sandbox-manage-mini:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sandbox-manage-mini--danger {
+  color: #b91c1c;
+  border-color: #fecaca;
 }
 
 .sandbox-manage-load-row {

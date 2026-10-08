@@ -6,8 +6,12 @@ import {
   type SavedSandboxMeta,
 } from '../utils/sandboxDocuments';
 
+type OpenSandbox = { id: string; name: string; dirty: boolean };
+
 type SandboxesPanelProps = {
-  openSandboxCount: number;
+  openSandboxes: OpenSandbox[];
+  activeSandboxId: string | null;
+  onFocusOpen: (id: string) => void;
   layoutMode: SandboxLayoutMode;
   onLayoutModeChange: (mode: SandboxLayoutMode) => void;
   onNewSandbox: () => void;
@@ -80,7 +84,9 @@ function LayoutGlyph({ mode }: { mode: SandboxLayoutMode }) {
 
 /** Manage open sandboxes, save/load, and layout icons. */
 export function SandboxesPanel({
-  openSandboxCount,
+  openSandboxes,
+  activeSandboxId,
+  onFocusOpen,
   layoutMode,
   onLayoutModeChange,
   onNewSandbox,
@@ -91,18 +97,20 @@ export function SandboxesPanel({
   onDeleteSavedSandbox,
   onShareSavedSandbox,
 }: SandboxesPanelProps) {
-  const [selectedSavedId, setSelectedSavedId] = useState('');
+  const [sharingId, setSharingId] = useState<string | null>(null);
   const [draftUsername, setDraftUsername] = useState('');
+  const openSandboxCount = openSandboxes.length;
   const layouts = sandboxLayoutsForCount(openSandboxCount);
   const activeLayout =
     layouts.includes(layoutMode) || layouts.length === 0 ? layoutMode : layouts[0];
 
-  async function shareSelected() {
+  async function shareSelected(id: string) {
     const username = draftUsername.trim();
-    if (!username || !selectedSavedId) return;
+    if (!username) return;
     try {
-      await onShareSavedSandbox(selectedSavedId, username);
+      await onShareSavedSandbox(id, username);
       setDraftUsername('');
+      setSharingId(null);
     } catch {
       // The caller reports the failure.
     }
@@ -136,86 +144,104 @@ export function SandboxesPanel({
       <div className="sandbox-manage-actions">
         <button
           type="button"
-          className="graph-drawer-action"
+          className="sandbox-manage-chip"
           disabled={openSandboxCount >= MAX_OPEN_SANDBOXES}
           onClick={onNewSandbox}
         >
-          <span className="graph-drawer-action-title">New</span>
+          New
         </button>
-        <button
-          type="button"
-          className="graph-drawer-action"
-          disabled={!canSave}
-          onClick={onSaveActive}
-        >
-          <span className="graph-drawer-action-title">Save</span>
+        <button type="button" className="sandbox-manage-chip" disabled={!canSave} onClick={onSaveActive}>
+          Save
         </button>
       </div>
 
+      <p className="sandbox-manage-section">Open</p>
+      {openSandboxes.length === 0 ? (
+        <p className="graph-drawer-search-state">No sandbox open.</p>
+      ) : (
+        <ul className="graph-drawer-saved-list" aria-label="Open sandboxes">
+          {openSandboxes.map((sandbox) => (
+            <li key={sandbox.id}>
+              <button
+                type="button"
+                className={`sandbox-manage-open${sandbox.id === activeSandboxId ? ' is-active' : ''}`}
+                onClick={() => onFocusOpen(sandbox.id)}
+              >
+                <span className="graph-drawer-saved-name">
+                  {sandbox.name}
+                  {sandbox.dirty ? ' •' : ''}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p className="sandbox-manage-section">Saved</p>
       {savedSandboxes.length === 0 ? (
         <p className="graph-drawer-search-state">No saved sandboxes.</p>
       ) : (
-        <>
-          <div className="sandbox-manage-load-row">
-            <select
-              className="graph-drawer-input"
-              value={selectedSavedId}
-              onChange={(e) => setSelectedSavedId(e.target.value)}
-              aria-label="Saved sandboxes"
-            >
-              <option value="">Saved sandboxes…</option>
-              {savedSandboxes.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="graph-drawer-action sandbox-manage-load-btn"
-              disabled={!selectedSavedId}
-              onClick={() => selectedSavedId && onLoadSandbox(selectedSavedId)}
-            >
-              <span className="graph-drawer-action-title">Load</span>
-            </button>
-          </div>
-          {selectedSavedId ? (
-            <>
-              <div className="sandbox-manage-load-row">
-                <input
-                  className="graph-drawer-input"
-                  aria-label="Username to receive this sandbox"
-                  placeholder="Username"
-                  value={draftUsername}
-                  onChange={(event) => setDraftUsername(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter') return;
-                    event.preventDefault();
-                    void shareSelected();
-                  }}
-                />
+        <ul className="graph-drawer-saved-list" aria-label="Saved sandboxes">
+          {savedSandboxes.map((sandbox) => (
+            <li key={sandbox.id} className="sandbox-manage-saved">
+              <div className="graph-drawer-saved-item">
+                <span className="graph-drawer-saved-name">{sandbox.name}</span>
+                <button type="button" className="sandbox-manage-mini" onClick={() => onLoadSandbox(sandbox.id)}>
+                  Load
+                </button>
                 <button
                   type="button"
-                  className="graph-drawer-action sandbox-manage-load-btn"
-                  disabled={!draftUsername.trim()}
-                  onClick={() => void shareSelected()}
+                  className="sandbox-manage-mini"
+                  onClick={() => {
+                    setSharingId(sharingId === sandbox.id ? null : sandbox.id);
+                    setDraftUsername('');
+                  }}
                 >
-                  <span className="graph-drawer-action-title">Share</span>
+                  Share
+                </button>
+                <button
+                  type="button"
+                  className="sandbox-manage-mini sandbox-manage-mini--danger"
+                  onClick={() => {
+                    if (sharingId === sandbox.id) setSharingId(null);
+                    onDeleteSavedSandbox(sandbox.id);
+                  }}
+                >
+                  Delete
                 </button>
               </div>
-              <button
-                type="button"
-                className="graph-drawer-action"
-                onClick={() => {
-                  onDeleteSavedSandbox(selectedSavedId);
-                  setSelectedSavedId('');
-                }}
-              >
-                <span className="graph-drawer-action-title">Delete</span>
-              </button>
-            </>
-          ) : null}
-        </>
+              {sharingId === sandbox.id ? (
+                <div className="sandbox-manage-load-row">
+                  <input
+                    className="graph-drawer-input"
+                    aria-label={`Username to receive ${sandbox.name}`}
+                    placeholder="Username"
+                    value={draftUsername}
+                    autoFocus
+                    onChange={(event) => setDraftUsername(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        setSharingId(null);
+                      }
+                      if (event.key !== 'Enter') return;
+                      event.preventDefault();
+                      void shareSelected(sandbox.id);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="sandbox-manage-mini"
+                    disabled={!draftUsername.trim()}
+                    onClick={() => void shareSelected(sandbox.id)}
+                  >
+                    Send
+                  </button>
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

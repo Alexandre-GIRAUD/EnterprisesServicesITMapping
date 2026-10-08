@@ -1588,7 +1588,13 @@ export function GraphCanvas() {
         if (!isSandbox) return null;
         return (
           <SandboxesPanel
-            openSandboxCount={sandboxes.openDocs.length}
+            openSandboxes={sandboxes.openDocs.map((doc) => ({
+              id: doc.id,
+              name: doc.name,
+              dirty: doc.dirty,
+            }))}
+            activeSandboxId={sandboxes.activeId}
+            onFocusOpen={sandboxes.setActiveId}
             layoutMode={sandboxes.layout}
             onLayoutModeChange={sandboxes.setLayout}
             onNewSandbox={() => {
