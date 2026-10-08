@@ -15,6 +15,7 @@ import {
   buildSandboxEdgeResponse,
 } from '../utils/sandboxGraph';
 import { SANDBOX_ICON_PALETTE } from '../utils/sandboxDocuments';
+import { CloseIcon } from './CloseIcon';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 import {
   AttributeChangeReasonFields,
@@ -529,7 +530,7 @@ export function WorkspaceDrawer({
                 onClick={closeDrawer}
                 aria-label="Close panel"
               >
-                x
+                <CloseIcon />
               </button>
             ) : null}
           </div>

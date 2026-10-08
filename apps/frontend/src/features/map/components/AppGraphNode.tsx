@@ -99,7 +99,7 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
       ) : (
         <span
           className={`graph-node-card__label${data.onDisplayLabelChange ? ' is-editable' : ''}`}
-          title={data.onDisplayLabelChange ? 'Click to rename' : shown}
+          title={shown}
           onClick={startLabelEdit}
           onMouseDown={(event) => {
             if (data.onDisplayLabelChange) event.stopPropagation();
