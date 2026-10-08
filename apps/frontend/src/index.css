@@ -2087,11 +2087,6 @@ body {
   touch-action: none;
 }
 
-.self-service-menu-resize:hover,
-.self-service-menu-resize:focus-visible {
-  background: #93c5fd;
-}
-
 .map-graph-panel.is-menu-open .self-service-side-menu-shell {
   flex: 0 0 min(300px, 88vw);
   width: min(300px, 88vw);

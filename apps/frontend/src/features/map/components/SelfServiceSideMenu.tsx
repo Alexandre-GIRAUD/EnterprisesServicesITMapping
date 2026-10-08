@@ -6,9 +6,9 @@ import {
   DEFAULT_MENU_WIDTH,
   EXPANDED_MENU_WIDTH,
   MENU_RESIZE_STEP,
-  MAX_MENU_WIDTH,
   MIN_MENU_WIDTH,
   clampMenuWidth,
+  maxMenuWidth,
 } from './sideMenuWidth';
 
 type SelfServiceBurgerProps = {
@@ -144,7 +144,7 @@ function useResizableMenu(isOpen: boolean, defaultWidth: number) {
       restoreDefault();
     } else if (event.key === 'End') {
       event.preventDefault();
-      storeWidth(clampMenuWidth(MAX_MENU_WIDTH, panelWidth()));
+      storeWidth(maxMenuWidth(panelWidth()));
     }
   }
 
@@ -155,7 +155,7 @@ function useResizableMenu(isOpen: boolean, defaultWidth: number) {
     isNarrow,
     customWidth,
     currentWidth: customWidth ?? defaultWidth,
-    maxWidth: Math.min(MAX_MENU_WIDTH, panelWidth() / 2),
+    maxWidth: maxMenuWidth(panelWidth()),
     restoreDefault,
     onResizePointerDown,
     onResizePointerMove,
