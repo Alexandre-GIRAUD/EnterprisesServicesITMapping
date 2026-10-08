@@ -284,13 +284,27 @@ export function SelfServiceSideMenu({
           {showGraphTools ? (
             <>
               {columnsOnly ? null : (
-                <SelfServiceToolBar
-                  graphMode={graphMode}
-                  filtersActive={filtersActive}
-                  activeTool={activeTool}
-                  onChange={onActiveToolChange}
-                  pendingChangeCount={pendingChangeCount}
-                />
+                <>
+                  {graphMode === 'normal' ? (
+                    <button
+                      type="button"
+                      className={`self-service-changes-entry${activeTool === 'changes' ? ' is-active' : ''}`}
+                      aria-pressed={activeTool === 'changes'}
+                      onClick={() => onActiveToolChange('changes')}
+                    >
+                      <span>Changes</span>
+                      <span className="self-service-changes-entry-count">
+                        {pendingChangeCount > 99 ? '99+' : pendingChangeCount}
+                      </span>
+                    </button>
+                  ) : null}
+                  <SelfServiceToolBar
+                    graphMode={graphMode}
+                    filtersActive={filtersActive}
+                    activeTool={activeTool}
+                    onChange={onActiveToolChange}
+                  />
+                </>
               )}
               <div
                 className="self-service-tool-detail"

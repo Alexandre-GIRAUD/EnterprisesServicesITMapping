@@ -167,6 +167,7 @@ export function GraphCanvas() {
   const [toolkitRequest, setToolkitRequest] = useState<
     'add-node-form' | 'add-edge-form' | null
   >(null);
+  const [graphContextMenu, setGraphContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdgeDetails | null>(null);
@@ -295,6 +296,32 @@ export function GraphCanvas() {
     setActiveSideMenuTool('actions');
     setToolkitRequest(view);
   }, []);
+
+  const openProductionContextMenu = useCallback((event: ReactMouseEvent | MouseEvent) => {
+    event.preventDefault();
+    setGraphContextMenu({ x: event.clientX, y: event.clientY });
+  }, []);
+
+  const openFiltersFromContextMenu = useCallback(() => {
+    setGraphContextMenu(null);
+    setToolkitRequest(null);
+    setActiveSideMenuTool('filters');
+    setIsSideMenuOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (!graphContextMenu) return;
+    const close = () => setGraphContextMenu(null);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [graphContextMenu]);
 
   const rememberSandboxIcon = useCallback((iconKey: string) => {
     setRecentSandboxIcons(pushRecentSandboxIcon(iconKey));
@@ -1970,6 +1997,9 @@ export function GraphCanvas() {
                 onEdgeMouseLeave={handleEdgeMouseLeave}
                 onNodeDragStop={handleNodeDragStop}
                 onPaneClick={handlePaneClick}
+                onPaneContextMenu={openProductionContextMenu}
+                onNodeContextMenu={openProductionContextMenu}
+                onEdgeContextMenu={openProductionContextMenu}
                 nodesDraggable
                 nodeDragThreshold={8}
                 nodesConnectable={false}
@@ -2026,6 +2056,46 @@ export function GraphCanvas() {
                   </Panel>
                 ) : null}
               </ReactFlow>
+              {graphContextMenu ? (
+                <div
+                  className="sandbox-pane__ctx"
+                  style={{ left: graphContextMenu.x, top: graphContextMenu.y }}
+                  role="menu"
+                  aria-label="Graph actions"
+                  onMouseDown={(event) => event.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="sandbox-pane__ctx-item"
+                    onClick={openFiltersFromContextMenu}
+                  >
+                    Filter
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="sandbox-pane__ctx-item"
+                    onClick={() => {
+                      setGraphContextMenu(null);
+                      openToolkitForm('add-node-form');
+                    }}
+                  >
+                    Add app
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="sandbox-pane__ctx-item"
+                    onClick={() => {
+                      setGraphContextMenu(null);
+                      openToolkitForm('add-edge-form');
+                    }}
+                  >
+                    Add flow
+                  </button>
+                </div>
+              ) : null}
             </div>
             ) : (
               <div className="graph-tables-view">
