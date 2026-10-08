@@ -523,9 +523,11 @@ export function EdgeDetailsDrawer({
               }}
             >
               <span className="graph-drawer-action-title">Delete</span>
-              <span className="graph-drawer-action-meta" aria-hidden="true">
-                {sandbox ? 'Local' : 'Neo4j'}
-              </span>
+              {sandbox ? (
+                <span className="graph-drawer-action-meta" aria-hidden="true">
+                  Local
+                </span>
+              ) : null}
             </button>
           ) : (
             <div
