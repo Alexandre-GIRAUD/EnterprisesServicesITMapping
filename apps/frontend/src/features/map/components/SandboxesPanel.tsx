@@ -20,7 +20,7 @@ type SandboxesPanelProps = {
   savedSandboxes: SavedSandboxMeta[];
   onLoadSandbox: (id: string) => void;
   onDeleteSavedSandbox: (id: string) => void;
-  onShareSavedSandbox: (id: string, username: string) => Promise<void>;
+  onShareActive: (username: string) => Promise<void>;
 };
 
 const LAYOUT_LABELS: Record<SandboxLayoutMode, string> = {
@@ -95,22 +95,24 @@ export function SandboxesPanel({
   savedSandboxes,
   onLoadSandbox,
   onDeleteSavedSandbox,
-  onShareSavedSandbox,
+  onShareActive,
 }: SandboxesPanelProps) {
-  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
   const [draftUsername, setDraftUsername] = useState('');
   const openSandboxCount = openSandboxes.length;
   const layouts = sandboxLayoutsForCount(openSandboxCount);
   const activeLayout =
     layouts.includes(layoutMode) || layouts.length === 0 ? layoutMode : layouts[0];
 
-  async function shareSelected(id: string) {
+  const activeSandbox = openSandboxes.find((sandbox) => sandbox.id === activeSandboxId) ?? null;
+
+  async function shareActive() {
     const username = draftUsername.trim();
-    if (!username) return;
+    if (!username || !activeSandbox) return;
     try {
-      await onShareSavedSandbox(id, username);
+      await onShareActive(username);
       setDraftUsername('');
-      setSharingId(null);
+      setSharing(false);
     } catch {
       // The caller reports the failure.
     }
@@ -153,7 +155,48 @@ export function SandboxesPanel({
         <button type="button" className="sandbox-manage-chip" disabled={!canSave} onClick={onSaveActive}>
           Save
         </button>
+        <button
+          type="button"
+          className="sandbox-manage-chip"
+          disabled={!canSave}
+          aria-expanded={sharing}
+          onClick={() => {
+            setSharing((open) => !open);
+            setDraftUsername('');
+          }}
+        >
+          Share
+        </button>
       </div>
+      {sharing ? (
+        <div className="sandbox-manage-load-row">
+          <input
+            className="graph-drawer-input"
+            aria-label={`Username to receive ${activeSandbox?.name ?? 'sandbox'}`}
+            placeholder="Username"
+            value={draftUsername}
+            autoFocus
+            onChange={(event) => setDraftUsername(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                setSharing(false);
+              }
+              if (event.key !== 'Enter') return;
+              event.preventDefault();
+              void shareActive();
+            }}
+          />
+          <button
+            type="button"
+            className="sandbox-manage-mini"
+            disabled={!draftUsername.trim()}
+            onClick={() => void shareActive()}
+          >
+            Send
+          </button>
+        </div>
+      ) : null}
 
       <p className="sandbox-manage-section">Open</p>
       {openSandboxes.length === 0 ? (
@@ -191,54 +234,12 @@ export function SandboxesPanel({
                 </button>
                 <button
                   type="button"
-                  className="sandbox-manage-mini"
-                  onClick={() => {
-                    setSharingId(sharingId === sandbox.id ? null : sandbox.id);
-                    setDraftUsername('');
-                  }}
-                >
-                  Share
-                </button>
-                <button
-                  type="button"
                   className="sandbox-manage-mini sandbox-manage-mini--danger"
-                  onClick={() => {
-                    if (sharingId === sandbox.id) setSharingId(null);
-                    onDeleteSavedSandbox(sandbox.id);
-                  }}
+                  onClick={() => onDeleteSavedSandbox(sandbox.id)}
                 >
                   Delete
                 </button>
               </div>
-              {sharingId === sandbox.id ? (
-                <div className="sandbox-manage-load-row">
-                  <input
-                    className="graph-drawer-input"
-                    aria-label={`Username to receive ${sandbox.name}`}
-                    placeholder="Username"
-                    value={draftUsername}
-                    autoFocus
-                    onChange={(event) => setDraftUsername(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Escape') {
-                        event.preventDefault();
-                        setSharingId(null);
-                      }
-                      if (event.key !== 'Enter') return;
-                      event.preventDefault();
-                      void shareSelected(sandbox.id);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="sandbox-manage-mini"
-                    disabled={!draftUsername.trim()}
-                    onClick={() => void shareSelected(sandbox.id)}
-                  >
-                    Send
-                  </button>
-                </div>
-              ) : null}
             </li>
           ))}
         </ul>

@@ -1,6 +1,6 @@
 import type { GraphMode } from './GraphModeTabs';
 
-export type SideMenuTool = 'changes' | 'chat' | 'search' | 'filters' | 'actions' | 'sandboxes';
+export type SideMenuTool = 'changes' | 'chat' | 'filters' | 'actions' | 'sandboxes';
 
 type SelfServiceToolBarProps = {
   graphMode: GraphMode;
@@ -8,21 +8,6 @@ type SelfServiceToolBarProps = {
   activeTool: SideMenuTool;
   onChange: (tool: SideMenuTool) => void;
 };
-
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
-      <circle cx="8.5" cy="8.5" r="4.75" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <path
-        d="M12.2 12.2 L16.5 16.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 function FiltersIcon() {
   return (
@@ -102,7 +87,6 @@ export function SelfServiceToolBar({
   onChange,
 }: SelfServiceToolBarProps) {
   const isExplorer = graphMode === 'normal';
-  const isSandbox = graphMode === 'sandbox';
   const actionsLabel = isExplorer ? 'Corrections' : 'Toolkit';
 
   return (
@@ -118,19 +102,6 @@ export function SelfServiceToolBar({
           onClick={() => onChange('chat')}
         >
           <ChatIcon />
-        </button>
-      ) : null}
-      {isSandbox ? (
-        <button
-          type="button"
-          role="tab"
-          className={`self-service-tool-bar-btn${activeTool === 'search' ? ' is-active' : ''}`}
-          aria-selected={activeTool === 'search'}
-          aria-label="Search applications"
-          title="Search applications"
-          onClick={() => onChange('search')}
-        >
-          <SearchIcon />
         </button>
       ) : null}
       <button

@@ -31,12 +31,12 @@ import { SandboxIconNode } from './SandboxIconNode';
 import { SandboxTextNode } from './SandboxTextNode';
 import {
   sandboxFilterVisibleIds,
-  sandboxIconLabel,
   type SandboxDocument,
   type SandboxIcon,
   type SandboxTextBox,
 } from '../utils/sandboxDocuments';
 import { CloseIcon } from './CloseIcon';
+import { SandboxCanvasMenu } from './SandboxCanvasMenu';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 
 type Props = {
@@ -49,6 +49,7 @@ type Props = {
   onDocNodes: (nodes: Node[]) => void;
   onDocEdges: (edges: Edge[]) => void;
   onSave: () => void;
+  onShare: (username: string) => Promise<void>;
   onClose: () => void;
   onRename: (name: string) => void;
   onDuplicate: () => void;
@@ -145,6 +146,7 @@ function SandboxPaneInner({
   onDocNodes,
   onDocEdges,
   onSave,
+  onShare,
   onClose,
   onRename,
   onDuplicate,
@@ -177,6 +179,8 @@ function SandboxPaneInner({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(doc.name);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  const [ctxSharing, setCtxSharing] = useState(false);
+  const [ctxUsername, setCtxUsername] = useState('');
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const lastNodeClickRef = useRef<{ nodeId: string; time: number } | null>(null);
   const nodeClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -188,7 +192,11 @@ function SandboxPaneInner({
 
   useEffect(() => {
     if (!ctxMenu) return;
-    const close = () => setCtxMenu(null);
+    const close = () => {
+      setCtxMenu(null);
+      setCtxSharing(false);
+      setCtxUsername('');
+    };
     window.addEventListener('mousedown', close);
     return () => window.removeEventListener('mousedown', close);
   }, [ctxMenu]);
@@ -426,6 +434,8 @@ function SandboxPaneInner({
       onContextMenu={(e) => {
         e.preventDefault();
         onActivate();
+        setCtxSharing(false);
+        setCtxUsername('');
         setCtxMenu({ x: e.clientX, y: e.clientY });
       }}
       role="group"
@@ -481,110 +491,67 @@ function SandboxPaneInner({
           style={{ left: ctxMenu.x, top: ctxMenu.y }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <button
-            type="button"
-            className="sandbox-pane__ctx-item"
-            onClick={() => {
+          <SandboxCanvasMenu
+            sharing={ctxSharing}
+            username={ctxUsername}
+            onUsernameChange={setCtxUsername}
+            onSubmitShare={() => {
+              const username = ctxUsername.trim();
+              if (!username) return;
+              void onShare(username)
+                .then(() => {
+                  setCtxMenu(null);
+                  setCtxSharing(false);
+                  setCtxUsername('');
+                })
+                .catch(() => undefined);
+            }}
+            onCancelShare={() => setCtxSharing(false)}
+            onDuplicate={() => {
               setCtxMenu(null);
               onDuplicate();
             }}
-          >
-            Duplicate
-          </button>
-          <button
-            type="button"
-            className="sandbox-pane__ctx-item"
-            onClick={() => {
+            onRename={() => {
               setCtxMenu(null);
               setTitleDraft(doc.name);
               setEditingTitle(true);
             }}
-          >
-            Rename
-          </button>
-          <button
-            type="button"
-            className="sandbox-pane__ctx-item"
-            onClick={() => {
+            onSave={() => {
               setCtxMenu(null);
               onSave();
             }}
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            className="sandbox-pane__ctx-item"
-            onClick={() => {
+            onStartShare={() => setCtxSharing(true)}
+            onClose={() => {
               setCtxMenu(null);
               onClose();
             }}
-          >
-            Close
-          </button>
-          <button
-            type="button"
-            className="sandbox-pane__ctx-item"
-            onClick={() => {
+            onNewSandbox={() => {
               setCtxMenu(null);
               onNewSandbox();
             }}
-          >
-            New sandbox
-          </button>
-          <div className="sandbox-pane__ctx-sep" role="separator" />
-          <button
-            type="button"
-            className="sandbox-pane__ctx-item"
-            onClick={() => {
+            onAddNode={() => {
               setCtxMenu(null);
               onAddNode();
             }}
-          >
-            Add node
-          </button>
-          <button
-            type="button"
-            className="sandbox-pane__ctx-item"
-            onClick={() => {
+            onAddEdge={() => {
               setCtxMenu(null);
               onAddEdge();
             }}
-          >
-            Add edge
-          </button>
-          {onPlaceText ? (
-            <button
-              type="button"
-              className="sandbox-pane__ctx-item"
-              onClick={() => {
-                const point = screenToFlowPosition({ x: ctxMenu.x, y: ctxMenu.y });
-                setCtxMenu(null);
-                onPlaceText(point.x, point.y);
-              }}
-            >
-              Add text
-            </button>
-          ) : null}
-          {recentIcons.length > 0 ? (
-            <>
-              <div className="sandbox-pane__ctx-sep" role="separator" />
-              {recentIcons.map((iconKey) => (
-                <button
-                  key={iconKey}
-                  type="button"
-                  className="sandbox-pane__ctx-item sandbox-pane__ctx-item--icon"
-                  onClick={() => {
+            onAddText={
+              onPlaceText
+                ? () => {
+                    const point = screenToFlowPosition({ x: ctxMenu.x, y: ctxMenu.y });
                     setCtxMenu(null);
-                    onPickRecentIcon(iconKey);
-                  }}
-                >
-                  <SandboxIconGlyph iconKey={iconKey} />
-                  <span>{sandboxIconLabel(iconKey)}</span>
-                </button>
-              ))}
-            </>
-          ) : null}
+                    onPlaceText(point.x, point.y);
+                  }
+                : null
+            }
+            recentIcons={recentIcons}
+            onPickRecentIcon={(iconKey) => {
+              setCtxMenu(null);
+              onPickRecentIcon(iconKey);
+            }}
+          />
         </div>
       ) : null}
       <div className="sandbox-pane__canvas">
