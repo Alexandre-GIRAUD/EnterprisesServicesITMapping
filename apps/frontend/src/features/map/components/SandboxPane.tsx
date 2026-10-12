@@ -37,7 +37,6 @@ import {
 } from '../utils/sandboxDocuments';
 import { CloseIcon } from './CloseIcon';
 import { SandboxCanvasMenu } from './SandboxCanvasMenu';
-import { SandboxIconGlyph } from './SandboxIconGlyph';
 
 type Props = {
   doc: SandboxDocument;
