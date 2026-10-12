@@ -1,9 +1,21 @@
 export type ViewMenuTarget = 'empty' | 'view' | 'folder';
 
-const ROW_MENU = ['Rename', 'Move', 'Share', 'Delete', 'New folder'] as const;
+export const VIEW_MENU_RENAME = 'Rename';
+export const VIEW_MENU_MOVE = 'Move';
+export const VIEW_MENU_SHARE = 'Share';
+export const VIEW_MENU_DELETE = 'Delete';
+export const VIEW_MENU_NEW_FOLDER = 'New folder';
+
+const ROW_MENU = [
+  VIEW_MENU_RENAME,
+  VIEW_MENU_MOVE,
+  VIEW_MENU_SHARE,
+  VIEW_MENU_DELETE,
+  VIEW_MENU_NEW_FOLDER,
+] as const;
 
 export function viewMenuEntries(target: ViewMenuTarget): readonly string[] {
-  if (target === 'empty') return ['New folder'];
+  if (target === 'empty') return [VIEW_MENU_NEW_FOLDER];
   return ROW_MENU;
 }
 

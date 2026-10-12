@@ -4,6 +4,11 @@ import type { GraphSnapshotDto, GraphSnapshotFilters, GraphViewFolderDto } from 
 import {
   folderParentForNewFolder,
   savedViewActivation,
+  VIEW_MENU_DELETE,
+  VIEW_MENU_MOVE,
+  VIEW_MENU_NEW_FOLDER,
+  VIEW_MENU_RENAME,
+  VIEW_MENU_SHARE,
   viewMenuEntries,
   type ViewMenuTarget,
 } from '../utils/viewContextMenu';
@@ -113,37 +118,59 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
 
   function createFolderIn(parentId: string | null) {
     if (!canCreateIn(folderNodes, parentId)) return;
-    void library.createFolder(nextFolderName(folderNodes, viewNames, parentId), parentId).catch(() => undefined);
+    void library.createFolder(nextFolderName(folderNodes, viewNames, parentId), parentId).catch((error: unknown) => {
+      library.setErrorMessage(error instanceof Error ? error.message : 'Unable to create the folder.');
+    });
   }
 
-  function openContextMenu(event: ReactMouseEvent, target: ViewMenuTarget, item: DragItem | null, name: string) {
+  function openContextMenu(event: ReactMouseEvent, menu: { target: ViewMenuTarget; item: DragItem | null; name: string }) {
     event.preventDefault();
     event.stopPropagation();
     setMenu(null);
-    setContextMenu({ x: event.clientX, y: event.clientY, target, item, name });
+    setContextMenu({ x: event.clientX, y: event.clientY, ...menu });
   }
 
-  function runContextAction(label: string) {
-    const current = contextMenu;
-    if (!current) return;
-    setContextMenu(null);
-    if (label === 'New folder') {
-      const parentId = folderParentForNewFolder(
-        current.target,
-        current.target === 'folder' ? current.item?.id ?? null : null,
-        currentFolderId,
-      );
-      createFolderIn(parentId);
+  function newFolderParent(target: ViewMenuTarget, itemId: string | null): string | null {
+    return folderParentForNewFolder(target, target === 'folder' ? itemId : null, currentFolderId);
+  }
+
+  function runRowAction(label: string, row: { target: ViewMenuTarget; item: DragItem | null; name: string }) {
+    if (label === VIEW_MENU_NEW_FOLDER) {
+      createFolderIn(newFolderParent(row.target, row.item?.id ?? null));
       return;
     }
-    if (!current.item) return;
-    if (label === 'Rename') startRename(current.item, current.name);
-    if (label === 'Move') startMove(current.item);
-    if (label === 'Share') startShare(current.item);
-    if (label === 'Delete') {
-      const folder = library.folders.find((entry) => entry.id === current.item?.id);
-      deleteRow({ kind: current.item.kind, id: current.item.id, name: current.name, folder });
+    if (!row.item) return;
+    if (label === VIEW_MENU_RENAME) startRename(row.item, row.name);
+    if (label === VIEW_MENU_MOVE) startMove(row.item);
+    if (label === VIEW_MENU_SHARE) startShare(row.item);
+    if (label === VIEW_MENU_DELETE) {
+      const folder = library.folders.find((entry) => entry.id === row.item?.id);
+      deleteRow({ kind: row.item.kind, id: row.item.id, name: row.name, folder });
     }
+  }
+
+  function menuButtons(
+    row: { target: ViewMenuTarget; item: DragItem | null; name: string },
+    closeMenu: () => void,
+  ) {
+    return viewMenuEntries(row.target).map((label) => {
+      const isNewFolderBlocked =
+        label === VIEW_MENU_NEW_FOLDER && !canCreateIn(folderNodes, newFolderParent(row.target, row.item?.id ?? null));
+      return (
+        <button
+          key={label}
+          type="button"
+          role="menuitem"
+          disabled={isNewFolderBlocked}
+          onClick={() => {
+            closeMenu();
+            runRowAction(label, row);
+          }}
+        >
+          {label}
+        </button>
+      );
+    });
   }
 
   function startMove(item: DragItem) {
@@ -237,7 +264,11 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
       className="graph-views-pane"
       role="tabpanel"
       aria-labelledby="graph-mode-tab-views"
-      onContextMenu={(event) => openContextMenu(event, 'empty', null, '')}
+      onContextMenu={(event) => {
+        const target = event.target as HTMLElement | null;
+        if (target?.closest('.graph-views-pane-header')) return;
+        openContextMenu(event, { target: 'empty', item: null, name: '' });
+      }}
     >
       <header className="graph-views-pane-header">
         <h2 className="graph-views-pane-title">My views</h2>
@@ -303,7 +334,7 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
                   setDragItem(null);
                   setDropParentId(null);
                 }}
-                onContextMenu={(event) => openContextMenu(event, row.kind, item, row.name)}
+                onContextMenu={(event) => openContextMenu(event, { target: row.kind, item, name: row.name })}
                 onDragOver={(event) => {
                   if (row.kind !== 'folder' || !dragItem) return;
                   if (!canDrop(dragItem, row.id, folderNodes, viewNames, library.folders, library.snapshots)) return;
@@ -388,31 +419,7 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
                   </button>
                   {menu?.kind === row.kind && menu.id === row.id ? (
                     <div className="graph-views-actions-menu" role="menu">
-                      <button type="button" role="menuitem" onClick={() => startRename(item, row.name)}>
-                        Rename
-                      </button>
-                      <button type="button" role="menuitem" onClick={() => startMove(item)}>
-                        Move
-                      </button>
-                      <button type="button" role="menuitem" onClick={() => startShare(item)}>
-                        Share
-                      </button>
-                      <button type="button" role="menuitem" onClick={() => deleteRow(row)}>
-                        Delete
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        disabled={!canCreateIn(folderNodes, folderParentForNewFolder(row.kind, row.kind === 'folder' ? row.id : null, currentFolderId))}
-                        onClick={() => {
-                          setMenu(null);
-                          createFolderIn(
-                            folderParentForNewFolder(row.kind, row.kind === 'folder' ? row.id : null, currentFolderId),
-                          );
-                        }}
-                      >
-                        New folder
-                      </button>
+                      {menuButtons({ target: row.kind, item, name: row.name }, () => setMenu(null))}
                     </div>
                   ) : null}
                 </div>
@@ -459,25 +466,10 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onMouseDown={(event) => event.stopPropagation()}
         >
-          {viewMenuEntries(contextMenu.target).map((label) => {
-            const parentId = folderParentForNewFolder(
-              contextMenu.target,
-              contextMenu.target === 'folder' ? contextMenu.item?.id ?? null : null,
-              currentFolderId,
-            );
-            const isNewFolderBlocked = label === 'New folder' && !canCreateIn(folderNodes, parentId);
-            return (
-              <button
-                key={label}
-                type="button"
-                role="menuitem"
-                disabled={isNewFolderBlocked}
-                onClick={() => runContextAction(label)}
-              >
-                {label}
-              </button>
-            );
-          })}
+          {menuButtons(
+            { target: contextMenu.target, item: contextMenu.item, name: contextMenu.name },
+            () => setContextMenu(null),
+          )}
         </div>
       ) : null}
     </div>
