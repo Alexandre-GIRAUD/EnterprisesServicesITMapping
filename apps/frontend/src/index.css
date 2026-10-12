@@ -7123,6 +7123,8 @@ html[data-theme='dark'] video,
 html[data-theme='dark'] .react-flow__node,
 html[data-theme='dark'] .react-flow__edge,
 html[data-theme='dark'] .react-flow__edgelabel,
+html[data-theme='dark'] .react-flow__arrowhead,
+html[data-theme='dark'] .react-flow__marker,
 html[data-theme='dark'] .graph-legend__swatch {
   filter: invert(1) hue-rotate(180deg);
 }

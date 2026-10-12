@@ -10,7 +10,7 @@
         if (localStorage.getItem('flowra-theme') === 'dark') {
           document.documentElement.dataset.theme = 'dark';
         }
-      } catch (error) {
+      } catch {
         /* Storage can be blocked; the header button still toggles the theme. */
       }
     </script>
