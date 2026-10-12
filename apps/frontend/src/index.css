@@ -7111,15 +7111,14 @@ body {
 }
 
 /* ponytail: one invert flips light chrome to dark and dark chrome to light.
-   Data colors and images are inverted back. Ceiling: shadows can look odd.
-   Upgrade path: tokenized colors if the invert artifacts are unacceptable. */
+   Graph marks are inverted back so data colors hold. A dark logo is left
+   inverted so it stays visible on the new dark ground.
+   Ceiling: shadows can look odd. Upgrade path: tokenized colors. */
 html[data-theme='dark'] {
   background-color: #f8fafc;
   filter: invert(1) hue-rotate(180deg);
 }
 
-html[data-theme='dark'] img,
-html[data-theme='dark'] video,
 html[data-theme='dark'] .react-flow__node,
 html[data-theme='dark'] .react-flow__edge,
 html[data-theme='dark'] .react-flow__edgelabel,
