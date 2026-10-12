@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import flowraLogo from '@/assets/flowra.svg.svg';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { GraphSnapshotsProvider } from '@/features/map/context/GraphSnapshotsContext';
 import type { MapLocationState } from '@/features/map/utils/mapNavigation';
+import { COLOR_THEME_STORAGE_KEY, storedColorTheme, toggledColorTheme, type ColorTheme } from './colorTheme';
 
 function navigationLinkClassName({ isActive }: { isActive: boolean }) {
   return `layout-header-link${isActive ? ' is-active' : ''}`;
@@ -12,6 +14,14 @@ export function Layout() {
   const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const roleLabel = user?.roles?.length ? user.roles.join(' · ') : null;
+  const [theme, setTheme] = useState<ColorTheme>(() =>
+    storedColorTheme(localStorage.getItem(COLOR_THEME_STORAGE_KEY)),
+  );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(COLOR_THEME_STORAGE_KEY, theme);
+  }, [theme]);
 
   return (
     <GraphSnapshotsProvider>
@@ -36,30 +46,42 @@ export function Layout() {
                 </span>
               ) : null}
             </div>
-            {user ? (
-              <div className="layout-header-actions">
-                <NavLink
-                  to="/map"
-                  end
-                  state={{ graphMode: 'normal' } satisfies MapLocationState}
-                  className={navigationLinkClassName}
-                >
-                  Cartography
-                </NavLink>
-                <NavLink to="/data-model" className={navigationLinkClassName}>
-                  Data Model
-                </NavLink>
-                <NavLink to="/map/import-github" className={navigationLinkClassName}>
-                  Sources
-                </NavLink>
-                <NavLink to="/admin/changes" className={navigationLinkClassName}>
-                  Changes
-                </NavLink>
-                {isAdmin ? (
-                  <NavLink to="/admin/users" className={navigationLinkClassName}>
-                    Admin
+            <div className="layout-header-actions">
+              {user ? (
+                <>
+                  <NavLink
+                    to="/map"
+                    end
+                    state={{ graphMode: 'normal' } satisfies MapLocationState}
+                    className={navigationLinkClassName}
+                  >
+                    Cartography
                   </NavLink>
-                ) : null}
+                  <NavLink to="/data-model" className={navigationLinkClassName}>
+                    Data Model
+                  </NavLink>
+                  <NavLink to="/map/import-github" className={navigationLinkClassName}>
+                    Sources
+                  </NavLink>
+                  <NavLink to="/admin/changes" className={navigationLinkClassName}>
+                    Changes
+                  </NavLink>
+                  {isAdmin ? (
+                    <NavLink to="/admin/users" className={navigationLinkClassName}>
+                      Admin
+                    </NavLink>
+                  ) : null}
+                </>
+              ) : null}
+              <button
+                type="button"
+                className="layout-header-btn"
+                aria-pressed={theme === 'dark'}
+                onClick={() => setTheme((current) => toggledColorTheme(current))}
+              >
+                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              </button>
+              {user ? (
                 <button
                   type="button"
                   className="layout-header-btn"
@@ -70,8 +92,8 @@ export function Layout() {
                 >
                   Sign out
                 </button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         </header>
         <main className="layout-main">
