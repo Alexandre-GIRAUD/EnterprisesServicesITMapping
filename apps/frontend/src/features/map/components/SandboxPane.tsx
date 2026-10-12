@@ -178,8 +178,8 @@ function SandboxPaneInner({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(doc.name);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
-  const [ctxSharing, setCtxSharing] = useState(false);
-  const [ctxUsername, setCtxUsername] = useState('');
+  const [isContextShareOpen, setIsContextShareOpen] = useState(false);
+  const [shareUsername, setShareUsername] = useState('');
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const lastNodeClickRef = useRef<{ nodeId: string; time: number } | null>(null);
   const nodeClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -193,8 +193,8 @@ function SandboxPaneInner({
     if (!ctxMenu) return;
     const close = () => {
       setCtxMenu(null);
-      setCtxSharing(false);
-      setCtxUsername('');
+      setIsContextShareOpen(false);
+      setShareUsername('');
     };
     window.addEventListener('mousedown', close);
     return () => window.removeEventListener('mousedown', close);
@@ -433,8 +433,8 @@ function SandboxPaneInner({
       onContextMenu={(e) => {
         e.preventDefault();
         onActivate();
-        setCtxSharing(false);
-        setCtxUsername('');
+        setIsContextShareOpen(false);
+        setShareUsername('');
         setCtxMenu({ x: e.clientX, y: e.clientY });
       }}
       role="group"
@@ -491,21 +491,23 @@ function SandboxPaneInner({
           onMouseDown={(e) => e.stopPropagation()}
         >
           <SandboxCanvasMenu
-            sharing={ctxSharing}
-            username={ctxUsername}
-            onUsernameChange={setCtxUsername}
+            isSharing={isContextShareOpen}
+            username={shareUsername}
+            onUsernameChange={setShareUsername}
             onSubmitShare={() => {
-              const username = ctxUsername.trim();
+              const username = shareUsername.trim();
               if (!username) return;
               void onShare(username)
                 .then(() => {
                   setCtxMenu(null);
-                  setCtxSharing(false);
-                  setCtxUsername('');
+                  setIsContextShareOpen(false);
+                  setShareUsername('');
                 })
-                .catch(() => undefined);
+                .catch(() => {
+                  // The caller reports the failure. Keep the username field open.
+                });
             }}
-            onCancelShare={() => setCtxSharing(false)}
+            onCancelShare={() => setIsContextShareOpen(false)}
             onDuplicate={() => {
               setCtxMenu(null);
               onDuplicate();
@@ -519,7 +521,7 @@ function SandboxPaneInner({
               setCtxMenu(null);
               onSave();
             }}
-            onStartShare={() => setCtxSharing(true)}
+            onStartShare={() => setIsContextShareOpen(true)}
             onClose={() => {
               setCtxMenu(null);
               onClose();

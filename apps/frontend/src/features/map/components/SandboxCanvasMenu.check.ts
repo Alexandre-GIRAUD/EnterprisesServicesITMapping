@@ -18,7 +18,7 @@ function labels(html: string): string[] {
 const actions = labels(
   renderToStaticMarkup(
     createElement(SandboxCanvasMenu, {
-      sharing: false,
+      isSharing: false,
       username: '',
       onUsernameChange: noop,
       onSubmitShare: noop,
@@ -43,7 +43,7 @@ assert.equal(actions[saveIndex + 1], 'Share');
 
 const shareForm = renderToStaticMarkup(
   createElement(SandboxCanvasMenu, {
-    sharing: true,
+    isSharing: true,
     username: '',
     onUsernameChange: noop,
     onSubmitShare: noop,

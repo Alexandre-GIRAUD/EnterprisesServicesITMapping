@@ -3,7 +3,7 @@ import { sandboxIconLabel } from '../utils/sandboxDocuments';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 
 type SandboxCanvasMenuProps = {
-  sharing: boolean;
+  isSharing: boolean;
   username: string;
   onUsernameChange: (value: string) => void;
   onSubmitShare: () => void;
@@ -31,7 +31,7 @@ function MenuItem({ label, onClick }: { label: string; onClick: () => void }) {
 
 /** Canvas right-click actions. Share replaces the list with a username field. */
 export function SandboxCanvasMenu({
-  sharing,
+  isSharing,
   username,
   onUsernameChange,
   onSubmitShare,
@@ -48,7 +48,7 @@ export function SandboxCanvasMenu({
   recentIcons,
   onPickRecentIcon,
 }: SandboxCanvasMenuProps) {
-  if (sharing) {
+  if (isSharing) {
     return (
       <>
         <input

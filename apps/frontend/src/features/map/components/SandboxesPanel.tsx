@@ -97,7 +97,7 @@ export function SandboxesPanel({
   onDeleteSavedSandbox,
   onShareActive,
 }: SandboxesPanelProps) {
-  const [sharing, setSharing] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [draftUsername, setDraftUsername] = useState('');
   const openSandboxCount = openSandboxes.length;
   const layouts = sandboxLayoutsForCount(openSandboxCount);
@@ -112,7 +112,7 @@ export function SandboxesPanel({
     try {
       await onShareActive(username);
       setDraftUsername('');
-      setSharing(false);
+      setIsShareOpen(false);
     } catch {
       // The caller reports the failure.
     }
@@ -159,16 +159,16 @@ export function SandboxesPanel({
           type="button"
           className="sandbox-manage-chip"
           disabled={!canSave}
-          aria-expanded={sharing}
+          aria-expanded={isShareOpen}
           onClick={() => {
-            setSharing((open) => !open);
+            setIsShareOpen((open) => !open);
             setDraftUsername('');
           }}
         >
           Share
         </button>
       </div>
-      {sharing ? (
+      {isShareOpen ? (
         <div className="sandbox-manage-load-row">
           <input
             className="graph-drawer-input"
@@ -180,7 +180,7 @@ export function SandboxesPanel({
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
                 event.preventDefault();
-                setSharing(false);
+                setIsShareOpen(false);
               }
               if (event.key !== 'Enter') return;
               event.preventDefault();
