@@ -125,13 +125,8 @@ export function CreateTablePanel({
     if (!selectedId) {
       const name = window.prompt('Table name')?.trim() ?? '';
       if (!name) return;
-      const existing = savedTables.find((table) => table.name === name);
-      const id = existing?.id ?? newTableId();
-      setSavedTables((current) =>
-        existing
-          ? current.map((table) => (table.id === id ? { ...table, name, ...axesOf(activeSetup) } : table))
-          : [...current, { id, name, ...axesOf(activeSetup) }],
-      );
+      const id = newTableId();
+      setSavedTables((current) => [...current, { id, name, ...axesOf(activeSetup) }]);
       setSelectedId(id);
       return;
     }
