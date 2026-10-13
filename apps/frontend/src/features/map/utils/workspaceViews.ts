@@ -1,11 +1,12 @@
-/** Rows of Production / Sandbox / My views shown in the side menu. */
-export function visibleWorkspaceViews<T extends { mode: string }>(
+const FIRST_VISIBLE_VIEW = 1;
+
+/** Which Production / Sandbox / My views rows stay on screen. */
+export function selectVisibleWorkspaceViews<T extends { mode: string }>(
   views: readonly T[],
-  activeMode: string,
-  pointerInside: boolean,
-  closedUntilLeave: boolean,
+  visibility: { activeMode: string; isPointerInside: boolean; isClosedUntilLeave: boolean },
 ): readonly T[] {
-  if (pointerInside && !closedUntilLeave) return views;
-  const active = views.filter((view) => view.mode === activeMode);
-  return active.length > 0 ? active : views.slice(0, 1);
+  if (visibility.isPointerInside && !visibility.isClosedUntilLeave) return views;
+  const active = views.filter((view) => view.mode === visibility.activeMode);
+  if (active.length > 0) return active;
+  return views.slice(0, FIRST_VISIBLE_VIEW);
 }

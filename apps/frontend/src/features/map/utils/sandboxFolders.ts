@@ -11,15 +11,23 @@ import {
 export type SandboxFolder = FolderNode;
 export type FiledSandbox = ViewName;
 
+export type SandboxLibrary = {
+  folders: readonly SandboxFolder[];
+  sandboxes: readonly FiledSandbox[];
+};
+
 export const SANDBOX_FOLDERS_STORAGE_KEY = 'flowra.sandbox.folders';
+export const SANDBOX_ROOT_DESTINATION = 'root';
 export const SANDBOX_MENU_RENAME = 'Rename';
 export const SANDBOX_MENU_MOVE = 'Move';
 export const SANDBOX_MENU_DELETE = 'Delete';
 export const SANDBOX_MENU_NEW_FOLDER = 'New folder';
 
 const ROW_MENU = [SANDBOX_MENU_RENAME, SANDBOX_MENU_MOVE, SANDBOX_MENU_DELETE, SANDBOX_MENU_NEW_FOLDER] as const;
+const NAME_SORT: Intl.CollatorOptions = { sensitivity: 'base' };
+const PATH_SEPARATOR = ' / ';
 
-export function sandboxMenuEntries(target: 'empty' | 'sandbox' | 'folder'): readonly string[] {
+export function listSandboxMenuEntries(target: 'empty' | 'sandbox' | 'folder'): readonly string[] {
   if (target === 'empty') return [SANDBOX_MENU_NEW_FOLDER];
   return ROW_MENU;
 }
@@ -35,105 +43,88 @@ export function loadSandboxFolders(raw: string | null): SandboxFolder[] {
   }
 }
 
-export function createdSandboxFolder(
-  folders: readonly SandboxFolder[],
-  sandboxes: readonly FiledSandbox[],
+export function createSandboxFolderRecord(
+  library: SandboxLibrary,
   parentId: string | null,
   newId: string,
 ): SandboxFolder | null {
-  if (!canCreateIn(folders, parentId)) return null;
-  return { id: newId, parentId, name: nextFolderName(folders, sandboxes, parentId) };
+  if (!canCreateIn(library.folders, parentId)) return null;
+  return { id: newId, parentId, name: nextFolderName(library.folders, library.sandboxes, parentId) };
 }
 
-export function renamedSandboxFolder(
-  folders: readonly SandboxFolder[],
-  sandboxes: readonly FiledSandbox[],
+export function renameSandboxFolderRecord(
+  library: SandboxLibrary,
   folderId: string,
   name: string,
 ): SandboxFolder[] | null {
-  const folder = folders.find((entry) => entry.id === folderId);
+  const folder = library.folders.find((entry) => entry.id === folderId);
   const trimmed = name.trim();
   if (!folder || !trimmed) return null;
-  if (nameTaken(folders, sandboxes, folder.parentId, trimmed, folderId, null)) return null;
-  return folders.map((entry) => (entry.id === folderId ? { ...entry, name: trimmed } : entry));
+  if (nameTaken(library.folders, library.sandboxes, folder.parentId, trimmed, folderId, null)) return null;
+  return library.folders.map((entry) => (entry.id === folderId ? { ...entry, name: trimmed } : entry));
 }
 
-export function movedSandboxFolder(
-  folders: readonly SandboxFolder[],
-  sandboxes: readonly FiledSandbox[],
+export function moveSandboxFolderRecord(
+  library: SandboxLibrary,
   folderId: string,
   parentId: string | null,
 ): SandboxFolder[] | null {
-  const folder = folders.find((entry) => entry.id === folderId);
+  const folder = library.folders.find((entry) => entry.id === folderId);
   if (!folder || folder.parentId === parentId) return null;
-  if (!canMoveFolder(folders, folderId, parentId)) return null;
-  if (nameTaken(folders, sandboxes, parentId, folder.name, folderId, null)) return null;
-  return folders.map((entry) => (entry.id === folderId ? { ...entry, parentId } : entry));
+  if (!canMoveFolder(library.folders, folderId, parentId)) return null;
+  if (nameTaken(library.folders, library.sandboxes, parentId, folder.name, folderId, null)) return null;
+  return library.folders.map((entry) => (entry.id === folderId ? { ...entry, parentId } : entry));
 }
 
-export function renamedFiledSandbox(
-  folders: readonly SandboxFolder[],
-  sandboxes: readonly FiledSandbox[],
-  sandboxId: string,
-  name: string,
-): string | null {
-  const sandbox = sandboxes.find((entry) => entry.id === sandboxId);
+export function renameSavedSandboxRecord(library: SandboxLibrary, sandboxId: string, name: string): string | null {
+  const sandbox = library.sandboxes.find((entry) => entry.id === sandboxId);
   const trimmed = name.trim();
   if (!sandbox || !trimmed) return null;
-  if (nameTaken(folders, sandboxes, sandbox.folderId, trimmed, null, sandboxId)) return null;
+  if (nameTaken(library.folders, library.sandboxes, sandbox.folderId, trimmed, null, sandboxId)) return null;
   return trimmed;
 }
 
-export function canMoveSandbox(
-  folders: readonly SandboxFolder[],
-  sandboxes: readonly FiledSandbox[],
-  sandboxId: string,
-  folderId: string | null,
-): boolean {
-  const sandbox = sandboxes.find((entry) => entry.id === sandboxId);
+export function canMoveSandboxTo(library: SandboxLibrary, sandboxId: string, folderId: string | null): boolean {
+  const sandbox = library.sandboxes.find((entry) => entry.id === sandboxId);
   if (!sandbox || sandbox.folderId === folderId) return false;
-  return !nameTaken(folders, sandboxes, folderId, sandbox.name, null, sandboxId);
+  return !nameTaken(library.folders, library.sandboxes, folderId, sandbox.name, null, sandboxId);
 }
 
-export function deletedSandboxFolder(
-  folders: readonly SandboxFolder[],
-  sandboxes: readonly FiledSandbox[],
+/** Same rule as a view folder: the folder and everything inside it go away. */
+export function deleteSandboxFolderTree(
+  library: SandboxLibrary,
   folderId: string,
 ): { folders: SandboxFolder[]; sandboxIds: string[] } {
-  const gone = new Set([folderId, ...descendantFolderIds(folders, folderId)]);
+  const gone = new Set([folderId, ...descendantFolderIds(library.folders, folderId)]);
   return {
-    folders: folders.filter((folder) => !gone.has(folder.id)),
-    sandboxIds: sandboxes
+    folders: library.folders.filter((folder) => !gone.has(folder.id)),
+    sandboxIds: library.sandboxes
       .filter((sandbox) => sandbox.folderId != null && gone.has(sandbox.folderId))
       .map((sandbox) => sandbox.id),
   };
 }
 
-export function sandboxMoveDestinations(
-  kind: 'sandbox' | 'folder',
-  id: string,
-  folders: readonly SandboxFolder[],
-  sandboxes: readonly FiledSandbox[],
+export function listSandboxMoveDestinations(
+  library: SandboxLibrary,
+  item: { kind: 'sandbox' | 'folder'; id: string },
 ): { id: string; label: string }[] {
   const options: { id: string; label: string }[] = [];
-  if (canPlace(kind, id, null, folders, sandboxes)) options.push({ id: 'root', label: 'Saved' });
-  const ordered = [...folders].sort((left, right) => left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }));
+  if (canPlace(library, item, null)) options.push({ id: SANDBOX_ROOT_DESTINATION, label: 'Saved' });
+  const ordered = [...library.folders].sort((left, right) => left.name.localeCompare(right.name, undefined, NAME_SORT));
   for (const folder of ordered) {
-    if (!canPlace(kind, id, folder.id, folders, sandboxes)) continue;
-    options.push({ id: folder.id, label: folderPathLabel(folders, folder.id) });
+    if (!canPlace(library, item, folder.id)) continue;
+    options.push({ id: folder.id, label: folderPathLabel(library.folders, folder.id) });
   }
   return options;
 }
 
 function canPlace(
-  kind: 'sandbox' | 'folder',
-  id: string,
+  library: SandboxLibrary,
+  item: { kind: 'sandbox' | 'folder'; id: string },
   parentId: string | null,
-  folders: readonly SandboxFolder[],
-  sandboxes: readonly FiledSandbox[],
 ): boolean {
-  if (kind === 'folder') return movedSandboxFolder(folders, sandboxes, id, parentId) != null;
-  return canMoveSandbox(folders, sandboxes, id, parentId);
+  if (item.kind === 'folder') return moveSandboxFolderRecord(library, item.id, parentId) != null;
+  return canMoveSandboxTo(library, item.id, parentId);
 }
 
 function folderPathLabel(folders: readonly SandboxFolder[], folderId: string): string {
@@ -146,7 +137,7 @@ function folderPathLabel(folders: readonly SandboxFolder[], folderId: string): s
     const parentId = current.parentId;
     current = parentId ? folders.find((folder) => folder.id === parentId) : undefined;
   }
-  return names.reverse().join(' / ');
+  return names.reverse().join(PATH_SEPARATOR);
 }
 
 function isSandboxFolder(value: unknown): value is SandboxFolder {

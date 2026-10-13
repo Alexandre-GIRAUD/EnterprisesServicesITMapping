@@ -4,36 +4,58 @@
  */
 import assert from 'node:assert/strict';
 import {
-  canMoveSandbox,
-  createdSandboxFolder,
-  deletedSandboxFolder,
+  canMoveSandboxTo,
+  createSandboxFolderRecord,
+  deleteSandboxFolderTree,
+  listSandboxMenuEntries,
   loadSandboxFolders,
-  renamedSandboxFolder,
-  sandboxMenuEntries,
+  moveSandboxFolderRecord,
+  renameSandboxFolderRecord,
+  renameSavedSandboxRecord,
   type FiledSandbox,
   type SandboxFolder,
+  type SandboxLibrary,
 } from './sandboxFolders.ts';
 
 const sandboxes: FiledSandbox[] = [{ id: 'pay', folderId: null, name: 'Payroll' }];
+const emptyLibrary: SandboxLibrary = { folders: [], sandboxes };
 
-const created = createdSandboxFolder([], sandboxes, null, 'folder-1');
+const created = createSandboxFolderRecord(emptyLibrary, null, 'folder-1');
 assert.equal(created?.name, 'New folder');
 assert.equal(created?.parentId, null);
 
 const folders: SandboxFolder[] = [created!];
-assert.equal(createdSandboxFolder(folders, sandboxes, null, 'folder-2')?.name, 'New folder 2');
-assert.equal(renamedSandboxFolder(folders, sandboxes, 'folder-1', 'Payroll'), null);
-assert.equal(renamedSandboxFolder(folders, sandboxes, 'folder-1', 'Archive')?.[0]?.name, 'Archive');
+const rootLibrary: SandboxLibrary = { folders, sandboxes };
+assert.equal(createSandboxFolderRecord(rootLibrary, null, 'folder-2')?.name, 'New folder 2');
+assert.equal(renameSandboxFolderRecord(rootLibrary, 'folder-1', 'Payroll'), null);
+assert.equal(renameSandboxFolderRecord(rootLibrary, 'folder-1', 'Archive')?.[0]?.name, 'Archive');
 
 const filed: FiledSandbox[] = [{ id: 'pay', folderId: 'folder-1', name: 'Payroll' }];
-assert.equal(canMoveSandbox(folders, filed, 'pay', null), true);
-assert.equal(canMoveSandbox(folders, filed, 'pay', 'folder-1'), false);
+const filedLibrary: SandboxLibrary = { folders, sandboxes: filed };
+assert.equal(canMoveSandboxTo(filedLibrary, 'pay', null), true);
+assert.equal(canMoveSandboxTo(filedLibrary, 'pay', 'folder-1'), false);
+const conflictLibrary: SandboxLibrary = {
+  folders,
+  sandboxes: [
+    { id: 'pay', folderId: 'folder-1', name: 'Payroll' },
+    { id: 'ledger', folderId: 'folder-1', name: 'Ledger' },
+  ],
+};
+assert.equal(renameSavedSandboxRecord(conflictLibrary, 'pay', 'Payroll draft'), 'Payroll draft');
+assert.equal(renameSavedSandboxRecord(conflictLibrary, 'pay', 'Ledger'), null);
+assert.equal(moveSandboxFolderRecord(rootLibrary, 'folder-1', null), null);
+const moved = moveSandboxFolderRecord(
+  { folders: [...folders, { id: 'folder-2', parentId: null, name: 'Other' }], sandboxes },
+  'folder-1',
+  'folder-2',
+);
+assert.equal(moved?.find((folder) => folder.id === 'folder-1')?.parentId, 'folder-2');
 
 const nested: SandboxFolder[] = [
   { id: 'folder-1', parentId: null, name: 'Archive' },
   { id: 'child', parentId: 'folder-1', name: 'Old' },
 ];
-const removed = deletedSandboxFolder(nested, filed, 'folder-1');
+const removed = deleteSandboxFolderTree({ folders: nested, sandboxes: filed }, 'folder-1');
 assert.deepEqual(removed.folders, []);
 assert.deepEqual(removed.sandboxIds, ['pay']);
 
@@ -42,8 +64,8 @@ assert.deepEqual(loadSandboxFolders('nope'), []);
 assert.deepEqual(loadSandboxFolders(JSON.stringify([{ id: 'a', name: 'A', parentId: null }, { id: 1 }])), [
   { id: 'a', name: 'A', parentId: null },
 ]);
-assert.deepEqual(sandboxMenuEntries('empty'), ['New folder']);
-assert.ok(sandboxMenuEntries('sandbox').includes('Move'));
-assert.ok(!sandboxMenuEntries('sandbox').includes('Share'));
+assert.deepEqual(listSandboxMenuEntries('empty'), ['New folder']);
+assert.ok(listSandboxMenuEntries('sandbox').includes('Move'));
+assert.ok(!listSandboxMenuEntries('sandbox').includes('Share'));
 
 console.log('sandboxFolders.check: ok');

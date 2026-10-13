@@ -29,15 +29,16 @@ import {
 import { createClientUuid } from '../utils/clientId';
 import {
   SANDBOX_FOLDERS_STORAGE_KEY,
-  canMoveSandbox,
-  createdSandboxFolder,
-  deletedSandboxFolder,
+  canMoveSandboxTo,
+  createSandboxFolderRecord,
+  deleteSandboxFolderTree,
   loadSandboxFolders,
-  movedSandboxFolder,
-  renamedFiledSandbox,
-  renamedSandboxFolder,
+  moveSandboxFolderRecord,
+  renameSavedSandboxRecord,
+  renameSandboxFolderRecord,
   type FiledSandbox,
   type SandboxFolder,
+  type SandboxLibrary,
 } from '../utils/sandboxFolders';
 import { importSharedSandboxes } from '../utils/sandboxShare';
 
@@ -339,28 +340,24 @@ export function useSandboxes() {
   }, []);
 
   const createSandboxFolder = useCallback((parentId: string | null) => {
-    const created = createdSandboxFolder(
-      folders,
-      filedSandboxes(saved),
-      parentId,
-      `sandbox-folder-${createClientUuid()}`,
-    );
+    const library: SandboxLibrary = { folders, sandboxes: filedSandboxes(saved) };
+    const created = createSandboxFolderRecord(library, parentId, `sandbox-folder-${createClientUuid()}`);
     if (!created) return;
     writeFolders([...folders, created]);
   }, [filedSandboxes, folders, saved, writeFolders]);
 
   const renameSandboxFolder = useCallback((folderId: string, name: string) => {
-    const next = renamedSandboxFolder(folders, filedSandboxes(saved), folderId, name);
+    const next = renameSandboxFolderRecord({ folders, sandboxes: filedSandboxes(saved) }, folderId, name);
     if (next) writeFolders(next);
   }, [filedSandboxes, folders, saved, writeFolders]);
 
   const moveSandboxFolder = useCallback((folderId: string, parentId: string | null) => {
-    const next = movedSandboxFolder(folders, filedSandboxes(saved), folderId, parentId);
+    const next = moveSandboxFolderRecord({ folders, sandboxes: filedSandboxes(saved) }, folderId, parentId);
     if (next) writeFolders(next);
   }, [filedSandboxes, folders, saved, writeFolders]);
 
   const deleteSandboxFolder = useCallback((folderId: string) => {
-    const removed = deletedSandboxFolder(folders, filedSandboxes(saved), folderId);
+    const removed = deleteSandboxFolderTree({ folders, sandboxes: filedSandboxes(saved) }, folderId);
     writeFolders(removed.folders);
     setSaved((list) => {
       const next = list.filter((item) => !removed.sandboxIds.includes(item.id));
@@ -370,7 +367,7 @@ export function useSandboxes() {
   }, [filedSandboxes, folders, saved, writeFolders]);
 
   const renameSavedSandbox = useCallback((id: string, name: string) => {
-    const trimmed = renamedFiledSandbox(folders, filedSandboxes(saved), id, name);
+    const trimmed = renameSavedSandboxRecord({ folders, sandboxes: filedSandboxes(saved) }, id, name);
     if (!trimmed) return;
     setSaved((list) => {
       const next = list.map((item) =>
@@ -384,7 +381,7 @@ export function useSandboxes() {
 
   const moveSavedSandbox = useCallback((id: string, folderId: string | null) => {
     setSaved((list) => {
-      if (!canMoveSandbox(folders, filedSandboxes(list), id, folderId)) return list;
+      if (!canMoveSandboxTo({ folders, sandboxes: filedSandboxes(list) }, id, folderId)) return list;
       const next = list.map((item) => (item.id === id ? { ...item, folderId } : item));
       storeSavedSandboxes(next);
       return next;

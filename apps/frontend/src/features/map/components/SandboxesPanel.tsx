@@ -10,9 +10,10 @@ import {
   SANDBOX_MENU_MOVE,
   SANDBOX_MENU_NEW_FOLDER,
   SANDBOX_MENU_RENAME,
-  deletedSandboxFolder,
-  sandboxMenuEntries,
-  sandboxMoveDestinations,
+  SANDBOX_ROOT_DESTINATION,
+  deleteSandboxFolderTree,
+  listSandboxMenuEntries,
+  listSandboxMoveDestinations,
   type SandboxFolder,
 } from '../utils/sandboxFolders';
 import { parentFolderId } from '../utils/viewFolderRules';
@@ -295,14 +296,14 @@ function SavedSandboxLibrary({
   onMoveSaved: (id: string, folderId: string | null) => void;
 }) {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const [pointerInside, setPointerInside] = useState(false);
+  const [isPointerInside, setIsPointerInside] = useState(false);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [menu, setMenu] = useState<SavedMenu | null>(null);
   const [editing, setEditing] = useState<SavedTarget | null>(null);
   const [draftName, setDraftName] = useState('');
   const [moving, setMoving] = useState<SavedTarget | null>(null);
   const openFolderId = folders.some((folder) => folder.id === currentFolderId) ? currentFolderId : null;
-  const listOpen = pointerInside || menu != null || editing != null || moving != null;
+  const isListOpen = isPointerInside || menu != null || editing != null || moving != null;
   const filed = savedSandboxes.map((sandbox) => ({
     id: sandbox.id,
     folderId: sandbox.folderId ?? null,
@@ -333,7 +334,7 @@ function SavedSandboxLibrary({
   }
 
   function removeFolder(folder: SandboxFolder) {
-    const removed = deletedSandboxFolder(folders, filed, folder.id);
+    const removed = deleteSandboxFolderTree({ folders, sandboxes: filed }, folder.id);
     const nested = Math.max(0, folders.length - removed.folders.length - 1);
     const message = `Delete folder "${folder.name}" and its contents (${removed.sandboxIds.length} sandboxes, ${nested} folders)?`;
     if (!window.confirm(message)) return;
@@ -345,8 +346,8 @@ function SavedSandboxLibrary({
     <section
       ref={sectionRef}
       className="sandbox-saved"
-      onMouseEnter={() => setPointerInside(true)}
-      onMouseLeave={() => setPointerInside(false)}
+      onMouseEnter={() => setIsPointerInside(true)}
+      onMouseLeave={() => setIsPointerInside(false)}
       onContextMenu={(event) => {
         const target = event.target as HTMLElement | null;
         if (target?.closest('.sandbox-saved-row, .sandbox-saved-bar')) return;
@@ -359,7 +360,7 @@ function SavedSandboxLibrary({
           New folder
         </button>
       </div>
-      {listOpen ? (
+      {isListOpen ? (
         <>
           {openFolderId ? (
             <button
@@ -468,7 +469,7 @@ function SavedSandboxLibrary({
       ) : null}
       {menu ? (
         <div className="sandbox-saved-menu" role="menu" style={{ left: menu.x, top: menu.y }}>
-          {sandboxMenuEntries(menu.target).map((label) => (
+          {listSandboxMenuEntries(menu.target).map((label) => (
             <button
               key={label}
               type="button"
@@ -576,7 +577,7 @@ function MoveField({
   filed: { id: string; folderId: string | null; name: string }[];
   onMove: (parentId: string | null) => void;
 }) {
-  const destinations = sandboxMoveDestinations(kind, id, folders, filed);
+  const destinations = listSandboxMoveDestinations({ folders, sandboxes: filed }, { kind, id });
   return (
     <select
       className="graph-views-move"
@@ -585,7 +586,7 @@ function MoveField({
       onChange={(event) => {
         const value = event.target.value;
         if (!value) return;
-        onMove(value === 'root' ? null : value);
+        onMove(value === SANDBOX_ROOT_DESTINATION ? null : value);
       }}
     >
       <option value="">Move to…</option>
