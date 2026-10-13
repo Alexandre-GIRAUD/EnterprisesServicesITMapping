@@ -1813,21 +1813,15 @@ body {
 }
 
 .map-graph-panel.is-views-mode .graph-views-pane {
-  background: #ffffff;
+  background: transparent;
   box-shadow: none;
 }
 
-.map-graph-panel.is-views-mode .graph-views-item--view .graph-views-item-btn:hover {
-  border-color: var(--ss-accent-border);
-  background: #ffffff;
-  box-shadow: 0 4px 14px var(--ss-accent-shadow);
-}
-
-.map-graph-panel.is-views-mode .graph-views-item--folder .graph-views-item-btn,
+.map-graph-panel.is-views-mode .graph-views-item--view .graph-views-item-btn:hover,
 .map-graph-panel.is-views-mode .graph-views-item--folder .graph-views-item-btn:hover {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  box-shadow: none;
+  border-color: #86efac;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgb(34 197 94 / 18%);
 }
 
 .map-graph-panel.is-views-mode .graph-views-item-btn:focus-visible {
@@ -4622,30 +4616,32 @@ body {
   flex: 1;
   min-height: 0;
   width: 100%;
-  padding: 1.35rem 1.5rem 1.5rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #ffffff;
+  padding: 0.15rem 0 0.5rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
   overflow-y: auto;
 }
 
-.graph-views-pane-header {
+.graph-views-toolbar {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.55rem;
-  margin-bottom: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
-.graph-views-crumbs {
+.graph-views-toolbar-start {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 0.35rem;
+  min-width: 0;
 }
 
-.graph-views-crumb,
-.graph-views-new {
+.graph-views-new,
+.graph-views-back,
+.graph-views-layout {
   border: 1px solid #e2e8f0;
   border-radius: 999px;
   background: #ffffff;
@@ -4657,7 +4653,25 @@ body {
   cursor: pointer;
 }
 
-.graph-views-crumb.is-drop-target,
+.graph-views-back,
+.graph-views-layout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+}
+
+.graph-views-new:hover:not(:disabled),
+.graph-views-back:hover,
+.graph-views-layout:hover {
+  border-color: #86efac;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgb(34 197 94 / 18%);
+  color: #14532d;
+}
+
 .graph-views-item.is-drop-target {
   outline: 2px dashed #94a3b8;
   outline-offset: 2px;
@@ -4707,6 +4721,29 @@ body {
   gap: 0.55rem;
 }
 
+.graph-views-list.is-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+}
+
+.graph-views-list.is-grid .graph-views-item {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.graph-views-list.is-grid .graph-views-item-btn {
+  flex-direction: column;
+  justify-content: center;
+  min-height: 5.5rem;
+  text-align: center;
+  padding: 0.55rem 0.4rem;
+}
+
+.graph-views-list.is-grid .graph-views-item-name {
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
 .graph-views-item {
   display: flex;
   flex-wrap: wrap;
@@ -4733,11 +4770,18 @@ body {
     background-color 160ms ease;
 }
 
-.graph-views-item--folder .graph-views-item-btn,
-.graph-views-item--folder .graph-views-item-btn:hover {
+.graph-views-item--folder .graph-views-item-btn {
   background: #eff6ff;
   border-color: #bfdbfe;
   box-shadow: none;
+}
+
+.graph-views-item--folder .graph-views-item-btn:hover,
+.map-graph-panel.is-views-mode .graph-views-item--view .graph-views-item-btn:hover,
+.map-graph-panel.is-views-mode .graph-views-item--folder .graph-views-item-btn:hover {
+  border-color: #86efac;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgb(34 197 94 / 18%);
 }
 
 .graph-views-item--folder .graph-views-item-mark {

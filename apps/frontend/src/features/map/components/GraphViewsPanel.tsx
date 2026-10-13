@@ -18,9 +18,11 @@ import {
   descendantFolderIds,
   nameTaken,
   nextFolderName,
+  parentFolderId,
   type FolderNode,
   type ViewName,
 } from '../utils/viewFolderRules';
+import { nextViewLayout, storedViewLayout, VIEW_LAYOUT_STORAGE_KEY, type ViewLayout } from '../utils/viewLayout';
 
 type GraphViewsPanelProps = {
   onApply: (filters: GraphSnapshotFilters) => void;
@@ -42,13 +44,14 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
   const [editing, setEditing] = useState<DragItem | null>(null);
   const [draftName, setDraftName] = useState('');
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
-  const [dropParentId, setDropParentId] = useState<string | 'root' | null>(null);
+  const [dropParentId, setDropParentId] = useState<string | null>(null);
   const [moving, setMoving] = useState<DragItem | null>(null);
   const [sharing, setSharing] = useState<DragItem | null>(null);
   const [menu, setMenu] = useState<DragItem | null>(null);
   const [contextMenu, setContextMenu] = useState<ViewContextMenu | null>(null);
   const [draftUsername, setDraftUsername] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
+  const [layout, setLayout] = useState<ViewLayout>(() => readStoredViewLayout());
   const menuRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -95,7 +98,6 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
     [library.snapshots],
   );
 
-  const path = useMemo(() => breadcrumb(library.folders, currentFolderId), [library.folders, currentFolderId]);
   const childFolders = library.folders
     .filter((folder) => folder.parentId === currentFolderId)
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
@@ -266,52 +268,47 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
       aria-labelledby="graph-mode-tab-views"
       onContextMenu={(event) => {
         const target = event.target as HTMLElement | null;
-        if (target?.closest('.graph-views-pane-header')) return;
+        if (target?.closest('.graph-views-toolbar')) return;
         openContextMenu(event, { target: 'empty', item: null, name: '' });
       }}
     >
-      <header className="graph-views-pane-header">
-        <h2 className="graph-views-pane-title">My views</h2>
-        <nav className="graph-views-crumbs" aria-label="Folder path">
+      <div className="graph-views-toolbar">
+        <div className="graph-views-toolbar-start">
+          {currentFolderId ? (
+            <button
+              type="button"
+              className="graph-views-back"
+              aria-label="Back"
+              onClick={() => setCurrentFolderId(parentFolderId(folderNodes, currentFolderId))}
+            >
+              <BackArrow />
+            </button>
+          ) : null}
           <button
             type="button"
-            className={`graph-views-crumb${dropParentId === 'root' ? ' is-drop-target' : ''}`}
-            onClick={() => setCurrentFolderId(null)}
-            onDragOver={(event) => {
-              if (!dragItem || !canDrop(dragItem, null, folderNodes, viewNames, library.folders, library.snapshots)) return;
-              event.preventDefault();
-              setDropParentId('root');
-            }}
-            onDragLeave={() => setDropParentId(null)}
-            onDrop={(event) => {
-              event.preventDefault();
-              if (dragItem) void place(dragItem, null);
-              setDragItem(null);
-              setDropParentId(null);
-            }}
+            className="graph-views-new"
+            disabled={!canCreateIn(folderNodes, currentFolderId)}
+            onClick={() => createFolderIn(currentFolderId)}
           >
-            My views
+            New folder
           </button>
-          {path.map((folder) => (
-            <button
-              key={folder.id}
-              type="button"
-              className="graph-views-crumb"
-              onClick={() => setCurrentFolderId(folder.id)}
-            >
-              {folder.name}
-            </button>
-          ))}
-        </nav>
+        </div>
         <button
           type="button"
-          className="graph-views-new"
-          disabled={!canCreateIn(folderNodes, currentFolderId)}
-          onClick={() => createFolderIn(currentFolderId)}
+          className="graph-views-layout"
+          aria-label={layout === 'grid' ? 'Show as a list' : 'Show as squares'}
+          aria-pressed={layout === 'grid'}
+          onClick={() => {
+            setLayout((current) => {
+              const next = nextViewLayout(current);
+              localStorage.setItem(VIEW_LAYOUT_STORAGE_KEY, next);
+              return next;
+            });
+          }}
         >
-          New folder
+          {layout === 'grid' ? <ListGlyph /> : <GridGlyph />}
         </button>
-      </header>
+      </div>
       {library.errorMessage ? (
         <p className="graph-views-state graph-views-state-error" role="alert">{library.errorMessage}</p>
       ) : notice ? (
@@ -320,7 +317,7 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
       {rows.length === 0 ? (
         <p className="graph-views-state">{currentFolderId ? 'This folder is empty.' : 'No saved views yet. Pin a view from Production.'}</p>
       ) : (
-        <ul className="graph-views-list" aria-label="Saved views">
+        <ul className={`graph-views-list${layout === 'grid' ? ' is-grid' : ''}`} aria-label="Saved views">
           {rows.map((row) => {
             const item: DragItem = { kind: row.kind, id: row.id };
             const isEditing = editing?.kind === row.kind && editing.id === row.id;
@@ -562,16 +559,12 @@ function canDrop(
   return !nameTaken(folders, views, parentId, view.name, null, item.id);
 }
 
-function breadcrumb(folders: GraphViewFolderDto[], currentFolderId: string | null): GraphViewFolderDto[] {
-  const path: GraphViewFolderDto[] = [];
-  let current = currentFolderId ? folders.find((folder) => folder.id === currentFolderId) : undefined;
-  const seen = new Set<string>();
-  while (current && !seen.has(current.id)) {
-    seen.add(current.id);
-    path.push(current);
-    current = current.parentId ? folders.find((folder) => folder.id === current?.parentId) : undefined;
+function readStoredViewLayout(): ViewLayout {
+  try {
+    return storedViewLayout(localStorage.getItem(VIEW_LAYOUT_STORAGE_KEY));
+  } catch {
+    return 'list';
   }
-  return path.reverse();
 }
 
 function FolderMark() {
@@ -609,6 +602,33 @@ function KebabIcon() {
       <circle cx="10" cy="4.5" r="1.3" fill="currentColor" />
       <circle cx="10" cy="10" r="1.3" fill="currentColor" />
       <circle cx="10" cy="15.5" r="1.3" fill="currentColor" />
+    </svg>
+  );
+}
+
+function BackArrow() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+      <path d="M10 3.5 5.5 8 10 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function GridGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+      <rect x="2" y="2" width="5" height="5" rx="1" fill="currentColor" />
+      <rect x="9" y="2" width="5" height="5" rx="1" fill="currentColor" />
+      <rect x="2" y="9" width="5" height="5" rx="1" fill="currentColor" />
+      <rect x="9" y="9" width="5" height="5" rx="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function ListGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+      <path d="M3 4.5h10M3 8h10M3 11.5h10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }

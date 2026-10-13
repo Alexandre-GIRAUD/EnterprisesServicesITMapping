@@ -30,6 +30,12 @@ export function canCreateIn(folders: readonly FolderNode[], parentId: string | n
   return depth(folders, parentId) < MAX_FOLDER_DEPTH;
 }
 
+/** Parent of the open folder. Null at the root, and null when a top-level folder is open. */
+export function parentFolderId(folders: readonly FolderNode[], folderId: string | null): string | null {
+  if (folderId == null) return null;
+  return folders.find((folder) => folder.id === folderId)?.parentId ?? null;
+}
+
 export function canMoveFolder(
   folders: readonly FolderNode[],
   folderId: string,
