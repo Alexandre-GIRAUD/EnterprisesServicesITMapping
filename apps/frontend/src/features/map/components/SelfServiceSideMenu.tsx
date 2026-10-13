@@ -10,6 +10,7 @@ import {
   clampMenuWidth,
   maxMenuWidth,
 } from './sideMenuWidth';
+import { visibleWorkspaceViews } from '../utils/workspaceViews';
 
 type SelfServiceBurgerProps = {
   isOpen: boolean;
@@ -193,6 +194,9 @@ export function SelfServiceSideMenu({
   columnsDetail = null,
 }: SelfServiceSideMenuProps) {
   const showGraphTools = graphMode === 'normal' || graphMode === 'sandbox';
+  const [pointerInsideViews, setPointerInsideViews] = useState(false);
+  const [viewsClosedUntilLeave, setViewsClosedUntilLeave] = useState(false);
+  const visibleViews = visibleWorkspaceViews(VIEWS, graphMode, pointerInsideViews, viewsClosedUntilLeave);
   const defaultWidth = showGraphTools ? EXPANDED_MENU_WIDTH : DEFAULT_MENU_WIDTH;
   const resize = useResizableMenu(isOpen, defaultWidth);
   const toolDetailTitle = columnsOnly
@@ -254,8 +258,24 @@ export function SelfServiceSideMenu({
             <h2 id="self-service-views-heading" className="self-service-side-menu-section-title">
               Views
             </h2>
-            <div className="self-service-view-list" role="tablist" aria-label="Workspace views">
-              {VIEWS.map((view) => {
+            <div
+              className="self-service-view-list"
+              role="tablist"
+              aria-label="Workspace views"
+              onMouseEnter={() => setPointerInsideViews(true)}
+              onMouseLeave={() => {
+                setPointerInsideViews(false);
+                setViewsClosedUntilLeave(false);
+              }}
+              onFocus={() => setPointerInsideViews(true)}
+              onBlur={(event) => {
+                const next = event.relatedTarget;
+                if (next instanceof Node && event.currentTarget.contains(next)) return;
+                setPointerInsideViews(false);
+                setViewsClosedUntilLeave(false);
+              }}
+            >
+              {visibleViews.map((view) => {
                 const isActive = graphMode === view.mode;
                 return (
                   <button
@@ -267,6 +287,7 @@ export function SelfServiceSideMenu({
                     aria-selected={isActive}
                     aria-controls={view.mode === 'views' ? 'graph-views-pane' : 'graph-canvas-pane'}
                     onClick={() => {
+                      setViewsClosedUntilLeave(true);
                       if (!isActive) onModeChange(view.mode);
                     }}
                   >
