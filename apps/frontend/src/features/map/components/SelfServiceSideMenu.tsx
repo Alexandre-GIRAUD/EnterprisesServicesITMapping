@@ -9,7 +9,7 @@ import {
   clampMenuWidth,
   maxMenuWidth,
 } from './sideMenuWidth';
-import { selectVisibleWorkspaceViews } from '../utils/workspaceViews';
+import { primaryWorkspaceMode } from '../utils/workspaceViews';
 
 type SelfServiceBurgerProps = {
   isOpen: boolean;
@@ -193,13 +193,8 @@ export function SelfServiceSideMenu({
   columnsDetail = null,
 }: SelfServiceSideMenuProps) {
   const showGraphTools = graphMode === 'normal' || graphMode === 'sandbox';
-  const [isPointerInsideViews, setIsPointerInsideViews] = useState(false);
-  const [isViewsClosedUntilLeave, setIsViewsClosedUntilLeave] = useState(false);
-  const visibleViews = selectVisibleWorkspaceViews(VIEWS, {
-    activeMode: graphMode,
-    isPointerInside: isPointerInsideViews,
-    isClosedUntilLeave: isViewsClosedUntilLeave,
-  });
+  const [hoveredMode, setHoveredMode] = useState<GraphMode | null>(null);
+  const primaryMode = primaryWorkspaceMode(graphMode, hoveredMode);
   const defaultWidth = DEFAULT_MENU_WIDTH;
   const resize = useResizableMenu(isOpen, defaultWidth);
   const toolDetailTitle = columnsOnly
@@ -262,47 +257,36 @@ export function SelfServiceSideMenu({
               className="self-service-view-list"
               role="tablist"
               aria-label="Workspace views"
-              onMouseEnter={() => setIsPointerInsideViews(true)}
-              onMouseLeave={() => {
-                setIsPointerInsideViews(false);
-                setIsViewsClosedUntilLeave(false);
-              }}
-              onFocus={() => setIsPointerInsideViews(true)}
+              onMouseLeave={() => setHoveredMode(null)}
               onBlur={(event) => {
                 const next = event.relatedTarget;
                 if (next instanceof Node && event.currentTarget.contains(next)) return;
-                setIsPointerInsideViews(false);
-                setIsViewsClosedUntilLeave(false);
+                setHoveredMode(null);
               }}
             >
               {VIEWS.map((view) => {
-                const isShown = visibleViews.some((item) => item.mode === view.mode);
                 const isActive = graphMode === view.mode;
+                const isPrimary = primaryMode === view.mode;
                 return (
-                  <div
+                  <button
                     key={view.mode}
-                    className={`self-service-view-slot${isShown ? '' : ' is-collapsed'}`}
+                    type="button"
+                    role="tab"
+                    id={view.tabId}
+                    className={`self-service-view-item self-service-view-item--${view.accent}${isPrimary ? ' is-primary' : ''}`}
+                    aria-selected={isActive}
+                    aria-controls={view.mode === 'views' ? 'graph-views-pane' : 'graph-canvas-pane'}
+                    onMouseEnter={() => setHoveredMode(view.mode)}
+                    onFocus={() => setHoveredMode(view.mode)}
+                    onClick={() => {
+                      if (!isActive) onModeChange(view.mode);
+                    }}
                   >
-                    <button
-                      type="button"
-                      role="tab"
-                      id={view.tabId}
-                      className={`self-service-view-item self-service-view-item--${view.accent}${isActive ? ' is-active' : ''}`}
-                      aria-selected={isActive}
-                      aria-hidden={isShown ? undefined : true}
-                      tabIndex={isShown ? 0 : -1}
-                      aria-controls={view.mode === 'views' ? 'graph-views-pane' : 'graph-canvas-pane'}
-                      onClick={() => {
-                        setIsViewsClosedUntilLeave(true);
-                        if (!isActive) onModeChange(view.mode);
-                      }}
-                    >
-                      <span className="self-service-view-item-label">{view.label}</span>
-                      {view.mode === 'sandbox' && sandboxDirty && isActive ? (
-                        <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
-                      ) : null}
-                    </button>
-                  </div>
+                    <span className="self-service-view-item-label">{view.label}</span>
+                    {view.mode === 'sandbox' && sandboxDirty && isActive ? (
+                      <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
+                    ) : null}
+                  </button>
                 );
               })}
             </div>

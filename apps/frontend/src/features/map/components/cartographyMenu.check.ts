@@ -52,9 +52,14 @@ for (const mode of ['normal', 'sandbox', 'views'] as const) {
   assert.doesNotMatch(html, /is-expanded/);
   assert.match(html, />Cartography</);
 }
-assert.match(menu('normal'), />Production</);
-assert.match(menu('sandbox'), />Sandbox</);
-assert.match(menu('views'), />My views</);
+const productionMenu = menu('normal');
+assert.match(productionMenu, />Production</);
+assert.match(productionMenu, />Sandbox</);
+assert.match(productionMenu, />My views</);
+assert.match(productionMenu, /self-service-view-item--explorer[^"]*is-primary/);
+assert.doesNotMatch(productionMenu, /self-service-view-item--sandbox[^"]*is-primary/);
+assert.match(menu('sandbox'), /self-service-view-item--sandbox[^"]*is-primary/);
+assert.match(menu('views'), /self-service-view-item--views[^"]*is-primary/);
 
 const openBurger = renderToStaticMarkup(createElement(SelfServiceBurger, { isOpen: true, onToggle: () => undefined }));
 assert.match(openBurger, /self-service-burger-icon/);
