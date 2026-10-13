@@ -106,6 +106,35 @@ body {
   white-space: nowrap;
 }
 
+.layout-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgb(148 163 184 / 45%);
+  background: transparent;
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.layout-theme-toggle svg {
+  width: 0.72rem;
+  height: 0.72rem;
+}
+
+.layout-theme-toggle:hover {
+  background: rgb(148 163 184 / 18%);
+  color: #ffffff;
+}
+
+.layout-theme-toggle:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
 .layout-header-btn {
   font: inherit;
   font-size: 0.85rem;

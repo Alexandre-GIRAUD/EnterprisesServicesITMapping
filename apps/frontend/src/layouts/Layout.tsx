@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/context/AuthContext';
 import { GraphSnapshotsProvider } from '@/features/map/context/GraphSnapshotsContext';
 import type { MapLocationState } from '@/features/map/utils/mapNavigation';
 import { COLOR_THEME_STORAGE_KEY, storedColorTheme, toggledColorTheme, type ColorTheme } from './colorTheme';
+import { ThemeModeButton } from './ThemeModeButton';
 
 function navigationLinkClassName({ isActive }: { isActive: boolean }) {
   return `layout-header-link${isActive ? ' is-active' : ''}`;
@@ -43,6 +44,7 @@ export function Layout() {
                       {roleLabel}
                     </span>
                   ) : null}
+                  <ThemeModeButton theme={theme} onToggle={() => setTheme((current) => toggledColorTheme(current))} />
                 </span>
               ) : null}
             </div>
@@ -73,14 +75,6 @@ export function Layout() {
                   ) : null}
                 </>
               ) : null}
-              <button
-                type="button"
-                className="layout-header-btn"
-                aria-pressed={theme === 'dark'}
-                onClick={() => setTheme((current) => toggledColorTheme(current))}
-              >
-                {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-              </button>
               {user ? (
                 <button
                   type="button"
