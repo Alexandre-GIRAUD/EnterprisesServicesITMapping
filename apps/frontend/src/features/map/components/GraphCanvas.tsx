@@ -1640,6 +1640,7 @@ export function GraphCanvas() {
             }}
             canSave={Boolean(sandboxes.activeDoc)}
             savedSandboxes={sandboxes.saved}
+            sandboxFolders={sandboxes.sandboxFolders}
             onLoadSandbox={(id) => {
               const result = sandboxes.loadSaved(id);
               if (result === 'full') {
@@ -1647,6 +1648,12 @@ export function GraphCanvas() {
               }
             }}
             onDeleteSavedSandbox={sandboxes.deleteSaved}
+            onCreateSandboxFolder={sandboxes.createSandboxFolder}
+            onRenameSandboxFolder={sandboxes.renameSandboxFolder}
+            onDeleteSandboxFolder={sandboxes.deleteSandboxFolder}
+            onMoveSandboxFolder={sandboxes.moveSandboxFolder}
+            onRenameSavedSandbox={sandboxes.renameSavedSandbox}
+            onMoveSavedSandbox={sandboxes.moveSavedSandbox}
             onShareActive={async (username) => {
               const doc = sandboxes.activeDoc;
               if (!doc) return;

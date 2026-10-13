@@ -26,8 +26,15 @@ const html = renderToStaticMarkup(
     onSaveActive: () => undefined,
     canSave: true,
     savedSandboxes: [saved],
+    sandboxFolders: [],
     onLoadSandbox: () => undefined,
     onDeleteSavedSandbox: () => undefined,
+    onCreateSandboxFolder: () => undefined,
+    onRenameSandboxFolder: () => undefined,
+    onDeleteSandboxFolder: () => undefined,
+    onMoveSandboxFolder: () => undefined,
+    onRenameSavedSandbox: () => undefined,
+    onMoveSavedSandbox: () => undefined,
     onShareActive: async () => undefined,
   }),
 );
@@ -36,8 +43,10 @@ const [beforeSaved, afterSaved] = html.split('>Saved<');
 assert.ok(beforeSaved && afterSaved, 'Saved section missing');
 assert.match(beforeSaved, />Save</);
 assert.match(beforeSaved, />Share</);
-assert.match(afterSaved, />Load</);
-assert.match(afterSaved, />Delete</);
+assert.match(beforeSaved, /Draft/);
+assert.match(html, />New folder</);
+assert.doesNotMatch(html, />Payroll</);
+assert.doesNotMatch(html, />Load</);
 assert.doesNotMatch(afterSaved, />Share</);
 
 console.log('SandboxesPanel.check: ok');
