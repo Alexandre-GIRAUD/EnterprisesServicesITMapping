@@ -1632,13 +1632,13 @@ export function GraphCanvas() {
               const id = sandboxes.openNew(sandboxSeed());
               if (!id) setSandboxToast('Close at least one sandbox before opening another.');
             }}
-            onSaveActive={() => {
-              const doc = sandboxes.activeDoc;
+            onSaveSandbox={(id) => {
+              const doc = sandboxes.openDocs.find((item) => item.id === id);
               if (!doc) return;
               sandboxes.saveDoc(doc.id, doc.name);
               setSandboxToast('Saved');
             }}
-            canSave={Boolean(sandboxes.activeDoc)}
+            onCloseSandbox={sandboxes.closeDoc}
             savedSandboxes={sandboxes.saved}
             sandboxFolders={sandboxes.sandboxFolders}
             onLoadSandbox={(id) => {
@@ -1654,8 +1654,8 @@ export function GraphCanvas() {
             onMoveSandboxFolder={sandboxes.moveSandboxFolder}
             onRenameSavedSandbox={sandboxes.renameSavedSandbox}
             onMoveSavedSandbox={sandboxes.moveSavedSandbox}
-            onShareActive={async (username) => {
-              const doc = sandboxes.activeDoc;
+            onShareSandbox={async (id, username) => {
+              const doc = sandboxes.openDocs.find((item) => item.id === id);
               if (!doc) return;
               try {
                 await shareSavedSandbox(username, doc.name, doc);
@@ -2117,7 +2117,7 @@ export function GraphCanvas() {
               <div className="graph-tables-view">
                 <section
                   className="graph-table-section graph-table-section--single"
-                  aria-label={tableView === 'custom' ? 'Create table' : tableView === 'apps' ? 'Apps' : 'Flows'}
+                  aria-label={tableView === 'custom' ? 'Custom table' : tableView === 'apps' ? 'Apps' : 'Flows'}
                 >
                   <div className="graph-table-section-heading">
                     <TableContentToggle

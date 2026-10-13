@@ -12,7 +12,7 @@ export function TableContentToggle({ value, onChange }: TableContentToggleProps)
     <div className="graph-display-toggle" role="tablist" aria-label="Table content">
       <TableTab label="Apps" pressed={value === 'apps'} onClick={() => onChange('apps')} />
       <TableTab label="Flows" pressed={value === 'flows'} onClick={() => onChange('flows')} />
-      <TableTab label="Create table" pressed={value === 'custom'} onClick={() => onChange('custom')} />
+      <TableTab label="Custom table" pressed={value === 'custom'} onClick={() => onChange('custom')} />
     </div>
   );
 }
@@ -24,7 +24,7 @@ function TableTab({ label, pressed, onClick }: { label: string; pressed: boolean
       role="tab"
       className={`graph-display-toggle-btn${pressed ? ' is-active' : ''}`}
       aria-selected={pressed}
-      aria-label={label === 'Create table' ? 'Create table' : `${label} table`}
+      aria-label={label === 'Custom table' ? 'Custom table' : `${label} table`}
       title={label}
       onClick={onClick}
     >

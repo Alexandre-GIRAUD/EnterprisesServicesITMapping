@@ -4,7 +4,6 @@ import type { GraphMode } from './GraphModeTabs';
 import { SelfServiceToolBar, type SideMenuTool } from './SelfServiceToolBar';
 import {
   DEFAULT_MENU_WIDTH,
-  EXPANDED_MENU_WIDTH,
   MENU_RESIZE_STEP,
   MIN_MENU_WIDTH,
   clampMenuWidth,
@@ -174,7 +173,7 @@ export function SelfServiceBurger({ isOpen, onToggle }: SelfServiceBurgerProps) 
       aria-controls="self-service-side-menu"
       aria-label={isOpen ? 'Close menu' : 'Open menu'}
     >
-      {isOpen ? <CloseIcon /> : <span className="self-service-burger-icon" aria-hidden="true" />}
+      <span className="self-service-burger-icon" aria-hidden="true" />
     </button>
   );
 }
@@ -201,7 +200,7 @@ export function SelfServiceSideMenu({
     isPointerInside: isPointerInsideViews,
     isClosedUntilLeave: isViewsClosedUntilLeave,
   });
-  const defaultWidth = showGraphTools ? EXPANDED_MENU_WIDTH : DEFAULT_MENU_WIDTH;
+  const defaultWidth = DEFAULT_MENU_WIDTH;
   const resize = useResizableMenu(isOpen, defaultWidth);
   const toolDetailTitle = columnsOnly
     ? 'Columns'
@@ -214,7 +213,7 @@ export function SelfServiceSideMenu({
   return (
     <div
       ref={resize.shellRef}
-      className={`self-service-side-menu-shell${isOpen ? ' is-open' : ''}${showGraphTools ? ' is-expanded' : ''}${resize.isResizing ? ' is-resizing' : ''}`}
+      className={`self-service-side-menu-shell${isOpen ? ' is-open' : ''}${resize.isResizing ? ' is-resizing' : ''}`}
       style={
         resize.customWidth != null
           ? { width: resize.customWidth, flexBasis: resize.customWidth, minWidth: resize.customWidth }
@@ -258,10 +257,7 @@ export function SelfServiceSideMenu({
         </header>
 
         <div className="self-service-side-menu-body">
-          <section className="self-service-side-menu-section" aria-labelledby="self-service-views-heading">
-            <h2 id="self-service-views-heading" className="self-service-side-menu-section-title">
-              Views
-            </h2>
+          <section className="self-service-side-menu-section">
             <div
               className="self-service-view-list"
               role="tablist"
@@ -279,27 +275,34 @@ export function SelfServiceSideMenu({
                 setIsViewsClosedUntilLeave(false);
               }}
             >
-              {visibleViews.map((view) => {
+              {VIEWS.map((view) => {
+                const isShown = visibleViews.some((item) => item.mode === view.mode);
                 const isActive = graphMode === view.mode;
                 return (
-                  <button
+                  <div
                     key={view.mode}
-                    type="button"
-                    role="tab"
-                    id={view.tabId}
-                    className={`self-service-view-item self-service-view-item--${view.accent}${isActive ? ' is-active' : ''}`}
-                    aria-selected={isActive}
-                    aria-controls={view.mode === 'views' ? 'graph-views-pane' : 'graph-canvas-pane'}
-                    onClick={() => {
-                      setIsViewsClosedUntilLeave(true);
-                      if (!isActive) onModeChange(view.mode);
-                    }}
+                    className={`self-service-view-slot${isShown ? '' : ' is-collapsed'}`}
                   >
-                    <span className="self-service-view-item-label">{view.label}</span>
-                    {view.mode === 'sandbox' && sandboxDirty && isActive ? (
-                      <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
-                    ) : null}
-                  </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      id={view.tabId}
+                      className={`self-service-view-item self-service-view-item--${view.accent}${isActive ? ' is-active' : ''}`}
+                      aria-selected={isActive}
+                      aria-hidden={isShown ? undefined : true}
+                      tabIndex={isShown ? 0 : -1}
+                      aria-controls={view.mode === 'views' ? 'graph-views-pane' : 'graph-canvas-pane'}
+                      onClick={() => {
+                        setIsViewsClosedUntilLeave(true);
+                        if (!isActive) onModeChange(view.mode);
+                      }}
+                    >
+                      <span className="self-service-view-item-label">{view.label}</span>
+                      {view.mode === 'sandbox' && sandboxDirty && isActive ? (
+                        <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
+                      ) : null}
+                    </button>
+                  </div>
                 );
               })}
             </div>
