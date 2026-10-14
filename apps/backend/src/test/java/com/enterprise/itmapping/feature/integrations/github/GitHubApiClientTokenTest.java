@@ -69,6 +69,16 @@ class GitHubApiClientTokenTest {
 
   private static GitHubIntegrationProperties properties(String token) {
     return new GitHubIntegrationProperties(
-        token, "https://api.github.com", 100, "", "refs/heads/main", 80, 512);
+        token,
+        "https://api.github.com",
+        100,
+        "",
+        "refs/heads/main",
+        80,
+        512,
+        "",
+        "",
+        "http://localhost:8081/api/integrations/github/callback",
+        "http://localhost:3000/map/import-github");
   }
 }

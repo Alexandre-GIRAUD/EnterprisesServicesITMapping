@@ -23,28 +23,4 @@ public record GitHubIntegrationProperties(
     @DefaultValue("") String clientId,
     @DefaultValue("") String clientSecret,
     @DefaultValue("http://localhost:8081/api/integrations/github/callback") String oauthRedirectUri,
-    @DefaultValue("http://localhost:3000/map/import-github") String oauthReturnUrl) {
-
-  /** Keeps callers that only know the server token and webhook settings. */
-  public GitHubIntegrationProperties(
-      String token,
-      String apiBaseUrl,
-      int maxRepos,
-      String webhookSecret,
-      String webhookBranch,
-      int maxDiffFiles,
-      int maxDiffKb) {
-    this(
-        token,
-        apiBaseUrl,
-        maxRepos,
-        webhookSecret,
-        webhookBranch,
-        maxDiffFiles,
-        maxDiffKb,
-        "",
-        "",
-        "http://localhost:8081/api/integrations/github/callback",
-        "http://localhost:3000/map/import-github");
-  }
-}
+    @DefaultValue("http://localhost:3000/map/import-github") String oauthReturnUrl) {}
