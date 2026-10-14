@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.graph.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
+import com.enterprise.itmapping.feature.graph.application.AttributeMatch;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeProjection;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeRow;
 import java.util.ArrayList;
@@ -149,10 +150,9 @@ public class GraphLoader {
     appendNodeFilters(sb, nodeFilters, nodeRefFilters);
     sb.append(EDGES_MATCH_PREFIX);
     if (edgeFilters != null) {
-      for (String key : edgeFilters.keySet()) {
-        sb.append("  AND ")
-            .append(AttributePropertyCypher.matchesAny("r", key, edgeValuesParam(key)))
-            .append('\n');
+      for (Map.Entry<String, List<String>> entry : edgeFilters.entrySet()) {
+        appendAttributeFilter(
+            sb, "r", entry.getKey(), edgeValuesParam(entry.getKey()), AttributeMatch.split(entry.getValue()));
       }
     }
     String cypher = sb.append(EDGES_RETURN).toString();
@@ -169,28 +169,66 @@ public class GraphLoader {
       Map<String, List<String>> nodeFilters,
       Map<String, List<String>> nodeRefFilters) {
     if (nodeFilters != null) {
-      for (String key : nodeFilters.keySet()) {
-        sb.append("  AND ")
-            .append(AttributePropertyCypher.matchesAny("a", key, valuesParam(key)))
-            .append('\n');
+      for (Map.Entry<String, List<String>> entry : nodeFilters.entrySet()) {
+        appendAttributeFilter(
+            sb, "a", entry.getKey(), valuesParam(entry.getKey()), AttributeMatch.split(entry.getValue()));
       }
     }
     if (nodeRefFilters != null) {
       int i = 0;
-      for (String key : nodeRefFilters.keySet()) {
-        String fieldParam = "nodeRefField_" + i;
-        String idsParam = "nodeRefIds_" + i;
-        sb.append("  AND EXISTS {\n")
-            .append("    MATCH (a)-[:CLASSIFIED_AS {fieldKey: $")
-            .append(fieldParam)
-            .append("}]->(ref:DataModelRef)\n")
-            .append("    WHERE ref.id IN $")
-            .append(idsParam)
-            .append('\n')
-            .append("  }\n");
+      for (Map.Entry<String, List<String>> entry : nodeRefFilters.entrySet()) {
+        appendNodeRefFilter(sb, i, AttributeMatch.split(entry.getValue()));
         i++;
       }
     }
+  }
+
+  /**
+   * Real values use the list-aware match. The empty sentinel still matches a missing or blank field.
+   */
+  private static void appendAttributeFilter(
+      StringBuilder query, String alias, String key, String parameterName, AttributeMatch.Split split) {
+    String property = alias + ".`" + key + "`";
+    String blank = "(" + property + " IS NULL OR trim(toString(" + property + ")) = '')";
+    String listed = AttributePropertyCypher.matchesAny(alias, key, parameterName);
+    if (split.includeEmpty() && !split.values().isEmpty()) {
+      query.append("  AND (").append(listed).append(" OR ").append(blank).append(")\n");
+      return;
+    }
+    if (split.includeEmpty()) {
+      query.append("  AND ").append(blank).append('\n');
+      return;
+    }
+    query.append("  AND ").append(listed).append('\n');
+  }
+
+  private static void appendNodeRefFilter(StringBuilder sb, int index, AttributeMatch.Split split) {
+    String fieldParam = "nodeRefField_" + index;
+    String idsParam = "nodeRefIds_" + index;
+    String missing =
+        "NOT EXISTS {\n"
+            + "    MATCH (a)-[:CLASSIFIED_AS {fieldKey: $"
+            + fieldParam
+            + "}]->(:DataModelRef)\n"
+            + "  }";
+    String listed =
+        "EXISTS {\n"
+            + "    MATCH (a)-[:CLASSIFIED_AS {fieldKey: $"
+            + fieldParam
+            + "}]->(ref:DataModelRef)\n"
+            + "    WHERE ref.id IN $"
+            + idsParam
+            + "\n"
+            + "  }";
+    if (split.includeEmpty() && split.values().isEmpty()) {
+      sb.append("  AND ").append(missing).append('\n');
+      return;
+    }
+    if (split.includeEmpty()) {
+      sb.append("  AND (").append(listed).append(" OR ").append(missing).append(")\n");
+      return;
+    }
+    sb.append("  AND ").append(listed).append('\n');
   }
 
   private static Map<String, Object> params(
@@ -204,20 +242,20 @@ public class GraphLoader {
     params.put("applicationIds", filterApplicationIds ? applicationIds : List.of("__none__"));
     if (nodeFilters != null) {
       for (Map.Entry<String, List<String>> entry : nodeFilters.entrySet()) {
-        params.put(valuesParam(entry.getKey()), entry.getValue());
+        params.put(valuesParam(entry.getKey()), AttributeMatch.split(entry.getValue()).values());
       }
     }
     if (nodeRefFilters != null) {
       int i = 0;
       for (Map.Entry<String, List<String>> entry : nodeRefFilters.entrySet()) {
         params.put("nodeRefField_" + i, entry.getKey());
-        params.put("nodeRefIds_" + i, entry.getValue());
+        params.put("nodeRefIds_" + i, AttributeMatch.split(entry.getValue()).values());
         i++;
       }
     }
     if (edgeFilters != null) {
       for (Map.Entry<String, List<String>> entry : edgeFilters.entrySet()) {
-        params.put(edgeValuesParam(entry.getKey()), entry.getValue());
+        params.put(edgeValuesParam(entry.getKey()), AttributeMatch.split(entry.getValue()).values());
       }
     }
     return params;
