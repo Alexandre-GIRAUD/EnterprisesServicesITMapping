@@ -84,7 +84,8 @@ class FunctionalDocumentationServiceTest {
     when(docRepository.findByApplicationId("app-1")).thenReturn(Optional.empty());
     when(docRepository.save(any(ApplicationFunctionalDocEntity.class)))
         .thenAnswer(inv -> inv.getArgument(0));
-    doNothing().when(service).generateAsync(anyString());
+    when(cloneService.currentAccessToken()).thenReturn("user-token");
+    doNothing().when(service).generateAsync(anyString(), any());
 
     FunctionalDocumentationResponse response = service.startGenerate("app-1");
 
@@ -95,7 +96,7 @@ class FunctionalDocumentationServiceTest {
     assertThat(captor.getValue().getSourceRepo()).isEqualTo("acme/payments");
     assertThat(response.status()).isEqualTo(FunctionalDocStatus.PENDING);
     verify(service).markPending(eq("app-1"));
-    verify(service).generateAsync(eq("app-1"));
+    verify(service).generateAsync(eq("app-1"), eq("user-token"));
   }
 
   @Test

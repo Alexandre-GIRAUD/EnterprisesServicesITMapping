@@ -37,8 +37,7 @@ public class GitHubReposService {
     if (!apiClient.hasToken()) {
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE,
-          "Integration GitHub non configuree : definissez GITHUB_TOKEN (ou app.integrations.github.token) "
-              + "cote backend. Le navigateur ne doit jamais recevoir ce secret.");
+          "Connect your GitHub account, or set GITHUB_TOKEN on the server.");
     }
 
     int limit = Math.min(Math.max(properties.maxRepos(), 1), 100);

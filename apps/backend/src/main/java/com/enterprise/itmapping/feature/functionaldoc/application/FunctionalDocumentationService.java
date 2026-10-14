@@ -70,8 +70,9 @@ public class FunctionalDocumentationService {
    */
   public FunctionalDocumentationResponse startGenerate(String applicationId) {
     // Commit PENDING first — otherwise @Async can run before the insert is visible.
+    String accessToken = cloneService.currentAccessToken();
     FunctionalDocumentationResponse pending = self.getObject().markPending(applicationId);
-    self.getObject().generateAsync(applicationId);
+    self.getObject().generateAsync(applicationId, accessToken);
     return pending;
   }
 
@@ -117,9 +118,9 @@ public class FunctionalDocumentationService {
   }
 
   @Async
-  public void generateAsync(String applicationId) {
+  public void generateAsync(String applicationId, String accessToken) {
     try {
-      self.getObject().runGeneration(applicationId);
+      self.getObject().runGeneration(applicationId, accessToken);
     } catch (Exception e) {
       log.error("Functional documentation generation failed applicationId={}", applicationId, e);
       self.getObject()
@@ -129,7 +130,7 @@ public class FunctionalDocumentationService {
   }
 
   @Transactional
-  public void runGeneration(String applicationId) {
+  public void runGeneration(String applicationId, String accessToken) {
     ApplicationFunctionalDocEntity entity =
         docRepository
             .findByApplicationId(applicationId)
@@ -159,7 +160,7 @@ public class FunctionalDocumentationService {
 
     log.info("Functional documentation generate start applicationId={} repo={}/{}", applicationId, owner, repo);
 
-    Path workspace = cloneService.clone(owner, repo, properties.cloneTimeoutSeconds());
+    Path workspace = cloneService.clone(owner, repo, properties.cloneTimeoutSeconds(), accessToken);
     try {
       DiscoveryResult discovery = agent.discover(workspace, owner, repo);
       entity.setStatus(FunctionalDocStatus.READY);
