@@ -27,10 +27,10 @@ export function AboutPage() {
 
   return (
     <main className="about-page">
-      <p className="about-kicker">Flora</p>
+      <p className="about-kicker">Flowra</p>
       <h2>The system, drawn once.</h2>
       <p className="about-lead">
-        Flora maps the applications in an information system and the flows between them.
+        Flowra maps the applications in an information system and the flows between them.
       </p>
       <ul className="about-modes">
         {MODES.map((mode) => (
@@ -42,7 +42,7 @@ export function AboutPage() {
       </ul>
       {FLOWRA_SITE_URL ? (
         <p className="about-site">
-          <a href={FLOWRA_SITE_URL}>Open the Flora site</a>
+          <a href={FLOWRA_SITE_URL}>Open the Flowra site</a>
         </p>
       ) : null}
       <form className="about-contact" onSubmit={onSubmit}>
