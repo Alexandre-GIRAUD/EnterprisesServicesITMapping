@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery;
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery.CatalogRow;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeAttributePatchService;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeRefPatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.chat.domain.ChatCitationType;
@@ -17,7 +19,9 @@ import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskRequest;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskResponse;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatMapFilters;
 import com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocumentationService;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributePatchService;
 import com.enterprise.itmapping.feature.graph.application.GraphNeighborhoodService;
+import com.enterprise.itmapping.feature.graph.application.GraphService;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetService;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto.NeighborhoodApplicationDto;
@@ -47,6 +51,10 @@ class MappingChatToolsTest {
   @Mock ModuleGraphService moduleGraphService;
   @Mock FunctionalDocSearchService docSearchService;
   @Mock GraphNodeFilterFacetService filterFacets;
+  @Mock GraphService graphService;
+  @Mock ApplicationNodeAttributePatchService nodeAttributes;
+  @Mock ApplicationNodeRefPatchService nodeRefs;
+  @Mock GraphEdgeAttributePatchService edgeAttributes;
 
   private final MappingChatProperties properties =
       new MappingChatProperties(true, 10, 50, 8000, 10, 10, 40);
@@ -118,6 +126,7 @@ class MappingChatToolsTest {
     ChatAskResponse res = service.ask(new ChatAskRequest("Who is connected to Billing?", null));
     assertThat(res.answerMarkdown()).isEqualTo("Billing is connected to CRM.");
     assertThat(res.appliedFilters()).isNull();
+    assertThat(res.graphChanged()).isFalse();
     verify(agent).ask(eq("Who is connected to Billing?"), eq(null), any(MappingChatTools.class));
   }
 
@@ -254,6 +263,10 @@ class MappingChatToolsTest {
         moduleGraphService,
         docSearchService,
         filterFacets,
+        graphService,
+        nodeAttributes,
+        nodeRefs,
+        edgeAttributes,
         objectMapper,
         "sk-test");
   }
@@ -267,6 +280,10 @@ class MappingChatToolsTest {
             moduleGraphService,
             docSearchService,
             filterFacets,
+            graphService,
+            nodeAttributes,
+            nodeRefs,
+            edgeAttributes,
             properties,
             objectMapper);
   }

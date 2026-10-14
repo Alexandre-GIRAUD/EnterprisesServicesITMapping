@@ -1,13 +1,17 @@
 package com.enterprise.itmapping.feature.chat.application;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeAttributePatchService;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeRefPatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskRequest;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskResponse;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatMapFilters;
 import com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocumentationService;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributePatchService;
 import com.enterprise.itmapping.feature.graph.application.GraphNeighborhoodService;
+import com.enterprise.itmapping.feature.graph.application.GraphService;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetService;
 import com.enterprise.itmapping.feature.integrations.llm.MappingChatProperties;
 import com.enterprise.itmapping.feature.rag.application.FunctionalDocSearchService;
@@ -31,6 +35,10 @@ public class MappingChatService {
   private final ModuleGraphService moduleGraphService;
   private final FunctionalDocSearchService docSearchService;
   private final GraphNodeFilterFacetService filterFacets;
+  private final GraphService graphService;
+  private final ApplicationNodeAttributePatchService nodeAttributes;
+  private final ApplicationNodeRefPatchService nodeRefs;
+  private final GraphEdgeAttributePatchService edgeAttributes;
   private final ObjectMapper objectMapper;
   private final String openAiApiKey;
 
@@ -44,6 +52,10 @@ public class MappingChatService {
       ModuleGraphService moduleGraphService,
       FunctionalDocSearchService docSearchService,
       GraphNodeFilterFacetService filterFacets,
+      GraphService graphService,
+      ApplicationNodeAttributePatchService nodeAttributes,
+      ApplicationNodeRefPatchService nodeRefs,
+      GraphEdgeAttributePatchService edgeAttributes,
       ObjectMapper objectMapper,
       @Value("${spring.ai.openai.api-key:}") String openAiApiKey) {
     this.agent = agent;
@@ -55,6 +67,10 @@ public class MappingChatService {
     this.moduleGraphService = moduleGraphService;
     this.docSearchService = docSearchService;
     this.filterFacets = filterFacets;
+    this.graphService = graphService;
+    this.nodeAttributes = nodeAttributes;
+    this.nodeRefs = nodeRefs;
+    this.edgeAttributes = edgeAttributes;
     this.objectMapper = objectMapper;
     this.openAiApiKey = openAiApiKey;
   }
@@ -82,6 +98,10 @@ public class MappingChatService {
             moduleGraphService,
             docSearchService,
             filterFacets,
+            graphService,
+            nodeAttributes,
+            nodeRefs,
+            edgeAttributes,
             properties,
             objectMapper);
 
@@ -90,7 +110,7 @@ public class MappingChatService {
       answer = "I could not produce an answer. Try again or rephrase the question.";
     }
     return new ChatAskResponse(
-        answer.trim(), tools.citations(), tools.warnings(), tools.appliedFilters());
+        answer.trim(), tools.citations(), tools.warnings(), tools.appliedFilters(), tools.graphChanged());
   }
 
   private String messageWithFilters(ChatAskRequest request) {

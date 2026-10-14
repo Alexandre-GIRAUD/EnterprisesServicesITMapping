@@ -21,6 +21,8 @@ type MappingChatPanelProps = {
   currentFilters?: GraphFilters;
   /** Replace those filters when the answer includes appliedFilters. */
   onApplyFilters?: (filters: GraphFilters) => void;
+  /** Reload the Production map after a correction was written. */
+  onGraphChanged?: () => void;
 };
 
 /** Lightweight markdown-ish rendering: paragraphs + bullets + bold **text**. */
@@ -75,6 +77,7 @@ export function MappingChatPanel({
   onFocusEdge,
   currentFilters,
   onApplyFilters,
+  onGraphChanged,
 }: MappingChatPanelProps) {
   const navigate = useNavigate();
   const [input, setInput] = useState('');
@@ -107,6 +110,9 @@ export function MappingChatPanel({
       const nextFilters = appliedFiltersFromChat(res.appliedFilters);
       if (nextFilters && onApplyFilters) {
         onApplyFilters(nextFilters);
+      }
+      if (res.graphChanged && onGraphChanged) {
+        onGraphChanged();
       }
       setTurns((prev) => [
         ...prev,

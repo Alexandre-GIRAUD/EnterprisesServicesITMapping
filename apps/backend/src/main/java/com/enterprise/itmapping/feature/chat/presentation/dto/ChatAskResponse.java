@@ -7,11 +7,20 @@ public record ChatAskResponse(
     String answerMarkdown,
     List<ChatCitationDto> citations,
     List<String> warnings,
-    ChatMapFilters appliedFilters) {
+    ChatMapFilters appliedFilters,
+    boolean graphChanged) {
 
   public ChatAskResponse(
       String answerMarkdown, List<ChatCitationDto> citations, List<String> warnings) {
-    this(answerMarkdown, citations, warnings, null);
+    this(answerMarkdown, citations, warnings, null, false);
+  }
+
+  public ChatAskResponse(
+      String answerMarkdown,
+      List<ChatCitationDto> citations,
+      List<String> warnings,
+      ChatMapFilters appliedFilters) {
+    this(answerMarkdown, citations, warnings, appliedFilters, false);
   }
 
   public ChatAskResponse {

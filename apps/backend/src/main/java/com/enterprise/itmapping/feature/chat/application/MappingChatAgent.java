@@ -44,7 +44,7 @@ public class MappingChatAgent {
     String guidance =
         """
 
-        (Guidance: the user asks in English. Pass that wording to the tools and answer in English. Aim for at most %d tool calls. Prefer resolveApplications then targeted tools. For map filters, call listFilterDimensions then applyMapFilters.)
+        (Guidance: the user asks in English. Pass that wording to the tools and answer in English. Aim for at most %d tool calls. Prefer resolveApplications then targeted tools. For map filters, call listFilterDimensions then applyMapFilters. For one explicit correction, call createApplication, createFlow, setNodeProperties, or setFlowProperties.)
         """
             .formatted(properties.maxToolIterations());
 

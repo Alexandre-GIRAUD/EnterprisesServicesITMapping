@@ -3,6 +3,8 @@ package com.enterprise.itmapping.feature.chat.application;
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery;
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery.CatalogRow;
 import com.enterprise.itmapping.feature.applications.application.ApplicationNameMatch;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeAttributePatchService;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeRefPatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
@@ -13,7 +15,9 @@ import com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocu
 import com.enterprise.itmapping.feature.functionaldoc.application.dto.AiFunctionalDocPayload;
 import com.enterprise.itmapping.feature.functionaldoc.domain.FunctionalDocStatus;
 import com.enterprise.itmapping.feature.functionaldoc.presentation.dto.FunctionalDocumentationResponse;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributePatchService;
 import com.enterprise.itmapping.feature.graph.application.GraphNeighborhoodService;
+import com.enterprise.itmapping.feature.graph.application.GraphService;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetService;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto;
@@ -41,9 +45,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Tools for one mapping-chat question. Graph tools only read. {@code applyMapFilters} records a map
- * filter set for the client; it does not write the graph. One instance per ask so citations and the
- * accepted filter set accumulate safely.
+ * Tools for one mapping-chat question. Read tools do not write. {@code applyMapFilters} only changes
+ * the map filters. The four correction tools write through the same services as Corrections and the
+ * drawers, at most once per reply. One instance per ask.
  */
 public class MappingChatTools {
 
@@ -56,11 +60,13 @@ public class MappingChatTools {
   private final GraphNodeFilterFacetService filterFacets;
   private final MappingChatProperties properties;
   private final ObjectMapper objectMapper;
+  private final MappingChatCorrections corrections;
 
   private final LinkedHashSet<String> citationKeys = new LinkedHashSet<>();
   private final List<ChatCitationDto> citations = new ArrayList<>();
   private final List<String> warnings = new ArrayList<>();
   private ChatMapFilters appliedFilters;
+  private boolean graphChanged;
 
   public MappingChatTools(
       ApplicationCatalogQuery catalogQuery,
@@ -70,6 +76,10 @@ public class MappingChatTools {
       ModuleGraphService moduleGraphService,
       FunctionalDocSearchService docSearchService,
       GraphNodeFilterFacetService filterFacets,
+      GraphService graphService,
+      ApplicationNodeAttributePatchService nodeAttributes,
+      ApplicationNodeRefPatchService nodeRefs,
+      GraphEdgeAttributePatchService edgeAttributes,
       MappingChatProperties properties,
       ObjectMapper objectMapper) {
     this.catalogQuery = catalogQuery;
@@ -81,6 +91,17 @@ public class MappingChatTools {
     this.filterFacets = filterFacets;
     this.properties = properties;
     this.objectMapper = objectMapper;
+    this.corrections =
+        new MappingChatCorrections(
+            applicationService,
+            graphService,
+            nodeAttributes,
+            nodeRefs,
+            edgeAttributes,
+            neighborhoodService,
+            filterFacets,
+            catalogQuery,
+            objectMapper);
   }
 
   public List<ChatCitationDto> citations() {
@@ -94,6 +115,11 @@ public class MappingChatTools {
   /** Null until a call to {@code applyMapFilters} is accepted. A later refusal leaves this set. */
   public ChatMapFilters appliedFilters() {
     return appliedFilters;
+  }
+
+  /** True after one correction tool has written. */
+  public boolean graphChanged() {
+    return graphChanged;
   }
 
   @Tool(
@@ -320,6 +346,53 @@ public class MappingChatTools {
     out.put("modules", modules);
     out.put("edgeCount", graph.edges() != null ? graph.edges().size() : 0);
     return toJson(out);
+  }
+
+  @Tool(
+      description =
+          "Create an Application on the Production graph. JSON {name, description?}. "
+              + "No change reason. Refuses an empty name. One correction per reply.")
+  public String createApplication(
+      @ToolParam(description = "JSON {name, description?}") String applicationJson) {
+    return finish(corrections.createApplication(applicationJson));
+  }
+
+  @Tool(
+      description =
+          "Create a flow between two existing applications. JSON {source, target, type?, reason, reasonComment?}. "
+              + "type defaults to DEPENDS_ON. reason is MissedOnScan, NotInSources, WrongData, WrongFormat, "
+              + "WrongSpelling, OutdatedData, or Others. Others requires reasonComment. One correction per reply.")
+  public String createFlow(@ToolParam(description = "JSON flow to create") String flowJson) {
+    return finish(corrections.createFlow(flowJson));
+  }
+
+  @Tool(
+      description =
+          "Set application properties. JSON {application, reason, reasonComment?, nodeAttributes?, nodeRefs?, "
+              + "clearNodeAttributes?, clearNodeRefs?}. Omit a property to leave it. "
+              + "clearNodeAttributes and clearNodeRefs empty that property only. "
+              + "NODE_REF values may be display names. One correction per reply.")
+  public String setNodeProperties(
+      @ToolParam(description = "JSON node property change") String propertiesJson) {
+    return finish(corrections.setNodeProperties(propertiesJson));
+  }
+
+  @Tool(
+      description =
+          "Set properties of the single DEPENDS_ON flow between two applications. "
+              + "JSON {source, target, reason, reasonComment?, edgeAttributes?, clearEdgeAttributes?}. "
+              + "Refuses when there is not exactly one flow. One correction per reply.")
+  public String setFlowProperties(
+      @ToolParam(description = "JSON flow property change") String propertiesJson) {
+    return finish(corrections.setFlowProperties(propertiesJson));
+  }
+
+  private String finish(MappingChatCorrections.CorrectionOutcome outcome) {
+    if (outcome.changed()) {
+      graphChanged = true;
+      addCitation(outcome.type(), outcome.id(), outcome.label());
+    }
+    return outcome.json();
   }
 
   @Tool(
