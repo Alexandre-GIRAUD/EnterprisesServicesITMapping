@@ -10,21 +10,84 @@
   box-sizing: border-box;
 }
 
+.about-page {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+  color: #0f172a;
+}
+
+.about-page h2 {
+  margin: 0 0 0.75rem;
+  font-size: 2rem;
+}
+
+.about-page p {
+  line-height: 1.5;
+}
+
+.about-contact {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.about-contact label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.about-contact input,
+.about-contact textarea {
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
+.about-contact button {
+  justify-self: start;
+  border: 0;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #ffffff;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+}
+
 /* ===== Base document ===== */
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 #root {
-  min-height: 100vh;
+  height: 100%;
+}
+
+/* Grown diagram is taller than the viewport, so the page may scroll. */
+body.is-diagram-grown,
+body.is-diagram-grown #root {
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
 }
 
 /* ===== App shell layout ===== */
 .layout {
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+body.is-diagram-grown .layout {
+  height: auto;
+  min-height: 100dvh;
+  overflow: visible;
 }
 
 .layout-header {
@@ -1751,15 +1814,15 @@ body {
 }
 
 .map-graph-panel .graph-filter-compact-btn--pin:not(:disabled) {
-  border-color: #e2e8f0;
-  background: #ffffff;
-  color: #334155;
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #ffffff;
 }
 
 .map-graph-panel .graph-filter-compact-btn--pin:not(:disabled):hover {
-  border-color: #cbd5e1;
-  background: #f8fafc;
-  color: #0f172a;
+  border-color: #15803d;
+  background: #15803d;
+  color: #ffffff;
 }
 
 .map-graph-panel .graph-filter-compact-btn--pin:focus-visible {
@@ -2406,15 +2469,17 @@ body {
 
 .self-service-view-list {
   --view-label-size: 0.82rem;
-  --view-label-size-primary: 1.25rem;
+  --view-label-size-primary: 1.05rem;
   --view-label-muted: #94a3b8;
+  --view-label-ink: #0f172a;
   --view-label-production: #2563eb;
   --view-label-sandbox: #d97706;
   --view-label-views: #16a34a;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.1rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.85rem;
 }
 
 .self-service-view-item {
@@ -2436,21 +2501,30 @@ body {
     color 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.self-service-view-item:hover,
+.self-service-view-item:focus-visible {
+  color: var(--view-label-ink);
+}
+
 .self-service-view-item.is-primary {
   font-size: var(--view-label-size-primary);
   font-weight: 700;
+  color: var(--view-label-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.28rem;
 }
 
 .self-service-view-item--explorer.is-primary {
-  color: var(--view-label-production);
+  text-decoration-color: var(--view-label-production);
 }
 
 .self-service-view-item--sandbox.is-primary {
-  color: var(--view-label-sandbox);
+  text-decoration-color: var(--view-label-sandbox);
 }
 
 .self-service-view-item--views.is-primary {
-  color: var(--view-label-views);
+  text-decoration-color: var(--view-label-views);
 }
 
 .self-service-view-item-label {
@@ -2548,6 +2622,37 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.graph-stage.is-grown {
+  flex: none;
+  height: var(--diagram-height);
+}
+
+.diagram-resize-handle {
+  flex: none;
+  height: 10px;
+  margin-top: 2px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.diagram-resize-handle::after {
+  content: '';
+  display: block;
+  width: 2.5rem;
+  height: 3px;
+  margin: 3px auto 0;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.diagram-resize-handle:hover::after,
+.diagram-resize-handle:focus-visible::after {
+  background: #64748b;
 }
 
 .graph-filter-toggle {
@@ -2786,8 +2891,61 @@ body {
 }
 
 .graph-filter-search {
+  position: relative;
   flex-shrink: 0;
   margin: 0 0 0.55rem;
+}
+
+.graph-filter-search-hits {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  max-height: 16rem;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 12%);
+}
+
+.graph-filter-search-hit {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  padding: 0.35rem 0.45rem;
+  cursor: pointer;
+}
+
+.graph-filter-search-hit:hover,
+.graph-filter-search-hit:focus-visible {
+  background: #f1f5f9;
+}
+
+.graph-filter-search-hit-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-filter-search-hit-kind {
+  flex: none;
+  color: #94a3b8;
+  font-size: 0.72rem;
 }
 
 .graph-filter-search-input {
@@ -4225,6 +4383,19 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  border-radius: 8px;
+  padding: 0.15rem 0.25rem;
+}
+
+.sandbox-saved-bar:hover,
+.sandbox-saved-bar:focus-within {
+  background: #f1f5f9;
+}
+
+.sandbox-saved-bar:hover .sandbox-manage-section,
+.sandbox-saved-bar:focus-within .sandbox-manage-section {
+  color: #0f172a;
+}
 }
 
 .sandbox-saved-bar .sandbox-manage-section {
@@ -4463,6 +4634,13 @@ body {
   display: flex;
   align-items: center;
   gap: 0.3rem;
+  border-radius: 8px;
+  padding: 0.15rem 0.2rem;
+}
+
+.graph-drawer-saved-item:hover,
+.graph-drawer-saved-item:focus-within {
+  background: #f1f5f9;
 }
 
 .graph-drawer-saved-name {
@@ -5809,6 +5987,22 @@ body {
     opacity 220ms ease;
   overflow: hidden;
   min-height: 0;
+}
+
+.graph-details-drawer.is-embedded {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  width: 100%;
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  z-index: auto;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .graph-details-drawer.is-open {

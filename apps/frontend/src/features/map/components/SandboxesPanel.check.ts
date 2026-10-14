@@ -22,6 +22,7 @@ const shared = {
   onLayoutModeChange: () => undefined,
   onNewSandbox: () => undefined,
   onSaveSandbox: () => undefined,
+  onDuplicateSandbox: () => undefined,
   onCloseSandbox: () => undefined,
   savedSandboxes: [saved],
   sandboxFolders: [],
@@ -48,6 +49,7 @@ assert.ok(beforeSaved && afterSaved, 'Saved section missing');
 assert.match(beforeSaved, /1 of 4/);
 assert.match(beforeSaved, /1 of 4[\s\S]*?>New</);
 assert.match(beforeSaved, /Draft[\s\S]*?>Save</);
+assert.match(beforeSaved, /Draft[\s\S]*?>Duplicate</);
 assert.match(beforeSaved, /Draft[\s\S]*?>Share</);
 assert.match(beforeSaved, /Draft[\s\S]*?>Close</);
 assert.match(html, />New folder</);
