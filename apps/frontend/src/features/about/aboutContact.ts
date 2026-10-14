@@ -1,5 +1,13 @@
-export const FLOWRA_SITE_URL = 'http://92.222.78.26:3000/login';
-export const FLOWRA_CONTACT_EMAIL = 'flowra.cartography@gmail.com';
+function configuredValue(name: string): string {
+  const env = (import.meta as { env?: Record<string, string | undefined> }).env;
+  return env?.[name]?.trim() ?? '';
+}
+
+/** Public site. Set VITE_FLOWRA_SITE_URL outside the repo. */
+export const FLOWRA_SITE_URL = configuredValue('VITE_FLOWRA_SITE_URL');
+
+/** Contact mailbox. Set VITE_FLOWRA_CONTACT_EMAIL outside the repo. */
+export const FLOWRA_CONTACT_EMAIL = configuredValue('VITE_FLOWRA_CONTACT_EMAIL');
 
 export function contactMailHref(subject: string, message: string): string {
   const params = new URLSearchParams({
