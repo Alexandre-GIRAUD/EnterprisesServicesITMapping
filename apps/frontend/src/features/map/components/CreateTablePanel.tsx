@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Ref } from 'react';
+import { useEffect, useMemo, useRef, useState, type Ref } from 'react';
 import type { ApplicationResponse, GraphEdgeDto, GraphNodeDto, GraphNodeFilterDto } from '@/types/api';
 import { nodeFillColorForValue } from './edgeColorProperty';
 import {
@@ -24,6 +24,11 @@ const EMPTY_SETUP: CustomTableSetup = { row: null, column: null, label: null, co
 const MISSING_COLOR = '#94a3b8';
 const PLAIN_BADGE_COLOR = '#e2e8f0';
 const NEW_TABLE_SOURCE = '';
+
+/** Same family of actions as views and sandboxes. Save stays outside the menu. */
+export function customTableMenuLabels(isExisting: boolean): readonly string[] {
+  return isExisting ? ['Rename', 'Duplicate', 'Share', 'Delete'] : ['Rename', 'Share', 'Delete'];
+}
 
 export type CreateTableExportState = {
   setup: CustomTableSetup;
@@ -246,22 +251,16 @@ export function CreateTablePanel({
           <AxisSelect label="Color" slot="color" setup={activeSetup} options={options} onChange={choose} />
         </div>
         <div className="pivot-actions">
-          {selectedId ? (
-            <>
-              <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
-              <button type="button" className="pivot-btn" onClick={renameTable}>Rename</button>
-              <button type="button" className="pivot-btn" onClick={duplicateTable}>Duplicate</button>
-              <button type="button" className="pivot-btn" onClick={deleteTable}>Delete</button>
-              <button type="button" className="pivot-btn" onClick={() => void shareTable()}>Share</button>
-            </>
-          ) : (
-            <>
-              <button type="button" className="pivot-btn" onClick={() => void shareTable()}>Share</button>
-              <button type="button" className="pivot-btn" onClick={deleteTable}>Delete</button>
-              <button type="button" className="pivot-btn" onClick={renameTable}>Rename</button>
-              <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
-            </>
-          )}
+          <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
+          <TableActions
+            labels={customTableMenuLabels(Boolean(selectedId))}
+            onPick={(label) => {
+              if (label === 'Rename') renameTable();
+              if (label === 'Duplicate') duplicateTable();
+              if (label === 'Share') void shareTable();
+              if (label === 'Delete') deleteTable();
+            }}
+          />
         </div>
         {shareMessage ? <p className="graph-table-message" role="status">{shareMessage}</p> : null}
       </form>
@@ -413,4 +412,62 @@ function axesOf(setup: CustomTableSetup) {
 
 function newTableId(): string {
   return `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function TableActions({
+  labels,
+  onPick,
+}: {
+  labels: readonly string[];
+  onPick: (label: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function onPointer(event: MouseEvent) {
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setIsOpen(false);
+    }
+    document.addEventListener('mousedown', onPointer);
+    return () => document.removeEventListener('mousedown', onPointer);
+  }, [isOpen]);
+
+  return (
+    <div className="graph-views-actions" ref={rootRef}>
+      <button
+        type="button"
+        className="graph-views-actions-btn"
+        aria-label="Table actions"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
+          <circle cx="10" cy="4.5" r="1.3" fill="currentColor" />
+          <circle cx="10" cy="10" r="1.3" fill="currentColor" />
+          <circle cx="10" cy="15.5" r="1.3" fill="currentColor" />
+        </svg>
+      </button>
+      {isOpen ? (
+        <div className="graph-views-actions-menu" role="menu">
+          {labels.map((label) => (
+            <button
+              key={label}
+              type="button"
+              role="menuitem"
+              className={label === 'Delete' ? 'quiet-danger' : undefined}
+              onClick={() => {
+                setIsOpen(false);
+                onPick(label);
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }

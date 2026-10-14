@@ -388,6 +388,27 @@ export function useSandboxes() {
     });
   }, [filedSandboxes, folders]);
 
+  const duplicateSaved = useCallback((id: string) => {
+    setSaved((list) => {
+      const source = list.find((item) => item.id === id);
+      if (!source) return list;
+      const copy = cloneSandboxDocument(normalizeSandboxDocument(source.document), `${source.name} copy`);
+      copy.dirty = false;
+      const next: SavedSandboxMeta[] = [
+        {
+          id: copy.id,
+          name: copy.name,
+          updatedAt: new Date().toISOString(),
+          document: copy,
+          folderId: source.folderId ?? null,
+        },
+        ...list,
+      ];
+      storeSavedSandboxes(next);
+      return next;
+    });
+  }, []);
+
   return {
     openDocs,
     activeId,
@@ -414,6 +435,7 @@ export function useSandboxes() {
     moveSandboxFolder,
     renameSavedSandbox,
     moveSavedSandbox,
+    duplicateSaved,
     addIcon,
     updateIconLabel,
     removeIcon,

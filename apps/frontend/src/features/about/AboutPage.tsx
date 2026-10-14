@@ -1,6 +1,21 @@
 import { type FormEvent, useState } from 'react';
 import { contactMailHref, FLOWRA_SITE_URL } from './aboutContact';
 
+const MODES = [
+  {
+    title: 'Production',
+    text: 'The shared cartography. What the organisation agrees is in the system.',
+  },
+  {
+    title: 'Sandbox',
+    text: 'A private copy. Rearrange it, then keep only what you decide to save.',
+  },
+  {
+    title: 'My views',
+    text: 'The diagrams you pin, filed so you can return to the same frame.',
+  },
+] as const;
+
 export function AboutPage() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -12,15 +27,22 @@ export function AboutPage() {
 
   return (
     <main className="about-page">
-      <h2>Flowra</h2>
-      <p>
-        Flowra maps the applications in an information system and the flows between them.
-        Production shows the shared cartography. Sandbox is a private copy you can rearrange.
-        My views keeps the diagrams you pin.
+      <p className="about-kicker">Flora</p>
+      <h2>The system, drawn once.</h2>
+      <p className="about-lead">
+        Flora maps the applications in an information system and the flows between them.
       </p>
+      <ul className="about-modes">
+        {MODES.map((mode) => (
+          <li key={mode.title}>
+            <strong>{mode.title}</strong>
+            <p>{mode.text}</p>
+          </li>
+        ))}
+      </ul>
       {FLOWRA_SITE_URL ? (
-        <p>
-          <a href={FLOWRA_SITE_URL}>Open the Flowra site</a>
+        <p className="about-site">
+          <a href={FLOWRA_SITE_URL}>Open the Flora site</a>
         </p>
       ) : null}
       <form className="about-contact" onSubmit={onSubmit}>
