@@ -26,6 +26,11 @@ export async function startGitHubConnect(): Promise<string> {
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) {
+    if (res.status === 503) {
+      throw new Error(
+        'GitHub OAuth is not configured. Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET, then restart the backend.'
+      );
+    }
     throw new Error(await githubError('GitHub connect', res));
   }
   const body = (await res.json()) as { authorizeUrl?: string };

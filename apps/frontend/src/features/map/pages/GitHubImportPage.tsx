@@ -345,7 +345,7 @@ export function GitHubImportPage() {
           Loading GitHub repositories…
         </p>
       )}
-      {status === 'error' && errorMessage && (
+      {errorMessage && (
         <p className="github-import-state github-import-state-error" role="alert">
           {errorMessage}
         </p>
