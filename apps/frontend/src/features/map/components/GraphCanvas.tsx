@@ -1730,11 +1730,15 @@ export function GraphCanvas() {
             onMoveSandboxFolder={sandboxes.moveSandboxFolder}
             onRenameSavedSandbox={sandboxes.renameSavedSandbox}
             onMoveSavedSandbox={sandboxes.moveSavedSandbox}
+            onRenameOpenSandbox={(id, name) => sandboxes.patchDoc(id, { name, dirty: true })}
+            onDuplicateSavedSandbox={sandboxes.duplicateSaved}
             onShareSandbox={async (id, username) => {
-              const doc = sandboxes.openDocs.find((item) => item.id === id);
+              const open = sandboxes.openDocs.find((item) => item.id === id);
+              const savedMeta = sandboxes.saved.find((item) => item.id === id);
+              const doc = open ?? savedMeta?.document;
               if (!doc) return;
               try {
-                await shareSavedSandbox(username, doc.name, doc);
+                await shareSavedSandbox(username, open?.name ?? savedMeta?.name ?? doc.name, doc);
                 setSandboxToast(`Shared with ${username}.`);
               } catch (error) {
                 setSandboxToast(error instanceof Error ? error.message : 'Unable to share.');
@@ -1783,7 +1787,7 @@ export function GraphCanvas() {
   function onDiagramResizePointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
     event.preventDefault();
     const handle = event.currentTarget;
-    const stage = handle.parentElement;
+    const stage = handle.closest('.map-graph-panel')?.querySelector('.graph-stage');
     if (diagramHeight == null) {
       diagramFitHeightRef.current = stage?.getBoundingClientRect().height ?? 0;
     }
@@ -2288,17 +2292,6 @@ export function GraphCanvas() {
               </div>
             )}
 
-            {displayMode === 'graph' && !isViewsMode ? (
-              <button
-                type="button"
-                className="diagram-resize-handle"
-                aria-label="Resize diagram"
-                title="Drag to resize the diagram. Double-click to fit the screen."
-                onPointerDown={onDiagramResizePointerDown}
-                onDoubleClick={() => setDiagramHeight(null)}
-              />
-            ) : null}
-
             <SaveSnapshotDialog
               isOpen={isSaveSnapshotOpen}
               onClose={() => setIsSaveSnapshotOpen(false)}
@@ -2380,6 +2373,16 @@ export function GraphCanvas() {
           }}
           toolDetail={toolDetail}
         />
+        {displayMode === 'graph' && !isViewsMode ? (
+          <button
+            type="button"
+            className="diagram-resize-handle"
+            aria-label="Resize diagram and menu together"
+            title="Drag to extend the diagram and the menu. Double-click to fit the screen."
+            onPointerDown={onDiagramResizePointerDown}
+            onDoubleClick={() => setDiagramHeight(null)}
+          />
+        ) : null}
       </div>
     </div>
   );

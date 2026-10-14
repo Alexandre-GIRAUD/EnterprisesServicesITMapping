@@ -65,7 +65,7 @@ assert.deepEqual(loadSandboxFolders(JSON.stringify([{ id: 'a', name: 'A', parent
   { id: 'a', name: 'A', parentId: null },
 ]);
 assert.deepEqual(listSandboxMenuEntries('empty'), ['New folder']);
-assert.ok(listSandboxMenuEntries('sandbox').includes('Move'));
-assert.ok(!listSandboxMenuEntries('sandbox').includes('Share'));
+assert.deepEqual(listSandboxMenuEntries('folder'), ['Rename', 'Move', 'Delete', 'New folder']);
+assert.deepEqual(listSandboxMenuEntries('sandbox'), ['Rename', 'Duplicate', 'Share', 'Move', 'Delete']);
 
 console.log('sandboxFolders.check: ok');

@@ -464,7 +464,15 @@ function SandboxPaneInner({
       role="group"
       aria-label={doc.name}
     >
-      <header className="sandbox-pane__header">
+      <header
+        className="sandbox-pane__header"
+        onDoubleClick={(event) => {
+          if ((event.target as HTMLElement).closest('button')) return;
+          event.stopPropagation();
+          setTitleDraft(doc.name);
+          setEditingTitle(true);
+        }}
+      >
         {editingTitle ? (
           <input
             className="sandbox-pane__title-input"

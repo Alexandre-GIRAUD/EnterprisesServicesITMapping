@@ -33,10 +33,13 @@ export function Layout() {
             <div className="layout-header-brand-group">
               <Link to="/about" className="layout-brand layout-brand-link">
                 <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
-                {user ? <h1 title={user.username}>{user.username}</h1> : null}
+                <h1>Flora</h1>
               </Link>
               {user ? (
                 <span className="layout-header-user-meta">
+                  <span className="layout-header-user" title={user.username}>
+                    {user.username}
+                  </span>
                   {roleLabel ? (
                     <span className="layout-header-role" title={roleLabel}>
                       {roleLabel}

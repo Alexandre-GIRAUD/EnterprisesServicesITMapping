@@ -34,28 +34,33 @@ const shared = {
   onMoveSandboxFolder: () => undefined,
   onRenameSavedSandbox: () => undefined,
   onMoveSavedSandbox: () => undefined,
+  onRenameOpenSandbox: () => undefined,
+  onDuplicateSavedSandbox: () => undefined,
   onShareSandbox: async () => undefined,
 };
 
 const html = renderToStaticMarkup(
   createElement(SandboxesPanel, {
     ...shared,
-    openSandboxes: [{ id: 'open-1', name: 'Draft', dirty: true }],
+    openSandboxes: [
+      { id: 'open-1', name: 'Draft', dirty: true },
+      { id: 'open-2', name: 'Other', dirty: false },
+    ],
   }),
 );
 
-const [beforeSaved, afterSaved] = html.split('>Saved<');
-assert.ok(beforeSaved && afterSaved, 'Saved section missing');
-assert.match(beforeSaved, /1 of 4/);
-assert.match(beforeSaved, /1 of 4[\s\S]*?>New</);
-assert.match(beforeSaved, /Draft[\s\S]*?>Save</);
-assert.match(beforeSaved, /Draft[\s\S]*?>Duplicate</);
-assert.match(beforeSaved, /Draft[\s\S]*?>Share</);
-assert.match(beforeSaved, /Draft[\s\S]*?>Close</);
-assert.match(html, />New folder</);
+const [beforeSaved, savedAndAfter] = html.split('>Saved<');
+assert.ok(beforeSaved && savedAndAfter, 'Saved section missing');
+assert.match(html, /sandbox-manage-meta[\s\S]*2 of 4[\s\S]*aria-label="Horizontal"/);
+assert.match(html, /sandbox-library-switch[\s\S]*?>New</);
+assert.match(html, /aria-pressed="false"[^>]*>Saved</);
+assert.match(html, /title="Double-click to rename"/);
+assert.match(html, /aria-label="Actions for Draft"/);
+assert.doesNotMatch(beforeSaved, />Save</);
+assert.doesNotMatch(beforeSaved, />Duplicate</);
+assert.doesNotMatch(beforeSaved, />Close</);
 assert.doesNotMatch(html, />Payroll</);
 assert.doesNotMatch(html, />Load</);
-assert.doesNotMatch(afterSaved, />Share</);
 
 const full = renderToStaticMarkup(
   createElement(SandboxesPanel, {

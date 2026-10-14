@@ -22,14 +22,39 @@ export const SANDBOX_MENU_RENAME = 'Rename';
 export const SANDBOX_MENU_MOVE = 'Move';
 export const SANDBOX_MENU_DELETE = 'Delete';
 export const SANDBOX_MENU_NEW_FOLDER = 'New folder';
+export const SANDBOX_MENU_SHARE = 'Share';
+export const SANDBOX_MENU_DUPLICATE = 'Duplicate';
+export const SANDBOX_MENU_SAVE = 'Save';
+export const SANDBOX_MENU_CLOSE = 'Close';
 
-const ROW_MENU = [SANDBOX_MENU_RENAME, SANDBOX_MENU_MOVE, SANDBOX_MENU_DELETE, SANDBOX_MENU_NEW_FOLDER] as const;
+const FOLDER_MENU = [SANDBOX_MENU_RENAME, SANDBOX_MENU_MOVE, SANDBOX_MENU_DELETE, SANDBOX_MENU_NEW_FOLDER] as const;
+const SAVED_SANDBOX_MENU = [
+  SANDBOX_MENU_RENAME,
+  SANDBOX_MENU_DUPLICATE,
+  SANDBOX_MENU_SHARE,
+  SANDBOX_MENU_MOVE,
+  SANDBOX_MENU_DELETE,
+] as const;
+
+/** Open boards: Load stays off this list. Close is the open-board equivalent of Delete. */
+export const OPEN_SANDBOX_MENU = [
+  SANDBOX_MENU_SAVE,
+  SANDBOX_MENU_DUPLICATE,
+  SANDBOX_MENU_SHARE,
+  SANDBOX_MENU_RENAME,
+  SANDBOX_MENU_CLOSE,
+] as const;
 const NAME_SORT: Intl.CollatorOptions = { sensitivity: 'base' };
 const PATH_SEPARATOR = ' / ';
 
 export function listSandboxMenuEntries(target: 'empty' | 'sandbox' | 'folder'): readonly string[] {
   if (target === 'empty') return [SANDBOX_MENU_NEW_FOLDER];
-  return ROW_MENU;
+  if (target === 'folder') return FOLDER_MENU;
+  return SAVED_SANDBOX_MENU;
+}
+
+export function isQuietDangerAction(label: string): boolean {
+  return label === SANDBOX_MENU_DELETE || label === SANDBOX_MENU_CLOSE;
 }
 
 export function loadSandboxFolders(raw: string | null): SandboxFolder[] {

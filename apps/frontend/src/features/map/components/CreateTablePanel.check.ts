@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { CreateTablePanel } from './CreateTablePanel.tsx';
+import { CreateTablePanel, customTableMenuLabels } from './CreateTablePanel.tsx';
 import { TableContentToggle } from './TableContentToggle.tsx';
 
 Object.assign(globalThis, {
@@ -41,11 +41,11 @@ assert.match(html, />Rows</);
 assert.match(html, />Columns</);
 assert.match(html, />Label</);
 assert.match(html, />Color</);
-assert.match(html, />Share</);
-assert.match(html, />Delete</);
-assert.match(html, />Rename</);
 assert.match(html, />Save</);
-assert.doesNotMatch(html, />Duplicate</);
+assert.match(html, /aria-label="Table actions"/);
+assert.deepEqual(customTableMenuLabels(false), ['Rename', 'Share', 'Delete']);
+assert.deepEqual(customTableMenuLabels(true), ['Rename', 'Duplicate', 'Share', 'Delete']);
+assert.doesNotMatch(html, />Delete</);
 
 const ticker = renderToStaticMarkup(
   createElement(TableContentToggle, { value: 'apps', onChange: () => undefined }),
