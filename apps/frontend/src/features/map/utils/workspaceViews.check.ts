@@ -5,10 +5,8 @@
 import assert from 'node:assert/strict';
 import { primaryWorkspaceMode } from './workspaceViews.ts';
 
-assert.equal(primaryWorkspaceMode('normal', null), 'normal');
-assert.equal(primaryWorkspaceMode('sandbox', null), 'sandbox');
-assert.equal(primaryWorkspaceMode('normal', 'sandbox'), 'sandbox');
-assert.equal(primaryWorkspaceMode('views', 'normal'), 'normal');
-assert.equal(primaryWorkspaceMode('sandbox', 'sandbox'), 'sandbox');
+assert.equal(primaryWorkspaceMode('normal'), 'normal');
+assert.equal(primaryWorkspaceMode('sandbox'), 'sandbox');
+assert.equal(primaryWorkspaceMode('views'), 'views');
 
 console.log('workspaceViews.check: ok');
