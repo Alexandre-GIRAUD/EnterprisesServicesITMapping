@@ -83,6 +83,30 @@ public class GraphNeighborhoodService {
     return new ApplicationNeighborhoodDto(app, edges, truncated);
   }
 
+  /** DEPENDS_ON ids between two applications, either direction. */
+  @Transactional(readOnly = true)
+  public List<String> dependsOnIdsBetween(String leftId, String rightId) {
+    if (!StringUtils.hasText(leftId) || !StringUtils.hasText(rightId)) {
+      return List.of();
+    }
+    return neo4jClient
+        .query(
+            """
+            MATCH (a:Application {id: $left})-[r:DEPENDS_ON]-(b:Application {id: $right})
+            RETURN r.id AS id
+            """)
+        .bind(leftId.trim())
+        .to("left")
+        .bind(rightId.trim())
+        .to("right")
+        .fetch()
+        .all()
+        .stream()
+        .map(row -> Neo4jValueMapping.asString(row.get("id")))
+        .filter(StringUtils::hasText)
+        .toList();
+  }
+
   private List<NeighborhoodEdgeDto> loadDirected(String applicationId, String direction, int limit) {
     if (limit <= 0) {
       return List.of();

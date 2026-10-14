@@ -10,16 +10,24 @@ import static org.mockito.Mockito.when;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery;
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery.CatalogRow;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeAttributePatchService;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeRefPatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.chat.domain.ChatCitationType;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskRequest;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskResponse;
+import com.enterprise.itmapping.feature.chat.presentation.dto.ChatMapFilters;
 import com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocumentationService;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributePatchService;
 import com.enterprise.itmapping.feature.graph.application.GraphNeighborhoodService;
+import com.enterprise.itmapping.feature.graph.application.GraphService;
+import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetService;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto.NeighborhoodApplicationDto;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto.NeighborhoodEdgeDto;
+import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto;
+import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto.GraphFilterOptionDto;
 import com.enterprise.itmapping.feature.graph.domain.NeighborhoodDirection;
 import com.enterprise.itmapping.feature.integrations.llm.MappingChatProperties;
 import com.enterprise.itmapping.feature.rag.application.FunctionalDocSearchService;
@@ -42,6 +50,11 @@ class MappingChatToolsTest {
   @Mock FunctionalDocumentationService documentationService;
   @Mock ModuleGraphService moduleGraphService;
   @Mock FunctionalDocSearchService docSearchService;
+  @Mock GraphNodeFilterFacetService filterFacets;
+  @Mock GraphService graphService;
+  @Mock ApplicationNodeAttributePatchService nodeAttributes;
+  @Mock ApplicationNodeRefPatchService nodeRefs;
+  @Mock GraphEdgeAttributePatchService edgeAttributes;
 
   private final MappingChatProperties properties =
       new MappingChatProperties(true, 10, 50, 8000, 10, 10, 40);
@@ -106,24 +119,156 @@ class MappingChatToolsTest {
   @Test
   void serviceAskDelegatesToAgentAndReturnsCitations() {
     MappingChatAgent agent = org.mockito.Mockito.mock(MappingChatAgent.class);
-    when(agent.ask(anyString(), any(), any())).thenReturn("Réponse test");
+    when(agent.ask(anyString(), any(), any())).thenReturn("Billing is connected to CRM.");
 
-    MappingChatService service =
-        new MappingChatService(
-            agent,
-            properties,
-            catalogQuery,
-            neighborhoodService,
-            applicationService,
-            documentationService,
-            moduleGraphService,
-            docSearchService,
-            objectMapper,
-            "sk-test");
+    MappingChatService service = chatService(agent);
 
-    ChatAskResponse res = service.ask(new ChatAskRequest("Qui est connecté à Billing ?", null));
-    assertThat(res.answerMarkdown()).isEqualTo("Réponse test");
-    verify(agent).ask(eq("Qui est connecté à Billing ?"), eq(null), any(MappingChatTools.class));
+    ChatAskResponse res = service.ask(new ChatAskRequest("Who is connected to Billing?", null));
+    assertThat(res.answerMarkdown()).isEqualTo("Billing is connected to CRM.");
+    assertThat(res.appliedFilters()).isNull();
+    assertThat(res.graphChanged()).isFalse();
+    verify(agent).ask(eq("Who is connected to Billing?"), eq(null), any(MappingChatTools.class));
+  }
+
+  @Test
+  void serviceAskUsesAnEnglishFallbackWhenTheModelReturnsNothing() {
+    MappingChatAgent agent = org.mockito.Mockito.mock(MappingChatAgent.class);
+    when(agent.ask(anyString(), any(), any())).thenReturn("  ");
+
+    ChatAskResponse res =
+        chatService(agent).ask(new ChatAskRequest("Who is connected to Billing?", null));
+
+    assertThat(res.answerMarkdown())
+        .isEqualTo("I could not produce an answer. Try again or rephrase the question.");
+  }
+
+  @Test
+  void serviceAskShowsTheModelTheFiltersOnTheMap() {
+    MappingChatAgent agent = org.mockito.Mockito.mock(MappingChatAgent.class);
+    when(agent.ask(anyString(), any(), any())).thenReturn("Done");
+    MappingChatService service = chatService(agent);
+    ChatMapFilters filters =
+        new ChatMapFilters(List.of("a1"), Map.of("region", List.of("Europe")), Map.of(), Map.of());
+
+    service.ask(new ChatAskRequest("Remove the region filter", null, filters));
+
+    verify(agent)
+        .ask(
+            org.mockito.ArgumentMatchers.argThat(
+                message ->
+                    message.contains("Current map filters:") && message.contains("Europe")),
+            eq(null),
+            any(MappingChatTools.class));
+  }
+
+  @Test
+  void askRequestReadsTheFiltersTheMapIsShowing() throws Exception {
+    ChatAskRequest request =
+        objectMapper.readValue(
+            "{\"message\":\"Show Europe\",\"filters\":{\"applicationIds\":[\"a1\"],\"nodeAttributes\":{\"region\":[\"Europe\"]}}}",
+            ChatAskRequest.class);
+
+    assertThat(request.filters().applicationIds()).containsExactly("a1");
+    assertThat(request.filters().nodeAttributes()).containsEntry("region", List.of("Europe"));
+    assertThat(request.filters().nodeRefs()).isEmpty();
+  }
+
+  @Test
+  void applyMapFiltersStoresCatalogueSpellingAndDropsUnknownValues() {
+    when(filterFacets.listNodeFilters()).thenReturn(regionAndCountry());
+
+    MappingChatTools tools = tools();
+    String json =
+        tools.applyMapFilters(
+            "{\"nodeAttributes\":{\"region\":[\"europe\",\"Mars\"]},\"nodeRefs\":{\"Pays\":[\"Europe\"]},\"edgeAttributes\":{\"channel\":[\"api\"]}}");
+
+    assertThat(json).contains("\"accepted\":true").contains("Mars");
+    assertThat(tools.appliedFilters().nodeAttributes()).containsEntry("region", List.of("Europe"));
+    assertThat(tools.appliedFilters().nodeRefs()).containsEntry("country", List.of("ref-eu"));
+    assertThat(tools.appliedFilters().edgeAttributes()).containsEntry("channel", List.of("API"));
+  }
+
+  @Test
+  void applyMapFiltersRefusesAnUnknownKeyOrADimensionWithNoValidValue() {
+    when(filterFacets.listNodeFilters()).thenReturn(regionAndCountry());
+
+    MappingChatTools tools = tools();
+    tools.applyMapFilters("{\"nodeAttributes\":{\"region\":[\"Europe\"]}}");
+
+    assertThat(tools.applyMapFilters("{\"nodeAttributes\":{\"nope\":[\"Europe\"]}}"))
+        .contains("\"accepted\":false");
+    assertThat(tools.appliedFilters().nodeAttributes()).containsEntry("region", List.of("Europe"));
+
+    MappingChatTools fresh = tools();
+    assertThat(fresh.applyMapFilters("{\"nodeAttributes\":{\"region\":[\"Mars\"]}}"))
+        .contains("\"accepted\":false");
+    assertThat(fresh.appliedFilters()).isNull();
+  }
+
+  @Test
+  void applyMapFiltersRefusesAnAmbiguousApplicationAndClearsOnAnEmptyObject() {
+    when(catalogQuery.loadAllNamed())
+        .thenReturn(
+            List.of(
+                new CatalogRow("a1", "Alpha", null),
+                new CatalogRow("b1", "Billing", null),
+                new CatalogRow("b2", "Billpay", null)));
+    when(filterFacets.listNodeFilters()).thenReturn(List.of());
+
+    MappingChatTools tools = tools();
+    assertThat(tools.applyMapFilters("{\"applicationIds\":[\"Bill\"]}")).contains("\"accepted\":false");
+    assertThat(tools.appliedFilters()).isNull();
+
+    assertThat(tools.applyMapFilters("{\"applicationIds\":[\"Alpha\"]}")).contains("\"accepted\":true");
+    assertThat(tools.appliedFilters().applicationIds()).containsExactly("a1");
+
+    assertThat(tools.applyMapFilters("{}")).contains("\"accepted\":true");
+    assertThat(tools.appliedFilters().applicationIds()).isEmpty();
+    assertThat(tools.appliedFilters().nodeAttributes()).isEmpty();
+  }
+
+  @Test
+  void listFilterDimensionsReturnsTheDrawerDimensions() {
+    when(filterFacets.listNodeFilters()).thenReturn(regionAndCountry());
+
+    String json = tools().listFilterDimensions();
+
+    assertThat(json).contains("region").contains("Pays").contains("ref-eu");
+  }
+
+  private static List<GraphNodeFilterDto> regionAndCountry() {
+    return List.of(
+        new GraphNodeFilterDto("region", "Region", List.of("Europe", "US"), true),
+        new GraphNodeFilterDto(
+            "country",
+            "Pays",
+            List.of("ref-eu", "ref-us"),
+            true,
+            "NODE_REF",
+            true,
+            List.of(
+                new GraphFilterOptionDto("ref-eu", "Europe"),
+                new GraphFilterOptionDto("ref-us", "United States"))),
+        new GraphNodeFilterDto("channel", "Channel", List.of("API", "FILE"), true, "EDGE", false, List.of()));
+  }
+
+  private MappingChatService chatService(MappingChatAgent agent) {
+    return new MappingChatService(
+        agent,
+        properties,
+        catalogQuery,
+        neighborhoodService,
+        applicationService,
+        documentationService,
+        moduleGraphService,
+        docSearchService,
+        filterFacets,
+        graphService,
+        nodeAttributes,
+        nodeRefs,
+        edgeAttributes,
+        objectMapper,
+        "sk-test");
   }
 
   private MappingChatTools tools() {
@@ -132,9 +277,14 @@ class MappingChatToolsTest {
         neighborhoodService,
         applicationService,
         documentationService,
-        moduleGraphService,
-        docSearchService,
-        properties,
-        objectMapper);
+            moduleGraphService,
+            docSearchService,
+            filterFacets,
+            graphService,
+            nodeAttributes,
+            nodeRefs,
+            edgeAttributes,
+            properties,
+            objectMapper);
   }
 }

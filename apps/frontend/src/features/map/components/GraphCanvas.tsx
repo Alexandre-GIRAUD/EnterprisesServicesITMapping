@@ -1515,6 +1515,9 @@ export function GraphCanvas() {
         if (!isExplorer) return null;
         return (
           <MappingChatPanel
+            currentFilters={currentGraphFilters}
+            onApplyFilters={applyGraphFilters}
+            onGraphChanged={reloadGraph}
             onFocusApplication={(applicationId) => {
               const app = applications.find((a) => a.id === applicationId);
               openApplicationDetails(applicationId, app?.name ?? applicationId);

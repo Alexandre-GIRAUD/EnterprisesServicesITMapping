@@ -218,6 +218,10 @@ export type ChatAskResponseDto = {
   answerMarkdown: string;
   citations: ChatCitationDto[];
   warnings: string[];
+  /** Present when this answer replaces the Production map filters, including an empty set that clears them. */
+  appliedFilters?: GraphFilters | null;
+  /** True when this answer wrote an application, a flow, or a property. */
+  graphChanged?: boolean;
 };
 
 /** {@code POST /api/applications/{id}/modules/suggest-from-github} */

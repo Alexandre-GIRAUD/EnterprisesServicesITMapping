@@ -3,17 +3,25 @@ package com.enterprise.itmapping.feature.chat.application;
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery;
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery.CatalogRow;
 import com.enterprise.itmapping.feature.applications.application.ApplicationNameMatch;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeAttributePatchService;
+import com.enterprise.itmapping.feature.applications.application.ApplicationNodeRefPatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
 import com.enterprise.itmapping.feature.chat.domain.ChatCitationType;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskResponse.ChatCitationDto;
+import com.enterprise.itmapping.feature.chat.presentation.dto.ChatMapFilters;
 import com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocumentationService;
 import com.enterprise.itmapping.feature.functionaldoc.application.dto.AiFunctionalDocPayload;
 import com.enterprise.itmapping.feature.functionaldoc.domain.FunctionalDocStatus;
 import com.enterprise.itmapping.feature.functionaldoc.presentation.dto.FunctionalDocumentationResponse;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributePatchService;
 import com.enterprise.itmapping.feature.graph.application.GraphNeighborhoodService;
+import com.enterprise.itmapping.feature.graph.application.GraphService;
+import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetService;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto;
+import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto;
+import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto.GraphFilterOptionDto;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto.NeighborhoodEdgeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
@@ -37,8 +45,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Read-only tools for the mapping chat agent. One instance per ask request so citations accumulate
- * safely.
+ * Tools for one mapping-chat question. Read tools do not write. {@code applyMapFilters} only changes
+ * the map filters. The four correction tools write through the same services as Corrections and the
+ * drawers, at most once per reply. One instance per ask.
  */
 public class MappingChatTools {
 
@@ -48,12 +57,16 @@ public class MappingChatTools {
   private final FunctionalDocumentationService documentationService;
   private final ModuleGraphService moduleGraphService;
   private final FunctionalDocSearchService docSearchService;
+  private final GraphNodeFilterFacetService filterFacets;
   private final MappingChatProperties properties;
   private final ObjectMapper objectMapper;
+  private final MappingChatCorrections corrections;
 
   private final LinkedHashSet<String> citationKeys = new LinkedHashSet<>();
   private final List<ChatCitationDto> citations = new ArrayList<>();
   private final List<String> warnings = new ArrayList<>();
+  private ChatMapFilters appliedFilters;
+  private boolean graphChanged;
 
   public MappingChatTools(
       ApplicationCatalogQuery catalogQuery,
@@ -62,6 +75,11 @@ public class MappingChatTools {
       FunctionalDocumentationService documentationService,
       ModuleGraphService moduleGraphService,
       FunctionalDocSearchService docSearchService,
+      GraphNodeFilterFacetService filterFacets,
+      GraphService graphService,
+      ApplicationNodeAttributePatchService nodeAttributes,
+      ApplicationNodeRefPatchService nodeRefs,
+      GraphEdgeAttributePatchService edgeAttributes,
       MappingChatProperties properties,
       ObjectMapper objectMapper) {
     this.catalogQuery = catalogQuery;
@@ -70,8 +88,20 @@ public class MappingChatTools {
     this.documentationService = documentationService;
     this.moduleGraphService = moduleGraphService;
     this.docSearchService = docSearchService;
+    this.filterFacets = filterFacets;
     this.properties = properties;
     this.objectMapper = objectMapper;
+    this.corrections =
+        new MappingChatCorrections(
+            applicationService,
+            graphService,
+            nodeAttributes,
+            nodeRefs,
+            edgeAttributes,
+            neighborhoodService,
+            filterFacets,
+            catalogQuery,
+            objectMapper);
   }
 
   public List<ChatCitationDto> citations() {
@@ -82,6 +112,16 @@ public class MappingChatTools {
     return List.copyOf(warnings);
   }
 
+  /** Null until a call to {@code applyMapFilters} is accepted. A later refusal leaves this set. */
+  public ChatMapFilters appliedFilters() {
+    return appliedFilters;
+  }
+
+  /** True after one correction tool has written. */
+  public boolean graphChanged() {
+    return graphChanged;
+  }
+
   @Tool(
       description =
           "Semantic search across stored functional documentation (READY docs only). "
@@ -90,7 +130,7 @@ public class MappingChatTools {
               + "Optional applicationId scopes search to one app. "
               + "Do NOT use this for topology / DEPENDS_ON / who-is-connected questions.")
   public String searchFunctionalDocs(
-      @ToolParam(description = "Natural language query") String query,
+      @ToolParam(description = "English question, as the user wrote it") String query,
       @ToolParam(description = "Optional application id to scope search", required = false)
           String applicationId) {
     if (docSearchService == null) {
@@ -142,7 +182,7 @@ public class MappingChatTools {
               + "Call this first when the user mentions an application. "
               + "If several matches are similarly close, ask which one is meant.")
   public String resolveApplications(
-      @ToolParam(description = "Application name or id, as the user wrote it") String query) {
+      @ToolParam(description = "Application name or id in English, as the user wrote it") String query) {
     List<CatalogRow> rows =
         ApplicationNameMatch.closest(query, catalogQuery.loadAllNamed(), properties.maxResolveResults());
     if (rows.isEmpty()) {
@@ -308,6 +348,312 @@ public class MappingChatTools {
     return toJson(out);
   }
 
+  @Tool(
+      description =
+          "Create an Application on the Production graph. JSON {name, description?}. "
+              + "No change reason. Refuses an empty name. One correction per reply.")
+  public String createApplication(
+      @ToolParam(description = "JSON {name, description?}") String applicationJson) {
+    return finish(corrections.createApplication(applicationJson));
+  }
+
+  @Tool(
+      description =
+          "Create a flow between two existing applications. JSON {source, target, type?, reason, reasonComment?}. "
+              + "type defaults to DEPENDS_ON. reason is MissedOnScan, NotInSources, WrongData, WrongFormat, "
+              + "WrongSpelling, OutdatedData, or Others. Others requires reasonComment. One correction per reply.")
+  public String createFlow(@ToolParam(description = "JSON flow to create") String flowJson) {
+    return finish(corrections.createFlow(flowJson));
+  }
+
+  @Tool(
+      description =
+          "Set application properties. JSON {application, reason, reasonComment?, nodeAttributes?, nodeRefs?, "
+              + "clearNodeAttributes?, clearNodeRefs?}. Omit a property to leave it. "
+              + "clearNodeAttributes and clearNodeRefs empty that property only. "
+              + "NODE_REF values may be display names. One correction per reply.")
+  public String setNodeProperties(
+      @ToolParam(description = "JSON node property change") String propertiesJson) {
+    return finish(corrections.setNodeProperties(propertiesJson));
+  }
+
+  @Tool(
+      description =
+          "Set properties of the single DEPENDS_ON flow between two applications. "
+              + "JSON {source, target, reason, reasonComment?, edgeAttributes?, clearEdgeAttributes?}. "
+              + "Refuses when there is not exactly one flow. One correction per reply.")
+  public String setFlowProperties(
+      @ToolParam(description = "JSON flow property change") String propertiesJson) {
+    return finish(corrections.setFlowProperties(propertiesJson));
+  }
+
+  private String finish(MappingChatCorrections.CorrectionOutcome outcome) {
+    if (outcome.changed()) {
+      graphChanged = true;
+      addCitation(outcome.type(), outcome.id(), outcome.label());
+    }
+    return outcome.json();
+  }
+
+  @Tool(
+      description =
+          "List Production map filter dimensions: key, label, kind (NODE, NODE_REF, EDGE), and values. "
+              + "NODE_REF options include catalogue id and display name. "
+              + "The user asks in English. Map those words to a key, label, or value from this list. "
+              + "Call this before applyMapFilters when the field key is not obvious.")
+  public String listFilterDimensions() {
+    return toJson(listedDimensions());
+  }
+
+  @Tool(
+      description =
+          "Replace the Production map filters. Does not write the graph. "
+              + "The user asks in English. Send the stored key, label, or catalogue spelling, not a translation absent from listFilterDimensions. "
+              + "JSON object with applicationIds, nodeAttributes, nodeRefs, edgeAttributes. "
+              + "Each value is a JSON array of strings. Omit a key or send [] to leave that axis unfiltered. "
+              + "{} clears every filter. Unknown keys refuse the whole set. "
+              + "Unknown values in a known dimension are dropped; if none remain, the whole set is refused.")
+  public String applyMapFilters(
+      @ToolParam(description = "JSON filter set. {} clears every filter.") String filtersJson) {
+    ChatMapFilters requested = readFilters(filtersJson);
+    if (requested == null) {
+      return refuse("invalid_json", null);
+    }
+    FilterDecision decision = resolveFilters(requested);
+    if (!decision.accepted()) {
+      return refuse(decision.error(), decision.detail());
+    }
+    appliedFilters = decision.filters();
+    Map<String, Object> out = new LinkedHashMap<>();
+    out.put("accepted", true);
+    out.put("applied", decision.summary());
+    out.put("ignored", decision.ignored());
+    return toJson(out);
+  }
+
+  private ChatMapFilters readFilters(String filtersJson) {
+    if (!StringUtils.hasText(filtersJson)) {
+      return null;
+    }
+    try {
+      return objectMapper.readValue(filtersJson, ChatMapFilters.class);
+    } catch (JsonProcessingException ex) {
+      return null;
+    }
+  }
+
+  private FilterDecision resolveFilters(ChatMapFilters requested) {
+    List<GraphNodeFilterDto> dimensions = listedDimensions();
+    List<String> applicationIds = new ArrayList<>();
+    String unresolved = resolveApplicationIds(requested.applicationIds(), applicationIds);
+    if (unresolved != null) {
+      return FilterDecision.refuse("application_not_resolved", unresolved);
+    }
+    AxisCollector collector = new AxisCollector();
+    String nodeError = fillAxis(requested.nodeAttributes(), "NODE", dimensions, collector);
+    if (nodeError != null) {
+      return FilterDecision.refuse(nodeError, collector.detail);
+    }
+    String refError = fillAxis(requested.nodeRefs(), "NODE_REF", dimensions, collector);
+    if (refError != null) {
+      return FilterDecision.refuse(refError, collector.detail);
+    }
+    String edgeError = fillAxis(requested.edgeAttributes(), "EDGE", dimensions, collector);
+    if (edgeError != null) {
+      return FilterDecision.refuse(edgeError, collector.detail);
+    }
+    if (!applicationIds.isEmpty()) {
+      collector.summary.add(0, axisSummary("applicationIds", "Applications", applicationIds));
+    }
+    ChatMapFilters filters =
+        new ChatMapFilters(
+            applicationIds, collector.nodeAttributes, collector.nodeRefs, collector.edgeAttributes);
+    return FilterDecision.accept(filters, collector.ignored, collector.summary);
+  }
+
+  private String resolveApplicationIds(List<String> rawIds, List<String> accepted) {
+    if (rawIds == null || rawIds.isEmpty()) {
+      return null;
+    }
+    List<CatalogRow> catalogue = catalogQuery.loadAllNamed();
+    for (String raw : rawIds) {
+      if (!StringUtils.hasText(raw)) {
+        continue;
+      }
+      CatalogRow match = ApplicationNameMatch.uniqueClosest(raw.trim(), catalogue);
+      if (match == null) {
+        return raw.trim();
+      }
+      if (!accepted.contains(match.id())) {
+        accepted.add(match.id());
+      }
+    }
+    return null;
+  }
+
+  private String fillAxis(
+      Map<String, List<String>> requested,
+      String kind,
+      List<GraphNodeFilterDto> dimensions,
+      AxisCollector collector) {
+    if (requested == null || requested.isEmpty()) {
+      return null;
+    }
+    for (Map.Entry<String, List<String>> entry : requested.entrySet()) {
+      DimensionMatch match = matchDimension(dimensions, entry.getKey(), kind);
+      if (match.dimension() == null) {
+        collector.detail = entry.getKey();
+        return match.error();
+      }
+      String error = keepValues(match.dimension(), entry.getValue(), collector);
+      if (error != null) {
+        return error;
+      }
+    }
+    return null;
+  }
+
+  private String keepValues(
+      GraphNodeFilterDto dimension, List<String> rawValues, AxisCollector collector) {
+    if (rawValues == null || rawValues.isEmpty()) {
+      return null;
+    }
+    List<String> kept = new ArrayList<>();
+    int requestedCount = 0;
+    for (String raw : rawValues) {
+      if (!StringUtils.hasText(raw)) {
+        continue;
+      }
+      requestedCount++;
+      ResolvedValue resolved = resolveValue(dimension, raw.trim());
+      if (resolved.ambiguous()) {
+        collector.detail = raw.trim();
+        return "ambiguous_value";
+      }
+      if (resolved.value() == null) {
+        collector.ignored.add(Map.of("key", dimension.key(), "value", raw.trim()));
+        continue;
+      }
+      if (!containsIgnoreCase(kept, resolved.value())) {
+        kept.add(resolved.value());
+      }
+    }
+    if (requestedCount > 0 && kept.isEmpty()) {
+      collector.detail = dimension.key();
+      return "no_valid_value";
+    }
+    if (!kept.isEmpty()) {
+      collector.target(dimension.kind()).put(dimension.key(), List.copyOf(kept));
+      collector.summary.add(axisSummary(dimension.key(), dimension.label(), kept));
+    }
+    return null;
+  }
+
+  private DimensionMatch matchDimension(
+      List<GraphNodeFilterDto> dimensions, String keyOrLabel, String kind) {
+    if (!StringUtils.hasText(keyOrLabel)) {
+      return new DimensionMatch(null, "unknown_key");
+    }
+    String needle = keyOrLabel.trim();
+    List<GraphNodeFilterDto> byKey = new ArrayList<>();
+    List<GraphNodeFilterDto> byLabel = new ArrayList<>();
+    for (GraphNodeFilterDto dimension : dimensions) {
+      if (!kind.equals(dimension.kind())) {
+        continue;
+      }
+      if (equalsIgnoreCase(dimension.key(), needle)) {
+        byKey.add(dimension);
+      } else if (equalsIgnoreCase(dimension.label(), needle)) {
+        byLabel.add(dimension);
+      }
+    }
+    if (byKey.size() == 1) {
+      return new DimensionMatch(byKey.get(0), null);
+    }
+    if (byKey.size() > 1 || byLabel.size() > 1) {
+      return new DimensionMatch(null, "ambiguous_key");
+    }
+    if (byLabel.size() == 1) {
+      return new DimensionMatch(byLabel.get(0), null);
+    }
+    return new DimensionMatch(null, "unknown_key");
+  }
+
+  private ResolvedValue resolveValue(GraphNodeFilterDto dimension, String raw) {
+    if ("NODE_REF".equals(dimension.kind())) {
+      return resolveRef(dimension, raw);
+    }
+    for (String known : dimension.values()) {
+      if (known != null && known.equalsIgnoreCase(raw)) {
+        return new ResolvedValue(known, false);
+      }
+    }
+    return new ResolvedValue(null, false);
+  }
+
+  private ResolvedValue resolveRef(GraphNodeFilterDto dimension, String raw) {
+    for (GraphFilterOptionDto option : dimension.options()) {
+      if (option.id() != null && option.id().equalsIgnoreCase(raw)) {
+        return new ResolvedValue(option.id(), false);
+      }
+    }
+    String matchedId = null;
+    for (GraphFilterOptionDto option : dimension.options()) {
+      if (option.name() == null || !option.name().equalsIgnoreCase(raw)) {
+        continue;
+      }
+      if (matchedId != null && !matchedId.equals(option.id())) {
+        return new ResolvedValue(null, true);
+      }
+      matchedId = option.id();
+    }
+    if (matchedId != null) {
+      return new ResolvedValue(matchedId, false);
+    }
+    for (String id : dimension.values()) {
+      if (id != null && id.equalsIgnoreCase(raw)) {
+        return new ResolvedValue(id, false);
+      }
+    }
+    return new ResolvedValue(null, false);
+  }
+
+  private List<GraphNodeFilterDto> listedDimensions() {
+    List<GraphNodeFilterDto> dimensions = filterFacets.listNodeFilters();
+    return dimensions != null ? dimensions : List.of();
+  }
+
+  private String refuse(String error, String detail) {
+    Map<String, Object> out = new LinkedHashMap<>();
+    out.put("accepted", false);
+    out.put("error", error);
+    if (detail != null) {
+      out.put("detail", detail);
+    }
+    return toJson(out);
+  }
+
+  private static Map<String, Object> axisSummary(String key, String label, List<String> values) {
+    Map<String, Object> row = new LinkedHashMap<>();
+    row.put("key", key);
+    row.put("label", label != null ? label : key);
+    row.put("values", List.copyOf(values));
+    return row;
+  }
+
+  private static boolean containsIgnoreCase(List<String> values, String candidate) {
+    for (String value : values) {
+      if (value.equalsIgnoreCase(candidate)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean equalsIgnoreCase(String left, String right) {
+    return left != null && left.equalsIgnoreCase(right);
+  }
+
   private Map<String, Object> payloadView(AiFunctionalDocPayload payload) {
     Map<String, Object> view = new LinkedHashMap<>();
     String summary = payload.getSummary();
@@ -360,6 +706,49 @@ public class MappingChatTools {
       return objectMapper.writeValueAsString(value);
     } catch (JsonProcessingException e) {
       return "{\"error\":\"json_serialization_failed\"}";
+    }
+  }
+
+  private static final class AxisCollector {
+    private final Map<String, List<String>> nodeAttributes = new LinkedHashMap<>();
+    private final Map<String, List<String>> nodeRefs = new LinkedHashMap<>();
+    private final Map<String, List<String>> edgeAttributes = new LinkedHashMap<>();
+    private final List<Map<String, String>> ignored = new ArrayList<>();
+    private final List<Map<String, Object>> summary = new ArrayList<>();
+    private String detail;
+
+    private Map<String, List<String>> target(String kind) {
+      if ("NODE_REF".equals(kind)) {
+        return nodeRefs;
+      }
+      if ("EDGE".equals(kind)) {
+        return edgeAttributes;
+      }
+      return nodeAttributes;
+    }
+  }
+
+  private record DimensionMatch(GraphNodeFilterDto dimension, String error) {}
+
+  private record ResolvedValue(String value, boolean ambiguous) {}
+
+  private record FilterDecision(
+      boolean accepted,
+      ChatMapFilters filters,
+      String error,
+      String detail,
+      List<Map<String, String>> ignored,
+      List<Map<String, Object>> summary) {
+
+    private static FilterDecision refuse(String error, String detail) {
+      return new FilterDecision(false, null, error, detail, List.of(), List.of());
+    }
+
+    private static FilterDecision accept(
+        ChatMapFilters filters,
+        List<Map<String, String>> ignored,
+        List<Map<String, Object>> summary) {
+      return new FilterDecision(true, filters, null, null, ignored, summary);
     }
   }
 }

@@ -33,7 +33,7 @@ class MappingChatControllerWebMvcTest {
     when(chatService.ask(any()))
         .thenReturn(
             new ChatAskResponse(
-                "Billing est connecté à CRM.",
+                "Billing is connected to CRM.",
                 List.of(new ChatCitationDto(ChatCitationType.APPLICATION, "a1", "Billing")),
                 List.of()));
 
@@ -41,9 +41,9 @@ class MappingChatControllerWebMvcTest {
         .perform(
             post("/chat/ask")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"message\":\"Qui est connecté à Billing ?\"}"))
+                .content("{\"message\":\"Who is connected to Billing?\"}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.answerMarkdown").value("Billing est connecté à CRM."))
+        .andExpect(jsonPath("$.answerMarkdown").value("Billing is connected to CRM."))
         .andExpect(jsonPath("$.citations[0].type").value("APPLICATION"))
         .andExpect(jsonPath("$.citations[0].id").value("a1"));
   }
