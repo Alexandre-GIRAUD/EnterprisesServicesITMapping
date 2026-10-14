@@ -291,6 +291,12 @@ export type GraphFilters = {
   nodeRefs: Record<string, string[]>;
   /** Data Model target=EDGE key → selected values on DEPENDS_ON relationships. */
   edgeAttributes?: Record<string, string[]>;
+  /** Client-only: a dimension has nothing checked, so the graph is empty. */
+  matchNothing?: boolean;
+  /** Client-only: dimension keys (or `applications`) with nothing checked. */
+  blankedDimensions?: string[];
+  /** Client-only: specific flows to keep. Empty means every fetched flow. */
+  edgeIds?: string[];
 };
 
 /** One filterable dimension from GET /api/graph/node-filters. */
