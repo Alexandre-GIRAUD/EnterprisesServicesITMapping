@@ -117,7 +117,6 @@ export function FilterDrawer({
   const [view, setView] = useState<FilterView>('root');
   const [selectedApplicationIds, setSelectedApplicationIds] = useState(initialApplicationIds);
   const [selectedNodeValues, setSelectedNodeValues] = useState<Record<string, string[]>>({});
-  const [detailError, setDetailError] = useState<string | null>(null);
   const [dimensionQuery, setDimensionQuery] = useState('');
   const [valueQuery, setValueQuery] = useState('');
   const [selectedFlowIds, setSelectedFlowIds] = useState(initialEdgeIds);
@@ -164,7 +163,6 @@ export function FilterDrawer({
           ? ['applications']
           : [];
     setView('root');
-    setDetailError(null);
     setDimensionQuery('');
     setValueQuery('');
     setSelectedFlowIds(initialEdgeIds);
@@ -249,14 +247,12 @@ export function FilterDrawer({
   }, [detailMode, view]);
 
   function openDetail(next: FilterView) {
-    setDetailError(null);
     setValueQuery('');
     setView(next);
   }
 
   function clearDetailDimension() {
     editedRef.current = true;
-    setDetailError(null);
     if (view === 'applications') {
       setSelectedApplicationIds(selectAllCatalog(appCatalog));
       return;
@@ -270,7 +266,6 @@ export function FilterDrawer({
   }
 
   function confirmDetailDimension() {
-    setDetailError(null);
     setView('root');
   }
 
@@ -312,7 +307,6 @@ export function FilterDrawer({
       )
     );
     setView('root');
-    setDetailError(null);
   }
 
   function renderRootActions() {
@@ -373,11 +367,6 @@ export function FilterDrawer({
 
     return (
       <div className="graph-filter-detail-panel">
-        {detailError ? (
-          <p className="graph-filter-warning" role="alert">
-            {detailError}
-          </p>
-        ) : null}
         <div className="graph-filter-search">
           <input
             type="search"
@@ -414,7 +403,6 @@ export function FilterDrawer({
                   checked={selectedApplicationIds.includes(app.id)}
                   onChange={() => {
                     editedRef.current = true;
-                    setDetailError(null);
                     setSelectedApplicationIds((prev) => toggleSortedValue(prev, app.id));
                   }}
                 />
@@ -439,11 +427,6 @@ export function FilterDrawer({
 
     return (
       <div className="graph-filter-detail-panel">
-        {detailError ? (
-          <p className="graph-filter-warning" role="alert">
-            {detailError}
-          </p>
-        ) : null}
         {catalog.length === 0 ? (
           <p className="graph-filter-hint">
             {isNodeRefDimension(dimension)
@@ -493,7 +476,6 @@ export function FilterDrawer({
                       checked={selected.includes(value)}
                       onChange={() => {
                         editedRef.current = true;
-                        setDetailError(null);
                         setSelectedNodeValues((prev) => ({
                           ...prev,
                           [dimension.key]: toggleSortedValue(prev[dimension.key] ?? [], value),
@@ -636,7 +618,6 @@ export function FilterDrawer({
               type="button"
               className="graph-filter-back-btn"
               onClick={() => {
-                setDetailError(null);
                 setValueQuery('');
                 setView('root');
               }}
