@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react';
-import { contactMailHref, FLOWRA_CONTACT_EMAIL, FLOWRA_SITE_URL } from './aboutContact';
+import { contactMailHref, FLOWRA_SITE_URL } from './aboutContact';
 
 export function AboutPage() {
   const [subject, setSubject] = useState('');
