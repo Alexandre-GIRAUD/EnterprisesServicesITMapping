@@ -10,13 +10,13 @@ import java.util.Map;
  * Data Model NODE fields are ignored. Human edits should include {@code changeMeta}.
  */
 public record ApplicationNodeAttributesPatchRequest(
-    Map<String, String> attributes, AttributeChangeMetaDto changeMeta) {
+    Map<String, Object> attributes, AttributeChangeMetaDto changeMeta) {
 
   public ApplicationNodeAttributesPatchRequest {
     attributes = attributes != null ? Map.copyOf(attributes) : Map.of();
   }
 
-  public ApplicationNodeAttributesPatchRequest(Map<String, String> attributes) {
+  public ApplicationNodeAttributesPatchRequest(Map<String, Object> attributes) {
     this(attributes, null);
   }
 }

@@ -94,7 +94,7 @@ public class DataModelValidator {
                           : List.of();
                   boolean enforceEnum =
                       target == DataModelTarget.NODE_REF ? true : f.enforceEnum();
-                  boolean multiple = target == DataModelTarget.NODE_REF && f.multiple();
+                  boolean multiple = f.multiple();
                   return new DataModelField(
                       normalizeKey(f.key()),
                       f.label().trim(),

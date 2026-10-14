@@ -27,7 +27,7 @@ public class DataModelAttributeResolver {
 
   public record ValidationResult(
       boolean accepted,
-      Map<String, String> attributes,
+      Map<String, List<String>> attributes,
       String skipReason,
       String skipDetail) {}
 
@@ -39,13 +39,12 @@ public class DataModelAttributeResolver {
       String skipDetail) {}
 
   /** Edge attributes — automatic EDGE fields only. */
-  public ValidationResult validate(
-      DataModelConfig config, Map<String, String> rawAttributes) {
+  public ValidationResult validate(DataModelConfig config, Map<String, ?> rawAttributes) {
     return validate(config, rawAttributes, DataModelTarget.EDGE);
   }
 
   public ValidationResult validate(
-      DataModelConfig config, Map<String, String> rawAttributes, DataModelTarget target) {
+      DataModelConfig config, Map<String, ?> rawAttributes, DataModelTarget target) {
     DataModelTarget effective = DataModelTarget.orDefault(target);
     if (effective == DataModelTarget.NODE_REF) {
       throw new IllegalArgumentException("Use validateNodeRefs for NODE_REF");
@@ -64,13 +63,12 @@ public class DataModelAttributeResolver {
       byKey.put(field.key(), field);
     }
 
-    Map<String, String> accepted = new LinkedHashMap<>();
-    Map<String, String> raw = rawAttributes != null ? rawAttributes : Map.of();
+    Map<String, List<String>> accepted = new LinkedHashMap<>();
+    Map<String, ?> raw = rawAttributes != null ? rawAttributes : Map.of();
 
-    for (Map.Entry<String, String> entry : raw.entrySet()) {
+    for (Map.Entry<String, ?> entry : raw.entrySet()) {
       String key = normalizeKey(entry.getKey());
-      String value = entry.getValue() != null ? entry.getValue().trim() : "";
-      if (!StringUtils.hasText(key) || !StringUtils.hasText(value)) {
+      if (!StringUtils.hasText(key) || AttributeValues.coerce(entry.getValue()).isEmpty()) {
         continue;
       }
       DataModelField field = byKey.get(key);
@@ -81,18 +79,16 @@ public class DataModelAttributeResolver {
             effective);
         continue;
       }
-      if (field.enforceEnum() && field.allowedValues() != null && !field.allowedValues().isEmpty()) {
-        String matched = matchAllowed(value, field.allowedValues());
-        if (matched == null) {
-          String reason =
-              effective == DataModelTarget.NODE
-                  ? "data_model_node_valeur_invalide"
-                  : "data_model_valeur_invalide";
-          return new ValidationResult(false, Map.of(), reason, key + "=" + value);
-        }
-        accepted.put(key, matched);
-      } else {
-        accepted.put(key, value);
+      AttributeValues.Parsed parsed = AttributeValues.parse(field, entry.getValue());
+      if (parsed.rejectedLiteral() != null) {
+        String reason =
+            effective == DataModelTarget.NODE
+                ? "data_model_node_valeur_invalide"
+                : "data_model_valeur_invalide";
+        return new ValidationResult(false, Map.of(), reason, key + "=" + parsed.rejectedLiteral());
+      }
+      if (!parsed.values().isEmpty()) {
+        accepted.put(key, parsed.values());
       }
     }
 
@@ -144,7 +140,7 @@ public class DataModelAttributeResolver {
         if (!StringUtils.hasText(value)) {
           continue;
         }
-        String canon = matchAllowed(value, field.allowedValues());
+        String canon = AttributeValues.matchAllowed(value, field.allowedValues());
         if (canon == null) {
           log.info(
               "NODE_REF value outside catalogue skipped fieldKey={} value={}", key, value.trim());
@@ -193,18 +189,6 @@ public class DataModelAttributeResolver {
       keys.add(field.key());
     }
     return Set.copyOf(keys);
-  }
-
-  private static String matchAllowed(String value, List<String> allowedValues) {
-    if (allowedValues == null) {
-      return null;
-    }
-    for (String allowed : allowedValues) {
-      if (allowed.equalsIgnoreCase(value.trim())) {
-        return allowed;
-      }
-    }
-    return null;
   }
 
   private static String normalizeKey(String key) {

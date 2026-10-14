@@ -22,14 +22,8 @@ public class DependsOnEdgeAttributeFacetQuery {
 
   public List<String> distinctValues(String validatedKey) {
     String cypher =
-        """
-        MATCH (:Application)-[r:DEPENDS_ON]->(:Application)
-        WHERE r.`%s` IS NOT NULL
-        WITH DISTINCT toString(r.`%s`) AS value
-        WHERE trim(value) <> ''
-        RETURN value ORDER BY value
-        """
-            .formatted(validatedKey, validatedKey);
+        AttributePropertyCypher.distinctValues(
+            "MATCH (:Application)-[r:DEPENDS_ON]->(:Application)", "r", validatedKey);
 
     return neo4jClient.query(cypher).fetch().all().stream()
         .map(Neo4jValueMapping::asMap)

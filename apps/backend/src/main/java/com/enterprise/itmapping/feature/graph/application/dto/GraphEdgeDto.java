@@ -8,5 +8,9 @@ public record GraphEdgeDto(
     String targetId,
     String type,
     String data,
-    Map<String, String> properties
-) {}
+    Map<String, Object> properties
+) {
+  public GraphEdgeDto {
+    properties = properties != null ? Map.copyOf(properties) : Map.of();
+  }
+}

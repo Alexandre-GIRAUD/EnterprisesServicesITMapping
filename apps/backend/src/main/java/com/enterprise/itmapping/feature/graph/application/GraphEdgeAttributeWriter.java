@@ -1,6 +1,6 @@
 package com.enterprise.itmapping.feature.graph.application;
 
-import java.util.LinkedHashMap;
+import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -22,8 +22,8 @@ public class GraphEdgeAttributeWriter {
     this.neo4jClient = neo4jClient;
   }
 
-  public int write(String edgeId, Map<String, String> dataModelAttributes, Set<String> allowedKeys) {
-    Map<String, String> dynamicProps = filterDynamicProps(dataModelAttributes, allowedKeys);
+  public int write(String edgeId, Map<String, ?> dataModelAttributes, Set<String> allowedKeys) {
+    Map<String, Object> dynamicProps = AttributeValues.whitelisted(dataModelAttributes, allowedKeys);
     if (!StringUtils.hasText(edgeId) || dynamicProps.isEmpty()) {
       return 0;
     }
@@ -60,27 +60,5 @@ public class GraphEdgeAttributeWriter {
         .run();
     log.debug("Edge Data Model props removed id={} keys={}", edgeId, validatedKeys);
     return validatedKeys.size();
-  }
-
-  private static Map<String, String> filterDynamicProps(
-      Map<String, String> dataModelAttributes, Set<String> allowedDataModelKeys) {
-    if (dataModelAttributes == null
-        || dataModelAttributes.isEmpty()
-        || allowedDataModelKeys == null
-        || allowedDataModelKeys.isEmpty()) {
-      return Map.of();
-    }
-    Map<String, String> out = new LinkedHashMap<>();
-    for (Map.Entry<String, String> entry : dataModelAttributes.entrySet()) {
-      String key = entry.getKey();
-      String value = entry.getValue();
-      if (!StringUtils.hasText(key) || !StringUtils.hasText(value)) {
-        continue;
-      }
-      if (allowedDataModelKeys.contains(key)) {
-        out.put(key, value.trim());
-      }
-    }
-    return out;
   }
 }

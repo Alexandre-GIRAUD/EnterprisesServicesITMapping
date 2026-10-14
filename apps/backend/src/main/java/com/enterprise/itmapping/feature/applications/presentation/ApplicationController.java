@@ -138,7 +138,7 @@ public class ApplicationController {
     if (applicationService.findById(id).isEmpty()) {
       return ResponseEntity.notFound().build();
     }
-    Map<String, String> attributes = body != null ? body.attributes() : Map.of();
+    Map<String, Object> attributes = body != null ? body.attributes() : Map.of();
     if (body != null && body.changeMeta() != null) {
       nodeAttributePatchService.patchHuman(id, attributes, body.changeMeta());
     } else {

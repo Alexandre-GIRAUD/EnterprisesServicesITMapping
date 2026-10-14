@@ -384,7 +384,9 @@ class ApplicationConnectionSuggestionServiceTest {
         .thenReturn(Set.of("product_line"));
     Map<String, String> attrs = Map.of("product_line", "ALPHA");
     when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.EDGE)))
-        .thenReturn(new DataModelAttributeResolver.ValidationResult(true, attrs, null, null));
+        .thenReturn(
+            new DataModelAttributeResolver.ValidationResult(
+                true, Map.of("product_line", List.of("ALPHA")), null, null));
 
     AiConnectionEntry entry = connection("Service B", "outbound", "API", "x");
     entry.setEdgeAttributes(attrs);
@@ -436,14 +438,14 @@ class ApplicationConnectionSuggestionServiceTest {
         .thenReturn("## Active Data Model (application node enrichment)");
     when(dataModelAttributeResolver.allowedKeys(config, DataModelTarget.NODE))
         .thenReturn(Set.of("tier"));
-    Map<String, String> nodeAttrs = Map.of("tier", "T1");
+    Map<String, List<String>> nodeAttrs = Map.of("tier", List.of("T1"));
     when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.NODE)))
         .thenReturn(new DataModelAttributeResolver.ValidationResult(true, nodeAttrs, null, null));
 
     AiApplicationConnectionPayload payload = new AiApplicationConnectionPayload();
     payload.setConnections(
         new ArrayList<>(List.of(connection("Service B", "outbound", "API", "x"))));
-    payload.setNodeAttributes(nodeAttrs);
+    payload.setNodeAttributes(Map.of("tier", "T1"));
     when(agent.discover(any(), anyString(), anyString(), anyString(), anyString(), anyString()))
         .thenReturn(new DiscoveryResult(payload, List.of("README.md")));
     when(edgeWriter.createOrMerge(
@@ -538,7 +540,7 @@ class ApplicationConnectionSuggestionServiceTest {
     when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.EDGE)))
         .thenReturn(
             new DataModelAttributeResolver.ValidationResult(
-                true, Map.of("product_line", "A"), null, null));
+                true, Map.of("product_line", List.of("A")), null, null));
     when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.NODE)))
         .thenReturn(
             new DataModelAttributeResolver.ValidationResult(

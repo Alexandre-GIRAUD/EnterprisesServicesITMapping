@@ -31,7 +31,7 @@ public class AiApplicationConnectionPayload {
    * when the user message includes "## Active Data Model (application node enrichment)".
    */
   @JsonProperty("node_attributes")
-  private Map<String, String> nodeAttributes = new LinkedHashMap<>();
+  private Map<String, Object> nodeAttributes = new LinkedHashMap<>();
 
   /**
    * Catalogue classifications for the analyzed Application. Each key maps to a list of catalogue
@@ -64,24 +64,13 @@ public class AiApplicationConnectionPayload {
     this.connections = connections != null ? connections : new ArrayList<>();
   }
 
-  /** Trimmed keys and values; never null. */
-  public Map<String, String> getNodeAttributes() {
-    if (nodeAttributes == null || nodeAttributes.isEmpty()) {
-      return Map.of();
-    }
-    Map<String, String> out = new LinkedHashMap<>();
-    for (Map.Entry<String, String> entry : nodeAttributes.entrySet()) {
-      String key = entry.getKey() != null ? entry.getKey().trim() : "";
-      String value = entry.getValue() != null ? entry.getValue().trim() : "";
-      if (!key.isEmpty() && !value.isEmpty()) {
-        out.put(key, value);
-      }
-    }
-    return out;
+  /** Trimmed keys. A string stays a string. A JSON array stays a list. Never null. */
+  public Map<String, Object> getNodeAttributes() {
+    return normalizeAttributeMap(nodeAttributes);
   }
 
-  public void setNodeAttributes(Map<String, String> nodeAttributes) {
-    this.nodeAttributes = nodeAttributes != null ? nodeAttributes : new LinkedHashMap<>();
+  public void setNodeAttributes(Map<String, ?> nodeAttributes) {
+    this.nodeAttributes = copyAttributeMap(nodeAttributes);
   }
 
   /** Normalized key → catalogue values; never null. */
@@ -105,6 +94,41 @@ public class AiApplicationConnectionPayload {
 
   public void setNodeRefs(Map<String, Object> nodeRefs) {
     this.nodeRefs = nodeRefs != null ? nodeRefs : new LinkedHashMap<>();
+  }
+
+  private static Map<String, Object> copyAttributeMap(Map<String, ?> raw) {
+    Map<String, Object> copy = new LinkedHashMap<>();
+    if (raw != null) {
+      raw.forEach(copy::put);
+    }
+    return copy;
+  }
+
+  private static Map<String, Object> normalizeAttributeMap(Map<String, Object> raw) {
+    if (raw == null || raw.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, Object> out = new LinkedHashMap<>();
+    for (Map.Entry<String, Object> entry : raw.entrySet()) {
+      String key = entry.getKey() != null ? entry.getKey().trim() : "";
+      Object value = normalizeAttributeValue(entry.getValue());
+      if (!key.isEmpty() && value != null) {
+        out.put(key, value);
+      }
+    }
+    return out;
+  }
+
+  private static Object normalizeAttributeValue(Object raw) {
+    if (raw instanceof List<?> || raw instanceof java.util.Collection<?>) {
+      List<String> values = coerceStringList(raw);
+      return values.isEmpty() ? null : values;
+    }
+    if (raw == null) {
+      return null;
+    }
+    String text = String.valueOf(raw).trim();
+    return text.isEmpty() ? null : text;
   }
 
   private static List<String> coerceStringList(Object raw) {
@@ -157,7 +181,7 @@ public class AiApplicationConnectionPayload {
     private String evidenceHint;
 
     @JsonProperty("edge_attributes")
-    private Map<String, String> edgeAttributes = new LinkedHashMap<>();
+    private Map<String, Object> edgeAttributes = new LinkedHashMap<>();
 
     public String getPeerApplicationName() {
       return peerApplicationName != null ? peerApplicationName.trim() : "";
@@ -220,24 +244,13 @@ public class AiApplicationConnectionPayload {
       this.evidenceHint = evidenceHint;
     }
 
-    /** Trimmed keys and values; never null. */
-    public Map<String, String> getEdgeAttributes() {
-      if (edgeAttributes == null || edgeAttributes.isEmpty()) {
-        return Map.of();
-      }
-      Map<String, String> out = new LinkedHashMap<>();
-      for (Map.Entry<String, String> entry : edgeAttributes.entrySet()) {
-        String key = entry.getKey() != null ? entry.getKey().trim() : "";
-        String value = entry.getValue() != null ? entry.getValue().trim() : "";
-        if (!key.isEmpty() && !value.isEmpty()) {
-          out.put(key, value);
-        }
-      }
-      return out;
+    /** Trimmed keys. A string stays a string. A JSON array stays a list. Never null. */
+    public Map<String, Object> getEdgeAttributes() {
+      return normalizeAttributeMap(edgeAttributes);
     }
 
-    public void setEdgeAttributes(Map<String, String> edgeAttributes) {
-      this.edgeAttributes = edgeAttributes != null ? edgeAttributes : new LinkedHashMap<>();
+    public void setEdgeAttributes(Map<String, ?> edgeAttributes) {
+      this.edgeAttributes = copyAttributeMap(edgeAttributes);
     }
 
     @Override

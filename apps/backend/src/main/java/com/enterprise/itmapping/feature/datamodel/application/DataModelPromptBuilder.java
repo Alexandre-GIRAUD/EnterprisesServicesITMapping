@@ -119,15 +119,28 @@ public class DataModelPromptBuilder {
             sb.append(", pick at most one");
           }
           sb.append("): ");
+        } else if (field.multiple()) {
+          sb.append("  Allowed values (closed catalogue, multiple allowed): ");
         } else {
           sb.append("  Allowed values (pick exactly one): ");
         }
         sb.append(String.join(" | ", field.allowedValues())).append('\n');
+        if (field.multiple() && !nodeRef) {
+          sb.append(
+              "  JSON array of zero or more of those values. A single string counts as one"
+                  + " value.\n");
+        }
         if (field.enforceEnum() || nodeRef) {
           sb.append("  STRICT: value MUST be one of the allowed values, or omit the key.\n");
         }
       } else if (!nodeRef) {
-        sb.append("  Free text: short normalized value from code evidence only.\n");
+        if (field.multiple()) {
+          sb.append(
+              "  Free text, multiple allowed: JSON array of short values from code evidence"
+                  + " only.\n");
+        } else {
+          sb.append("  Free text: short normalized value from code evidence only.\n");
+        }
       }
       if (field.required()) {
         if (field.isNodeRefTarget()) {

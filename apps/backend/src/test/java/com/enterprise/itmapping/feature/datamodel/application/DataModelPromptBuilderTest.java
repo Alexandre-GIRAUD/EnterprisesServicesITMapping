@@ -245,6 +245,41 @@ class DataModelPromptBuilderTest {
     assertThat(section).contains("SILVER");
   }
 
+  @Test
+  void multipleAttributeTellsTheModelToReturnAnArray() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "zone",
+                    "Zone",
+                    "",
+                    "",
+                    List.of("EU", "US"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE,
+                    true),
+                new DataModelField(
+                    "note",
+                    "Note",
+                    "",
+                    "",
+                    List.of(),
+                    false,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.EDGE,
+                    true)));
+
+    String section = builder.buildPromptSection(config);
+
+    assertThat(section).contains("multiple allowed");
+    assertThat(section).contains("JSON array of zero or more");
+    assertThat(section).contains("Free text, multiple allowed");
+  }
+
   private static DataModelField field(String key, String label) {
     return new DataModelField(key, label, "", "", List.of(), false, false);
   }

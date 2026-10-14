@@ -80,6 +80,27 @@ class AiApplicationConnectionPayloadParseTest {
   }
 
   @Test
+  void parsesAttributeArraysAsLists() throws Exception {
+    String json =
+        """
+        {
+          "connections": [
+            { "peer_application_name": "Billing", "direction": "outbound", "connection_kind": "API",
+              "edge_attributes": { "zone": [" EU ", "US"] } }
+          ],
+          "node_attributes": { "tier": ["T1", " T2 "] }
+        }
+        """;
+
+    AiApplicationConnectionPayload payload =
+        mapper.readValue(json, AiApplicationConnectionPayload.class);
+
+    assertThat(payload.getNodeAttributes()).containsExactly(Map.entry("tier", java.util.List.of("T1", "T2")));
+    assertThat(payload.getConnections().get(0).getEdgeAttributes())
+        .containsExactly(Map.entry("zone", java.util.List.of("EU", "US")));
+  }
+
+  @Test
   void toleratesEmptyConnections() throws Exception {
     AiApplicationConnectionPayload payload =
         mapper.readValue(

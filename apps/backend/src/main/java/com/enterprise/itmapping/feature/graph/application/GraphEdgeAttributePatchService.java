@@ -8,6 +8,7 @@ import com.enterprise.itmapping.feature.attributeaudit.domain.AuditFieldScope;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
 import com.enterprise.itmapping.feature.attributeaudit.domain.HumanChangeReason;
 import com.enterprise.itmapping.feature.attributeaudit.presentation.dto.AttributeChangeMetaDto;
+import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import java.util.ArrayList;
@@ -54,8 +55,8 @@ public class GraphEdgeAttributePatchService {
   }
 
   @Transactional
-  public Map<String, String> patchHuman(
-      String edgeId, Map<String, String> rawAttributes, AttributeChangeMetaDto changeMeta) {
+  public Map<String, Object> patchHuman(
+      String edgeId, Map<String, ?> rawAttributes, AttributeChangeMetaDto changeMeta) {
     if (changeMeta == null || changeMeta.reason() == null) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "changeMeta.reason is required for human edits.");
@@ -64,14 +65,14 @@ public class GraphEdgeAttributePatchService {
   }
 
   @Transactional
-  public Map<String, String> patchAi(
-      String edgeId, Map<String, String> rawAttributes, String aiSource) {
+  public Map<String, Object> patchAi(
+      String edgeId, Map<String, ?> rawAttributes, String aiSource) {
     return apply(edgeId, rawAttributes, null, null, aiSource != null ? aiSource : "AI");
   }
 
-  private Map<String, String> apply(
+  private Map<String, Object> apply(
       String edgeId,
-      Map<String, String> rawAttributes,
+      Map<String, ?> rawAttributes,
       HumanChangeReason humanReason,
       String humanReasonComment,
       String aiSource) {
@@ -89,21 +90,27 @@ public class GraphEdgeAttributePatchService {
       byKey.put(field.key(), field);
     }
 
-    Map<String, String> current = reader.read(edgeId);
-    Map<String, String> toSet = new LinkedHashMap<>();
+    Map<String, Object> current = reader.read(edgeId);
+    Map<String, Object> toSet = new LinkedHashMap<>();
     Set<String> toRemove = new LinkedHashSet<>();
     List<AttributeChangeRequest> events = new ArrayList<>();
 
-    for (Map.Entry<String, String> entry : rawAttributes.entrySet()) {
+    for (Map.Entry<String, ?> entry : rawAttributes.entrySet()) {
       String key = normalizeKey(entry.getKey());
       DataModelField field = byKey.get(key);
       if (field == null) {
         log.debug("Edge attribute patch ignored key={} (not a Data Model EDGE field)", key);
         continue;
       }
-      String value = entry.getValue() != null ? entry.getValue().trim() : "";
-      String oldValue = current.get(key);
-      String newValue = StringUtils.hasText(value) ? requireAllowedValue(field, value) : null;
+      AttributeValues.Parsed parsed = AttributeValues.parse(field, entry.getValue());
+      if (parsed.rejectedLiteral() != null) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Valeur non autorisee pour " + field.key() + ": " + parsed.rejectedLiteral());
+      }
+      String oldValue = AttributeValues.display(current.get(key));
+      String newValue = parsed.values().isEmpty() ? null : AttributeValues.display(parsed.values());
+      Object stored = AttributeValues.stored(field.multiple(), parsed.values());
 
       if (aiSource != null) {
         Decision decision =
@@ -114,15 +121,15 @@ public class GraphEdgeAttributePatchService {
         }
       }
 
-      if (newValue == null) {
+      if (stored == null) {
         toRemove.add(key);
         events.add(
-            buildEvent(edgeId, key, oldValue, null, humanReason, humanReasonComment, aiSource));
+            buildEvent(edgeId, key, blankToNull(oldValue), null, humanReason, humanReasonComment, aiSource));
         continue;
       }
-      toSet.put(key, newValue);
+      toSet.put(key, stored);
       events.add(
-          buildEvent(edgeId, key, oldValue, newValue, humanReason, humanReasonComment, aiSource));
+          buildEvent(edgeId, key, blankToNull(oldValue), newValue, humanReason, humanReasonComment, aiSource));
     }
 
     writer.write(edgeId, toSet, byKey.keySet());
@@ -160,17 +167,8 @@ public class GraphEdgeAttributePatchService {
         aiSource);
   }
 
-  private static String requireAllowedValue(DataModelField field, String value) {
-    if (!field.enforceEnum() || field.allowedValues().isEmpty()) {
-      return value;
-    }
-    for (String allowed : field.allowedValues()) {
-      if (allowed.equalsIgnoreCase(value)) {
-        return allowed;
-      }
-    }
-    throw new ResponseStatusException(
-        HttpStatus.BAD_REQUEST, "Valeur non autorisee pour " + field.key() + ": " + value);
+  private static String blankToNull(String value) {
+    return StringUtils.hasText(value) ? value : null;
   }
 
   private static String normalizeKey(String key) {

@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.applications.presentation.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -15,7 +16,7 @@ public record ApplicationResponse(
      * target=NODE}).
      */
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    Map<String, String> nodeAttributes,
+    Map<String, Object> nodeAttributes,
     /**
      * Catalogue classifications via {@code CLASSIFIED_AS} ({@code target=NODE_REF}): field key →
      * linked refs.
@@ -25,7 +26,7 @@ public record ApplicationResponse(
 ) {
 
   public ApplicationResponse {
-    nodeAttributes = nodeAttributes != null ? Map.copyOf(nodeAttributes) : Map.of();
+    nodeAttributes = copyAttributes(nodeAttributes);
     nodeRefs = nodeRefs != null ? Map.copyOf(nodeRefs) : Map.of();
   }
 
@@ -35,8 +36,17 @@ public record ApplicationResponse(
       String name,
       String description,
       boolean hasModuleSubtree,
-      Map<String, String> nodeAttributes) {
-    this(id, name, description, hasModuleSubtree, nodeAttributes, Map.of());
+      Map<String, ?> nodeAttributes) {
+    this(id, name, description, hasModuleSubtree, copyAttributes(nodeAttributes), Map.of());
+  }
+
+  private static Map<String, Object> copyAttributes(Map<String, ?> nodeAttributes) {
+    if (nodeAttributes == null || nodeAttributes.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, Object> copy = new LinkedHashMap<>();
+    nodeAttributes.forEach(copy::put);
+    return Map.copyOf(copy);
   }
 
   public record NodeRefSummary(String id, String name, String value) {}
