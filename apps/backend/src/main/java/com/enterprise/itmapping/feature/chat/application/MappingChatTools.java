@@ -326,6 +326,7 @@ public class MappingChatTools {
       description =
           "List Production map filter dimensions: key, label, kind (NODE, NODE_REF, EDGE), and values. "
               + "NODE_REF options include catalogue id and display name. "
+              + "The user may ask in English or French. Map their words to a key, label, or value from this list. "
               + "Call this before applyMapFilters when the field key is not obvious.")
   public String listFilterDimensions() {
     return toJson(listedDimensions());
@@ -334,6 +335,7 @@ public class MappingChatTools {
   @Tool(
       description =
           "Replace the Production map filters. Does not write the graph. "
+              + "The user may ask in English or French. Send the stored key, label, or catalogue spelling, not a translation absent from listFilterDimensions. "
               + "JSON object with applicationIds, nodeAttributes, nodeRefs, edgeAttributes. "
               + "Each value is a JSON array of strings. Omit a key or send [] to leave that axis unfiltered. "
               + "{} clears every filter. Unknown keys refuse the whole set. "
