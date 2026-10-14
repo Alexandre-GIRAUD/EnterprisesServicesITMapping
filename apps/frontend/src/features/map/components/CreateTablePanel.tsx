@@ -23,7 +23,7 @@ import {
 const EMPTY_SETUP: CustomTableSetup = { row: null, column: null, label: null, color: null };
 const MISSING_COLOR = '#94a3b8';
 const PLAIN_BADGE_COLOR = '#e2e8f0';
-const COPY_SUFFIX = ' copy';
+const NEW_TABLE_SOURCE = '';
 
 export type CreateTableExportState = {
   setup: CustomTableSetup;
@@ -70,8 +70,7 @@ export function CreateTablePanel({
   );
   const [setup, setSetup] = useState<CustomTableSetup>(EMPTY_SETUP);
   const [savedTables, setSavedTables] = useState<SavedCustomTable[]>(loadSavedCustomTables);
-  const [selectedId, setSelectedId] = useState('');
-  const [tableName, setTableName] = useState('');
+  const [selectedId, setSelectedId] = useState(NEW_TABLE_SOURCE);
   const [missingLabels, setMissingLabels] = useState<string[]>([]);
 
   const reconciled = useMemo(
@@ -108,91 +107,62 @@ export function CreateTablePanel({
     setSetup(normalizeSetup({ ...activeSetup, [slot]: option }));
   };
 
-  const saveTable = () => {
-    const name = tableName.trim();
-    if (!name) return;
-    const existing = savedTables.find((table) => table.name === name);
-    const id = existing?.id ?? newTableId();
-    setSavedTables((current) =>
-      existing
-        ? current.map((table) => (table.id === id ? { ...table, ...axesOf(activeSetup) } : table))
-        : [...current, { id, name, ...axesOf(activeSetup) }],
-    );
-    setSelectedId(id);
-  };
-
-  const renameTable = () => {
-    const name = tableName.trim();
-    if (!selectedId || !name) return;
-    setSavedTables((current) => current.map((table) => (table.id === selectedId ? { ...table, name } : table)));
-  };
-
-  const duplicateTable = () => {
-    const selected = savedTables.find((table) => table.id === selectedId);
-    if (!selected) return;
-    const copy = { ...selected, id: newTableId(), name: `${selected.name}${COPY_SUFFIX}` };
-    setSavedTables((current) => [...current, copy]);
-    setSelectedId(copy.id);
-    setTableName(copy.name);
-  };
-
-  const deleteTable = () => {
-    if (!selectedId) return;
-    setSavedTables((current) => current.filter((table) => table.id !== selectedId));
-    setSelectedId('');
-    setTableName('');
-  };
-
-  const applySaved = (tableId: string) => {
+  const chooseSource = (tableId: string) => {
     setSelectedId(tableId);
+    if (!tableId) {
+      setMissingLabels([]);
+      setSetup(EMPTY_SETUP);
+      return;
+    }
     const selected = savedTables.find((table) => table.id === tableId);
     if (!selected) return;
     const applied = reconcileSavedTable(selected, options);
     setMissingLabels(applied.missingLabels);
     setSetup(applied.setup);
-    setTableName(selected.name);
+  };
+
+  const saveTable = () => {
+    if (!selectedId) {
+      const name = window.prompt('Table name')?.trim() ?? '';
+      if (!name) return;
+      const id = newTableId();
+      setSavedTables((current) => [...current, { id, name, ...axesOf(activeSetup) }]);
+      setSelectedId(id);
+      return;
+    }
+    setSavedTables((current) =>
+      current.map((table) => (table.id === selectedId ? { ...table, ...axesOf(activeSetup) } : table)),
+    );
   };
 
   return (
     <div className="pivot-table graph-table-panel graph-table-panel--main graph-table-panel--light">
-      <details className="pivot-config">
-        <summary className="pivot-config-summary">Table setup</summary>
-        <form className="pivot-setup" onSubmit={(event) => event.preventDefault()}>
-          <section className="pivot-section" aria-label="Configuration">
-            <h3 className="section-kicker">Configuration</h3>
-            <div className="pivot-setup-grid">
-              <AxisSelect label="Rows" slot="row" setup={activeSetup} options={options} onChange={choose} />
-              <AxisSelect label="Columns" slot="column" setup={activeSetup} options={options} onChange={choose} />
-              <AxisSelect label="Label" slot="label" setup={activeSetup} options={options} onChange={choose} />
-              <AxisSelect label="Color" slot="color" setup={activeSetup} options={options} onChange={choose} />
-            </div>
-          </section>
-          <section className="pivot-saved" aria-label="Saved tables">
-            <h3 className="section-kicker">Saved tables</h3>
-            <div className="pivot-saved-fields">
-              <label className="pivot-setup-field">
-                <span>Saved tables</span>
-                <select className="graph-drawer-input" aria-label="Saved tables" value={selectedId} onChange={(event) => applySaved(event.target.value)}>
-                  <option value="">None</option>
-                  {savedTables.map((table) => (
-                    <option key={table.id} value={table.id}>{table.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="pivot-setup-field">
-                <span>Table name</span>
-                <input className="graph-drawer-input" aria-label="Table name" value={tableName} onChange={(event) => setTableName(event.target.value)} />
-              </label>
-            </div>
-            <div className="pivot-actions">
-              <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
-              <button type="button" className="pivot-btn pivot-btn--secondary" disabled={!selectedId} onClick={renameTable}>Rename</button>
-              <button type="button" className="pivot-btn pivot-btn--secondary" disabled={!selectedId} onClick={duplicateTable}>Duplicate</button>
-              <button type="button" className="pivot-btn pivot-btn--danger" disabled={!selectedId} onClick={deleteTable}>Delete</button>
-            </div>
-          </section>
-        </form>
-      </details>
+      <form className="pivot-setup" onSubmit={(event) => event.preventDefault()}>
+        <h3 className="section-kicker">Table setup</h3>
+        <label className="pivot-source">
+          <span>Source</span>
+          <select
+            className="graph-drawer-input"
+            aria-label="Source"
+            value={selectedId}
+            onChange={(event) => chooseSource(event.target.value)}
+          >
+            <option value={NEW_TABLE_SOURCE}>New table</option>
+            {savedTables.map((table) => (
+              <option key={table.id} value={table.id}>{table.name}</option>
+            ))}
+          </select>
+        </label>
+        <div className="pivot-setup-grid">
+          <AxisSelect label="Rows" slot="row" setup={activeSetup} options={options} onChange={choose} />
+          <AxisSelect label="Columns" slot="column" setup={activeSetup} options={options} onChange={choose} />
+          <AxisSelect label="Label" slot="label" setup={activeSetup} options={options} onChange={choose} />
+          <AxisSelect label="Color" slot="color" setup={activeSetup} options={options} onChange={choose} />
+        </div>
+        <div className="pivot-actions">
+          <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
+        </div>
+      </form>
       {missingLabels.length > 0 ? (
         <p className="graph-table-message" role="status">
           Missing field: {missingLabels.join(', ')}. That axis was cleared.

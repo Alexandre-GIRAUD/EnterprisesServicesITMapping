@@ -1632,14 +1632,15 @@ export function GraphCanvas() {
               const id = sandboxes.openNew(sandboxSeed());
               if (!id) setSandboxToast('Close at least one sandbox before opening another.');
             }}
-            onSaveActive={() => {
-              const doc = sandboxes.activeDoc;
+            onSaveSandbox={(id) => {
+              const doc = sandboxes.openDocs.find((item) => item.id === id);
               if (!doc) return;
               sandboxes.saveDoc(doc.id, doc.name);
               setSandboxToast('Saved');
             }}
-            canSave={Boolean(sandboxes.activeDoc)}
+            onCloseSandbox={sandboxes.closeDoc}
             savedSandboxes={sandboxes.saved}
+            sandboxFolders={sandboxes.sandboxFolders}
             onLoadSandbox={(id) => {
               const result = sandboxes.loadSaved(id);
               if (result === 'full') {
@@ -1647,8 +1648,14 @@ export function GraphCanvas() {
               }
             }}
             onDeleteSavedSandbox={sandboxes.deleteSaved}
-            onShareActive={async (username) => {
-              const doc = sandboxes.activeDoc;
+            onCreateSandboxFolder={sandboxes.createSandboxFolder}
+            onRenameSandboxFolder={sandboxes.renameSandboxFolder}
+            onDeleteSandboxFolder={sandboxes.deleteSandboxFolder}
+            onMoveSandboxFolder={sandboxes.moveSandboxFolder}
+            onRenameSavedSandbox={sandboxes.renameSavedSandbox}
+            onMoveSavedSandbox={sandboxes.moveSavedSandbox}
+            onShareSandbox={async (id, username) => {
+              const doc = sandboxes.openDocs.find((item) => item.id === id);
               if (!doc) return;
               try {
                 await shareSavedSandbox(username, doc.name, doc);
@@ -2110,7 +2117,7 @@ export function GraphCanvas() {
               <div className="graph-tables-view">
                 <section
                   className="graph-table-section graph-table-section--single"
-                  aria-label={tableView === 'custom' ? 'Create table' : tableView === 'apps' ? 'Apps' : 'Flows'}
+                  aria-label={tableView === 'custom' ? 'Custom table' : tableView === 'apps' ? 'Apps' : 'Flows'}
                 >
                   <div className="graph-table-section-heading">
                     <TableContentToggle

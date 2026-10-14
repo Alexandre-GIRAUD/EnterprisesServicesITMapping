@@ -9,6 +9,7 @@ import {
   depth,
   nameTaken,
   nextFolderName,
+  parentFolderId,
   type FolderNode,
   type ViewName,
 } from './viewFolderRules.ts';
@@ -28,6 +29,9 @@ const tree: FolderNode[] = [
 ];
 assert.equal(canMoveFolder(tree, 'root', 'root'), false);
 assert.equal(canMoveFolder(tree, 'root', 'child'), false);
+assert.equal(parentFolderId(tree, null), null);
+assert.equal(parentFolderId(tree, 'child'), 'root');
+assert.equal(parentFolderId(tree, 'root'), null);
 assert.equal(canMoveFolder(tree, 'child', null), true);
 
 const chain: FolderNode[] = [];

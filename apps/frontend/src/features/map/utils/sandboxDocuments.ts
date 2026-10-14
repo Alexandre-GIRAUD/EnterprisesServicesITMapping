@@ -167,6 +167,8 @@ export type SavedSandboxMeta = {
   document: SandboxDocument;
   /** Server inbox id already copied into this list. */
   sourceShareId?: string;
+  /** Local folder. Null and missing both mean the sandbox sits outside every folder. */
+  folderId?: string | null;
 };
 
 export type SandboxIconDef = {

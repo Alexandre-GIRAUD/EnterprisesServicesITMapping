@@ -26,6 +26,20 @@ import {
   type SavedSandboxMeta,
   coerceSandboxLayout,
 } from '../utils/sandboxDocuments';
+import { createClientUuid } from '../utils/clientId';
+import {
+  SANDBOX_FOLDERS_STORAGE_KEY,
+  canMoveSandboxTo,
+  createSandboxFolderRecord,
+  deleteSandboxFolderTree,
+  loadSandboxFolders,
+  moveSandboxFolderRecord,
+  renameSavedSandboxRecord,
+  renameSandboxFolderRecord,
+  type FiledSandbox,
+  type SandboxFolder,
+  type SandboxLibrary,
+} from '../utils/sandboxFolders';
 import { importSharedSandboxes } from '../utils/sandboxShare';
 
 type Seed = {
@@ -40,6 +54,7 @@ export function useSandboxes() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [layout, setLayoutState] = useState<SandboxLayoutMode>('horizontal');
   const [saved, setSaved] = useState<SavedSandboxMeta[]>(() => loadSavedSandboxes());
+  const [folders, setFolders] = useState<SandboxFolder[]>(() => readStoredSandboxFolders());
 
   useEffect(() => {
     let cancelled = false;
@@ -180,7 +195,11 @@ export function useSandboxes() {
         document: persisted,
       };
       setSaved((list) => {
-        const next = [meta, ...list.filter((s) => s.id !== doc.id)];
+        const stored: SavedSandboxMeta = {
+          ...meta,
+          folderId: list.find((item) => item.id === doc.id)?.folderId ?? null,
+        };
+        const next = [stored, ...list.filter((s) => s.id !== doc.id)];
         storeSavedSandboxes(next);
         return next;
       });
@@ -309,6 +328,66 @@ export function useSandboxes() {
     }));
   }, [patchDoc]);
 
+  const filedSandboxes = useCallback(
+    (list: readonly SavedSandboxMeta[]): FiledSandbox[] =>
+      list.map((item) => ({ id: item.id, folderId: item.folderId ?? null, name: item.name })),
+    [],
+  );
+
+  const writeFolders = useCallback((next: SandboxFolder[]) => {
+    setFolders(next);
+    localStorage.setItem(SANDBOX_FOLDERS_STORAGE_KEY, JSON.stringify(next));
+  }, []);
+
+  const createSandboxFolder = useCallback((parentId: string | null) => {
+    const library: SandboxLibrary = { folders, sandboxes: filedSandboxes(saved) };
+    const created = createSandboxFolderRecord(library, parentId, `sandbox-folder-${createClientUuid()}`);
+    if (!created) return;
+    writeFolders([...folders, created]);
+  }, [filedSandboxes, folders, saved, writeFolders]);
+
+  const renameSandboxFolder = useCallback((folderId: string, name: string) => {
+    const next = renameSandboxFolderRecord({ folders, sandboxes: filedSandboxes(saved) }, folderId, name);
+    if (next) writeFolders(next);
+  }, [filedSandboxes, folders, saved, writeFolders]);
+
+  const moveSandboxFolder = useCallback((folderId: string, parentId: string | null) => {
+    const next = moveSandboxFolderRecord({ folders, sandboxes: filedSandboxes(saved) }, folderId, parentId);
+    if (next) writeFolders(next);
+  }, [filedSandboxes, folders, saved, writeFolders]);
+
+  const deleteSandboxFolder = useCallback((folderId: string) => {
+    const removed = deleteSandboxFolderTree({ folders, sandboxes: filedSandboxes(saved) }, folderId);
+    writeFolders(removed.folders);
+    setSaved((list) => {
+      const next = list.filter((item) => !removed.sandboxIds.includes(item.id));
+      storeSavedSandboxes(next);
+      return next;
+    });
+  }, [filedSandboxes, folders, saved, writeFolders]);
+
+  const renameSavedSandbox = useCallback((id: string, name: string) => {
+    const trimmed = renameSavedSandboxRecord({ folders, sandboxes: filedSandboxes(saved) }, id, name);
+    if (!trimmed) return;
+    setSaved((list) => {
+      const next = list.map((item) =>
+        item.id === id ? { ...item, name: trimmed, document: { ...item.document, name: trimmed } } : item,
+      );
+      storeSavedSandboxes(next);
+      return next;
+    });
+    setOpenDocs((docs) => docs.map((doc) => (doc.id === id ? { ...doc, name: trimmed } : doc)));
+  }, [filedSandboxes, folders, saved]);
+
+  const moveSavedSandbox = useCallback((id: string, folderId: string | null) => {
+    setSaved((list) => {
+      if (!canMoveSandboxTo({ folders, sandboxes: filedSandboxes(list) }, id, folderId)) return list;
+      const next = list.map((item) => (item.id === id ? { ...item, folderId } : item));
+      storeSavedSandboxes(next);
+      return next;
+    });
+  }, [filedSandboxes, folders]);
+
   return {
     openDocs,
     activeId,
@@ -316,6 +395,7 @@ export function useSandboxes() {
     layout,
     setLayout,
     saved,
+    sandboxFolders: folders,
     anyDirty,
     setActiveId,
     openNew,
@@ -328,6 +408,12 @@ export function useSandboxes() {
     saveDoc,
     loadSaved,
     deleteSaved,
+    createSandboxFolder,
+    renameSandboxFolder,
+    deleteSandboxFolder,
+    moveSandboxFolder,
+    renameSavedSandbox,
+    moveSavedSandbox,
     addIcon,
     updateIconLabel,
     removeIcon,
@@ -337,4 +423,12 @@ export function useSandboxes() {
     hideNode,
     showHidden,
   };
+}
+
+function readStoredSandboxFolders(): SandboxFolder[] {
+  try {
+    return loadSandboxFolders(localStorage.getItem(SANDBOX_FOLDERS_STORAGE_KEY));
+  } catch {
+    return [];
+  }
 }

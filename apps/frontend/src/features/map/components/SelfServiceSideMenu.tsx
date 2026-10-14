@@ -4,12 +4,12 @@ import type { GraphMode } from './GraphModeTabs';
 import { SelfServiceToolBar, type SideMenuTool } from './SelfServiceToolBar';
 import {
   DEFAULT_MENU_WIDTH,
-  EXPANDED_MENU_WIDTH,
   MENU_RESIZE_STEP,
   MIN_MENU_WIDTH,
   clampMenuWidth,
   maxMenuWidth,
 } from './sideMenuWidth';
+import { primaryWorkspaceMode } from '../utils/workspaceViews';
 
 type SelfServiceBurgerProps = {
   isOpen: boolean;
@@ -173,7 +173,7 @@ export function SelfServiceBurger({ isOpen, onToggle }: SelfServiceBurgerProps) 
       aria-controls="self-service-side-menu"
       aria-label={isOpen ? 'Close menu' : 'Open menu'}
     >
-      {isOpen ? <CloseIcon /> : <span className="self-service-burger-icon" aria-hidden="true" />}
+      <span className="self-service-burger-icon" aria-hidden="true" />
     </button>
   );
 }
@@ -193,7 +193,9 @@ export function SelfServiceSideMenu({
   columnsDetail = null,
 }: SelfServiceSideMenuProps) {
   const showGraphTools = graphMode === 'normal' || graphMode === 'sandbox';
-  const defaultWidth = showGraphTools ? EXPANDED_MENU_WIDTH : DEFAULT_MENU_WIDTH;
+  const [hoveredMode, setHoveredMode] = useState<GraphMode | null>(null);
+  const primaryMode = primaryWorkspaceMode(graphMode, hoveredMode);
+  const defaultWidth = DEFAULT_MENU_WIDTH;
   const resize = useResizableMenu(isOpen, defaultWidth);
   const toolDetailTitle = columnsOnly
     ? 'Columns'
@@ -206,7 +208,7 @@ export function SelfServiceSideMenu({
   return (
     <div
       ref={resize.shellRef}
-      className={`self-service-side-menu-shell${isOpen ? ' is-open' : ''}${showGraphTools ? ' is-expanded' : ''}${resize.isResizing ? ' is-resizing' : ''}`}
+      className={`self-service-side-menu-shell${isOpen ? ' is-open' : ''}${resize.isResizing ? ' is-resizing' : ''}`}
       style={
         resize.customWidth != null
           ? { width: resize.customWidth, flexBasis: resize.customWidth, minWidth: resize.customWidth }
@@ -250,22 +252,32 @@ export function SelfServiceSideMenu({
         </header>
 
         <div className="self-service-side-menu-body">
-          <section className="self-service-side-menu-section" aria-labelledby="self-service-views-heading">
-            <h2 id="self-service-views-heading" className="self-service-side-menu-section-title">
-              Views
-            </h2>
-            <div className="self-service-view-list" role="tablist" aria-label="Workspace views">
+          <section className="self-service-side-menu-section">
+            <div
+              className="self-service-view-list"
+              role="tablist"
+              aria-label="Workspace views"
+              onMouseLeave={() => setHoveredMode(null)}
+              onBlur={(event) => {
+                const next = event.relatedTarget;
+                if (next instanceof Node && event.currentTarget.contains(next)) return;
+                setHoveredMode(null);
+              }}
+            >
               {VIEWS.map((view) => {
                 const isActive = graphMode === view.mode;
+                const isPrimary = primaryMode === view.mode;
                 return (
                   <button
                     key={view.mode}
                     type="button"
                     role="tab"
                     id={view.tabId}
-                    className={`self-service-view-item self-service-view-item--${view.accent}${isActive ? ' is-active' : ''}`}
+                    className={`self-service-view-item self-service-view-item--${view.accent}${isPrimary ? ' is-primary' : ''}`}
                     aria-selected={isActive}
                     aria-controls={view.mode === 'views' ? 'graph-views-pane' : 'graph-canvas-pane'}
+                    onMouseEnter={() => setHoveredMode(view.mode)}
+                    onFocus={() => setHoveredMode(view.mode)}
                     onClick={() => {
                       if (!isActive) onModeChange(view.mode);
                     }}
