@@ -13,6 +13,9 @@ export type SandboxDocFilters = {
   applicationIds: string[];
   nodeAttributes: Record<string, string[]>;
   nodeRefs: Record<string, string[]>;
+  edgeIds?: string[];
+  matchNothing?: boolean;
+  blankedDimensions?: string[];
 };
 
 export const EMPTY_SANDBOX_FILTERS: SandboxDocFilters = {
@@ -24,6 +27,8 @@ export const EMPTY_SANDBOX_FILTERS: SandboxDocFilters = {
 export function sandboxFiltersActive(filters?: SandboxDocFilters | null): boolean {
   if (!filters) return false;
   return (
+    Boolean(filters.matchNothing) ||
+    (filters.edgeIds?.length ?? 0) > 0 ||
     filters.applicationIds.length > 0 ||
     Object.keys(filters.nodeAttributes).length > 0 ||
     Object.keys(filters.nodeRefs).length > 0
@@ -35,6 +40,7 @@ export function graphNodeMatchesSandboxFilters(
   node: GraphNodeDto,
   filters: SandboxDocFilters
 ): boolean {
+  if (filters.matchNothing) return false;
   if (
     filters.applicationIds.length > 0 &&
     node.type === 'Application' &&

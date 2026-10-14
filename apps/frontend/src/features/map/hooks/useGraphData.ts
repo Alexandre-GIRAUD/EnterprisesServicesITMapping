@@ -158,6 +158,8 @@ type UseGraphDataParams = {
   nodeAttributes: Record<string, string[]>;
   nodeRefs: Record<string, string[]>;
   edgeAttributes: Record<string, string[]>;
+  edgeIds?: string[];
+  matchNothing?: boolean;
   filtersActive: boolean;
   graphReloadNonce: number;
   hiddenNodeIds?: ReadonlySet<string>;
@@ -177,6 +179,8 @@ export function useGraphData({
   nodeAttributes,
   nodeRefs,
   edgeAttributes,
+  edgeIds = [],
+  matchNothing = false,
   filtersActive,
   graphReloadNonce,
   hiddenNodeIds = new Set(),
@@ -467,6 +471,16 @@ export function useGraphData({
       try {
         setStatus('loading');
         setMessage(null);
+        if (matchNothing) {
+          if (cancelled) return;
+          setGraphNodes([]);
+          setGraphEdges([]);
+          setNodes([]);
+          setEdges([]);
+          setStatus('ready');
+          setMessage('No applications match these filters. Change criteria or reset.');
+          return;
+        }
         const data = await fetchGraph({
           applicationIds: applicationIds.length > 0 ? applicationIds : undefined,
           nodeAttributes: Object.keys(nodeAttributes).length > 0 ? nodeAttributes : undefined,
@@ -517,7 +531,9 @@ export function useGraphData({
           colors,
         };
         const baseNodes = data.nodes.map((n) => buildAppNode(n, nodeCoding));
-        const builtEdges = data.edges.map((e) =>
+        const shownEdges =
+          edgeIds.length > 0 ? data.edges.filter((edge) => edgeIds.includes(edge.id)) : data.edges;
+        const builtEdges = shownEdges.map((e) =>
           buildAppEdge(e, typeById, nextColor, nextLabel, colors, hideEdgeLabelsRef.current)
         );
         const rect = containerRef.current?.getBoundingClientRect();
@@ -593,6 +609,8 @@ export function useGraphData({
     nodeAttributes,
     nodeRefs,
     edgeAttributes,
+    edgeIds,
+    matchNothing,
     filtersActive,
     graphReloadNonce,
     setNodes,

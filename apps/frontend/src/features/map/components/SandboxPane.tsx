@@ -237,6 +237,7 @@ function SandboxPaneInner({
           (e) =>
             !hiddenSet.has(e.source) &&
             !hiddenSet.has(e.target) &&
+            (!(doc.filters?.edgeIds?.length) || doc.filters.edgeIds.includes(e.id)) &&
             (!filterVisibleIds ||
               (filterVisibleIds.has(e.source) && filterVisibleIds.has(e.target)))
         )
@@ -256,7 +257,7 @@ function SandboxPaneInner({
             },
           };
         }),
-    [doc.edges, doc.edgeLabelOverrides, hiddenSet, filterVisibleIds, onEdgeDisplayLabel, onOpenEdgeDetails]
+    [doc.edges, doc.edgeLabelOverrides, doc.filters?.edgeIds, hiddenSet, filterVisibleIds, onEdgeDisplayLabel, onOpenEdgeDetails]
   );
 
   const hiddenOptions = useMemo(
