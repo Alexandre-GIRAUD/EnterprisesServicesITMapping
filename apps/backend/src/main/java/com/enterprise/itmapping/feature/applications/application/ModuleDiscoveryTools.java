@@ -224,10 +224,6 @@ public class ModuleDiscoveryTools {
     } catch (PatternSyntaxException e) {
       return List.of("Invalid regex: " + e.getMessage());
     }
-    PathMatcher matcher =
-        (glob != null && !glob.isBlank())
-            ? FileSystems.getDefault().getPathMatcher("glob:" + glob)
-            : null;
     List<String> hits = new ArrayList<>();
     try (Stream<Path> walk = Files.walk(repoRoot)) {
       walk.filter(Files::isRegularFile)
@@ -237,7 +233,7 @@ public class ModuleDiscoveryTools {
                 return !rel.isEmpty()
                     && !GithubTreePathFilter.shouldExcludePath(rel, Integer.MAX_VALUE);
               })
-          .filter(p -> matcher == null || matcher.matches(repoRoot.relativize(p)))
+          .filter(p -> matchesGlob(repoRoot.relativize(p), glob))
           .forEach(
               p -> {
                 if (hits.size() >= limit) {
@@ -251,6 +247,25 @@ public class ModuleDiscoveryTools {
       // ignore unreadable files reached during walk
     }
     return hits;
+  }
+
+  // Java's "**/" does not cover a file in the repo root, so "**/*.xml" misses pom.xml.
+  // Ripgrep matches that file. The pattern without the prefix covers the root.
+  private static boolean matchesGlob(Path relative, String glob) {
+    if (glob == null || glob.isBlank()) {
+      return true;
+    }
+    if (globMatcher(glob).matches(relative)) {
+      return true;
+    }
+    if (glob.startsWith("**/")) {
+      return globMatcher(glob.substring(3)).matches(relative);
+    }
+    return false;
+  }
+
+  private static PathMatcher globMatcher(String glob) {
+    return FileSystems.getDefault().getPathMatcher("glob:" + glob);
   }
 
   private void grepFile(Path file, Pattern regex, List<String> hits, int limit) {
