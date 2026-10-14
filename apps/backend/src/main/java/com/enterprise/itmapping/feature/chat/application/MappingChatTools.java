@@ -104,7 +104,7 @@ public class MappingChatTools {
               + "Optional applicationId scopes search to one app. "
               + "Do NOT use this for topology / DEPENDS_ON / who-is-connected questions.")
   public String searchFunctionalDocs(
-      @ToolParam(description = "Natural language query") String query,
+      @ToolParam(description = "English question, as the user wrote it") String query,
       @ToolParam(description = "Optional application id to scope search", required = false)
           String applicationId) {
     if (docSearchService == null) {
@@ -156,7 +156,7 @@ public class MappingChatTools {
               + "Call this first when the user mentions an application. "
               + "If several matches are similarly close, ask which one is meant.")
   public String resolveApplications(
-      @ToolParam(description = "Application name or id, as the user wrote it") String query) {
+      @ToolParam(description = "Application name or id in English, as the user wrote it") String query) {
     List<CatalogRow> rows =
         ApplicationNameMatch.closest(query, catalogQuery.loadAllNamed(), properties.maxResolveResults());
     if (rows.isEmpty()) {
@@ -326,7 +326,7 @@ public class MappingChatTools {
       description =
           "List Production map filter dimensions: key, label, kind (NODE, NODE_REF, EDGE), and values. "
               + "NODE_REF options include catalogue id and display name. "
-              + "The user may ask in English or French. Map their words to a key, label, or value from this list. "
+              + "The user asks in English. Map those words to a key, label, or value from this list. "
               + "Call this before applyMapFilters when the field key is not obvious.")
   public String listFilterDimensions() {
     return toJson(listedDimensions());
@@ -335,7 +335,7 @@ public class MappingChatTools {
   @Tool(
       description =
           "Replace the Production map filters. Does not write the graph. "
-              + "The user may ask in English or French. Send the stored key, label, or catalogue spelling, not a translation absent from listFilterDimensions. "
+              + "The user asks in English. Send the stored key, label, or catalogue spelling, not a translation absent from listFilterDimensions. "
               + "JSON object with applicationIds, nodeAttributes, nodeRefs, edgeAttributes. "
               + "Each value is a JSON array of strings. Omit a key or send [] to leave that axis unfiltered. "
               + "{} clears every filter. Unknown keys refuse the whole set. "

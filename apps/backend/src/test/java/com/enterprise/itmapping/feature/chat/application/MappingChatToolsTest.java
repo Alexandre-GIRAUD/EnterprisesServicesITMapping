@@ -111,14 +111,26 @@ class MappingChatToolsTest {
   @Test
   void serviceAskDelegatesToAgentAndReturnsCitations() {
     MappingChatAgent agent = org.mockito.Mockito.mock(MappingChatAgent.class);
-    when(agent.ask(anyString(), any(), any())).thenReturn("Réponse test");
+    when(agent.ask(anyString(), any(), any())).thenReturn("Billing is connected to CRM.");
 
     MappingChatService service = chatService(agent);
 
-    ChatAskResponse res = service.ask(new ChatAskRequest("Qui est connecté à Billing ?", null));
-    assertThat(res.answerMarkdown()).isEqualTo("Réponse test");
+    ChatAskResponse res = service.ask(new ChatAskRequest("Who is connected to Billing?", null));
+    assertThat(res.answerMarkdown()).isEqualTo("Billing is connected to CRM.");
     assertThat(res.appliedFilters()).isNull();
-    verify(agent).ask(eq("Qui est connecté à Billing ?"), eq(null), any(MappingChatTools.class));
+    verify(agent).ask(eq("Who is connected to Billing?"), eq(null), any(MappingChatTools.class));
+  }
+
+  @Test
+  void serviceAskUsesAnEnglishFallbackWhenTheModelReturnsNothing() {
+    MappingChatAgent agent = org.mockito.Mockito.mock(MappingChatAgent.class);
+    when(agent.ask(anyString(), any(), any())).thenReturn("  ");
+
+    ChatAskResponse res =
+        chatService(agent).ask(new ChatAskRequest("Who is connected to Billing?", null));
+
+    assertThat(res.answerMarkdown())
+        .isEqualTo("I could not produce an answer. Try again or rephrase the question.");
   }
 
   @Test

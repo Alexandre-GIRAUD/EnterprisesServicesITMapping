@@ -87,7 +87,7 @@ public class MappingChatService {
 
     String answer = agent.ask(messageWithFilters(request), request.messages(), tools);
     if (!StringUtils.hasText(answer)) {
-      answer = "Je n'ai pas pu produire de réponse. Réessayez ou reformulez la question.";
+      answer = "I could not produce an answer. Try again or rephrase the question.";
     }
     return new ChatAskResponse(
         answer.trim(), tools.citations(), tools.warnings(), tools.appliedFilters());
