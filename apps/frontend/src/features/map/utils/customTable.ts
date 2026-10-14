@@ -1,3 +1,5 @@
+import { storedAttributeList, storedAttributeText } from './attributeValue';
+
 export const EDGE_AXIS_DIRECTIONS = ['incoming', 'outgoing', 'any'] as const;
 
 export type EdgeAxisDirection = (typeof EDGE_AXIS_DIRECTIONS)[number];
@@ -97,8 +99,8 @@ const KNOWN_GRAPH_LABELS: Record<string, string> = {
  * Data Model fields keep their own label and kind.
  */
 export function fieldsFromGraph(
-  nodes: readonly { type?: string; description?: string | null; properties?: Record<string, string> }[],
-  flows: readonly { data?: string | null; properties?: Record<string, string> }[],
+  nodes: readonly { type?: string; description?: string | null; properties?: Record<string, string | string[]> }[],
+  flows: readonly { data?: string | null; properties?: Record<string, string | string[]> }[],
   modelFields: readonly AxisCatalogField[],
 ): AxisCatalogField[] {
   const declared = new Set(modelFields.map((field) => field.key));
@@ -119,7 +121,7 @@ export function fieldsFromGraph(
   ];
 }
 
-function collectKeys(properties: Record<string, string> | undefined, keys: Set<string>): void {
+function collectKeys(properties: Record<string, string | string[]> | undefined, keys: Set<string>): void {
   for (const key of Object.keys(properties ?? {})) {
     if (!SKIPPED_GRAPH_KEYS.has(key)) keys.add(key);
   }
@@ -580,13 +582,13 @@ export function collectCustomTableFacts(
     label: string;
     type: string;
     description?: string | null;
-    properties?: Record<string, string>;
+    properties?: Record<string, string | string[]>;
     nodeRefs?: Record<string, string[]>;
   }[],
   catalog: readonly {
     id: string;
     description?: string | null;
-    nodeAttributes?: Record<string, string>;
+    nodeAttributes?: Record<string, string | string[]>;
     nodeRefs?: Record<string, Array<{ id: string; name?: string; value?: string }>>;
   }[],
   flows: readonly {
@@ -594,7 +596,7 @@ export function collectCustomTableFacts(
     sourceId: string;
     targetId: string;
     data?: string | null;
-    properties?: Record<string, string>;
+    properties?: Record<string, string | string[]>;
   }[],
   fields: readonly AxisCatalogField[],
 ): { apps: CustomTableApp[]; flows: CustomTableFlow[] } {
@@ -653,8 +655,8 @@ function cellText(cell: CustomTableCell | undefined): string {
 }
 
 function readAppValues(
-  node: { description?: string | null; properties?: Record<string, string>; nodeRefs?: Record<string, string[]> },
-  detail: { description?: string | null; nodeAttributes?: Record<string, string>; nodeRefs?: Record<string, Array<{ id: string; name?: string; value?: string }>> } | undefined,
+  node: { description?: string | null; properties?: Record<string, string | string[]>; nodeRefs?: Record<string, string[]> },
+  detail: { description?: string | null; nodeAttributes?: Record<string, string | string[]>; nodeRefs?: Record<string, Array<{ id: string; name?: string; value?: string }>> } | undefined,
   fields: readonly AxisCatalogField[],
 ): Record<string, string[]> {
   const values: Record<string, string[]> = {};
@@ -671,21 +673,29 @@ function readAppValues(
         .filter((value): value is string => Boolean(value));
       continue;
     }
-    const fromProperty = node.properties?.[field.key]?.trim() || detail?.nodeAttributes?.[field.key]?.trim() || '';
+    const fromProperty = storedAttributeList(node.properties?.[field.key]);
+    const fromDetail = storedAttributeList(detail?.nodeAttributes?.[field.key]);
+    if (fromProperty.length > 0) {
+      values[field.key] = fromProperty;
+      continue;
+    }
+    if (fromDetail.length > 0) {
+      values[field.key] = fromDetail;
+      continue;
+    }
     const fromDescription = field.key === 'description' ? node.description?.trim() || detail?.description?.trim() || '' : '';
-    const value = fromProperty || fromDescription;
-    values[field.key] = value ? [value] : [];
+    values[field.key] = fromDescription ? [fromDescription] : [];
   }
   return values;
 }
 
 function readFlowValues(
-  flow: { data?: string | null; properties?: Record<string, string> },
+  flow: { data?: string | null; properties?: Record<string, string | string[]> },
   edgeKeys: readonly string[],
 ): Record<string, string> {
   const values: Record<string, string> = {};
   for (const key of edgeKeys) {
-    const fromProperty = flow.properties?.[key]?.trim();
+    const fromProperty = storedAttributeText(flow.properties?.[key]);
     const fromData = key === 'data' ? flow.data?.trim() : '';
     const value = fromProperty || fromData;
     if (value) values[key] = value;

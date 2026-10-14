@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import type { GraphEdgeDto, GraphNodeDto, GraphNodeFilterDto } from '@/types/api';
+import { storedAttributeText } from '../utils/attributeValue';
 import { isSandboxId } from '../utils/sandboxGraph';
 import type { TableGrid } from '../utils/tableFile';
 import type { TableColumnDef } from '../utils/tableColumns';
@@ -24,7 +25,7 @@ function dash(value: string | null | undefined): string {
 }
 
 function edgeProp(edge: GraphEdgeDto, key: string): string | undefined {
-  const fromProps = edge.properties?.[key]?.trim();
+  const fromProps = storedAttributeText(edge.properties?.[key]);
   if (fromProps) return fromProps;
   if (key === 'data' && edge.data?.trim()) return edge.data.trim();
   return undefined;

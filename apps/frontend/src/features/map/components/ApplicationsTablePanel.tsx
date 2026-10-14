@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import type { ApplicationResponse, GraphNodeDto, NodeRefSummary } from '@/types/api';
+import { storedAttributeText } from '../utils/attributeValue';
 import { isSandboxId } from '../utils/sandboxGraph';
 import type { TableGrid } from '../utils/tableFile';
 import type { TableColumnDef } from '../utils/tableColumns';
@@ -16,8 +17,8 @@ type ApplicationsTablePanelProps = {
   onVisibleGrid?: (grid: TableGrid) => void;
 };
 
-function dash(value: string | null | undefined): string {
-  const t = value?.trim();
+function dash(value: unknown): string {
+  const t = typeof value === 'string' ? value.trim() : storedAttributeText(value);
   return t ? t : '—';
 }
 

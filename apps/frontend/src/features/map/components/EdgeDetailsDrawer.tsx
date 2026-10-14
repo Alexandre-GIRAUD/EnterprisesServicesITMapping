@@ -12,6 +12,14 @@ import {
 } from './AttributeChangeReasonFields';
 import { AttributeHistorySection } from './AttributeHistorySection';
 import { CloseIcon } from './CloseIcon';
+import { AttributeValueControl } from './AttributeValueControl';
+import {
+  dedupeAttributeValues,
+  sameAttributeValues,
+  storedAttributeList,
+  storedAttributeText,
+  type StoredAttribute,
+} from '../utils/attributeValue';
 
 type EdgeDetailsDrawerProps = {
   isOpen: boolean;
@@ -19,7 +27,7 @@ type EdgeDetailsDrawerProps = {
   onClose: () => void;
   onOpenApplication?: (applicationId: string, label: string) => void;
   /** Invoked after a successful edge attribute patch so the parent can refresh the graph. */
-  onEdgeAttributesUpdated?: (edgeId: string, properties: Record<string, string>) => void;
+  onEdgeAttributesUpdated?: (edgeId: string, properties: Record<string, StoredAttribute>) => void;
   /** Invoked after a successful edge delete so the parent can remove it from the graph. */
   onEdgeDeleted?: (edgeId: string) => void;
 };
@@ -37,9 +45,28 @@ function titleForEdge(edge: SelectedEdgeDetails): string {
 
 function attributeValues(
   fields: DataModelFieldDto[],
-  attributes: Record<string, string> | undefined
-): Record<string, string> {
-  return Object.fromEntries(fields.map((f) => [f.key, attributes?.[f.key] ?? '']));
+  attributes: Record<string, StoredAttribute> | undefined
+): Record<string, StoredAttribute> {
+  return Object.fromEntries(
+    fields.map((field) => {
+      const values = storedAttributeList(attributes?.[field.key]);
+      return [field.key, field.multiple ? values : (values[0] ?? '')];
+    })
+  );
+}
+
+function attributePayload(
+  fields: DataModelFieldDto[],
+  form: Record<string, StoredAttribute>
+): Record<string, StoredAttribute> {
+  return Object.fromEntries(
+    fields.map((field) => {
+      if (field.multiple) {
+        return [field.key, dedupeAttributeValues(storedAttributeList(form[field.key]))];
+      }
+      return [field.key, storedAttributeList(form[field.key])[0] ?? ''];
+    })
+  );
 }
 
 /**
@@ -57,8 +84,8 @@ export function EdgeDetailsDrawer({
   const [edgeFields, setEdgeFields] = useState<DataModelFieldDto[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [attributeForm, setAttributeForm] = useState<Record<string, string>>({});
-  const [localProperties, setLocalProperties] = useState<Record<string, string>>({});
+  const [attributeForm, setAttributeForm] = useState<Record<string, StoredAttribute>>({});
+  const [localProperties, setLocalProperties] = useState<Record<string, StoredAttribute>>({});
   const [changeReason, setChangeReason] = useState<HumanChangeReason | ''>('');
   const [changeReasonComment, setChangeReasonComment] = useState('');
   const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
@@ -124,12 +151,12 @@ export function EdgeDetailsDrawer({
     const rows = edgeFields.map((field) => ({
       key: field.key,
       label: field.label || field.key,
-      value: stored[field.key] ?? '',
+      value: storedAttributeText(stored[field.key]),
     }));
     const known = new Set(edgeFields.map((f) => f.key));
     for (const [key, value] of Object.entries(stored)) {
       if (!known.has(key) && key !== 'data') {
-        rows.push({ key, label: key, value });
+        rows.push({ key, label: key, value: storedAttributeText(value) });
       }
     }
     return rows;
@@ -138,12 +165,8 @@ export function EdgeDetailsDrawer({
   const title = edge ? titleForEdge(edge) : 'Connection';
   const sandbox = Boolean(edge?.sandbox);
 
-  function attributesChanged(next: Record<string, string>): boolean {
-    return edgeFields.some((field) => {
-      const a = (next[field.key] ?? '').trim();
-      const b = (localProperties[field.key] ?? '').trim();
-      return a !== b;
-    });
+  function attributesChanged(next: Record<string, StoredAttribute>): boolean {
+    return edgeFields.some((field) => !sameAttributeValues(next[field.key], localProperties[field.key]));
   }
 
   function startEditing() {
@@ -206,16 +229,14 @@ export function EdgeDetailsDrawer({
     if (!edge) return;
 
     const missing = edgeFields.find(
-      (field) => field.required && !(attributeForm[field.key] ?? '').trim()
+      (field) => field.required && storedAttributeList(attributeForm[field.key]).length === 0
     );
     if (missing) {
       setFormErrorMessage(`${missing.label || missing.key} is required.`);
       return;
     }
 
-    const attributes = Object.fromEntries(
-      edgeFields.map((field) => [field.key, (attributeForm[field.key] ?? '').trim()])
-    );
+    const attributes = attributePayload(edgeFields, attributeForm);
     const dirty = attributesChanged(attributes);
     if (!dirty) {
       setIsEditing(false);
@@ -224,7 +245,7 @@ export function EdgeDetailsDrawer({
 
     if (sandbox) {
       const nextProps = Object.fromEntries(
-        Object.entries(attributes).filter(([, value]) => value.length > 0)
+        Object.entries(attributes).filter(([, value]) => storedAttributeList(value).length > 0)
       );
       setLocalProperties(nextProps);
       onEdgeAttributesUpdated?.(edge.id, nextProps);
@@ -257,55 +278,6 @@ export function EdgeDetailsDrawer({
     } finally {
       setIsSaving(false);
     }
-  }
-
-  function renderAttributeInput(field: DataModelFieldDto) {
-    const value = attributeForm[field.key] ?? '';
-    const label = field.label || field.key;
-    if (field.allowedValues && field.allowedValues.length > 0) {
-      return (
-        <label className="graph-drawer-field" key={field.key}>
-          <span className="graph-drawer-field-label">
-            {label}
-            {field.required ? ' *' : ''}
-          </span>
-          <select
-            className="graph-drawer-input"
-            value={value}
-            onChange={(e) =>
-              setAttributeForm((prev) => ({ ...prev, [field.key]: e.target.value }))
-            }
-            disabled={isSaving}
-            required={field.required}
-          >
-            <option value="">—</option>
-            {field.allowedValues.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        </label>
-      );
-    }
-    return (
-      <label className="graph-drawer-field" key={field.key}>
-        <span className="graph-drawer-field-label">
-          {label}
-          {field.required ? ' *' : ''}
-        </span>
-        <input
-          className="graph-drawer-input"
-          type="text"
-          value={value}
-          onChange={(e) =>
-            setAttributeForm((prev) => ({ ...prev, [field.key]: e.target.value }))
-          }
-          disabled={isSaving}
-          required={field.required}
-        />
-      </label>
-    );
   }
 
   return (
@@ -433,7 +405,17 @@ export function EdgeDetailsDrawer({
                 {edgeFields.length > 0 ? (
                   <fieldset className="graph-drawer-field graph-drawer-fieldset">
                     <legend className="graph-drawer-field-label">Edge attributes</legend>
-                    {edgeFields.map((field) => renderAttributeInput(field))}
+                    {edgeFields.map((field) => (
+                      <AttributeValueControl
+                        key={field.key}
+                        field={field}
+                        value={attributeForm[field.key] ?? (field.multiple ? [] : '')}
+                        disabled={isSaving}
+                        onChange={(next) =>
+                          setAttributeForm((prev) => ({ ...prev, [field.key]: next }))
+                        }
+                      />
+                    ))}
                     <p className="graph-drawer-field-hint">
                       Defined in the Data Model. Leave empty to clear the value.
                     </p>

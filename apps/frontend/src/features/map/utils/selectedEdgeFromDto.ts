@@ -1,4 +1,4 @@
-import type { GraphEdgeDto } from '@/types/api';
+import type { GraphEdgeDto, StoredAttribute } from '@/types/api';
 
 export type SelectedEdgeDetails = {
   id: string;
@@ -8,7 +8,7 @@ export type SelectedEdgeDetails = {
   targetLabel: string;
   type: string;
   data?: string | null;
-  properties?: Record<string, string>;
+  properties?: Record<string, StoredAttribute>;
   /** True for sandbox-local edges (read-only, no backend fetch). */
   sandbox?: boolean;
 };
@@ -21,7 +21,7 @@ type FlowEdgeLike = {
     indirect?: boolean;
     relation?: string;
     dataKey?: string | null;
-    properties?: Record<string, string>;
+    properties?: Record<string, StoredAttribute>;
   };
 };
 

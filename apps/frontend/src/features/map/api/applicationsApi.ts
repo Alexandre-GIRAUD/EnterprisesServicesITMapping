@@ -69,7 +69,7 @@ export async function fetchApplicationById(applicationId: string): Promise<Appli
  */
 export async function patchApplicationNodeAttributes(
   applicationId: string,
-  attributes: Record<string, string>,
+  attributes: ApplicationNodeAttributesPatchRequest['attributes'],
   changeMeta?: ApplicationNodeAttributesPatchRequest['changeMeta']
 ): Promise<ApplicationResponse> {
   const url = resolveApiUrl(
