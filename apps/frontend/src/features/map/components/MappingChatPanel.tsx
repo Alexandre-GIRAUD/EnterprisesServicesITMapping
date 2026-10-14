@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { ChatAskResponseDto, ChatCitationDto, ChatHistoryMessageDto } from '@/types/api';
+import type { ChatAskResponseDto, ChatCitationDto, ChatHistoryMessageDto, GraphFilters } from '@/types/api';
 import { askMappingChat } from '../api/mappingChatApi';
+import { appliedFiltersFromChat } from '../utils/chatAppliedFilters';
 import { navigateToModuleGraph } from '../utils/mapNavigation';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,6 +17,10 @@ type MappingChatPanelProps = {
   onFocusApplication?: (applicationId: string) => void;
   /** Open edge details when an EDGE citation is clicked. */
   onFocusEdge?: (edgeId: string) => void;
+  /** Filters currently shown on the Production map. */
+  currentFilters?: GraphFilters;
+  /** Replace those filters when the answer includes appliedFilters. */
+  onApplyFilters?: (filters: GraphFilters) => void;
 };
 
 /** Lightweight markdown-ish rendering: paragraphs + bullets + bold **text**. */
@@ -65,7 +70,12 @@ function inlineFormat(text: string): ReactNode {
   });
 }
 
-export function MappingChatPanel({ onFocusApplication, onFocusEdge }: MappingChatPanelProps) {
+export function MappingChatPanel({
+  onFocusApplication,
+  onFocusEdge,
+  currentFilters,
+  onApplyFilters,
+}: MappingChatPanelProps) {
   const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [turns, setTurns] = useState<ChatTurn[]>([]);
@@ -89,7 +99,15 @@ export function MappingChatPanel({ onFocusApplication, onFocusEdge }: MappingCha
     setTurns((prev) => [...prev, { role: 'user', content: message }]);
     setBusy(true);
     try {
-      const res: ChatAskResponseDto = await askMappingChat(message, history.slice(-10));
+      const res: ChatAskResponseDto = await askMappingChat(
+        message,
+        history.slice(-10),
+        currentFilters
+      );
+      const nextFilters = appliedFiltersFromChat(res.appliedFilters);
+      if (nextFilters && onApplyFilters) {
+        onApplyFilters(nextFilters);
+      }
       setTurns((prev) => [
         ...prev,
         {
@@ -131,7 +149,8 @@ export function MappingChatPanel({ onFocusApplication, onFocusEdge }: MappingCha
     <section className="mapping-chat-panel" aria-label="Ask Flora">
       <p className="mapping-chat-lead">
         Ask a question about the Production graph or the functional documentation (for example
-        “Who is connected to …?”, “What does … do?”, “Which apps handle payments?”).
+        “Who is connected to …?”, “What does … do?”, “Which apps handle payments?”). You can also
+        ask to apply, change, or clear the map filters.
       </p>
 
       <div className="mapping-chat-transcript">

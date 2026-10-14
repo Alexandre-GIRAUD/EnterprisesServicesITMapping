@@ -1,13 +1,19 @@
 import { authenticatedFetch, resolveApiUrl } from '@/config/api';
-import type { ChatAskResponseDto, ChatHistoryMessageDto } from '@/types/api';
+import type { ChatAskResponseDto, ChatHistoryMessageDto, GraphFilters } from '@/types/api';
 
 export async function askMappingChat(
   message: string,
-  history?: ChatHistoryMessageDto[]
+  history?: ChatHistoryMessageDto[],
+  filters?: GraphFilters
 ): Promise<ChatAskResponseDto> {
-  const body: { message: string; messages?: ChatHistoryMessageDto[] } = { message };
+  const body: { message: string; messages?: ChatHistoryMessageDto[]; filters?: GraphFilters } = {
+    message,
+  };
   if (history && history.length > 0) {
     body.messages = history;
+  }
+  if (filters) {
+    body.filters = filters;
   }
   const res = await authenticatedFetch(resolveApiUrl('/api/chat/ask'), {
     method: 'POST',

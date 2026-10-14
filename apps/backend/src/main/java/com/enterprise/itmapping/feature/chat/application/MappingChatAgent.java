@@ -44,7 +44,7 @@ public class MappingChatAgent {
     String guidance =
         """
 
-        (Guidance: aim for at most %d tool calls. Prefer resolveApplications then targeted tools.)
+        (Guidance: aim for at most %d tool calls. Prefer resolveApplications then targeted tools. For map filters, call listFilterDimensions then applyMapFilters.)
         """
             .formatted(properties.maxToolIterations());
 

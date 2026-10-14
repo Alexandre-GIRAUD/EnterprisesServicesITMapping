@@ -5,10 +5,13 @@ import com.enterprise.itmapping.feature.applications.application.ApplicationServ
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskRequest;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskResponse;
+import com.enterprise.itmapping.feature.chat.presentation.dto.ChatMapFilters;
 import com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocumentationService;
 import com.enterprise.itmapping.feature.graph.application.GraphNeighborhoodService;
+import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetService;
 import com.enterprise.itmapping.feature.integrations.llm.MappingChatProperties;
 import com.enterprise.itmapping.feature.rag.application.FunctionalDocSearchService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -27,6 +30,7 @@ public class MappingChatService {
   private final FunctionalDocumentationService documentationService;
   private final ModuleGraphService moduleGraphService;
   private final FunctionalDocSearchService docSearchService;
+  private final GraphNodeFilterFacetService filterFacets;
   private final ObjectMapper objectMapper;
   private final String openAiApiKey;
 
@@ -39,6 +43,7 @@ public class MappingChatService {
       FunctionalDocumentationService documentationService,
       ModuleGraphService moduleGraphService,
       FunctionalDocSearchService docSearchService,
+      GraphNodeFilterFacetService filterFacets,
       ObjectMapper objectMapper,
       @Value("${spring.ai.openai.api-key:}") String openAiApiKey) {
     this.agent = agent;
@@ -49,6 +54,7 @@ public class MappingChatService {
     this.documentationService = documentationService;
     this.moduleGraphService = moduleGraphService;
     this.docSearchService = docSearchService;
+    this.filterFacets = filterFacets;
     this.objectMapper = objectMapper;
     this.openAiApiKey = openAiApiKey;
   }
@@ -75,13 +81,28 @@ public class MappingChatService {
             documentationService,
             moduleGraphService,
             docSearchService,
+            filterFacets,
             properties,
             objectMapper);
 
-    String answer = agent.ask(request.message().trim(), request.messages(), tools);
+    String answer = agent.ask(messageWithFilters(request), request.messages(), tools);
     if (!StringUtils.hasText(answer)) {
       answer = "Je n'ai pas pu produire de réponse. Réessayez ou reformulez la question.";
     }
-    return new ChatAskResponse(answer.trim(), tools.citations(), tools.warnings());
+    return new ChatAskResponse(
+        answer.trim(), tools.citations(), tools.warnings(), tools.appliedFilters());
+  }
+
+  private String messageWithFilters(ChatAskRequest request) {
+    String message = request.message().trim();
+    ChatMapFilters filters = request.filters();
+    if (filters == null) {
+      return message;
+    }
+    try {
+      return message + "\n\nCurrent map filters: " + objectMapper.writeValueAsString(filters);
+    } catch (JsonProcessingException ex) {
+      return message;
+    }
   }
 }
