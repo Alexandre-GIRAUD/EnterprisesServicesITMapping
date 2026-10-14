@@ -39,6 +39,7 @@ public class ModuleDiscoveryTools {
   private final int maxReadChars;
   private final int maxTreeEntries;
   private final Set<String> analyzedFiles = new LinkedHashSet<>();
+  private final Set<String> grepHitFiles = new LinkedHashSet<>();
 
   public ModuleDiscoveryTools(
       Path repoRoot, int maxGrepHits, int maxReadChars, int maxTreeEntries) {
@@ -51,6 +52,13 @@ public class ModuleDiscoveryTools {
   /** Paths (relative, POSIX) whose content was read via {@code readFile}/{@code readReadme}. */
   public List<String> getAnalyzedFiles() {
     return List.copyOf(analyzedFiles);
+  }
+
+  /** Read paths plus files that produced a grep hit. Grounding uses this set. */
+  public List<String> getObservedFiles() {
+    Set<String> observed = new LinkedHashSet<>(analyzedFiles);
+    observed.addAll(grepHitFiles);
+    return List.copyOf(observed);
   }
 
   @Tool(
@@ -116,6 +124,12 @@ public class ModuleDiscoveryTools {
     }
     if (hits.isEmpty()) {
       return "No matches.";
+    }
+    for (String hit : hits) {
+      String path = pathFromGrepHit(hit);
+      if (path != null) {
+        grepHitFiles.add(path);
+      }
     }
     return String.join("\n", hits);
   }
@@ -270,6 +284,26 @@ public class ModuleDiscoveryTools {
         hits.add(rel + ":" + (i + 1) + ": " + truncateLine(lines.get(i)));
       }
     }
+  }
+
+  /** {@code path:line:content} — the path is the text before the first {@code :digits:} pair. */
+  private static String pathFromGrepHit(String hit) {
+    if (hit == null) {
+      return null;
+    }
+    int lineSeparator = hit.indexOf(':');
+    if (lineSeparator <= 0) {
+      return null;
+    }
+    int secondSeparator = hit.indexOf(':', lineSeparator + 1);
+    if (secondSeparator <= lineSeparator + 1) {
+      return null;
+    }
+    String lineNumber = hit.substring(lineSeparator + 1, secondSeparator);
+    if (lineNumber.isEmpty() || !lineNumber.chars().allMatch(Character::isDigit)) {
+      return null;
+    }
+    return hit.substring(0, lineSeparator);
   }
 
   private String normalizeGrepLine(String line) {

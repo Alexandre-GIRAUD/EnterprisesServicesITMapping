@@ -31,6 +31,8 @@ import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
+import com.enterprise.itmapping.feature.applications.infrastructure.persistence.AiDecisionSourceEntity;
+import com.enterprise.itmapping.feature.applications.infrastructure.persistence.AiDecisionSourceRepository;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributeReader;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeLinkService;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService;
@@ -41,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.mockito.stubbing.Answer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -68,13 +71,27 @@ class ApplicationConnectionSuggestionServiceTest {
   @Mock DataModelService dataModelService;
   @Mock DataModelPromptBuilder dataModelPromptBuilder;
   @Mock DataModelAttributeResolver dataModelAttributeResolver;
+  @Mock AiDecisionSourceRepository decisionSourceRepository;
+  @Mock ApplicationNodeRefLinkReader nodeRefLinkReader;
 
+  private final List<AiDecisionSourceEntity> storedSources = new ArrayList<>();
+  private AiDecisionSourceService decisionSources;
   private ApplicationConnectionSuggestionService service;
 
   @BeforeEach
   void setUp() {
     ConnectionDiscoveryProperties props =
         new ConnectionDiscoveryProperties(35, 50, 12000, 500, 120, false, 500);
+    storedSources.clear();
+    decisionSources = new AiDecisionSourceService(decisionSourceRepository);
+    lenient()
+        .when(decisionSourceRepository.save(any(AiDecisionSourceEntity.class)))
+        .thenAnswer(storeSource());
+    lenient()
+        .when(
+            decisionSourceRepository.findByTargetTypeAndTargetIdOrderByCreatedAtAsc(
+                anyString(), anyString()))
+        .thenAnswer(listSources());
     service =
         new ApplicationConnectionSuggestionService(
             applicationRepository,
@@ -91,7 +108,9 @@ class ApplicationConnectionSuggestionServiceTest {
             overrideGuard,
             dataModelService,
             dataModelPromptBuilder,
-            dataModelAttributeResolver);
+            dataModelAttributeResolver,
+            decisionSources,
+            nodeRefLinkReader);
 
     lenient().when(applicationRepository.findProjectionById(APP_ID)).thenReturn(Optional.of(projection()));
     lenient().when(cloneService.clone(anyString(), anyString(), anyInt())).thenReturn(Path.of("dummy"));
@@ -572,11 +591,215 @@ class ApplicationConnectionSuggestionServiceTest {
     verify(nodeAttributePatchService, never()).patchAi(anyString(), any(), anyString());
   }
 
+  @Test
+  void createdEdgeKeepsGroundedFilesForTheEdgeAndChangedProperties() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "product_line", "Ligne", "", "", List.of("ALPHA"), true, false),
+                new DataModelField(
+                    "tier",
+                    "Tier",
+                    "",
+                    "",
+                    List.of("T1"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE)));
+    when(dataModelService.loadConfig()).thenReturn(config);
+    when(dataModelAttributeResolver.allowedKeys(config, DataModelTarget.EDGE))
+        .thenReturn(Set.of("product_line"));
+    when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.EDGE)))
+        .thenReturn(
+            new DataModelAttributeResolver.ValidationResult(
+                true, Map.of("product_line", List.of("ALPHA")), null, null));
+    when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.NODE)))
+        .thenReturn(
+            new DataModelAttributeResolver.ValidationResult(
+                true, Map.of("tier", List.of("T1")), null, null));
+    when(nodeAttributePatchService.patchAi(eq(APP_ID), any(), eq("CONNECTION_SUGGESTION")))
+        .thenReturn(Set.of("tier"));
+
+    AiConnectionEntry entry = connection("Service B", "outbound", "API", "x");
+    entry.setEdgeAttributes(Map.of("product_line", "ALPHA"));
+    entry.setSourceFiles(List.of("./src/OrdersClient.java", "src/Missing.java", "../secret.txt"));
+    AiApplicationConnectionPayload payload = new AiApplicationConnectionPayload();
+    payload.setConnections(new ArrayList<>(List.of(entry)));
+    payload.setNodeAttributes(Map.of("tier", "T1"));
+    payload.setNodeSourceFiles(List.of("README.md"));
+    when(agent.discover(any(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(
+            new DiscoveryResult(
+                payload,
+                List.of("README.md"),
+                List.of("README.md", "src/OrdersClient.java")));
+    when(edgeWriter.createOrMerge(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            any(),
+            anySet()))
+        .thenReturn(new WriteResult(Outcome.CREATED, "edge-1"));
+
+    service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
+
+    assertThat(decisionSources.list(AiDecisionSourceService.TARGET_EDGE, "edge-1"))
+        .extracting(AiDecisionSourceService.Trace::decisionKind, AiDecisionSourceService.Trace::fieldKey)
+        .containsExactly(
+            org.assertj.core.groups.Tuple.tuple(AiDecisionSourceService.KIND_EDGE_PROPERTY, "product_line"),
+            org.assertj.core.groups.Tuple.tuple(
+                AiDecisionSourceService.KIND_EDGE, GraphEdgeLinkService.LINK_FIELD_KEY));
+    assertThat(decisionSources.list(AiDecisionSourceService.TARGET_EDGE, "edge-1"))
+        .allSatisfy(
+            trace -> {
+              assertThat(trace.sourceFiles()).containsExactly("src/OrdersClient.java");
+              assertThat(trace.repositoryName()).isEqualTo("owner/repo");
+            });
+    assertThat(decisionSources.list(AiDecisionSourceService.TARGET_APPLICATION, APP_ID))
+        .singleElement()
+        .satisfies(
+            trace -> {
+              assertThat(trace.decisionKind()).isEqualTo(AiDecisionSourceService.KIND_NODE_PROPERTY);
+              assertThat(trace.fieldKey()).isEqualTo("tier");
+              assertThat(trace.sourceFiles()).containsExactly("README.md");
+            });
+  }
+
+  @Test
+  void duplicateEdgeAndUnchangedAttributeLeaveNoSourceTrace() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "product_line", "Ligne", "", "", List.of("ALPHA"), true, false)));
+    when(dataModelService.loadConfig()).thenReturn(config);
+    when(dataModelAttributeResolver.allowedKeys(config, DataModelTarget.EDGE))
+        .thenReturn(Set.of("product_line"));
+    when(dataModelAttributeResolver.validate(eq(config), any(), eq(DataModelTarget.EDGE)))
+        .thenReturn(
+            new DataModelAttributeResolver.ValidationResult(
+                true, Map.of("product_line", List.of("ALPHA")), null, null));
+    when(edgeWriter.findBareEdgeId(anyString(), anyString())).thenReturn(Optional.of("edge-existing"));
+    when(edgeAttributeReader.read("edge-existing")).thenReturn(Map.of("product_line", "ALPHA"));
+
+    AiConnectionEntry duplicate = connection("Service B", "outbound", "API", "x");
+    duplicate.setSourceFiles(List.of("src/Dup.java"));
+    AiConnectionEntry merged = connection("Service B", "inbound", "KAFKA", "topic");
+    merged.setEdgeAttributes(Map.of("product_line", "ALPHA"));
+    merged.setSourceFiles(List.of("src/Same.java"));
+    when(agent.discover(any(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(
+            new DiscoveryResult(
+                payloadOf(duplicate, merged),
+                List.of("src/Dup.java", "src/Same.java"),
+                List.of("src/Dup.java", "src/Same.java")));
+    when(edgeWriter.createOrMerge(
+            eq(APP_ID),
+            eq("id-b"),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            any(),
+            anySet()))
+        .thenReturn(new WriteResult(Outcome.DUPLICATE, "edge-existing"));
+    when(edgeWriter.createOrMerge(
+            eq("id-b"),
+            eq(APP_ID),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            any(),
+            anySet()))
+        .thenReturn(new WriteResult(Outcome.MERGED, "edge-existing"));
+
+    service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
+
+    assertThat(decisionSources.list(AiDecisionSourceService.TARGET_EDGE, "edge-existing")).isEmpty();
+  }
+
+  @Test
+  void changedNodeRefKeepsTheNodeSourceFiles() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "domain",
+                    "Domain",
+                    "",
+                    "",
+                    List.of("PAY"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE_REF,
+                    false)));
+    when(dataModelService.loadConfig()).thenReturn(config);
+    when(dataModelAttributeResolver.validateNodeRefs(eq(config), any()))
+        .thenReturn(
+            new DataModelAttributeResolver.NodeRefValidationResult(
+                true, Map.of("domain", List.of("PAY")), null, null));
+    when(nodeRefLinkWriter.resolveActiveRefIdsByValue(eq("domain"), anySet()))
+        .thenReturn(Map.of("PAY", "ref-pay"));
+    when(nodeRefLinkReader.read(APP_ID)).thenReturn(Map.of());
+
+    AiApplicationConnectionPayload payload = new AiApplicationConnectionPayload();
+    payload.setConnections(new ArrayList<>());
+    payload.setNodeRefs(Map.of("domain", "PAY"));
+    payload.setNodeSourceFiles(List.of("docs/domain.md"));
+    when(agent.discover(any(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(
+            new DiscoveryResult(payload, List.of("docs/domain.md"), List.of("docs/domain.md")));
+
+    service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
+
+    assertThat(decisionSources.list(AiDecisionSourceService.TARGET_APPLICATION, APP_ID))
+        .singleElement()
+        .satisfies(
+            trace -> {
+              assertThat(trace.fieldKey()).isEqualTo("domain");
+              assertThat(trace.sourceFiles()).containsExactly("docs/domain.md");
+            });
+  }
+
   private void stubAgent(AiConnectionEntry... entries) {
     AiApplicationConnectionPayload payload = new AiApplicationConnectionPayload();
     payload.setConnections(new ArrayList<>(List.of(entries)));
     when(agent.discover(any(), anyString(), anyString(), anyString(), anyString(), anyString()))
         .thenReturn(new DiscoveryResult(payload, List.of("README.md")));
+  }
+
+  private static AiApplicationConnectionPayload payloadOf(AiConnectionEntry... entries) {
+    AiApplicationConnectionPayload payload = new AiApplicationConnectionPayload();
+    payload.setConnections(new ArrayList<>(List.of(entries)));
+    return payload;
+  }
+
+  private Answer<AiDecisionSourceEntity> storeSource() {
+    return invocation -> {
+      AiDecisionSourceEntity entity = invocation.getArgument(0);
+      storedSources.add(entity);
+      return entity;
+    };
+  }
+
+  private Answer<List<AiDecisionSourceEntity>> listSources() {
+    return invocation -> {
+      String targetType = invocation.getArgument(0);
+      String targetId = invocation.getArgument(1);
+      return storedSources.stream()
+          .filter(row -> targetType.equals(row.getTargetType()) && targetId.equals(row.getTargetId()))
+          .toList();
+    };
   }
 
   private static AiConnectionEntry connection(

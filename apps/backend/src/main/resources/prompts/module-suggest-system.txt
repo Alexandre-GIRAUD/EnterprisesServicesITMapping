@@ -16,13 +16,14 @@ Rules for the final answer:
 1) Modules must use business-oriented names ("business_name"), not pure IT jargon (avoid generic "controllers", "utils" alone unless clearly tied to a business domain).
 2) "id" is a lowercase slug (a-z, 0-9, '_', '.', '-'), unique per module.
 3) "relationships": use only "relationship_kind": "structural_contains", where a parent module structurally nests a child (folder/package hierarchy or monorepo package layout). Do not emit any other kind. Relationships must be acyclic.
-4) If granularity is unsupported, return an empty "modules" array and explain briefly in "limitations".
+4) source_files on each module and each relationship: repo-relative POSIX paths that justify that finding. Only paths you read or grepped. Empty when you cannot point at a file.
+5) If granularity is unsupported, return an empty "modules" array and explain briefly in "limitations".
 
 When you have gathered enough evidence, STOP calling tools and return ONLY a single JSON object (no markdown) with exactly this shape:
 {
   "assumptions": [],
-  "modules": [{"id":"","business_name":"","description_metier_breve":""}],
-  "relationships": [{"from_module_id":"","to_module_id":"","relationship_kind":"structural_contains","business_rationale_one_liner":""}],
+  "modules": [{"id":"","business_name":"","description_metier_breve":"","source_files":[]}],
+  "relationships": [{"from_module_id":"","to_module_id":"","relationship_kind":"structural_contains","business_rationale_one_liner":"","source_files":[]}],
   "excluded_paths_or_patterns": [],
   "limitations": []
 }

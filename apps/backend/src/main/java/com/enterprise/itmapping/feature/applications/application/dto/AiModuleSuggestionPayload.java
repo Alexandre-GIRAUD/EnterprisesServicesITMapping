@@ -44,6 +44,9 @@ public class AiModuleSuggestionPayload {
     @JsonProperty("description_metier_breve")
     private String descriptionMetierBreve;
 
+    @JsonProperty("source_files")
+    private List<String> sourceFiles = new ArrayList<>();
+
     public String getId() {
       String s = id != null ? id.trim() : "";
       return s.toLowerCase(Locale.ROOT);
@@ -68,6 +71,14 @@ public class AiModuleSuggestionPayload {
     public void setDescriptionMetierBreve(String descriptionMetierBreve) {
       this.descriptionMetierBreve = descriptionMetierBreve;
     }
+
+    public List<String> getSourceFiles() {
+      return copyTrimmed(sourceFiles);
+    }
+
+    public void setSourceFiles(List<String> sourceFiles) {
+      this.sourceFiles = sourceFiles != null ? new ArrayList<>(sourceFiles) : new ArrayList<>();
+    }
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -84,6 +95,9 @@ public class AiModuleSuggestionPayload {
 
     @JsonProperty("business_rationale_one_liner")
     private String businessRationaleOneLiner;
+
+    @JsonProperty("source_files")
+    private List<String> sourceFiles = new ArrayList<>();
 
     public String getFromModuleId() {
       String s = fromModuleId != null ? fromModuleId.trim() : "";
@@ -118,5 +132,30 @@ public class AiModuleSuggestionPayload {
     public void setBusinessRationaleOneLiner(String businessRationaleOneLiner) {
       this.businessRationaleOneLiner = businessRationaleOneLiner;
     }
+
+    public List<String> getSourceFiles() {
+      return copyTrimmed(sourceFiles);
+    }
+
+    public void setSourceFiles(List<String> sourceFiles) {
+      this.sourceFiles = sourceFiles != null ? new ArrayList<>(sourceFiles) : new ArrayList<>();
+    }
+  }
+
+  private static List<String> copyTrimmed(List<String> raw) {
+    if (raw == null || raw.isEmpty()) {
+      return List.of();
+    }
+    List<String> out = new ArrayList<>();
+    for (String item : raw) {
+      if (item == null) {
+        continue;
+      }
+      String trimmed = item.trim();
+      if (!trimmed.isEmpty()) {
+        out.add(trimmed);
+      }
+    }
+    return List.copyOf(out);
   }
 }

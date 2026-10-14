@@ -17,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,10 +69,14 @@ public class ApplicationNodeAttributePatchService {
     apply(applicationId, rawAttributes, changeMeta.reason(), changeMeta.reasonComment(), null);
   }
 
-  /** AI / system edit — no human reason; records actor=AI. */
+  /**
+   * AI / system edit — no human reason; records actor=AI.
+   *
+   * @return Data Model keys whose stored value actually changed
+   */
   @Transactional
-  public void patchAi(String applicationId, Map<String, ?> rawAttributes, String aiSource) {
-    apply(applicationId, rawAttributes, null, null, aiSource != null ? aiSource : "AI");
+  public Set<String> patchAi(String applicationId, Map<String, ?> rawAttributes, String aiSource) {
+    return apply(applicationId, rawAttributes, null, null, aiSource != null ? aiSource : "AI");
   }
 
   /** @deprecated Prefer {@link #patchHuman} or {@link #patchAi}. Defaults to AI for backward compat. */
@@ -114,7 +119,7 @@ public class ApplicationNodeAttributePatchService {
     patchAi(applicationId, next, "CHANGE_DETECTION_ACCEPT");
   }
 
-  private void apply(
+  private Set<String> apply(
       String applicationId,
       Map<String, ?> rawAttributes,
       HumanChangeReason humanReason,
@@ -122,7 +127,7 @@ public class ApplicationNodeAttributePatchService {
       String aiSource) {
     List<DataModelField> nodeFields = dataModelService.loadConfig().nodeFields();
     if (nodeFields.isEmpty() || rawAttributes == null || rawAttributes.isEmpty()) {
-      return;
+      return Set.of();
     }
 
     Map<String, DataModelField> byKey = new LinkedHashMap<>();
@@ -133,6 +138,7 @@ public class ApplicationNodeAttributePatchService {
     Map<String, Object> current = reader.read(applicationId);
     Map<String, Object> toSet = new LinkedHashMap<>();
     Set<String> toRemove = new LinkedHashSet<>();
+    Set<String> changedKeys = new LinkedHashSet<>();
     List<AttributeChangeRequest> events = new ArrayList<>();
 
     for (Map.Entry<String, ?> entry : rawAttributes.entrySet()) {
@@ -165,6 +171,9 @@ public class ApplicationNodeAttributePatchService {
           continue;
         }
       }
+      if (!Objects.equals(blankToNull(oldValue), blankToNull(newValue))) {
+        changedKeys.add(key);
+      }
 
       if (stored == null) {
         toRemove.add(key);
@@ -178,6 +187,7 @@ public class ApplicationNodeAttributePatchService {
     writer.write(applicationId, toSet, byKey.keySet());
     writer.remove(applicationId, toRemove);
     auditService.recordAll(events);
+    return Set.copyOf(changedKeys);
   }
 
   private static AttributeChangeRequest buildEvent(

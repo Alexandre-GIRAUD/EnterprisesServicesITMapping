@@ -40,6 +40,10 @@ public class AiApplicationConnectionPayload {
   @JsonProperty("node_refs")
   private Map<String, Object> nodeRefs = new LinkedHashMap<>();
 
+  /** Repo-relative paths that supported node attributes and node refs for this run. */
+  @JsonProperty("node_source_files")
+  private List<String> nodeSourceFiles = new ArrayList<>();
+
   public List<String> getAssumptions() {
     return assumptions != null ? assumptions : List.of();
   }
@@ -96,6 +100,14 @@ public class AiApplicationConnectionPayload {
     this.nodeRefs = nodeRefs != null ? nodeRefs : new LinkedHashMap<>();
   }
 
+  public List<String> getNodeSourceFiles() {
+    return copyTrimmed(nodeSourceFiles);
+  }
+
+  public void setNodeSourceFiles(List<String> nodeSourceFiles) {
+    this.nodeSourceFiles = nodeSourceFiles != null ? new ArrayList<>(nodeSourceFiles) : new ArrayList<>();
+  }
+
   private static Map<String, Object> copyAttributeMap(Map<String, ?> raw) {
     Map<String, Object> copy = new LinkedHashMap<>();
     if (raw != null) {
@@ -129,6 +141,23 @@ public class AiApplicationConnectionPayload {
     }
     String text = String.valueOf(raw).trim();
     return text.isEmpty() ? null : text;
+  }
+
+  private static List<String> copyTrimmed(List<String> raw) {
+    if (raw == null || raw.isEmpty()) {
+      return List.of();
+    }
+    List<String> out = new ArrayList<>();
+    for (String item : raw) {
+      if (item == null) {
+        continue;
+      }
+      String trimmed = item.trim();
+      if (!trimmed.isEmpty()) {
+        out.add(trimmed);
+      }
+    }
+    return List.copyOf(out);
   }
 
   private static List<String> coerceStringList(Object raw) {
@@ -179,6 +208,9 @@ public class AiApplicationConnectionPayload {
 
     @JsonProperty("evidence_hint")
     private String evidenceHint;
+
+    @JsonProperty("source_files")
+    private List<String> sourceFiles = new ArrayList<>();
 
     @JsonProperty("edge_attributes")
     private Map<String, Object> edgeAttributes = new LinkedHashMap<>();
@@ -242,6 +274,26 @@ public class AiApplicationConnectionPayload {
 
     public void setEvidenceHint(String evidenceHint) {
       this.evidenceHint = evidenceHint;
+    }
+
+    /**
+     * Paths cited for this connection. {@code source_files} wins. A single relative {@code
+     * evidence_hint} is kept when that list is empty.
+     */
+    public List<String> citedSourceFiles() {
+      List<String> cited = copyTrimmed(sourceFiles);
+      if (!cited.isEmpty()) {
+        return cited;
+      }
+      String hint = getEvidenceHint();
+      if (hint.isEmpty() || hint.indexOf(' ') >= 0 || hint.indexOf('\n') >= 0) {
+        return List.of();
+      }
+      return List.of(hint);
+    }
+
+    public void setSourceFiles(List<String> sourceFiles) {
+      this.sourceFiles = sourceFiles != null ? new ArrayList<>(sourceFiles) : new ArrayList<>();
     }
 
     /** Trimmed keys. A string stays a string. A JSON array stays a list. Never null. */

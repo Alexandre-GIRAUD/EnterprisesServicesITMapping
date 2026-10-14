@@ -58,6 +58,7 @@ public class ModuleSuggestionService {
   private final Neo4jClient neo4jClient;
   private final ObjectProvider<ModuleSuggestionService> self;
   private final ApplicationModuleSubtreeQuery moduleSubtreeQuery;
+  private final AiDecisionSourceService decisionSources;
 
   public ModuleSuggestionService(
       ApplicationRepository applicationRepository,
@@ -66,7 +67,8 @@ public class ModuleSuggestionService {
       ModuleDiscoveryProperties properties,
       Neo4jClient neo4jClient,
       ObjectProvider<ModuleSuggestionService> self,
-      ApplicationModuleSubtreeQuery moduleSubtreeQuery) {
+      ApplicationModuleSubtreeQuery moduleSubtreeQuery,
+      AiDecisionSourceService decisionSources) {
     this.applicationRepository = applicationRepository;
     this.cloneService = cloneService;
     this.moduleDiscoveryAgent = moduleDiscoveryAgent;
@@ -74,6 +76,7 @@ public class ModuleSuggestionService {
     this.neo4jClient = neo4jClient;
     this.self = self;
     this.moduleSubtreeQuery = moduleSubtreeQuery;
+    this.decisionSources = decisionSources;
   }
 
   public SuggestModulesFromGithubResponse suggestFromGithub(
@@ -117,14 +120,14 @@ public class ModuleSuggestionService {
     Path workspace = cloneService.clone(owner, repo, properties.cloneTimeoutSeconds());
     try {
       DiscoveryResult discovery = moduleDiscoveryAgent.discover(workspace, owner, repo);
-      return persist(applicationId, discovery);
+      return persist(applicationId, owner + "/" + repo, discovery);
     } finally {
       cloneService.deleteQuietly(workspace);
     }
   }
 
   private SuggestModulesFromGithubResponse persist(
-      String applicationId, DiscoveryResult discovery) {
+      String applicationId, String repositoryName, DiscoveryResult discovery) {
 
     var payload = discovery.payload();
     List<CreatedItem> created = new ArrayList<>();
@@ -173,7 +176,7 @@ public class ModuleSuggestionService {
                 r.getFromModuleId() + "->" + r.getToModuleId()));
         continue;
       }
-      relsAccepted.add(new Rel(r.getFromModuleId(), r.getToModuleId()));
+      relsAccepted.add(new Rel(r.getFromModuleId(), r.getToModuleId(), r.getSourceFiles()));
     }
 
     if (hasCycle(relsAccepted)) {
@@ -206,16 +209,43 @@ public class ModuleSuggestionService {
           .run();
 
       created.add(new CreatedItem(neoId, e.getKey(), e.getValue().getBusinessName()));
+      trace(
+          repositoryName,
+          AiDecisionSourceService.KIND_NODE,
+          AiDecisionSourceService.TARGET_MODULE,
+          neoId,
+          null,
+          e.getValue().getSourceFiles(),
+          discovery.observedFiles());
     }
 
     for (String slug : acceptedBySlug.keySet()) {
       if (!children.contains(slug)) {
-        linkApplicationContains(applicationId, slugToNeoId.get(slug));
+        String moduleId = slugToNeoId.get(slug);
+        linkApplicationContains(applicationId, moduleId);
+        trace(
+            repositoryName,
+            AiDecisionSourceService.KIND_EDGE,
+            AiDecisionSourceService.TARGET_EDGE,
+            AiDecisionSourceService.containsTargetId(applicationId, moduleId),
+            null,
+            acceptedBySlug.get(slug).getSourceFiles(),
+            discovery.observedFiles());
       }
     }
 
     for (Rel rel : relsAccepted) {
-      linkModuleContains(slugToNeoId.get(rel.parent()), slugToNeoId.get(rel.child()));
+      String parentId = slugToNeoId.get(rel.parent());
+      String childId = slugToNeoId.get(rel.child());
+      linkModuleContains(parentId, childId);
+      trace(
+          repositoryName,
+          AiDecisionSourceService.KIND_EDGE,
+          AiDecisionSourceService.TARGET_EDGE,
+          AiDecisionSourceService.containsTargetId(parentId, childId),
+          null,
+          rel.sourceFiles(),
+          discovery.observedFiles());
     }
 
     log.info(
@@ -319,5 +349,25 @@ public class ModuleSuggestionService {
     return false;
   }
 
-  private record Rel(String parent, String child) {}
+  private void trace(
+      String repositoryName,
+      String decisionKind,
+      String targetType,
+      String targetId,
+      String fieldKey,
+      List<String> citedFiles,
+      List<String> observedFiles) {
+    decisionSources.record(
+        new AiDecisionSourceService.Decision(
+            AiDecisionSourceService.PIPELINE_MODULE,
+            decisionKind,
+            targetType,
+            targetId,
+            fieldKey,
+            repositoryName,
+            citedFiles,
+            observedFiles));
+  }
+
+  private record Rel(String parent, String child, List<String> sourceFiles) {}
 }

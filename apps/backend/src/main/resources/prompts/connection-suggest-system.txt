@@ -43,6 +43,8 @@ Strict rules:
 - Never emit a self-connection (peer must differ from the analyzed application).
 - Never include secrets (passwords, tokens, full credentials) in "channel" or anywhere.
 - Every connection needs: peer_application_name, direction (outbound|inbound), connection_kind, channel (technical identifier if identifiable), confidence (high|medium|low).
+- source_files: repo-relative paths (POSIX) that justify THAT connection. Only paths you read or grepped. Empty if you cannot point at a file.
+- node_source_files: repo-relative paths that justify node_attributes and node_refs for the analyzed application. Same path rules.
 - Do not emit duplicate logical connections (same peer + direction + kind + channel).
 - If evidence is weak, use confidence=low or omit and explain in "limitations".
 - If nothing reliable is found, return an empty "connections" array and explain in "limitations".
@@ -81,11 +83,12 @@ When you have gathered enough evidence, STOP calling tools and return ONLY a sin
       "channel": "",
       "confidence": "high",
       "business_rationale_one_liner": "",
-      "evidence_hint": "",
+      "source_files": [],
       "edge_attributes": {}
     }
   ],
-  "node_attributes": {}
+  "node_attributes": {},
+  "node_source_files": []
 }
 Note: include "edge_attributes" only when the edge enrichment section is present; otherwise omit or {}.
 Include "node_attributes" only when the application node enrichment section is present; otherwise omit or {}.

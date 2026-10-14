@@ -34,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -92,6 +93,8 @@ public class ApplicationConnectionSuggestionService {
   private final DataModelService dataModelService;
   private final DataModelPromptBuilder dataModelPromptBuilder;
   private final DataModelAttributeResolver dataModelAttributeResolver;
+  private final AiDecisionSourceService decisionSources;
+  private final ApplicationNodeRefLinkReader nodeRefLinkReader;
 
   public ApplicationConnectionSuggestionService(
       ApplicationRepository applicationRepository,
@@ -108,7 +111,9 @@ public class ApplicationConnectionSuggestionService {
       HumanFieldOverrideGuard overrideGuard,
       DataModelService dataModelService,
       DataModelPromptBuilder dataModelPromptBuilder,
-      DataModelAttributeResolver dataModelAttributeResolver) {
+      DataModelAttributeResolver dataModelAttributeResolver,
+      AiDecisionSourceService decisionSources,
+      ApplicationNodeRefLinkReader nodeRefLinkReader) {
     this.applicationRepository = applicationRepository;
     this.cloneService = cloneService;
     this.connectionDiscoveryAgent = connectionDiscoveryAgent;
@@ -124,6 +129,8 @@ public class ApplicationConnectionSuggestionService {
     this.dataModelService = dataModelService;
     this.dataModelPromptBuilder = dataModelPromptBuilder;
     this.dataModelAttributeResolver = dataModelAttributeResolver;
+    this.decisionSources = decisionSources;
+    this.nodeRefLinkReader = nodeRefLinkReader;
   }
 
   public SuggestConnectionsFromGithubResponse suggestFromGithub(
@@ -196,7 +203,7 @@ public class ApplicationConnectionSuggestionService {
               sourceName,
               catalog.promptText(properties.maxCatalogAppsInPrompt()),
               dataModelPromptSection);
-      return persist(applicationId, catalog, discovery, dataModelConfig);
+      return persist(applicationId, owner + "/" + repo, catalog, discovery, dataModelConfig);
     } finally {
       cloneService.deleteQuietly(workspace);
     }
@@ -204,6 +211,7 @@ public class ApplicationConnectionSuggestionService {
 
   private SuggestConnectionsFromGithubResponse persist(
       String applicationId,
+      String repositoryName,
       Catalog catalog,
       DiscoveryResult discovery,
       DataModelConfig dataModelConfig) {
@@ -338,7 +346,13 @@ public class ApplicationConnectionSuggestionService {
             inbound++;
           }
           recordEdgeAttributeAiEvents(
-              result.edgeId(), attrsForWrite, beforeEdgeAttrs, result.outcome());
+              result.edgeId(),
+              attrsForWrite,
+              beforeEdgeAttrs,
+              result.outcome(),
+              repositoryName,
+              entry.citedSourceFiles(),
+              discovery.observedFiles());
           if (result.outcome() == ApplicationConnectionEdgeWriter.Outcome.CREATED) {
             edgeLinkService.recordCreateAiFromIds(
                 result.edgeId(),
@@ -350,13 +364,21 @@ public class ApplicationConnectionSuggestionService {
                 entry.getChannel(),
                 null,
                 "CONNECTION_SUGGESTION");
+            trace(
+                repositoryName,
+                AiDecisionSourceService.KIND_EDGE,
+                AiDecisionSourceService.TARGET_EDGE,
+                result.edgeId(),
+                GraphEdgeLinkService.LINK_FIELD_KEY,
+                entry.citedSourceFiles(),
+                discovery.observedFiles());
           }
         }
       }
     }
 
-    persistNodeAttributes(applicationId, discovery, dataModelConfig);
-    persistNodeRefs(applicationId, discovery, dataModelConfig);
+    persistNodeAttributes(applicationId, repositoryName, discovery, dataModelConfig);
+    persistNodeRefs(applicationId, repositoryName, discovery, dataModelConfig);
 
     log.info(
         "Connection suggestion result applicationId={} created={} (outbound={} inbound={}) skipped={} analyzedFiles={}",
@@ -385,7 +407,10 @@ public class ApplicationConnectionSuggestionService {
    * remain persisted.
    */
   private void persistNodeAttributes(
-      String applicationId, DiscoveryResult discovery, DataModelConfig dataModelConfig) {
+      String applicationId,
+      String repositoryName,
+      DiscoveryResult discovery,
+      DataModelConfig dataModelConfig) {
     Map<String, Object> rawNodeAttrs = discovery.payload().getNodeAttributes();
     if (!dataModelConfig.hasAutomaticNodeFields()) {
       if (!rawNodeAttrs.isEmpty()) {
@@ -424,7 +449,20 @@ public class ApplicationConnectionSuggestionService {
     Set<String> allowedNodeKeys =
         dataModelAttributeResolver.allowedKeys(dataModelConfig, DataModelTarget.NODE);
     // Routes through patchAi so human overrides block + enqueue Conflicts.
-    nodeAttributePatchService.patchAi(applicationId, attrs, "CONNECTION_SUGGESTION");
+    Set<String> changedKeys =
+        nodeAttributePatchService.patchAi(applicationId, attrs, "CONNECTION_SUGGESTION");
+    if (changedKeys != null) {
+      for (String key : changedKeys) {
+        trace(
+            repositoryName,
+            AiDecisionSourceService.KIND_NODE_PROPERTY,
+            AiDecisionSourceService.TARGET_APPLICATION,
+            applicationId,
+            key,
+            discovery.payload().getNodeSourceFiles(),
+            discovery.observedFiles());
+      }
+    }
     log.debug(
         "Application node Data Model write via patchAi applicationId={} keys={} allowed={}",
         applicationId,
@@ -455,7 +493,10 @@ public class ApplicationConnectionSuggestionService {
       String edgeId,
       Map<String, ?> attrs,
       Map<String, ?> beforeAttrs,
-      ApplicationConnectionEdgeWriter.Outcome outcome) {
+      ApplicationConnectionEdgeWriter.Outcome outcome,
+      String repositoryName,
+      List<String> citedFiles,
+      List<String> observedFiles) {
     if (attrs == null || attrs.isEmpty() || !StringUtils.hasText(edgeId)) {
       return;
     }
@@ -467,15 +508,27 @@ public class ApplicationConnectionSuggestionService {
     for (Map.Entry<String, ?> attr : attrs.entrySet()) {
       String previous = before.get(attr.getKey()) == null ? null : AttributeValues.display(before.get(attr.getKey()));
       String next = AttributeValues.display(attr.getValue());
+      String previousValue = previous == null || previous.isEmpty() ? null : previous;
+      String nextValue = next.isEmpty() ? null : next;
       events.add(
           AttributeChangeRequest.ai(
               AuditTargetType.EDGE,
               edgeId,
               AuditFieldScope.EDGE_ATTR,
               attr.getKey(),
-              previous == null || previous.isEmpty() ? null : previous,
-              next.isEmpty() ? null : next,
+              previousValue,
+              nextValue,
               "CONNECTION_SUGGESTION"));
+      if (!Objects.equals(previousValue, nextValue)) {
+        trace(
+            repositoryName,
+            AiDecisionSourceService.KIND_EDGE_PROPERTY,
+            AiDecisionSourceService.TARGET_EDGE,
+            edgeId,
+            attr.getKey(),
+            citedFiles,
+            observedFiles);
+      }
     }
     attributeChangeAuditService.recordAll(events);
   }
@@ -516,7 +569,10 @@ public class ApplicationConnectionSuggestionService {
    * catalogue nodes. Soft-fails independently of edges.
    */
   private void persistNodeRefs(
-      String applicationId, DiscoveryResult discovery, DataModelConfig dataModelConfig) {
+      String applicationId,
+      String repositoryName,
+      DiscoveryResult discovery,
+      DataModelConfig dataModelConfig) {
     Map<String, List<String>> rawRefs = discovery.payload().getNodeRefs();
     if (!dataModelConfig.hasAutomaticNodeRefFields()) {
       if (!rawRefs.isEmpty()) {
@@ -563,11 +619,55 @@ public class ApplicationConnectionSuggestionService {
       return;
     }
 
+    Map<String, List<ApplicationNodeRefLinkReader.RefSummary>> current =
+        nodeRefLinkReader.read(applicationId);
+    if (current == null) {
+      current = Map.of();
+    }
+    for (Map.Entry<String, List<String>> entry : byFieldKey.entrySet()) {
+      List<String> previousIds =
+          current.getOrDefault(entry.getKey(), List.of()).stream()
+              .map(ApplicationNodeRefLinkReader.RefSummary::id)
+              .sorted()
+              .toList();
+      List<String> nextIds = entry.getValue().stream().sorted().distinct().toList();
+      if (!previousIds.equals(nextIds)) {
+        trace(
+            repositoryName,
+            AiDecisionSourceService.KIND_NODE_PROPERTY,
+            AiDecisionSourceService.TARGET_APPLICATION,
+            applicationId,
+            entry.getKey(),
+            discovery.payload().getNodeSourceFiles(),
+            discovery.observedFiles());
+      }
+    }
+
     nodeRefLinkWriter.replaceLinks(applicationId, byFieldKey);
     log.debug(
         "Application NODE_REF links written applicationId={} fields={}",
         applicationId,
         byFieldKey.keySet());
+  }
+
+  private void trace(
+      String repositoryName,
+      String decisionKind,
+      String targetType,
+      String targetId,
+      String fieldKey,
+      List<String> citedFiles,
+      List<String> observedFiles) {
+    decisionSources.record(
+        new AiDecisionSourceService.Decision(
+            AiDecisionSourceService.PIPELINE_CONNECTION,
+            decisionKind,
+            targetType,
+            targetId,
+            fieldKey,
+            repositoryName,
+            citedFiles,
+            observedFiles));
   }
 
   private static String findIgnoreCase(Map<String, String> valueToId, String value) {
