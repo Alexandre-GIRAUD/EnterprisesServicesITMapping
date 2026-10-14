@@ -26,7 +26,6 @@ type SelfServiceSideMenuProps = {
   onActiveToolChange: (tool: SideMenuTool) => void;
   onModeChange: (mode: GraphMode) => void;
   toolDetail: ReactNode;
-  pendingChangeCount?: number;
   /** When true (table view), hide tool rail and show Columns panel only. */
   columnsOnly?: boolean;
   columnsDetail?: ReactNode;
@@ -188,7 +187,6 @@ export function SelfServiceSideMenu({
   onActiveToolChange,
   onModeChange,
   toolDetail,
-  pendingChangeCount = 0,
   columnsOnly = false,
   columnsDetail = null,
 }: SelfServiceSideMenuProps) {
@@ -296,19 +294,6 @@ export function SelfServiceSideMenu({
             <>
               {columnsOnly ? null : (
                 <>
-                  {graphMode === 'normal' ? (
-                    <button
-                      type="button"
-                      className={`self-service-changes-entry${activeTool === 'changes' ? ' is-active' : ''}`}
-                      aria-pressed={activeTool === 'changes'}
-                      onClick={() => onActiveToolChange('changes')}
-                    >
-                      <span>Changes</span>
-                      <span className="self-service-changes-entry-count">
-                        {pendingChangeCount > 99 ? '99+' : pendingChangeCount}
-                      </span>
-                    </button>
-                  ) : null}
                   <SelfServiceToolBar
                     graphMode={graphMode}
                     filtersActive={filtersActive}

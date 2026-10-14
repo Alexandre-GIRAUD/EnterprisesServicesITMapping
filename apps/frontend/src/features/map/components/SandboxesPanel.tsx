@@ -28,6 +28,7 @@ type SandboxesPanelProps = {
   onLayoutModeChange: (mode: SandboxLayoutMode) => void;
   onNewSandbox: () => void;
   onSaveSandbox: (id: string) => void;
+  onDuplicateSandbox: (id: string) => void;
   onCloseSandbox: (id: string) => void;
   savedSandboxes: SavedSandboxMeta[];
   sandboxFolders: SandboxFolder[];
@@ -110,6 +111,7 @@ export function SandboxesPanel({
   onLayoutModeChange,
   onNewSandbox,
   onSaveSandbox,
+  onDuplicateSandbox,
   onCloseSandbox,
   savedSandboxes,
   sandboxFolders,
@@ -194,6 +196,9 @@ export function SandboxesPanel({
                 </button>
                 <button type="button" className="sandbox-manage-mini" onClick={() => onSaveSandbox(sandbox.id)}>
                   Save
+                </button>
+                <button type="button" className="sandbox-manage-mini" onClick={() => onDuplicateSandbox(sandbox.id)}>
+                  Duplicate
                 </button>
                 <button
                   type="button"
