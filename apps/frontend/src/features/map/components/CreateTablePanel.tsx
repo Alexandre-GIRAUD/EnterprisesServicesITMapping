@@ -24,6 +24,7 @@ const EMPTY_SETUP: CustomTableSetup = { row: null, column: null, label: null, co
 const MISSING_COLOR = '#94a3b8';
 const PLAIN_BADGE_COLOR = '#e2e8f0';
 const NEW_TABLE_SOURCE = '';
+export const SHARED_TABLES_LOAD_ERROR = 'Shared tables could not be loaded.';
 
 /** Same family of actions as views and sandboxes. Save stays outside the menu. */
 export function customTableMenuLabels(isExisting: boolean): readonly string[] {
@@ -125,7 +126,7 @@ export function CreateTablePanel({
           await Promise.all(items.map((item) => deleteCustomTableShare(item.id)));
         }))
       .catch(() => {
-        if (!cancelled) setShareMessage('Shared tables could not be loaded.');
+        if (!cancelled) setShareMessage(SHARED_TABLES_LOAD_ERROR);
       });
     return () => {
       cancelled = true;
