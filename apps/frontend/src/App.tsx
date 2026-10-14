@@ -11,6 +11,7 @@ import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { AdminUsersPage } from '@/features/auth/pages/AdminUsersPage';
 import { DataModelPage } from '@/features/datamodel/pages/DataModelPage';
+import { AboutPage } from '@/features/about/AboutPage';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/map" replace />} />
+            <Route path="/about" element={<AboutPage />} />
             <Route path="/map" element={<MapPage />} />
             <Route path="/map/import-github" element={<GitHubImportPage />} />
             <Route path="/map/apps/:applicationId" element={<ApplicationModuleMapPage />} />
