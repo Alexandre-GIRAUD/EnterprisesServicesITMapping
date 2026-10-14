@@ -119,7 +119,9 @@ export function CreateTablePanel({
           ]);
           await Promise.all(items.map((item) => deleteCustomTableShare(item.id)));
         }))
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setShareMessage('Shared tables could not be loaded.');
+      });
     return () => {
       cancelled = true;
     };
