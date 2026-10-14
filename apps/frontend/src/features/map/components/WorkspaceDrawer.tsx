@@ -87,6 +87,34 @@ const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
   { id: 'edit-flow', label: 'Edit flow' },
 ];
 
+const DRAWER_COPY: Partial<Record<DrawerView, { title: string; description: string }>> = {
+  'add-node-form': {
+    title: 'Create Node',
+    description: 'Create an Application node (name, description). Business attributes are edited from the node details.',
+  },
+  'add-icons': {
+    title: 'Icons',
+    description: 'Click to place once. Double-click to place many.',
+  },
+  'edit-app': {
+    title: 'Edit app',
+    description: 'Pick one, then change its attributes here.',
+  },
+  'edit-flow': {
+    title: 'Edit flow',
+    description: 'Pick one, then change its attributes here.',
+  },
+};
+
+const EDGE_DRAWER_COPY = {
+  title: 'Create Edge',
+  description: 'Create a typed relationship between two nodes already visible in the graph.',
+};
+
+function drawerCopy(view: DrawerView): { title: string; description: string } {
+  return DRAWER_COPY[view] ?? EDGE_DRAWER_COPY;
+}
+
 const TOOLKIT_ACTIONS: DrawerActionItem[] = [
   { id: 'add-node', label: 'Nodes' },
   { id: 'add-edge', label: 'Edges' },
@@ -527,26 +555,8 @@ export function WorkspaceDrawer({
           >
             {view !== 'menu' ? (
               <div className="graph-drawer-title-block">
-                <h2 className="graph-drawer-title">
-                  {view === 'add-node-form'
-                    ? 'Create Node'
-                    : view === 'add-icons'
-                      ? 'Icons'
-                      : view === 'edit-app'
-                        ? 'Edit app'
-                        : view === 'edit-flow'
-                          ? 'Edit flow'
-                          : 'Create Edge'}
-                </h2>
-                <p className="graph-drawer-description">
-                  {view === 'add-node-form'
-                    ? 'Create an Application node (name, description). Business attributes are edited from the node details.'
-                    : view === 'add-icons'
-                      ? 'Click to place once. Double-click to place many.'
-                      : view === 'edit-app' || view === 'edit-flow'
-                        ? 'Pick one, then change its attributes here.'
-                        : 'Create a typed relationship between two nodes already visible in the graph.'}
-                </p>
+                <h2 className="graph-drawer-title">{drawerCopy(view).title}</h2>
+                <p className="graph-drawer-description">{drawerCopy(view).description}</p>
               </div>
             ) : (
               <div className="graph-drawer-title-spacer" aria-hidden="true" />
