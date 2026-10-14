@@ -50,6 +50,10 @@ public class SharedCustomTableEntity {
     return id;
   }
 
+  public UserEntity getRecipient() {
+    return recipient;
+  }
+
   public void setRecipient(UserEntity recipient) {
     this.recipient = recipient;
   }
