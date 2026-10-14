@@ -41,10 +41,11 @@ assert.match(html, />Rows</);
 assert.match(html, />Columns</);
 assert.match(html, />Label</);
 assert.match(html, />Color</);
+assert.match(html, />Share</);
+assert.match(html, />Delete</);
+assert.match(html, />Rename</);
 assert.match(html, />Save</);
-assert.doesNotMatch(html, />Rename</);
 assert.doesNotMatch(html, />Duplicate</);
-assert.doesNotMatch(html, /Table name/);
 
 const ticker = renderToStaticMarkup(
   createElement(TableContentToggle, { value: 'apps', onChange: () => undefined }),

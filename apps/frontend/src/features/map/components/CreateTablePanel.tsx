@@ -71,6 +71,8 @@ export function CreateTablePanel({
   const [setup, setSetup] = useState<CustomTableSetup>(EMPTY_SETUP);
   const [savedTables, setSavedTables] = useState<SavedCustomTable[]>(loadSavedCustomTables);
   const [selectedId, setSelectedId] = useState(NEW_TABLE_SOURCE);
+  const [draftName, setDraftName] = useState('');
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [missingLabels, setMissingLabels] = useState<string[]>([]);
 
   const reconciled = useMemo(
@@ -101,6 +103,28 @@ export function CreateTablePanel({
     storeSavedCustomTables(savedTables);
   }, [savedTables]);
 
+  useEffect(() => {
+    let cancelled = false;
+    import('../api/customTableSharesApi')
+      .then(({ listCustomTableShares, deleteCustomTableShare }) => listCustomTableShares()
+        .then(async (items) => {
+          if (cancelled || items.length === 0) return;
+          setSavedTables((current) => [
+            ...current,
+            ...items.map((item) => ({
+              ...item.document,
+              id: newTableId(),
+              name: item.name || item.document.name,
+            })),
+          ]);
+          await Promise.all(items.map((item) => deleteCustomTableShare(item.id)));
+        }))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const choose = (slot: 'row' | 'column' | 'label' | 'color', optionId: string) => {
     const option = options.find((item) => item.id === optionId) ?? null;
     setMissingLabels([]);
@@ -121,18 +145,78 @@ export function CreateTablePanel({
     setSetup(applied.setup);
   };
 
+  const currentTable = savedTables.find((table) => table.id === selectedId) ?? null;
+
   const saveTable = () => {
     if (!selectedId) {
-      const name = window.prompt('Table name')?.trim() ?? '';
+      const name = draftName.trim() || window.prompt('Table name')?.trim() || '';
       if (!name) return;
       const id = newTableId();
       setSavedTables((current) => [...current, { id, name, ...axesOf(activeSetup) }]);
       setSelectedId(id);
+      setDraftName('');
       return;
     }
     setSavedTables((current) =>
       current.map((table) => (table.id === selectedId ? { ...table, ...axesOf(activeSetup) } : table)),
     );
+  };
+
+  const renameTable = () => {
+    const name = window.prompt('Table name', currentTable?.name || draftName)?.trim() ?? '';
+    if (!name) return;
+    if (!selectedId) {
+      setDraftName(name);
+      return;
+    }
+    setSavedTables((current) =>
+      current.map((table) => (table.id === selectedId ? { ...table, name } : table)),
+    );
+  };
+
+  const duplicateTable = () => {
+    if (!currentTable) return;
+    const id = newTableId();
+    const copy = { ...currentTable, ...axesOf(activeSetup), id, name: `${currentTable.name} copy` };
+    setSavedTables((current) => [...current, copy]);
+    setSelectedId(id);
+  };
+
+  const deleteTable = () => {
+    if (!selectedId) {
+      setSetup(EMPTY_SETUP);
+      setDraftName('');
+      setMissingLabels([]);
+      return;
+    }
+    setSavedTables((current) => current.filter((table) => table.id !== selectedId));
+    setSelectedId('');
+    setSetup(EMPTY_SETUP);
+  };
+
+  const shareTable = async () => {
+    const name = currentTable?.name || draftName.trim();
+    if (!name) {
+      setShareMessage('Rename the table before sharing.');
+      return;
+    }
+    const username = window.prompt('Username')?.trim() ?? '';
+    if (!username) return;
+    let document = currentTable;
+    if (!document) {
+      const id = newTableId();
+      document = { id, name, ...axesOf(activeSetup) };
+      setSavedTables((current) => [...current, document as SavedCustomTable]);
+      setSelectedId(id);
+      setDraftName('');
+    }
+    try {
+      const { shareCustomTable } = await import('../api/customTableSharesApi');
+      await shareCustomTable(username, name, { ...document, ...axesOf(activeSetup), name });
+      setShareMessage(`Shared with ${username}.`);
+    } catch (error) {
+      setShareMessage(error instanceof Error ? error.message : 'Unable to share.');
+    }
   };
 
   return (
@@ -160,8 +244,24 @@ export function CreateTablePanel({
           <AxisSelect label="Color" slot="color" setup={activeSetup} options={options} onChange={choose} />
         </div>
         <div className="pivot-actions">
-          <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
+          {selectedId ? (
+            <>
+              <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
+              <button type="button" className="pivot-btn" onClick={renameTable}>Rename</button>
+              <button type="button" className="pivot-btn" onClick={duplicateTable}>Duplicate</button>
+              <button type="button" className="pivot-btn" onClick={deleteTable}>Delete</button>
+              <button type="button" className="pivot-btn" onClick={() => void shareTable()}>Share</button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="pivot-btn" onClick={() => void shareTable()}>Share</button>
+              <button type="button" className="pivot-btn" onClick={deleteTable}>Delete</button>
+              <button type="button" className="pivot-btn" onClick={renameTable}>Rename</button>
+              <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
+            </>
+          )}
         </div>
+        {shareMessage ? <p className="graph-table-message" role="status">{shareMessage}</p> : null}
       </form>
       {missingLabels.length > 0 ? (
         <p className="graph-table-message" role="status">
