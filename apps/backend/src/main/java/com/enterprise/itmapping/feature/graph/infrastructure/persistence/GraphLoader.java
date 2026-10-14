@@ -152,7 +152,8 @@ public class GraphLoader {
       for (Map.Entry<String, List<String>> entry : edgeFilters.entrySet()) {
         sb.append(
             AttributeMatch.cypher(
-                "r", entry.getKey(), edgeValuesParam(entry.getKey()), AttributeMatch.split(entry.getValue())));
+                new AttributeMatch.Clause(
+                    "r", entry.getKey(), edgeValuesParam(entry.getKey()), AttributeMatch.split(entry.getValue()))));
       }
     }
     String cypher = sb.append(EDGES_RETURN).toString();
@@ -172,7 +173,8 @@ public class GraphLoader {
       for (Map.Entry<String, List<String>> entry : nodeFilters.entrySet()) {
         sb.append(
             AttributeMatch.cypher(
-                "a", entry.getKey(), valuesParam(entry.getKey()), AttributeMatch.split(entry.getValue())));
+                new AttributeMatch.Clause(
+                    "a", entry.getKey(), valuesParam(entry.getKey()), AttributeMatch.split(entry.getValue()))));
       }
     }
     if (nodeRefFilters != null) {

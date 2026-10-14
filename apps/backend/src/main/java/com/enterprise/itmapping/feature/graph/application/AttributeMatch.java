@@ -30,11 +30,15 @@ public final class AttributeMatch {
     return new Split(List.copyOf(values), includeEmpty);
   }
 
+  /** One property comparison: node or relationship alias, field key, and the bound parameter name. */
+  public record Clause(String alias, String fieldKey, String parameterName, Split split) {}
+
   /** Cypher fragment starting with AND. {@code alias} is {@code a} or {@code r}. */
-  public static String cypher(String alias, String key, String param, Split split) {
-    String property = alias + ".`" + key + "`";
+  public static String cypher(Clause clause) {
+    String property = clause.alias() + ".`" + clause.fieldKey() + "`";
     String blank = "(" + property + " IS NULL OR trim(toString(" + property + ")) = '')";
-    String listed = "toString(" + property + ") IN $" + param;
+    String listed = "toString(" + property + ") IN $" + clause.parameterName();
+    Split split = clause.split();
     if (split.includeEmpty() && !split.values().isEmpty()) {
       return "  AND (" + listed + " OR " + blank + ")\n";
     }
