@@ -1523,12 +1523,11 @@ export function GraphCanvas() {
             }}
           />
         );
-      case 'search':
-        if (!isSandbox) return null;
-        return <ApplicationSearchBar variant="menu" />;
       case 'filters':
         return (
-          <FilterDrawer
+          <>
+            {isSandbox ? <ApplicationSearchBar variant="menu" /> : null}
+            <FilterDrawer
             key={
               isSandbox
                 ? `filters-sandbox-${sandboxes.activeDoc?.id ?? 'none'}`
@@ -1575,6 +1574,7 @@ export function GraphCanvas() {
             pinViewDisabled={status !== 'ready'}
             onPinView={() => setIsSaveSnapshotOpen(true)}
           />
+          </>
         );
       case 'actions':
         return (
@@ -1647,11 +1647,11 @@ export function GraphCanvas() {
               }
             }}
             onDeleteSavedSandbox={sandboxes.deleteSaved}
-            onShareSavedSandbox={async (id, username) => {
-              const meta = sandboxes.saved.find((item) => item.id === id);
-              if (!meta) return;
+            onShareActive={async (username) => {
+              const doc = sandboxes.activeDoc;
+              if (!doc) return;
               try {
-                await shareSavedSandbox(username, meta.name, meta.document);
+                await shareSavedSandbox(username, doc.name, doc);
                 setSandboxToast(`Shared with ${username}.`);
               } catch (error) {
                 setSandboxToast(error instanceof Error ? error.message : 'Unable to share.');
@@ -1804,6 +1804,15 @@ export function GraphCanvas() {
                     onSave={() => {
                       sandboxes.saveDoc(doc.id, doc.name);
                       setSandboxToast('Saved');
+                    }}
+                    onShare={async (username) => {
+                      try {
+                        await shareSavedSandbox(username, doc.name, doc);
+                        setSandboxToast(`Shared with ${username}.`);
+                      } catch (error) {
+                        setSandboxToast(error instanceof Error ? error.message : 'Unable to share.');
+                        throw error;
+                      }
                     }}
                     onClose={() => sandboxes.closeDoc(doc.id)}
                     onRename={(name) => {
@@ -2229,9 +2238,9 @@ export function GraphCanvas() {
             setModuleGraphApp(null);
             setActiveSideMenuTool((current) => {
               if (nextMode === 'sandbox' && (current === 'changes' || current === 'chat')) {
-                return 'search';
+                return 'filters';
               }
-              if (nextMode === 'normal' && current === 'search') return 'changes';
+              if (nextMode === 'normal' && current === 'sandboxes') return 'filters';
               return current;
             });
             if (nextMode === 'sandbox') mode.switchToSandboxMode();

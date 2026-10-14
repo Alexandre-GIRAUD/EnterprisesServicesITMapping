@@ -4799,6 +4799,17 @@ body {
   background: #f1f5f9;
 }
 
+.graph-views-actions-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.graph-views-context-menu {
+  position: fixed;
+  right: auto;
+  z-index: 40;
+}
+
 .graph-views-item-name-input {
   flex: 1;
   min-width: 0;
@@ -7097,5 +7108,28 @@ body {
 .data-model-success {
   color: #059669;
   font-size: 0.9rem;
+}
+
+/* ponytail: one invert flips light chrome to dark and dark chrome to light.
+   Graph marks are inverted back so data colors hold. A dark logo is left
+   inverted so it stays visible on the new dark ground.
+   Ceiling: shadows can look odd. Upgrade path: tokenized colors. */
+html[data-theme='dark'] {
+  background-color: #f8fafc;
+  filter: invert(1) hue-rotate(180deg);
+}
+
+html[data-theme='dark'] .react-flow__node,
+html[data-theme='dark'] .react-flow__edge,
+html[data-theme='dark'] .react-flow__edgelabel,
+html[data-theme='dark'] .react-flow__arrowhead,
+html[data-theme='dark'] .react-flow__marker,
+html[data-theme='dark'] .graph-legend__swatch {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+html[data-theme='dark'] .react-flow__node img,
+html[data-theme='dark'] .graph-legend__swatch img {
+  filter: none;
 }
 

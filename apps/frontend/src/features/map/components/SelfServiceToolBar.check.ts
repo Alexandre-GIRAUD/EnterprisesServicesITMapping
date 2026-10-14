@@ -29,4 +29,20 @@ assert.doesNotMatch(
   'Corrections icon should no longer be crossed rectangles',
 );
 
+const sandboxHtml = renderToStaticMarkup(
+  createElement(SelfServiceToolBar, {
+    graphMode: 'sandbox',
+    filtersActive: false,
+    activeTool: 'filters',
+    onChange: () => undefined,
+  }),
+);
+
+const sandboxTabs = sandboxHtml.match(/role="tab"/g) ?? [];
+assert.equal(sandboxTabs.length, 3, 'Sandbox keeps three tools');
+assert.match(sandboxHtml, /aria-label="Filters"/);
+assert.match(sandboxHtml, /aria-label="Toolkit"/);
+assert.match(sandboxHtml, /aria-label="My sandboxes"/);
+assert.doesNotMatch(sandboxHtml, /Search applications/);
+
 console.log('SelfServiceToolBar.check: ok');
