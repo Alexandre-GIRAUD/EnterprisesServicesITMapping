@@ -20,24 +20,17 @@ export async function fetchGitHubConnection(): Promise<GitHubConnection> {
   return res.json();
 }
 
-/** Returns the GitHub authorize URL. The page navigates there. */
-export async function startGitHubConnect(): Promise<string> {
-  const res = await authenticatedFetch(resolveApiUrl('/api/integrations/github/connect'), {
-    headers: { Accept: 'application/json' },
+/** Saves a token the signed-in user pasted. The response does not include the token. */
+export async function saveGitHubToken(token: string): Promise<GitHubConnection> {
+  const res = await authenticatedFetch(resolveApiUrl('/api/integrations/github/connection'), {
+    method: 'PUT',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
   });
   if (!res.ok) {
-    if (res.status === 503) {
-      throw new Error(
-        'GitHub OAuth is not configured. Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET, then restart the backend.'
-      );
-    }
-    throw new Error(await githubError('GitHub connect', res));
+    throw new Error(await githubError('GitHub token', res));
   }
-  const body = (await res.json()) as { authorizeUrl?: string };
-  if (!body.authorizeUrl) {
-    throw new Error('GitHub connect did not return an authorize URL.');
-  }
-  return body.authorizeUrl;
+  return res.json();
 }
 
 export async function disconnectGitHub(): Promise<void> {
@@ -51,6 +44,12 @@ export async function disconnectGitHub(): Promise<void> {
 
 async function githubError(label: string, res: Response): Promise<string> {
   const detail = await res.text().catch(() => '');
+  try {
+    const parsed = JSON.parse(detail) as { message?: string };
+    if (parsed.message) return parsed.message;
+  } catch {
+    // The body is not JSON.
+  }
   return `${label} ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 400)}` : ''}`;
 }
 

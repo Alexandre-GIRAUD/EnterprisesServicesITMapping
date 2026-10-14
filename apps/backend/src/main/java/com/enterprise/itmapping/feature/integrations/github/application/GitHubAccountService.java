@@ -87,6 +87,21 @@ public class GitHubAccountService {
     users.save(user);
   }
 
+  /** Stores a token the signed-in user pasted. The plaintext is not returned. */
+  @Transactional
+  public GitHubConnectionStatus saveToken(UserEntity user, String rawToken) {
+    requireEncryptionKey();
+    if (!StringUtils.hasText(rawToken)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A GitHub token is required.");
+    }
+    GitHubIdentity identity = oauth.identify(rawToken.trim());
+    user.setGithubLogin(identity.login());
+    user.setGithubAccessToken(GitHubTokenCipher.encrypt(identity.accessToken(), jwt.secret()));
+    clearState(user);
+    users.save(user);
+    return status(user);
+  }
+
   @Transactional
   public void disconnect(UserEntity user) {
     user.setGithubLogin(null);

@@ -7,9 +7,13 @@ import com.enterprise.itmapping.feature.integrations.github.application.GitHubRe
 import com.enterprise.itmapping.feature.integrations.github.dto.GitHubRepoDto;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -44,6 +48,11 @@ public class GitHubIntegrationController {
     return accounts.status(currentUser.requireCurrentUser());
   }
 
+  @PutMapping("/connection")
+  public GitHubConnectionStatus saveToken(@RequestBody GitHubTokenRequest body) {
+    return accounts.saveToken(currentUser.requireCurrentUser(), body == null ? null : body.token());
+  }
+
   @DeleteMapping("/connection")
   public void disconnect() {
     accounts.disconnect(currentUser.requireCurrentUser());
@@ -75,4 +84,12 @@ public class GitHubIntegrationController {
   public List<GitHubRepoDto> listRepos() {
     return gitHubReposService.listUserRepos();
   }
+
+  @ExceptionHandler(ResponseStatusException.class)
+  public ResponseEntity<Map<String, String>> githubError(ResponseStatusException ex) {
+    String message = ex.getReason() == null ? "" : ex.getReason();
+    return ResponseEntity.status(ex.getStatusCode()).body(Map.of("message", message));
+  }
 }
+
+record GitHubTokenRequest(String token) {}

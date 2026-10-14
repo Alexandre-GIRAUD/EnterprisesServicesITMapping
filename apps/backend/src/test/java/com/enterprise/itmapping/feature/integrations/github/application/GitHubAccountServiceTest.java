@@ -88,6 +88,27 @@ class GitHubAccountServiceTest {
   }
 
   @Test
+  void saveTokenStoresTheLoginAndKeepsTheTokenEncrypted() {
+    when(oauth.identify("user-access-token")).thenReturn(new GitHubIdentity("octocat", "user-access-token"));
+
+    var status = service.saveToken(user, "  user-access-token  ");
+
+    assertThat(status.connected()).isTrue();
+    assertThat(status.login()).isEqualTo("octocat");
+    assertThat(user.getGithubAccessToken()).isNotEqualTo("user-access-token");
+    assertThat(service.accessToken(user)).isEqualTo("user-access-token");
+  }
+
+  @Test
+  void saveTokenRejectsABlankToken() {
+    assertThatThrownBy(() -> service.saveToken(user, "  "))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(ex -> ((ResponseStatusException) ex).getStatusCode())
+        .isEqualTo(HttpStatus.BAD_REQUEST);
+    verify(oauth, never()).identify(any());
+  }
+
+  @Test
   void disconnectClearsTheStoredAccount() {
     user.setGithubLogin("octocat");
     user.setGithubAccessToken("cipher");

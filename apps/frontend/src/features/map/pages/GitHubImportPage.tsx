@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { ApplicationResponse, GitHubRepoDto } from '@/types/api';
 import {
@@ -12,7 +12,7 @@ import {
   disconnectGitHub,
   fetchGitHubConnection,
   fetchGitHubRepos,
-  startGitHubConnect,
+  saveGitHubToken,
   type GitHubConnection,
 } from '../api/integrationsGithubApi';
 import { navigateToModuleGraph } from '../utils/mapNavigation';
@@ -27,6 +27,7 @@ export function GitHubImportPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [repos, setRepos] = useState<GitHubRepoDto[]>([]);
   const [connection, setConnection] = useState<GitHubConnection | null>(null);
+  const [personalToken, setPersonalToken] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
   const [filter, setFilter] = useState('');
@@ -98,13 +99,21 @@ export function GitHubImportPage() {
     );
   }, [repos, filter]);
 
-  async function connectGitHub() {
+  async function savePersonalToken(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     try {
       setIsConnecting(true);
-      window.location.assign(await startGitHubConnect());
+      setErrorMessage(null);
+      const linked = await saveGitHubToken(personalToken);
+      setConnection(linked);
+      setPersonalToken('');
+      setRepos(await fetchGitHubRepos());
+      setStatus('ready');
+      setSuccessMessage(linked.login ? `Connected as ${linked.login}.` : 'GitHub account saved.');
     } catch (e) {
+      setErrorMessage(e instanceof Error ? e.message : 'Unable to save the GitHub token.');
+    } finally {
       setIsConnecting(false);
-      setErrorMessage(e instanceof Error ? e.message : 'Unable to start GitHub connection.');
     }
   }
 
@@ -257,8 +266,8 @@ export function GitHubImportPage() {
           <p className="github-import-eyebrow">Integrations</p>
           <h1 className="github-import-title">Sources</h1>
           <p className="github-import-subtitle">
-            Connect your GitHub account to list your repositories. Until you do, the server account
-            is used when it is configured. Check the projects to import as applications in Neo4j.
+            Paste a GitHub personal access token to list your repositories. It is stored on your
+            account only and is not shown again.
           </p>
           <div className="github-import-account">
             {connection?.connected ? (
@@ -274,14 +283,26 @@ export function GitHubImportPage() {
                 </button>
               </>
             ) : (
-              <button
-                type="button"
-                className="github-import-primary"
-                disabled={isConnecting}
-                onClick={() => void connectGitHub()}
-              >
-                Connect GitHub
-              </button>
+              <form className="github-import-token-form" onSubmit={(event) => void savePersonalToken(event)}>
+                <input
+                  className="github-import-search-input"
+                  type="password"
+                  name="github-token"
+                  autoComplete="off"
+                  placeholder="GitHub token"
+                  aria-label="GitHub token"
+                  value={personalToken}
+                  disabled={isConnecting}
+                  onChange={(event) => setPersonalToken(event.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="github-import-primary"
+                  disabled={isConnecting || personalToken.trim().length === 0}
+                >
+                  Save token
+                </button>
+              </form>
             )}
           </div>
         </div>
