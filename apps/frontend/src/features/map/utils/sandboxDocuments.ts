@@ -13,6 +13,7 @@ export type SandboxDocFilters = {
   applicationIds: string[];
   nodeAttributes: Record<string, string[]>;
   nodeRefs: Record<string, string[]>;
+  edgeAttributes?: Record<string, string[]>;
   edgeIds?: string[];
   matchNothing?: boolean;
   blankedDimensions?: string[];
@@ -29,6 +30,7 @@ export function sandboxFiltersActive(filters?: SandboxDocFilters | null): boolea
   return (
     Boolean(filters.matchNothing) ||
     (filters.edgeIds?.length ?? 0) > 0 ||
+    Object.keys(filters.edgeAttributes ?? {}).length > 0 ||
     filters.applicationIds.length > 0 ||
     Object.keys(filters.nodeAttributes).length > 0 ||
     Object.keys(filters.nodeRefs).length > 0
@@ -48,17 +50,39 @@ export function graphNodeMatchesSandboxFilters(
   ) {
     return false;
   }
-  for (const [key, values] of Object.entries(filters.nodeAttributes)) {
+  if (!recordMatches(node.properties, filters.nodeAttributes)) return false;
+  if (!recordMatches(node.properties, filters.nodeRefs)) return false;
+  return true;
+}
+
+const BLANK_FILTER_VALUE = '__empty__';
+
+function isBlankValue(stored: string | undefined): boolean {
+  return stored == null || stored.trim() === '';
+}
+
+/** A selected "empty" value matches a missing or blank property. */
+export function sandboxValueSelected(stored: string | undefined, selected: readonly string[]): boolean {
+  if (isBlankValue(stored)) return selected.includes(BLANK_FILTER_VALUE);
+  return selected.includes(stored ?? '');
+}
+
+function recordMatches(
+  properties: Record<string, string> | undefined,
+  selectedByKey: Record<string, string[]> | undefined,
+): boolean {
+  for (const [key, values] of Object.entries(selectedByKey ?? {})) {
     if (!values.length) continue;
-    const v = node.properties?.[key];
-    if (v === undefined || !values.includes(v)) return false;
-  }
-  for (const [key, values] of Object.entries(filters.nodeRefs)) {
-    if (!values.length) continue;
-    const v = node.properties?.[key];
-    if (v === undefined || !values.includes(v)) return false;
+    if (!sandboxValueSelected(properties?.[key], values)) return false;
   }
   return true;
+}
+
+export function sandboxEdgeMatchesFilters(
+  edge: GraphEdgeDto,
+  filters: SandboxDocFilters,
+): boolean {
+  return recordMatches(edge.properties, filters.edgeAttributes);
 }
 
 export function sandboxFilterVisibleIds(doc: {

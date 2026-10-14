@@ -247,10 +247,6 @@ export function GraphCanvas() {
 
   const reloadGraph = useCallback(() => setGraphReloadNonce((n) => n + 1), []);
 
-  useEffect(() => {
-    document.body.classList.toggle('is-diagram-grown', diagramHeight != null);
-    return () => document.body.classList.remove('is-diagram-grown');
-  }, [diagramHeight]);
 
   const mode = useGraphMode({
     setMessage,
@@ -261,6 +257,12 @@ export function GraphCanvas() {
     reloadGraph,
   });
   const { graphMode, sandboxDirty, graphModeRef, isSandbox, isViewsMode } = mode;
+
+  useEffect(() => {
+    const diagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;
+    document.body.classList.toggle('is-diagram-grown', diagramGrown);
+    return () => document.body.classList.remove('is-diagram-grown');
+  }, [diagramHeight, displayMode, isViewsMode]);
   const sandboxes = useSandboxes();
 
   const filters = useGraphFilters({
@@ -1541,7 +1543,7 @@ export function GraphCanvas() {
               isSandbox ? activeSandboxFilters.nodeAttributes : nodeAttributes
             }
             initialNodeRefs={isSandbox ? activeSandboxFilters.nodeRefs : nodeRefs}
-            initialEdgeAttributes={isSandbox ? {} : edgeAttributes}
+            initialEdgeAttributes={isSandbox ? activeSandboxFilters.edgeAttributes ?? {} : edgeAttributes}
             initialEdgeIds={isSandbox ? activeSandboxFilters.edgeIds ?? [] : edgeIds}
             initialMatchNothing={isSandbox ? Boolean(activeSandboxFilters.matchNothing) : matchNothing}
             initialBlankedDimensions={
@@ -1565,6 +1567,7 @@ export function GraphCanvas() {
                     applicationIds: appIds,
                     nodeAttributes: attrs,
                     nodeRefs: refs,
+                    edgeAttributes: edgeAttrs ?? {},
                     edgeIds: nextEdgeIds ?? [],
                     matchNothing: Boolean(nextMatchNothing),
                     blankedDimensions: nextBlanked ?? [],
