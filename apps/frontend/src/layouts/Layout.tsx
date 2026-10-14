@@ -32,7 +32,7 @@ export function Layout() {
             <div className="layout-header-brand-group">
               <Link to="/about" className="layout-brand layout-brand-link">
                 <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
-                <h1>Flora</h1>
+                <h1>Flowra</h1>
               </Link>
               {user ? (
                 <span className="layout-header-user-meta">
