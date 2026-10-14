@@ -15,7 +15,7 @@ public record DataModelField(
     boolean required,
     DataModelDetection detection,
     DataModelTarget target,
-    /** When {@code true} and {@code target=NODE_REF}, an Application may link to several refs. */
+    /** When true, the field stores several values: a list property for NODE and EDGE, several catalogue links for NODE_REF. */
     boolean multiple) {
 
   public DataModelField {

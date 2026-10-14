@@ -14,15 +14,15 @@ public record GraphNodeDto(
     String description,
     /**
      * Dynamic business properties of the node (Data Model {@code target=NODE} keys and any other
-     * non-structural property), stringified. Empty on module-graph.
+     * non-structural property). A string is one value. A list is several. Empty on module-graph.
      */
-    @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, String> properties,
+    @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, Object> properties,
     /** Catalogue names (Data Model {@code target=NODE_REF}): field key → ref names. */
     @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, List<String>> nodeRefs
 ) {
 
   public GraphNodeDto {
-    properties = properties != null ? Map.copyOf(properties) : Map.of();
+    properties = copyProperties(properties);
     nodeRefs = copyRefs(nodeRefs);
   }
 
@@ -31,8 +31,17 @@ public record GraphNodeDto(
       String label,
       String type,
       String description,
-      Map<String, String> properties) {
-    this(id, label, type, description, properties, Map.of());
+      Map<String, ?> properties) {
+    this(id, label, type, description, copyProperties(properties), Map.of());
+  }
+
+  private static Map<String, Object> copyProperties(Map<String, ?> properties) {
+    if (properties == null || properties.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, Object> copy = new LinkedHashMap<>();
+    properties.forEach(copy::put);
+    return Map.copyOf(copy);
   }
 
   public GraphNodeDto(String id, String label, String type, String description) {

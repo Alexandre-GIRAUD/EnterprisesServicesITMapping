@@ -26,6 +26,7 @@ import type {
   GraphNodePosition,
   GraphSnapshotFilters,
   GraphSnapshotLegend,
+  StoredAttribute,
 } from '@/types/api';
 import { fetchApplications } from '../api/applicationsApi';
 import { fetchGraphNodeFilters } from '../api/graphApi';
@@ -859,7 +860,7 @@ export function GraphCanvas() {
   }, []);
 
   const handleEdgeAttributesUpdated = useCallback(
-    (edgeId: string, properties: Record<string, string>) => {
+    (edgeId: string, properties: Record<string, StoredAttribute>) => {
       setSelectedEdge((prev) =>
         prev && prev.id === edgeId ? { ...prev, properties } : prev
       );

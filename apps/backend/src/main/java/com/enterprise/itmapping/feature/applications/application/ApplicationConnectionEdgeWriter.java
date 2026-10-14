@@ -1,7 +1,7 @@
 package com.enterprise.itmapping.feature.applications.application;
 
 import java.util.HashMap;
-import java.util.LinkedHashMap;
+import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -70,13 +70,13 @@ public class ApplicationConnectionEdgeWriter {
       String directionPerspective,
       String confidence,
       String discoveredFromApplicationId,
-      Map<String, String> dataModelAttributes,
+      Map<String, ?> dataModelAttributes,
       Set<String> allowedDataModelKeys) {
 
     String normalizedKind = connectionKind != null ? connectionKind.trim() : "";
     String normalizedChannel = channel != null ? channel.trim() : "";
-    Map<String, String> dynamicProps =
-        filterDynamicProps(dataModelAttributes, allowedDataModelKeys);
+    Map<String, Object> dynamicProps =
+        AttributeValues.whitelisted(dataModelAttributes, allowedDataModelKeys);
 
     Optional<String> duplicate =
         findDuplicate(sourceId, targetId, normalizedKind, normalizedChannel);
@@ -144,28 +144,6 @@ public class ApplicationConnectionEdgeWriter {
     return new WriteResult(Outcome.CREATED, edgeId);
   }
 
-  private static Map<String, String> filterDynamicProps(
-      Map<String, String> dataModelAttributes, Set<String> allowedDataModelKeys) {
-    if (dataModelAttributes == null
-        || dataModelAttributes.isEmpty()
-        || allowedDataModelKeys == null
-        || allowedDataModelKeys.isEmpty()) {
-      return Map.of();
-    }
-    Map<String, String> out = new LinkedHashMap<>();
-    for (Map.Entry<String, String> entry : dataModelAttributes.entrySet()) {
-      String key = entry.getKey();
-      String value = entry.getValue();
-      if (!StringUtils.hasText(key) || !StringUtils.hasText(value)) {
-        continue;
-      }
-      if (allowedDataModelKeys.contains(key)) {
-        out.put(key, value.trim());
-      }
-    }
-    return out;
-  }
-
   /**
    * Bare {@code DEPENDS_ON} (no kind/channel) between endpoints — used before merge to snapshot
    * Data Model props for audit.
@@ -219,7 +197,7 @@ public class ApplicationConnectionEdgeWriter {
       String directionPerspective,
       String confidence,
       String discoveredFromApplicationId,
-      Map<String, String> dynamicProps) {
+      Map<String, Object> dynamicProps) {
     Map<String, Object> params = new HashMap<>();
     params.put("s", sourceId);
     params.put("t", targetId);
@@ -256,12 +234,12 @@ public class ApplicationConnectionEdgeWriter {
 
   /** Enriches empty Data Model properties only (coalesce per key). */
   private static String mergeDynamicPropsClause(
-      Map<String, String> dynamicProps, Map<String, Object> params) {
+      Map<String, Object> dynamicProps, Map<String, Object> params) {
     if (dynamicProps == null || dynamicProps.isEmpty()) {
       return "";
     }
     StringBuilder sb = new StringBuilder();
-    for (Map.Entry<String, String> entry : dynamicProps.entrySet()) {
+    for (Map.Entry<String, Object> entry : dynamicProps.entrySet()) {
       String key = entry.getKey();
       String param = "dm_" + key;
       params.put(param, entry.getValue());

@@ -11,8 +11,11 @@ public record GraphEdgeProjection(
     String type,
     String data,
     String relationshipId,
-    Map<String, String> properties
+    Map<String, Object> properties
 ) {
+  public GraphEdgeProjection {
+    properties = properties != null ? Map.copyOf(properties) : Map.of();
+  }
   /** Backward-compatible constructor for tests and module graph (no data label). */
   public GraphEdgeProjection(String sourceId, String targetId, String type) {
     this(sourceId, targetId, type, null, null, Map.of());

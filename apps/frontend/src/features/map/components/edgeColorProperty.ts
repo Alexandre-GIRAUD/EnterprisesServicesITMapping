@@ -1,4 +1,5 @@
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
+import { storedAttributeText } from '../utils/attributeValue';
 import {
   EDGE_TYPE_STYLES,
   edgeColorForProperty,
@@ -331,10 +332,8 @@ export function edgeColorValue(edge: GraphEdgeDto, propertyKey: string): string 
   if (propertyKey === RELATION_TYPE_COLOR_KEY) {
     return edge.type?.trim() || null;
   }
-  const fromProps = edge.properties?.[propertyKey];
-  if (fromProps != null && String(fromProps).trim()) {
-    return String(fromProps).trim();
-  }
+  const text = storedAttributeText(edge.properties?.[propertyKey]);
+  if (text) return text;
   if (propertyKey === 'data' && edge.data?.trim()) {
     return edge.data.trim();
   }
@@ -346,7 +345,7 @@ export function edgeLabelText(edge: GraphEdgeDto, propertyKey: string): string {
 }
 
 function presentKeysFromProps(
-  items: ReadonlyArray<{ readonly properties?: Readonly<Record<string, string>> | null }>
+  items: ReadonlyArray<{ readonly properties?: Readonly<Record<string, string | string[]>> | null }>
 ): Set<string> {
   const keys = new Set<string>();
   for (const item of items) {
@@ -419,11 +418,8 @@ export function nodePropValue(node: GraphNodeDto, propertyKey: string): string |
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     return node.type?.trim() || null;
   }
-  const fromProps = node.properties?.[propertyKey];
-  if (fromProps != null && String(fromProps).trim()) {
-    return String(fromProps).trim();
-  }
-  return null;
+  const text = storedAttributeText(node.properties?.[propertyKey]);
+  return text || null;
 }
 
 function overrideOr(

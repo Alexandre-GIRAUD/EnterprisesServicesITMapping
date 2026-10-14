@@ -28,6 +28,14 @@ import {
 } from './AttributeChangeReasonFields';
 import { AttributeHistorySection } from './AttributeHistorySection';
 import { CloseIcon } from './CloseIcon';
+import { AttributeValueControl } from './AttributeValueControl';
+import {
+  dedupeAttributeValues,
+  sameAttributeValues,
+  storedAttributeList,
+  storedAttributeText,
+  type StoredAttribute,
+} from '../utils/attributeValue';
 import type { HumanChangeReason } from '@/types/api';
 
 type ApplicationDetails = {
@@ -55,9 +63,28 @@ type ApplicationDetailsDrawerProps = {
 
 function attributeValues(
   fields: DataModelFieldDto[],
-  attributes: Record<string, string> | undefined
-): Record<string, string> {
-  return Object.fromEntries(fields.map((f) => [f.key, attributes?.[f.key] ?? '']));
+  attributes: Record<string, StoredAttribute> | undefined
+): Record<string, StoredAttribute> {
+  return Object.fromEntries(
+    fields.map((field) => {
+      const values = storedAttributeList(attributes?.[field.key]);
+      return [field.key, field.multiple ? values : (values[0] ?? '')];
+    })
+  );
+}
+
+function attributePayload(
+  fields: DataModelFieldDto[],
+  form: Record<string, StoredAttribute>
+): Record<string, StoredAttribute> {
+  return Object.fromEntries(
+    fields.map((field) => {
+      if (field.multiple) {
+        return [field.key, dedupeAttributeValues(storedAttributeList(form[field.key]))];
+      }
+      return [field.key, storedAttributeList(form[field.key])[0] ?? ''];
+    })
+  );
 }
 
 function refIdValues(
@@ -99,7 +126,7 @@ export function ApplicationDetailsDrawer({
   const [nodeRefFields, setNodeRefFields] = useState<DataModelFieldDto[]>([]);
   const [nodeRefOptions, setNodeRefOptions] = useState<Record<string, GraphNodeFilterDto>>({});
   const [formState, setFormState] = useState({ name: '', description: '' });
-  const [attributeForm, setAttributeForm] = useState<Record<string, string>>({});
+  const [attributeForm, setAttributeForm] = useState<Record<string, StoredAttribute>>({});
   const [refForm, setRefForm] = useState<Record<string, string[]>>({});
   const [changeReason, setChangeReason] = useState<HumanChangeReason | ''>('');
   const [changeReasonComment, setChangeReasonComment] = useState('');
@@ -205,12 +232,12 @@ export function ApplicationDetailsDrawer({
     const rows = nodeFields.map((field) => ({
       key: field.key,
       label: field.label || field.key,
-      value: stored[field.key] ?? '',
+      value: storedAttributeText(stored[field.key]),
     }));
     const known = new Set(nodeFields.map((f) => f.key));
     for (const [key, value] of Object.entries(stored)) {
       if (!known.has(key)) {
-        rows.push({ key, label: key, value });
+        rows.push({ key, label: key, value: storedAttributeText(value) });
       }
     }
     return rows;
@@ -238,13 +265,9 @@ export function ApplicationDetailsDrawer({
     setIsEditing(true);
   }
 
-  function attributesChanged(next: Record<string, string>): boolean {
+  function attributesChanged(next: Record<string, StoredAttribute>): boolean {
     const stored = details?.nodeAttributes ?? {};
-    return nodeFields.some((field) => {
-      const a = (next[field.key] ?? '').trim();
-      const b = (stored[field.key] ?? '').trim();
-      return a !== b;
-    });
+    return nodeFields.some((field) => !sameAttributeValues(next[field.key], stored[field.key]));
   }
 
   async function onSave(event: FormEvent<HTMLFormElement>) {
@@ -258,7 +281,7 @@ export function ApplicationDetailsDrawer({
     }
 
     const missing = nodeFields.find(
-      (field) => field.required && !(attributeForm[field.key] ?? '').trim()
+      (field) => field.required && storedAttributeList(attributeForm[field.key]).length === 0
     );
     if (missing) {
       setFormErrorMessage(`${missing.label || missing.key} is required.`);
@@ -276,9 +299,7 @@ export function ApplicationDetailsDrawer({
       name,
       description: formState.description.trim() || '',
     };
-    const attributes = Object.fromEntries(
-      nodeFields.map((field) => [field.key, (attributeForm[field.key] ?? '').trim()])
-    );
+    const attributes = attributePayload(nodeFields, attributeForm);
     const refs = Object.fromEntries(
       nodeRefFields.map((field) => [field.key, refForm[field.key] ?? []])
     );
@@ -295,7 +316,7 @@ export function ApplicationDetailsDrawer({
           name,
           description: payload.description,
           nodeAttributes: Object.fromEntries(
-            Object.entries(attributes).filter(([, value]) => value.length > 0)
+            Object.entries(attributes).filter(([, value]) => storedAttributeList(value).length > 0)
           ),
           nodeRefs: Object.fromEntries(
             nodeRefFields
@@ -442,48 +463,6 @@ export function ApplicationDetailsDrawer({
     } finally {
       setIsDeleting(false);
     }
-  }
-
-  function renderAttributeInput(field: DataModelFieldDto) {
-    const value = attributeForm[field.key] ?? '';
-    const allowed = field.allowedValues ?? [];
-    const onChange = (next: string) =>
-      setAttributeForm((prev) => ({ ...prev, [field.key]: next }));
-
-    return (
-      <label className="graph-drawer-field" key={field.key}>
-        <span className="graph-drawer-field-label">{field.label || field.key}</span>
-        {allowed.length > 0 ? (
-          <select
-            className="graph-drawer-input"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            disabled={isSaving || isDeleting}
-          >
-            <option value="">Not set</option>
-            {allowed.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-            {value && !allowed.includes(value) ? (
-              <option value={value}>{value} (current)</option>
-            ) : null}
-          </select>
-        ) : (
-          <input
-            className="graph-drawer-input"
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            disabled={isSaving || isDeleting}
-          />
-        )}
-        {field.description ? (
-          <span className="graph-drawer-field-hint">{field.description}</span>
-        ) : null}
-      </label>
-    );
   }
 
   function renderRefInput(field: DataModelFieldDto) {
@@ -680,7 +659,17 @@ export function ApplicationDetailsDrawer({
                 {nodeFields.length > 0 ? (
                   <fieldset className="graph-drawer-field graph-drawer-fieldset">
                     <legend className="graph-drawer-field-label">Attributes</legend>
-                    {nodeFields.map((field) => renderAttributeInput(field))}
+                    {nodeFields.map((field) => (
+                      <AttributeValueControl
+                        key={field.key}
+                        field={field}
+                        value={attributeForm[field.key] ?? (field.multiple ? [] : '')}
+                        disabled={isSaving || isDeleting}
+                        onChange={(next) =>
+                          setAttributeForm((prev) => ({ ...prev, [field.key]: next }))
+                        }
+                      />
+                    ))}
                     <p className="graph-drawer-field-hint">
                       Defined in the Data Model. Leave empty to clear the value.
                     </p>
@@ -708,14 +697,7 @@ export function ApplicationDetailsDrawer({
                     onReasonChange={setChangeReason}
                     onCommentChange={setChangeReasonComment}
                     disabled={isSaving || isDeleting}
-                    required={attributesChanged(
-                      Object.fromEntries(
-                        nodeFields.map((field) => [
-                          field.key,
-                          (attributeForm[field.key] ?? '').trim(),
-                        ])
-                      )
-                    )}
+                    required={attributesChanged(attributePayload(nodeFields, attributeForm))}
                   />
                 ) : null}
 

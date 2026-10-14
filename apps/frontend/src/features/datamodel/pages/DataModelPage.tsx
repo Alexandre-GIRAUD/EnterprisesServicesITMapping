@@ -149,7 +149,7 @@ export function DataModelPage() {
         allowedValues: (f.allowedValues ?? []).map((v) => v.trim()).filter(Boolean),
         detection: normalizeDetection(f.detection),
         target: normalizeTarget(f.target),
-        multiple: normalizeTarget(f.target) === 'NODE_REF' ? Boolean(f.multiple) : false,
+        multiple: Boolean(f.multiple),
         enforceEnum:
           normalizeTarget(f.target) === 'NODE_REF' ? true : Boolean(f.enforceEnum),
       }));
@@ -273,7 +273,6 @@ export function DataModelPage() {
                       updateField(index, {
                         target: next,
                         enforceEnum: next === 'NODE_REF' ? true : field.enforceEnum,
-                        multiple: next === 'NODE_REF' ? Boolean(field.multiple) : false,
                       });
                     }}
                     disabled={!isAdmin}
@@ -372,17 +371,15 @@ export function DataModelPage() {
                     Enforce enum (strict)
                     {target === 'NODE_REF' ? ' (always on for references)' : ''}
                   </label>
-                  {target === 'NODE_REF' ? (
-                    <label className="data-model-check">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(field.multiple)}
-                        onChange={(e) => updateField(index, { multiple: e.target.checked })}
-                        disabled={!isAdmin}
-                      />
-                      Allow multiple values
-                    </label>
-                  ) : null}
+                  <label className="data-model-check">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(field.multiple)}
+                      onChange={(e) => updateField(index, { multiple: e.target.checked })}
+                      disabled={!isAdmin}
+                    />
+                    Allow multiple values
+                  </label>
                   <label className="data-model-check">
                     <input
                       type="checkbox"

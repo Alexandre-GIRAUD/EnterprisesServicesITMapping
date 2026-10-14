@@ -1,4 +1,4 @@
-import type { ApplicationResponse, GraphEdgeCreateResponse } from '@/types/api';
+import type { ApplicationResponse, GraphEdgeCreateResponse, StoredAttribute } from '@/types/api';
 
 import { createClientUuid } from './clientId';
 
@@ -44,7 +44,7 @@ export function applicationResponseFromGraphNode(node: {
   id: string;
   label: string;
   description?: string | null;
-  properties?: Record<string, string>;
+  properties?: Record<string, StoredAttribute>;
 }): ApplicationResponse {
   return {
     id: node.id,

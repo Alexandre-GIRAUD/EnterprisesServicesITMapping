@@ -9,19 +9,28 @@ public record GraphNodeRow(
     String id,
     String name,
     String description,
-    /** Dynamic business properties of the Application node (Data Model driven), stringified. */
-    Map<String, String> properties,
+    /** Dynamic business properties. A string is one value. A list is several. */
+    Map<String, Object> properties,
     /** Catalogue names (Data Model NODE_REF): field key → ref names. */
     Map<String, List<String>> nodeRefs
 ) {
 
   public GraphNodeRow {
-    properties = properties != null ? Map.copyOf(properties) : Map.of();
+    properties = copyProperties(properties);
     nodeRefs = copyRefs(nodeRefs);
   }
 
-  public GraphNodeRow(String id, String name, String description, Map<String, String> properties) {
-    this(id, name, description, properties, Map.of());
+  public GraphNodeRow(String id, String name, String description, Map<String, ?> properties) {
+    this(id, name, description, copyProperties(properties), Map.of());
+  }
+
+  private static Map<String, Object> copyProperties(Map<String, ?> properties) {
+    if (properties == null || properties.isEmpty()) {
+      return Map.of();
+    }
+    Map<String, Object> copy = new LinkedHashMap<>();
+    properties.forEach(copy::put);
+    return Map.copyOf(copy);
   }
 
   private static Map<String, List<String>> copyRefs(Map<String, List<String>> nodeRefs) {

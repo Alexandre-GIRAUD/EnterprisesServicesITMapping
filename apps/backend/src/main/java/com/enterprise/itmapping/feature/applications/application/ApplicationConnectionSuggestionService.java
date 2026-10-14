@@ -14,6 +14,7 @@ import com.enterprise.itmapping.feature.attributeaudit.application.HumanFieldOve
 import com.enterprise.itmapping.feature.attributeaudit.application.HumanFieldOverrideGuard.Decision;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditFieldScope;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
+import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelAttributeResolver;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributeReader;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeLinkService;
@@ -255,7 +256,7 @@ public class ApplicationConnectionSuggestionService {
         continue;
       }
 
-      Map<String, String> validatedAttributes = Map.of();
+      Map<String, Object> validatedAttributes = Map.of();
       if (dataModelConfig.hasAutomaticEdgeFields()) {
         ValidationResult validation =
             dataModelAttributeResolver.validate(
@@ -266,8 +267,9 @@ public class ApplicationConnectionSuggestionService {
                   "connection", validation.skipReason(), peerName + ": " + validation.skipDetail()));
           continue;
         }
-        validatedAttributes = validation.attributes();
-        for (Map.Entry<String, String> attr : validatedAttributes.entrySet()) {
+        validatedAttributes =
+            shapeForStorage(dataModelConfig, DataModelTarget.EDGE, validation.attributes());
+        for (Map.Entry<String, Object> attr : validatedAttributes.entrySet()) {
           log.debug(
               "Data Model edge attribute accepted peer={} key={} value={}",
               peerName,
@@ -291,8 +293,8 @@ public class ApplicationConnectionSuggestionService {
         targetId = applicationId;
       }
 
-      Map<String, String> beforeEdgeAttrs = Map.of();
-      Map<String, String> attrsForWrite = validatedAttributes;
+      Map<String, Object> beforeEdgeAttrs = Map.of();
+      Map<String, Object> attrsForWrite = validatedAttributes;
       Optional<String> bareEdgeId = Optional.empty();
       if (!validatedAttributes.isEmpty()) {
         bareEdgeId = edgeWriter.findBareEdgeId(sourceId, targetId);
@@ -343,7 +345,7 @@ public class ApplicationConnectionSuggestionService {
                 sourceId,
                 targetId,
                 "DEPENDS_ON",
-                attrsForWrite,
+                auditText(attrsForWrite),
                 kind,
                 entry.getChannel(),
                 null,
@@ -384,7 +386,7 @@ public class ApplicationConnectionSuggestionService {
    */
   private void persistNodeAttributes(
       String applicationId, DiscoveryResult discovery, DataModelConfig dataModelConfig) {
-    Map<String, String> rawNodeAttrs = discovery.payload().getNodeAttributes();
+    Map<String, Object> rawNodeAttrs = discovery.payload().getNodeAttributes();
     if (!dataModelConfig.hasAutomaticNodeFields()) {
       if (!rawNodeAttrs.isEmpty()) {
         log.debug(
@@ -405,13 +407,13 @@ public class ApplicationConnectionSuggestionService {
       return;
     }
 
-    Map<String, String> attrs = validation.attributes();
+    Map<String, List<String>> attrs = validation.attributes();
     if (attrs.isEmpty()) {
       log.debug("No validated node_attributes to persist applicationId={}", applicationId);
       return;
     }
 
-    for (Map.Entry<String, String> attr : attrs.entrySet()) {
+    for (Map.Entry<String, List<String>> attr : attrs.entrySet()) {
       log.debug(
           "Data Model node attribute accepted applicationId={} key={} value={}",
           applicationId,
@@ -430,17 +432,17 @@ public class ApplicationConnectionSuggestionService {
         allowedNodeKeys);
   }
 
-  private Map<String, String> filterAiAllowedEdgeAttrs(
-      String edgeId, Map<String, String> attrs, String aiSource) {
-    Map<String, String> allowed = new LinkedHashMap<>();
-    for (Map.Entry<String, String> attr : attrs.entrySet()) {
+  private Map<String, Object> filterAiAllowedEdgeAttrs(
+      String edgeId, Map<String, Object> attrs, String aiSource) {
+    Map<String, Object> allowed = new LinkedHashMap<>();
+    for (Map.Entry<String, Object> attr : attrs.entrySet()) {
       Decision decision =
           overrideGuard.checkAiWrite(
               AuditTargetType.EDGE,
               edgeId,
               AuditFieldScope.EDGE_ATTR,
               attr.getKey(),
-              attr.getValue(),
+              AttributeValues.display(attr.getValue()),
               aiSource);
       if (decision == Decision.ALLOW) {
         allowed.put(attr.getKey(), attr.getValue());
@@ -451,29 +453,61 @@ public class ApplicationConnectionSuggestionService {
 
   private void recordEdgeAttributeAiEvents(
       String edgeId,
-      Map<String, String> attrs,
-      Map<String, String> beforeAttrs,
+      Map<String, ?> attrs,
+      Map<String, ?> beforeAttrs,
       ApplicationConnectionEdgeWriter.Outcome outcome) {
     if (attrs == null || attrs.isEmpty() || !StringUtils.hasText(edgeId)) {
       return;
     }
-    Map<String, String> before =
+    Map<String, ?> before =
         outcome == ApplicationConnectionEdgeWriter.Outcome.CREATED
             ? Map.of()
             : (beforeAttrs != null ? beforeAttrs : Map.of());
     List<AttributeChangeRequest> events = new ArrayList<>();
-    for (Map.Entry<String, String> attr : attrs.entrySet()) {
+    for (Map.Entry<String, ?> attr : attrs.entrySet()) {
+      String previous = before.get(attr.getKey()) == null ? null : AttributeValues.display(before.get(attr.getKey()));
+      String next = AttributeValues.display(attr.getValue());
       events.add(
           AttributeChangeRequest.ai(
               AuditTargetType.EDGE,
               edgeId,
               AuditFieldScope.EDGE_ATTR,
               attr.getKey(),
-              before.get(attr.getKey()),
-              attr.getValue(),
+              previous == null || previous.isEmpty() ? null : previous,
+              next.isEmpty() ? null : next,
               "CONNECTION_SUGGESTION"));
     }
     attributeChangeAuditService.recordAll(events);
+  }
+
+  private static Map<String, Object> shapeForStorage(
+      DataModelConfig config, DataModelTarget target, Map<String, List<String>> validated) {
+    Map<String, DataModelField> byKey = new LinkedHashMap<>();
+    List<DataModelField> fields =
+        target == DataModelTarget.NODE ? config.nodeFields() : config.edgeFields();
+    for (DataModelField field : fields) {
+      byKey.put(field.key(), field);
+    }
+    Map<String, Object> stored = new LinkedHashMap<>();
+    for (Map.Entry<String, List<String>> entry : validated.entrySet()) {
+      DataModelField field = byKey.get(entry.getKey());
+      Object value = AttributeValues.stored(field != null && field.multiple(), entry.getValue());
+      if (value != null) {
+        stored.put(entry.getKey(), value);
+      }
+    }
+    return stored;
+  }
+
+  private static Map<String, String> auditText(Map<String, ?> values) {
+    Map<String, String> text = new LinkedHashMap<>();
+    for (Map.Entry<String, ?> entry : values.entrySet()) {
+      String displayed = AttributeValues.display(entry.getValue());
+      if (!displayed.isEmpty()) {
+        text.put(entry.getKey(), displayed);
+      }
+    }
+    return text;
   }
 
   /**

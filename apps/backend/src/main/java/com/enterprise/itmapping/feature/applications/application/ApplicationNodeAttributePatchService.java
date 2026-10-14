@@ -8,6 +8,7 @@ import com.enterprise.itmapping.feature.attributeaudit.domain.AuditFieldScope;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
 import com.enterprise.itmapping.feature.attributeaudit.domain.HumanChangeReason;
 import com.enterprise.itmapping.feature.attributeaudit.presentation.dto.AttributeChangeMetaDto;
+import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import java.util.ArrayList;
@@ -59,7 +60,7 @@ public class ApplicationNodeAttributePatchService {
   /** Human drawer edit — requires changeMeta.reason. */
   @Transactional
   public void patchHuman(
-      String applicationId, Map<String, String> rawAttributes, AttributeChangeMetaDto changeMeta) {
+      String applicationId, Map<String, ?> rawAttributes, AttributeChangeMetaDto changeMeta) {
     if (changeMeta == null || changeMeta.reason() == null) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "changeMeta.reason is required for human edits.");
@@ -69,19 +70,53 @@ public class ApplicationNodeAttributePatchService {
 
   /** AI / system edit — no human reason; records actor=AI. */
   @Transactional
-  public void patchAi(String applicationId, Map<String, String> rawAttributes, String aiSource) {
+  public void patchAi(String applicationId, Map<String, ?> rawAttributes, String aiSource) {
     apply(applicationId, rawAttributes, null, null, aiSource != null ? aiSource : "AI");
   }
 
   /** @deprecated Prefer {@link #patchHuman} or {@link #patchAi}. Defaults to AI for backward compat. */
   @Transactional
-  public void patch(String applicationId, Map<String, String> rawAttributes) {
+  public void patch(String applicationId, Map<String, ?> rawAttributes) {
     patchAi(applicationId, rawAttributes, "LEGACY_PATCH");
+  }
+
+  /**
+   * Change-detection accept. A multiple field gains the value when it is not already there. A
+   * single-value field is replaced.
+   */
+  @Transactional
+  public void patchDetectedValue(String applicationId, String key, String value) {
+    String normalizedKey = normalizeKey(key);
+    DataModelField field = null;
+    for (DataModelField candidate : dataModelService.loadConfig().nodeFields()) {
+      if (candidate.key().equals(normalizedKey)) {
+        field = candidate;
+        break;
+      }
+    }
+    if (field == null || !field.multiple()) {
+      patchAi(applicationId, Map.of(normalizedKey, value), "CHANGE_DETECTION_ACCEPT");
+      return;
+    }
+    AttributeValues.Parsed parsed = AttributeValues.parse(field, value);
+    if (parsed.values().isEmpty()) {
+      return;
+    }
+    String canonical = parsed.values().getFirst();
+    List<String> current =
+        new ArrayList<>(AttributeValues.coerce(reader.read(applicationId).get(field.key())));
+    if (AttributeValues.containsIgnoreCase(current, canonical)) {
+      return;
+    }
+    current.add(canonical);
+    Map<String, Object> next = new LinkedHashMap<>();
+    next.put(field.key(), current);
+    patchAi(applicationId, next, "CHANGE_DETECTION_ACCEPT");
   }
 
   private void apply(
       String applicationId,
-      Map<String, String> rawAttributes,
+      Map<String, ?> rawAttributes,
       HumanChangeReason humanReason,
       String humanReasonComment,
       String aiSource) {
@@ -95,21 +130,27 @@ public class ApplicationNodeAttributePatchService {
       byKey.put(field.key(), field);
     }
 
-    Map<String, String> current = reader.read(applicationId);
-    Map<String, String> toSet = new LinkedHashMap<>();
+    Map<String, Object> current = reader.read(applicationId);
+    Map<String, Object> toSet = new LinkedHashMap<>();
     Set<String> toRemove = new LinkedHashSet<>();
     List<AttributeChangeRequest> events = new ArrayList<>();
 
-    for (Map.Entry<String, String> entry : rawAttributes.entrySet()) {
+    for (Map.Entry<String, ?> entry : rawAttributes.entrySet()) {
       String key = normalizeKey(entry.getKey());
       DataModelField field = byKey.get(key);
       if (field == null) {
         log.debug("Node attribute patch ignored key={} (not a Data Model NODE field)", key);
         continue;
       }
-      String value = entry.getValue() != null ? entry.getValue().trim() : "";
-      String oldValue = current.get(key);
-      String newValue = StringUtils.hasText(value) ? requireAllowedValue(field, value) : null;
+      AttributeValues.Parsed parsed = AttributeValues.parse(field, entry.getValue());
+      if (parsed.rejectedLiteral() != null) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "Valeur non autorisee pour " + field.key() + ": " + parsed.rejectedLiteral());
+      }
+      String oldValue = AttributeValues.display(current.get(key));
+      String newValue = parsed.values().isEmpty() ? null : AttributeValues.display(parsed.values());
+      Object stored = AttributeValues.stored(field.multiple(), parsed.values());
 
       if (aiSource != null) {
         Decision decision =
@@ -125,13 +166,13 @@ public class ApplicationNodeAttributePatchService {
         }
       }
 
-      if (newValue == null) {
+      if (stored == null) {
         toRemove.add(key);
-        events.add(buildEvent(applicationId, key, oldValue, null, humanReason, humanReasonComment, aiSource));
+        events.add(buildEvent(applicationId, key, blankToNull(oldValue), null, humanReason, humanReasonComment, aiSource));
         continue;
       }
-      toSet.put(key, newValue);
-      events.add(buildEvent(applicationId, key, oldValue, newValue, humanReason, humanReasonComment, aiSource));
+      toSet.put(key, stored);
+      events.add(buildEvent(applicationId, key, blankToNull(oldValue), newValue, humanReason, humanReasonComment, aiSource));
     }
 
     writer.write(applicationId, toSet, byKey.keySet());
@@ -168,18 +209,8 @@ public class ApplicationNodeAttributePatchService {
         aiSource);
   }
 
-  private static String requireAllowedValue(DataModelField field, String value) {
-    if (!field.enforceEnum() || field.allowedValues().isEmpty()) {
-      return value;
-    }
-    for (String allowed : field.allowedValues()) {
-      if (allowed.equalsIgnoreCase(value)) {
-        return allowed;
-      }
-    }
-    throw new ResponseStatusException(
-        HttpStatus.BAD_REQUEST,
-        "Valeur non autorisee pour " + field.key() + ": " + value);
+  private static String blankToNull(String value) {
+    return StringUtils.hasText(value) ? value : null;
   }
 
   private static String normalizeKey(String key) {

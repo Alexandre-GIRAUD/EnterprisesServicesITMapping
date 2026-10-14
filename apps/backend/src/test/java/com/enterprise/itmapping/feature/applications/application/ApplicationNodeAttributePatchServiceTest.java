@@ -76,7 +76,7 @@ class ApplicationNodeAttributePatchServiceTest {
   @Test
   void blankValueClearsTheProperty() {
     when(dataModelService.loadConfig()).thenReturn(config(nodeField("tier", List.of(), false)));
-    when(reader.read(APP_ID)).thenReturn(Map.of("tier", "GOLD"));
+    when(reader.read(APP_ID)).thenReturn(Map.of("tier", (Object) "GOLD"));
 
     service.patch(APP_ID, Map.of("tier", "   "));
 
@@ -137,7 +137,7 @@ class ApplicationNodeAttributePatchServiceTest {
   @Test
   void noOpWhenValueUnchangedStillCallsAudit_serviceFilters() {
     when(dataModelService.loadConfig()).thenReturn(config(nodeField("tier", List.of(), false)));
-    when(reader.read(APP_ID)).thenReturn(Map.of("tier", "GOLD"));
+    when(reader.read(APP_ID)).thenReturn(Map.of("tier", (Object) "GOLD"));
 
     service.patchAi(APP_ID, Map.of("tier", "GOLD"), "TEST");
 
@@ -152,7 +152,7 @@ class ApplicationNodeAttributePatchServiceTest {
   @Test
   void aiPatchSkipsFieldWhenGuardBlocks() {
     when(dataModelService.loadConfig()).thenReturn(config(nodeField("owner", List.of(), false)));
-    when(reader.read(APP_ID)).thenReturn(Map.of("owner", "Alice"));
+    when(reader.read(APP_ID)).thenReturn(Map.of("owner", (Object) "Alice"));
     when(overrideGuard.checkAiWrite(any(), any(), any(), any(), any(), any()))
         .thenReturn(HumanFieldOverrideGuard.Decision.BLOCK_AND_ENQUEUE);
 
@@ -160,6 +160,68 @@ class ApplicationNodeAttributePatchServiceTest {
 
     verify(writer).write(eq(APP_ID), eq(Map.of()), any());
     verify(auditService).recordAll(eq(List.of()));
+  }
+
+  @Test
+  void multipleFieldStoresTheListAndAuditsBothLists() {
+    when(dataModelService.loadConfig())
+        .thenReturn(config(multipleNode("zone", List.of("EU", "US"))));
+    when(reader.read(APP_ID)).thenReturn(Map.of("zone", (Object) "EU"));
+
+    Map<String, Object> raw = new LinkedHashMap<>();
+    raw.put("zone", List.of("us", "EU", "us"));
+    service.patchAi(APP_ID, raw, "CONNECTION_SUGGESTION");
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<String, Object>> written = ArgumentCaptor.forClass(Map.class);
+    verify(writer).write(eq(APP_ID), written.capture(), any());
+    assertThat(written.getValue()).containsEntry("zone", List.of("US", "EU"));
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Collection<AttributeChangeRequest>> events =
+        ArgumentCaptor.forClass(Collection.class);
+    verify(auditService).recordAll(events.capture());
+    AttributeChangeRequest event = events.getValue().iterator().next();
+    assertThat(event.oldValue()).isEqualTo("EU");
+    assertThat(event.newValue()).isEqualTo("US, EU");
+  }
+
+  @Test
+  void detectedValueIsAddedWhenTheFieldAllowsSeveral() {
+    when(dataModelService.loadConfig())
+        .thenReturn(config(multipleNode("zone", List.of("EU", "US"))));
+    when(reader.read(APP_ID)).thenReturn(Map.of("zone", (Object) List.of("EU")));
+
+    service.patchDetectedValue(APP_ID, "zone", "us");
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<String, Object>> written = ArgumentCaptor.forClass(Map.class);
+    verify(writer).write(eq(APP_ID), written.capture(), any());
+    assertThat(written.getValue()).containsEntry("zone", List.of("EU", "US"));
+  }
+
+  @Test
+  void detectedValueAlreadyStoredDoesNotWrite() {
+    when(dataModelService.loadConfig())
+        .thenReturn(config(multipleNode("zone", List.of("EU", "US"))));
+    when(reader.read(APP_ID)).thenReturn(Map.of("zone", (Object) List.of("EU")));
+
+    service.patchDetectedValue(APP_ID, "zone", "eu");
+
+    verify(writer, org.mockito.Mockito.never()).write(any(), any(), any());
+  }
+
+  @Test
+  void detectedValueReplacesASingleField() {
+    when(dataModelService.loadConfig()).thenReturn(config(nodeField("tier", List.of("GOLD", "SILVER"), true)));
+    when(reader.read(APP_ID)).thenReturn(Map.of("tier", (Object) "SILVER"));
+
+    service.patchDetectedValue(APP_ID, "tier", "gold");
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<String, Object>> written = ArgumentCaptor.forClass(Map.class);
+    verify(writer).write(eq(APP_ID), written.capture(), any());
+    assertThat(written.getValue()).containsEntry("tier", "GOLD");
   }
 
   private static DataModelConfig config(DataModelField... fields) {
@@ -178,6 +240,20 @@ class ApplicationNodeAttributePatchServiceTest {
         false,
         DataModelDetection.AUTOMATIC_DETECTION,
         DataModelTarget.NODE);
+  }
+
+  private static DataModelField multipleNode(String key, List<String> allowedValues) {
+    return new DataModelField(
+        key,
+        key,
+        "",
+        "",
+        allowedValues,
+        true,
+        false,
+        DataModelDetection.AUTOMATIC_DETECTION,
+        DataModelTarget.NODE,
+        true);
   }
 
   private static DataModelField edgeField(String key) {

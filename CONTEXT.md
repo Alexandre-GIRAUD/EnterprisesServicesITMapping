@@ -15,3 +15,7 @@ _Avoid_: live link, invite
 **View folder**:
 A named container, owned by one user, that holds saved views and other view folders.
 _Avoid_: Group, collection, directory
+
+**GitHub connection**:
+A GitHub login linked to one Flowra user. Listing, cloning, and reading that user's repositories use their token. The server token remains the fallback when nobody is connected, including push webhooks.
+_Avoid_: shared personal token, pasting a token in the browser

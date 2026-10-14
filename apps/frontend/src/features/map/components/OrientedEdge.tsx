@@ -11,6 +11,7 @@ import {
   type InternalNode,
   type Node,
 } from '@xyflow/react';
+import type { StoredAttribute } from '@/types/api';
 import { ZOOM_THRESHOLDS } from './graphTheme';
 import { buildLiveRoutes, type Point, type Rect } from './elkLayout';
 import { buildOrthogonalPath } from './orthogonalPath';
@@ -41,7 +42,7 @@ export type OrientedEdgeData = {
   /** Resolved value for {@link colorPropertyKey}. */
   colorValue?: string | null;
   /** Colorable relationship properties from the API. */
-  properties?: Record<string, string>;
+  properties?: Record<string, StoredAttribute>;
   /** True for collapse shortcuts that bridge one or more hidden applications. */
   indirect?: boolean;
   /** Application ids restored when the expand control on this edge is clicked. */

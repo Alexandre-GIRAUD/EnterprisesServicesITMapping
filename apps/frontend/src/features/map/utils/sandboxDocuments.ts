@@ -3,6 +3,7 @@ import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import type { AppNode } from '../hooks/useGraphData';
 import type { OrientedEdgeType } from '../components/OrientedEdge';
 import { createClientUuid } from './clientId';
+import { storedAttributeList } from './attributeValue';
 
 export const MAX_OPEN_SANDBOXES = 4;
 export const SANDBOX_SAVED_STORAGE_KEY = 'flowra.sandbox.savedDocuments';
@@ -44,13 +45,13 @@ export function graphNodeMatchesSandboxFilters(
   }
   for (const [key, values] of Object.entries(filters.nodeAttributes)) {
     if (!values.length) continue;
-    const v = node.properties?.[key];
-    if (v === undefined || !values.includes(v)) return false;
+    const stored = storedAttributeList(node.properties?.[key]);
+    if (stored.length === 0 || !stored.some((item) => values.includes(item))) return false;
   }
   for (const [key, values] of Object.entries(filters.nodeRefs)) {
     if (!values.length) continue;
-    const v = node.properties?.[key];
-    if (v === undefined || !values.includes(v)) return false;
+    const stored = storedAttributeList(node.properties?.[key]);
+    if (stored.length === 0 || !stored.some((item) => values.includes(item))) return false;
   }
   return true;
 }

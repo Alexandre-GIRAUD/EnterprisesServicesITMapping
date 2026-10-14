@@ -14,6 +14,7 @@ import type {
   GraphEdgeCreateResponse,
   GraphNodeFilterDto,
   GraphResponseDto,
+  StoredAttribute,
 } from '@/types/api';
 import { authenticatedFetch, resolveApiUrl } from '@/config/api';
 
@@ -151,9 +152,9 @@ export async function deleteGraphEdge(
 
 export async function patchGraphEdgeAttributes(
   edgeId: string,
-  attributes: Record<string, string>,
+  attributes: Record<string, StoredAttribute>,
   changeMeta?: AttributeChangeMeta | null
-): Promise<Record<string, string>> {
+): Promise<Record<string, StoredAttribute>> {
   const res = await authenticatedFetch(
     resolveApiUrl(`/api/graph/edges/${encodeURIComponent(edgeId)}/attributes`),
     {

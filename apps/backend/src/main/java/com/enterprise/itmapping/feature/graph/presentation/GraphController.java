@@ -130,11 +130,11 @@ public class GraphController {
    * relationship. Blank values clear the property. Human edits require {@code changeMeta}.
    */
   @PatchMapping("/edges/{id}/attributes")
-  public ResponseEntity<Map<String, String>> patchEdgeAttributes(
+  public ResponseEntity<Map<String, Object>> patchEdgeAttributes(
       @PathVariable String id,
       @RequestBody(required = false) GraphEdgeAttributesPatchRequest body) {
-    Map<String, String> attributes = body != null ? body.attributes() : Map.of();
-    Map<String, String> updated;
+    Map<String, Object> attributes = body != null ? body.attributes() : Map.of();
+    Map<String, Object> updated;
     if (body != null && body.changeMeta() != null) {
       updated = edgeAttributePatchService.patchHuman(id, attributes, body.changeMeta());
     } else {

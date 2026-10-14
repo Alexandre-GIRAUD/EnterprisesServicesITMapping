@@ -1,11 +1,13 @@
 package com.enterprise.itmapping.feature.graph.application;
 
+import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto.NeighborhoodApplicationDto;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto.NeighborhoodEdgeDto;
 import com.enterprise.itmapping.feature.graph.domain.NeighborhoodDirection;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.Neo4jValueMapping;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -131,7 +133,11 @@ public class GraphNeighborhoodService {
       if (EXCLUDED_EDGE_KEYS.contains(key)) {
         continue;
       }
-      String value = Neo4jValueMapping.asString(entry.getValue());
+      Object property = entry.getValue();
+      String value =
+          property instanceof Collection<?> || (property != null && property.getClass().isArray())
+              ? AttributeValues.display(property)
+              : Neo4jValueMapping.asString(property);
       if (value != null && !value.isBlank()) {
         out.put(key, value);
       }

@@ -30,13 +30,16 @@ public class GitHubRepoCloneService {
     this.apiClient = apiClient;
   }
 
-  /**
-   * Runs {@code git clone --depth 1} of {@code owner/repo} into a fresh temp directory.
-   *
-   * @return the workspace path containing the checked-out repository
-   * @throws ResponseStatusException 502 when git is missing / clone fails / times out
-   */
+  /** Token resolved on the current thread. Capture it before an {@code @Async} hand-off. */
+  public String currentAccessToken() {
+    return apiClient.token();
+  }
+
   public Path clone(String owner, String repo, int timeoutSeconds) {
+    return clone(owner, repo, timeoutSeconds, apiClient.token());
+  }
+
+  public Path clone(String owner, String repo, int timeoutSeconds, String accessToken) {
     Path workspace;
     try {
       workspace = Files.createTempDirectory("module-discovery-");
@@ -45,7 +48,7 @@ public class GitHubRepoCloneService {
           HttpStatus.INTERNAL_SERVER_ERROR, "Impossible de créer le workspace temporaire.", e);
     }
 
-    String cloneUrl = buildCloneUrl(owner, repo);
+    String cloneUrl = buildCloneUrl(owner, repo, accessToken);
     List<String> command =
         new ArrayList<>(
             List.of(
@@ -108,10 +111,10 @@ public class GitHubRepoCloneService {
    * Builds an HTTPS clone URL, injecting the GitHub token for private repos. The token is never
    * logged (only owner/repo are).
    */
-  private String buildCloneUrl(String owner, String repo) {
+  private static String buildCloneUrl(String owner, String repo, String accessToken) {
     String host = "github.com";
-    if (apiClient.hasToken()) {
-      return "https://x-access-token:" + apiClient.token() + "@" + host + "/" + owner + "/" + repo + ".git";
+    if (accessToken != null && !accessToken.isBlank()) {
+      return "https://x-access-token:" + accessToken.trim() + "@" + host + "/" + owner + "/" + repo + ".git";
     }
     return "https://" + host + "/" + owner + "/" + repo + ".git";
   }

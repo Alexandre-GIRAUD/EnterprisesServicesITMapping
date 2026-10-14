@@ -1,6 +1,6 @@
 package com.enterprise.itmapping.feature.applications.application;
 
-import java.util.LinkedHashMap;
+import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.data.neo4j.core.Neo4jClient;
@@ -21,7 +21,7 @@ public class ApplicationNodeAttributeReader {
     this.neo4jClient = neo4jClient;
   }
 
-  public Map<String, String> read(String applicationId) {
+  public Map<String, Object> read(String applicationId) {
     if (!StringUtils.hasText(applicationId)) {
       return Map.of();
     }
@@ -35,25 +35,7 @@ public class ApplicationNodeAttributeReader {
         .to("id")
         .fetch()
         .first()
-        .map(row -> asAttributes(row.get("props")))
+        .map(row -> AttributeValues.readProperties(row.get("props"), NON_BUSINESS_KEYS))
         .orElseGet(Map::of);
-  }
-
-  private static Map<String, String> asAttributes(Object raw) {
-    if (!(raw instanceof Map<?, ?> map)) {
-      return Map.of();
-    }
-    Map<String, String> out = new LinkedHashMap<>();
-    for (Map.Entry<?, ?> entry : map.entrySet()) {
-      String key = String.valueOf(entry.getKey());
-      if (NON_BUSINESS_KEYS.contains(key) || entry.getValue() == null) {
-        continue;
-      }
-      String value = String.valueOf(entry.getValue());
-      if (!value.isBlank()) {
-        out.put(key, value);
-      }
-    }
-    return Map.copyOf(out);
   }
 }

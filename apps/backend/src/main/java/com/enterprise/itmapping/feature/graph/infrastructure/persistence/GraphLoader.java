@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.feature.graph.infrastructure.persistence;
 
+import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeProjection;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeRow;
 import java.util.ArrayList;
@@ -124,7 +125,7 @@ public class GraphLoader {
                     Neo4jValueMapping.asString(map.get("relType")),
                     Neo4jValueMapping.asString(map.get("data")),
                     Neo4jValueMapping.asString(map.get("relId")),
-                    stringProperties(map.get("props"), Set.of("validFrom", "validTo"))))
+                    AttributeValues.readProperties(map.get("props"), Set.of("validFrom", "validTo"))))
         .toList();
   }
 
@@ -149,10 +150,8 @@ public class GraphLoader {
     sb.append(EDGES_MATCH_PREFIX);
     if (edgeFilters != null) {
       for (String key : edgeFilters.keySet()) {
-        sb.append("  AND toString(r.`")
-            .append(key)
-            .append("`) IN $")
-            .append(edgeValuesParam(key))
+        sb.append("  AND ")
+            .append(AttributePropertyCypher.matchesAny("r", key, edgeValuesParam(key)))
             .append('\n');
       }
     }
@@ -171,10 +170,8 @@ public class GraphLoader {
       Map<String, List<String>> nodeRefFilters) {
     if (nodeFilters != null) {
       for (String key : nodeFilters.keySet()) {
-        sb.append("  AND toString(a.`")
-            .append(key)
-            .append("`) IN $")
-            .append(valuesParam(key))
+        sb.append("  AND ")
+            .append(AttributePropertyCypher.matchesAny("a", key, valuesParam(key)))
             .append('\n');
       }
     }
@@ -298,24 +295,6 @@ public class GraphLoader {
         Neo4jValueMapping.asString(map.get("id")),
         Neo4jValueMapping.asString(map.get("name")),
         Neo4jValueMapping.asString(map.get("description")),
-        stringProperties(map.get("props"), NON_BUSINESS_NODE_KEYS));
-  }
-
-  private static Map<String, String> stringProperties(Object raw, Set<String> excludedKeys) {
-    if (!(raw instanceof Map<?, ?> map)) {
-      return Map.of();
-    }
-    Map<String, String> out = new LinkedHashMap<>();
-    for (Map.Entry<?, ?> entry : map.entrySet()) {
-      String key = String.valueOf(entry.getKey());
-      if (excludedKeys.contains(key)) {
-        continue;
-      }
-      String value = Neo4jValueMapping.asString(entry.getValue());
-      if (value != null && !value.isBlank()) {
-        out.put(key, value);
-      }
-    }
-    return out;
+        AttributeValues.readProperties(map.get("props"), NON_BUSINESS_NODE_KEYS));
   }
 }

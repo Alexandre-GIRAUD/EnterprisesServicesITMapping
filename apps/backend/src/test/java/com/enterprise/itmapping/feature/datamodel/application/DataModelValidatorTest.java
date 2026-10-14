@@ -86,7 +86,7 @@ class DataModelValidatorTest {
   }
 
   @Test
-  void normalizeForcesEnforceEnumAndDropsMultipleForNonNodeRef() {
+  void normalizeKeepsMultipleOnEveryTargetAndForcesNodeRefEnum() {
     var config =
         validator.normalize(
             List.of(
@@ -112,13 +112,27 @@ class DataModelValidatorTest {
                     false,
                     com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection
                         .AUTOMATIC_DETECTION,
-                    com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget.NODE,
+                    com.enterprise.itmapping.feature.datamodel.domain.                    DataModelTarget.NODE,
+                    true),
+                new DataModelField(
+                    "zone",
+                    "Zone",
+                    "",
+                    "",
+                    List.of("EU"),
+                    false,
+                    false,
+                    com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection
+                        .AUTOMATIC_DETECTION,
+                    com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget.EDGE,
                     true)));
 
     var nodeRef = config.fields().stream().filter(f -> f.key().equals("tier_ref")).findFirst().orElseThrow();
     var node = config.fields().stream().filter(f -> f.key().equals("tier")).findFirst().orElseThrow();
+    var edge = config.fields().stream().filter(f -> f.key().equals("zone")).findFirst().orElseThrow();
     org.assertj.core.api.Assertions.assertThat(nodeRef.enforceEnum()).isTrue();
     org.assertj.core.api.Assertions.assertThat(nodeRef.multiple()).isTrue();
-    org.assertj.core.api.Assertions.assertThat(node.multiple()).isFalse();
+    org.assertj.core.api.Assertions.assertThat(node.multiple()).isTrue();
+    org.assertj.core.api.Assertions.assertThat(edge.multiple()).isTrue();
   }
 }

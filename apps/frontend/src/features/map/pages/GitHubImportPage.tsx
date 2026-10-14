@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { ApplicationResponse, GitHubRepoDto } from '@/types/api';
 import {
   createApplication,
@@ -8,7 +8,13 @@ import {
   suggestModulesFromGithub,
 } from '../api/applicationsApi';
 import { generateFunctionalDocumentation } from '../api/functionalDocumentationApi';
-import { fetchGitHubRepos } from '../api/integrationsGithubApi';
+import {
+  disconnectGitHub,
+  fetchGitHubConnection,
+  fetchGitHubRepos,
+  saveGitHubToken,
+  type GitHubConnection,
+} from '../api/integrationsGithubApi';
 import { navigateToModuleGraph } from '../utils/mapNavigation';
 import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 
@@ -18,7 +24,11 @@ function normalizeName(s: string): string {
 
 export function GitHubImportPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [repos, setRepos] = useState<GitHubRepoDto[]>([]);
+  const [connection, setConnection] = useState<GitHubConnection | null>(null);
+  const [personalToken, setPersonalToken] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -38,20 +48,33 @@ export function GitHubImportPage() {
   );
 
   useEffect(() => {
+    const flag = searchParams.get('github');
+    if (!flag) return;
+    if (flag === 'connected') setSuccessMessage('GitHub account connected.');
+    else setErrorMessage('GitHub connection was not completed.');
+    const next = new URLSearchParams(searchParams);
+    next.delete('github');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const oauthFlag = new URLSearchParams(window.location.search).get('github');
     let cancelled = false;
 
     async function load() {
       setStatus('loading');
-      setErrorMessage(null);
       try {
-        const [githubList, apps] = await Promise.all([
+        const [githubList, apps, linked] = await Promise.all([
           fetchGitHubRepos(),
           fetchApplications(),
+          fetchGitHubConnection(),
         ]);
         if (cancelled) return;
         setRepos(githubList);
         setApplications(apps);
+        setConnection(linked);
         setStatus('ready');
+        if (oauthFlag !== 'denied' && oauthFlag !== 'failed') setErrorMessage(null);
       } catch (e) {
         if (cancelled) return;
         setStatus('error');
@@ -75,6 +98,38 @@ export function GitHubImportPage() {
         (r.description && r.description.toLowerCase().includes(q))
     );
   }, [repos, filter]);
+
+  async function savePersonalToken(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    try {
+      setIsConnecting(true);
+      setErrorMessage(null);
+      const linked = await saveGitHubToken(personalToken);
+      setConnection(linked);
+      setPersonalToken('');
+      setRepos(await fetchGitHubRepos());
+      setStatus('ready');
+      setSuccessMessage(linked.login ? `Connected as ${linked.login}.` : 'GitHub account saved.');
+    } catch (e) {
+      setErrorMessage(e instanceof Error ? e.message : 'Unable to save the GitHub token.');
+    } finally {
+      setIsConnecting(false);
+    }
+  }
+
+  async function disconnectAccount() {
+    try {
+      setIsConnecting(true);
+      await disconnectGitHub();
+      setConnection({ connected: false, login: null });
+      setRepos(await fetchGitHubRepos());
+      setSuccessMessage('GitHub account disconnected.');
+    } catch (e) {
+      setErrorMessage(e instanceof Error ? e.message : 'Unable to disconnect GitHub.');
+    } finally {
+      setIsConnecting(false);
+    }
+  }
 
   function isImported(repo: GitHubRepoDto): boolean {
     return importedNames.has(normalizeName(repo.fullName));
@@ -211,11 +266,45 @@ export function GitHubImportPage() {
           <p className="github-import-eyebrow">Integrations</p>
           <h1 className="github-import-title">Sources</h1>
           <p className="github-import-subtitle">
-            Repositories are listed via the backend (token{' '}
-            <code className="github-import-code">GITHUB_TOKEN</code>). Check the projects to import
-            as applications in Neo4j. Review webhook change suggestions from Cartography → Pending
-            changes.
+            Paste a GitHub personal access token to list your repositories. It is stored on your
+            account only and is not shown again.
           </p>
+          <div className="github-import-account">
+            {connection?.connected ? (
+              <>
+                <span>Connected as {connection.login}</span>
+                <button
+                  type="button"
+                  className="github-import-text-button"
+                  disabled={isConnecting}
+                  onClick={() => void disconnectAccount()}
+                >
+                  Disconnect
+                </button>
+              </>
+            ) : (
+              <form className="github-import-token-form" onSubmit={(event) => void savePersonalToken(event)}>
+                <input
+                  className="github-import-search-input"
+                  type="password"
+                  name="github-token"
+                  autoComplete="off"
+                  placeholder="GitHub token"
+                  aria-label="GitHub token"
+                  value={personalToken}
+                  disabled={isConnecting}
+                  onChange={(event) => setPersonalToken(event.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="github-import-primary"
+                  disabled={isConnecting || personalToken.trim().length === 0}
+                >
+                  Save token
+                </button>
+              </form>
+            )}
+          </div>
         </div>
         <Link className="github-import-back" to="/map">
           Back to map
@@ -277,7 +366,7 @@ export function GitHubImportPage() {
           Loading GitHub repositories…
         </p>
       )}
-      {status === 'error' && errorMessage && (
+      {errorMessage && (
         <p className="github-import-state github-import-state-error" role="alert">
           {errorMessage}
         </p>

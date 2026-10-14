@@ -2,6 +2,9 @@
  * API request/response DTOs aligned with backend.
  */
 
+/** One Data Model value, or several when the field allows multiple values. */
+export type StoredAttribute = string | string[];
+
 /** Graph node as returned by /api/graph and module-graph */
 export interface GraphNodeDto {
   id: string;
@@ -10,7 +13,7 @@ export interface GraphNodeDto {
   /** Present on GET …/module-graph when non-empty (Neo4j description). */
   description?: string | null;
   /** Dynamic business properties of the node (Data Model target=NODE keys); empty on module-graph. */
-  properties?: Record<string, string>;
+  properties?: Record<string, StoredAttribute>;
   /** Catalogue names (Data Model target=NODE_REF): field key → ref names. */
   nodeRefs?: Record<string, string[]>;
 }
@@ -24,7 +27,7 @@ export interface GraphEdgeDto {
   /** Human-readable data exchanged on the link (Neo4j `r.data`), when present. */
   data?: string | null;
   /** Colorable relationship properties from Neo4j (excludes temporal fields). */
-  properties?: Record<string, string>;
+  properties?: Record<string, StoredAttribute>;
 }
 
 export interface GraphEdgeCreateRequest {
@@ -63,7 +66,7 @@ export interface ApplicationResponse {
    * Business attributes stored as flat Application properties, rendered/edited from the Data Model
    * target=NODE fields (GET /applications/{id} only).
    */
-  nodeAttributes?: Record<string, string>;
+  nodeAttributes?: Record<string, StoredAttribute>;
   /**
    * Catalogue classifications via CLASSIFIED_AS (target=NODE_REF): field key → linked refs
    * (GET /applications/{id} only).
@@ -79,7 +82,7 @@ export type NodeRefSummary = {
 
 /** PATCH /applications/{id}/node-attributes — blank value clears the property. */
 export interface ApplicationNodeAttributesPatchRequest {
-  attributes: Record<string, string>;
+  attributes: Record<string, StoredAttribute>;
   changeMeta?: AttributeChangeMeta | null;
 }
 

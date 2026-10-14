@@ -8,13 +8,13 @@ import java.util.Map;
  * relationship. Blank values clear the property. Human edits should include {@code changeMeta}.
  */
 public record GraphEdgeAttributesPatchRequest(
-    Map<String, String> attributes, AttributeChangeMetaDto changeMeta) {
+    Map<String, Object> attributes, AttributeChangeMetaDto changeMeta) {
 
   public GraphEdgeAttributesPatchRequest {
     attributes = attributes != null ? Map.copyOf(attributes) : Map.of();
   }
 
-  public GraphEdgeAttributesPatchRequest(Map<String, String> attributes) {
+  public GraphEdgeAttributesPatchRequest(Map<String, Object> attributes) {
     this(attributes, null);
   }
 }

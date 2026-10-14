@@ -22,14 +22,7 @@ public class ApplicationNodeAttributeFacetQuery {
 
   public List<String> distinctValues(String validatedKey) {
     String cypher =
-        """
-        MATCH (a:Application)
-        WHERE a.`%s` IS NOT NULL
-        WITH DISTINCT toString(a.`%s`) AS value
-        WHERE trim(value) <> ''
-        RETURN value ORDER BY value
-        """
-            .formatted(validatedKey, validatedKey);
+        AttributePropertyCypher.distinctValues("MATCH (a:Application)", "a", validatedKey);
 
     return neo4jClient.query(cypher).fetch().all().stream()
         .map(Neo4jValueMapping::asMap)

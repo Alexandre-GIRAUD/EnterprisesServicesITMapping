@@ -44,7 +44,7 @@ class DataModelAttributeResolverTest {
             config, Map.of("product_line", "ALPHA", "owner_note", "should-be-stripped"));
 
     assertThat(result.accepted()).isTrue();
-    assertThat(result.attributes()).containsExactly(Map.entry("product_line", "ALPHA"));
+    assertThat(result.attributes()).containsExactly(Map.entry("product_line", List.of("ALPHA")));
     assertThat(resolver.allowedKeys(config)).isEqualTo(Set.of("product_line"));
   }
 
@@ -100,7 +100,7 @@ class DataModelAttributeResolverTest {
     var result = resolver.validate(config, Map.of("product_line", "a"));
 
     assertThat(result.accepted()).isTrue();
-    assertThat(result.attributes()).containsEntry("product_line", "A");
+    assertThat(result.attributes()).containsEntry("product_line", List.of("A"));
   }
 
   @Test
@@ -136,8 +136,8 @@ class DataModelAttributeResolverTest {
         resolver.validate(
             config, Map.of("product_line", "A", "tier", "T1"), DataModelTarget.NODE);
 
-    assertThat(edge.attributes()).containsExactly(Map.entry("product_line", "A"));
-    assertThat(node.attributes()).containsExactly(Map.entry("tier", "T1"));
+    assertThat(edge.attributes()).containsExactly(Map.entry("product_line", List.of("A")));
+    assertThat(node.attributes()).containsExactly(Map.entry("tier", List.of("T1")));
     assertThat(resolver.allowedKeys(config, DataModelTarget.EDGE)).isEqualTo(Set.of("product_line"));
     assertThat(resolver.allowedKeys(config, DataModelTarget.NODE)).isEqualTo(Set.of("tier"));
   }
@@ -255,5 +255,99 @@ class DataModelAttributeResolverTest {
 
     assertThat(result.accepted()).isTrue();
     assertThat(result.refs()).isEmpty();
+  }
+
+  @Test
+  void multipleFieldKeepsCatalogueValuesInOrderAndDropsUnknown() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "zone",
+                    "Zone",
+                    "",
+                    "",
+                    List.of("EU", "US"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE,
+                    true)));
+
+    var result =
+        resolver.validate(
+            config, Map.of("zone", List.of("us", "NO", "EU", "us")), DataModelTarget.NODE);
+
+    assertThat(result.accepted()).isTrue();
+    assertThat(result.attributes()).containsExactly(Map.entry("zone", List.of("US", "EU")));
+  }
+
+  @Test
+  void stringOnAMultipleFieldCountsAsOneValue() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "zone",
+                    "Zone",
+                    "",
+                    "",
+                    List.of("EU"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.EDGE,
+                    true)));
+
+    var result = resolver.validate(config, Map.of("zone", "eu"));
+
+    assertThat(result.accepted()).isTrue();
+    assertThat(result.attributes()).containsExactly(Map.entry("zone", List.of("EU")));
+  }
+
+  @Test
+  void arrayOnASingleFieldKeepsTheFirstValidEntry() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "tier",
+                    "Tier",
+                    "",
+                    "",
+                    List.of("T1", "T2"),
+                    true,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE)));
+
+    var result =
+        resolver.validate(config, Map.of("tier", List.of("BAD", "t2", "T1")), DataModelTarget.NODE);
+
+    assertThat(result.accepted()).isTrue();
+    assertThat(result.attributes()).containsExactly(Map.entry("tier", List.of("T2")));
+  }
+
+  @Test
+  void requiredMultipleFieldWithNoValidValueFailsLikeAMissingField() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "zone",
+                    "Zone",
+                    "",
+                    "",
+                    List.of("EU"),
+                    true,
+                    true,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE,
+                    true)));
+
+    var result = resolver.validate(config, Map.of("zone", List.of("NOPE")), DataModelTarget.NODE);
+
+    assertThat(result.accepted()).isFalse();
+    assertThat(result.skipReason()).isEqualTo("data_model_node_champ_manquant");
   }
 }

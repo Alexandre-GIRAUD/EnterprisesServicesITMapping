@@ -48,6 +48,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(antMatcher(HttpMethod.POST, "/webhooks/github"))
                     .permitAll()
+                    .requestMatchers(antMatcher(HttpMethod.GET, "/integrations/github/callback"))
+                    .permitAll()
                     .requestMatchers(antMatcher("/error"))
                     .permitAll()
                     .requestMatchers(antMatcher(HttpMethod.GET, "/health"))
