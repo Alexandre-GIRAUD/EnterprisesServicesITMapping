@@ -27,6 +27,8 @@ import org.springframework.stereotype.Repository;
 public class GraphLoader {
 
   private static final Logger log = LoggerFactory.getLogger(GraphLoader.class);
+  private static final String NODE_REF_FIELD_PARAM = "nodeRefField_";
+  private static final String NODE_REF_IDS_PARAM = "nodeRefIds_";
 
   private static final Set<String> NON_BUSINESS_NODE_KEYS =
       Set.of("id", "name", "description", "year", "validFrom", "validTo");
@@ -130,7 +132,7 @@ public class GraphLoader {
         .toList();
   }
 
-  private static String buildNodeCypher(
+  static String buildNodeCypher(
       Map<String, List<String>> nodeFilters, Map<String, List<String>> nodeRefFilters) {
     StringBuilder sb = new StringBuilder(NODE_MATCH_AND_FILTER);
     appendNodeFilters(sb, nodeFilters, nodeRefFilters);
@@ -202,9 +204,9 @@ public class GraphLoader {
     query.append("  AND ").append(listed).append('\n');
   }
 
-  private static void appendNodeRefFilter(StringBuilder sb, int index, AttributeMatch.Split split) {
-    String fieldParam = "nodeRefField_" + index;
-    String idsParam = "nodeRefIds_" + index;
+  private static void appendNodeRefFilter(StringBuilder query, int index, AttributeMatch.Split split) {
+    String fieldParam = NODE_REF_FIELD_PARAM + index;
+    String idsParam = NODE_REF_IDS_PARAM + index;
     String missing =
         "NOT EXISTS {\n"
             + "    MATCH (a)-[:CLASSIFIED_AS {fieldKey: $"
@@ -221,14 +223,14 @@ public class GraphLoader {
             + "\n"
             + "  }";
     if (split.shouldIncludeEmpty() && split.values().isEmpty()) {
-      sb.append("  AND ").append(missing).append('\n');
+      query.append("  AND ").append(missing).append('\n');
       return;
     }
     if (split.shouldIncludeEmpty()) {
-      sb.append("  AND (").append(listed).append(" OR ").append(missing).append(")\n");
+      query.append("  AND (").append(listed).append(" OR ").append(missing).append(")\n");
       return;
     }
-    sb.append("  AND ").append(listed).append('\n');
+    query.append("  AND ").append(listed).append('\n');
   }
 
   private static Map<String, Object> params(
@@ -248,8 +250,8 @@ public class GraphLoader {
     if (nodeRefFilters != null) {
       int i = 0;
       for (Map.Entry<String, List<String>> entry : nodeRefFilters.entrySet()) {
-        params.put("nodeRefField_" + i, entry.getKey());
-        params.put("nodeRefIds_" + i, AttributeMatch.split(entry.getValue()).values());
+        params.put(NODE_REF_FIELD_PARAM + i, entry.getKey());
+        params.put(NODE_REF_IDS_PARAM + i, AttributeMatch.split(entry.getValue()).values());
         i++;
       }
     }
