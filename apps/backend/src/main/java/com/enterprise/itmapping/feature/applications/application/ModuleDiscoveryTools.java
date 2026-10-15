@@ -33,6 +33,7 @@ public class ModuleDiscoveryTools {
   private static final Logger log = LoggerFactory.getLogger(ModuleDiscoveryTools.class);
   private static final int MAX_LINE_LENGTH = 300;
   private static final int DEFAULT_TREE_DEPTH = 3;
+  private static final String REPO_ROOT_GLOB_PREFIX = "**/";
 
   private final Path repoRoot;
   private final int maxGrepHits;
@@ -233,7 +234,7 @@ public class ModuleDiscoveryTools {
                 return !rel.isEmpty()
                     && !GithubTreePathFilter.shouldExcludePath(rel, Integer.MAX_VALUE);
               })
-          .filter(p -> matchesGlob(repoRoot.relativize(p), glob))
+          .filter(p -> doesPathMatchGlob(repoRoot.relativize(p), glob))
           .forEach(
               p -> {
                 if (hits.size() >= limit) {
@@ -249,22 +250,20 @@ public class ModuleDiscoveryTools {
     return hits;
   }
 
-  // Java's "**/" does not cover a file in the repo root, so "**/*.xml" misses pom.xml.
-  // Ripgrep matches that file. The pattern without the prefix covers the root.
-  private static boolean matchesGlob(Path relative, String glob) {
+  static boolean doesPathMatchGlob(Path relative, String glob) {
     if (glob == null || glob.isBlank()) {
       return true;
     }
-    if (globMatcher(glob).matches(relative)) {
+    if (buildGlobMatcher(glob).matches(relative)) {
       return true;
     }
-    if (glob.startsWith("**/")) {
-      return globMatcher(glob.substring(3)).matches(relative);
+    if (glob.startsWith(REPO_ROOT_GLOB_PREFIX)) {
+      return buildGlobMatcher(glob.substring(REPO_ROOT_GLOB_PREFIX.length())).matches(relative);
     }
     return false;
   }
 
-  private static PathMatcher globMatcher(String glob) {
+  private static PathMatcher buildGlobMatcher(String glob) {
     return FileSystems.getDefault().getPathMatcher("glob:" + glob);
   }
 

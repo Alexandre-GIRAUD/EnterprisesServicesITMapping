@@ -107,4 +107,11 @@ class ModuleDiscoveryToolsTest {
 
     assertThat(content).isEqualTo("l2\nl3");
   }
+
+  @Test
+  void rootFileMatchesADoubleStarGlob() {
+    assertThat(ModuleDiscoveryTools.doesPathMatchGlob(Path.of("pom.xml"), "**/*.xml")).isTrue();
+    assertThat(ModuleDiscoveryTools.doesPathMatchGlob(Path.of("src/App.java"), "**/*.java")).isTrue();
+    assertThat(ModuleDiscoveryTools.doesPathMatchGlob(Path.of("pom.xml"), "*.md")).isFalse();
+  }
 }

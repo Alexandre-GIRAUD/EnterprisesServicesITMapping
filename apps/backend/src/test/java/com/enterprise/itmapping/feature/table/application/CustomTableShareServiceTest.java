@@ -113,4 +113,21 @@ class CustomTableShareServiceTest {
 
     verify(sharedCustomTableRepository, never()).delete(any());
   }
+
+  @Test
+  void shareRejectsAnOversizedDocument() throws Exception {
+    when(sender.getId()).thenReturn(senderId);
+    when(recipient.getId()).thenReturn(recipientId);
+    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.of(recipient));
+    String oversized = "x".repeat(CustomTableShareService.MAX_DOCUMENT_CHARS);
+    JsonNode document = objectMapper.readTree("{\"body\":\"" + oversized + "\"}");
+
+    ResponseStatusException tooLarge =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> customTableShareService.share("bob", "Regions", document));
+
+    assertEquals("That table is too large to share.", tooLarge.getReason());
+    verify(sharedCustomTableRepository, never()).save(any());
+  }
 }

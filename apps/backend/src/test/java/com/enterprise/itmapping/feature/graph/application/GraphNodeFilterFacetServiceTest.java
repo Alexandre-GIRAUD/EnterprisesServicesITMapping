@@ -117,6 +117,32 @@ class GraphNodeFilterFacetServiceTest {
     });
   }
 
+  @Test
+  void prependsEmptyWhenAValueIsBlank() {
+    when(dataModelService.loadConfig())
+        .thenReturn(config(nodeField("tier", "Tier", List.of("GOLD"))));
+    when(facetQuery.hasBlank("tier")).thenReturn(true);
+
+    var filters = service.listNodeFilters();
+
+    assertThat(filters).singleElement().satisfies(f ->
+        assertThat(f.values()).containsExactly(AttributeMatch.EMPTY, "GOLD"));
+  }
+
+  @Test
+  void prependsEmptyWhenANodeRefIsUnclassified() {
+    when(dataModelService.loadConfig())
+        .thenReturn(config(nodeRefField("tier_ref", "Tier ref", List.of(), false)));
+    when(refFacetQuery.activeOptions("tier_ref"))
+        .thenReturn(List.of(new DataModelRefFacetQuery.RefOption("id-gold", "GOLD")));
+    when(refFacetQuery.hasUnclassified("tier_ref")).thenReturn(true);
+
+    var filters = service.listNodeFilters();
+
+    assertThat(filters).singleElement().satisfies(f ->
+        assertThat(f.values()).containsExactly(AttributeMatch.EMPTY, "id-gold"));
+  }
+
   private static DataModelConfig config(DataModelField... fields) {
     return new DataModelConfig(List.of(fields));
   }
