@@ -2614,7 +2614,6 @@ body.is-diagram-grown .layout {
   font-size: var(--view-label-size-primary);
   font-weight: 700;
   color: var(--view-label-ink);
-  background: rgb(15 23 42 / 8%);
   text-decoration: none;
 }
 

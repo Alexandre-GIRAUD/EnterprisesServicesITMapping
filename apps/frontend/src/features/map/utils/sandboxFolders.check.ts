@@ -8,6 +8,7 @@ import {
   createSandboxFolderRecord,
   deleteSandboxFolderTree,
   listSandboxMenuEntries,
+  OPEN_SANDBOX_MENU,
   loadSandboxFolders,
   moveSandboxFolderRecord,
   renameSandboxFolderRecord,
@@ -67,5 +68,6 @@ assert.deepEqual(loadSandboxFolders(JSON.stringify([{ id: 'a', name: 'A', parent
 assert.deepEqual(listSandboxMenuEntries('empty'), ['New folder']);
 assert.deepEqual(listSandboxMenuEntries('folder'), ['Rename', 'Move', 'Delete', 'New folder']);
 assert.deepEqual(listSandboxMenuEntries('sandbox'), ['Rename', 'Duplicate', 'Share', 'Move', 'Delete']);
+assert.deepEqual([...OPEN_SANDBOX_MENU], ['Duplicate', 'Share', 'Rename', 'Close']);
 
 console.log('sandboxFolders.check: ok');

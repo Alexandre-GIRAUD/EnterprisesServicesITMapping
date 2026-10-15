@@ -151,7 +151,7 @@ public class GraphLoader {
     if (edgeFilters != null) {
       for (Map.Entry<String, List<String>> entry : edgeFilters.entrySet()) {
         sb.append(
-            AttributeMatch.cypher(
+            AttributeMatch.buildCypher(
                 new AttributeMatch.Clause(
                     "r", entry.getKey(), edgeValuesParam(entry.getKey()), AttributeMatch.split(entry.getValue()))));
       }
@@ -172,7 +172,7 @@ public class GraphLoader {
     if (nodeFilters != null) {
       for (Map.Entry<String, List<String>> entry : nodeFilters.entrySet()) {
         sb.append(
-            AttributeMatch.cypher(
+            AttributeMatch.buildCypher(
                 new AttributeMatch.Clause(
                     "a", entry.getKey(), valuesParam(entry.getKey()), AttributeMatch.split(entry.getValue()))));
       }
@@ -204,11 +204,11 @@ public class GraphLoader {
             + idsParam
             + "\n"
             + "  }";
-    if (split.includeEmpty() && split.values().isEmpty()) {
+    if (split.shouldIncludeEmpty() && split.values().isEmpty()) {
       sb.append("  AND ").append(missing).append('\n');
       return;
     }
-    if (split.includeEmpty()) {
+    if (split.shouldIncludeEmpty()) {
       sb.append("  AND (").append(listed).append(" OR ").append(missing).append(")\n");
       return;
     }

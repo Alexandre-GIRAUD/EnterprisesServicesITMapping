@@ -4,11 +4,11 @@
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { nextDiagramHeight } from './diagramFrame.ts';
+import { resolveNextDiagramHeight } from './diagramFrame.ts';
 
-assert.equal(nextDiagramHeight(640, 640), null);
-assert.equal(nextDiagramHeight(640, 648), null);
-assert.equal(nextDiagramHeight(640, 700), 700);
+assert.equal(resolveNextDiagramHeight(640, 640), null);
+assert.equal(resolveNextDiagramHeight(640, 648), null);
+assert.equal(resolveNextDiagramHeight(640, 700), 700);
 
 const css = readFileSync(new URL('../../../index.css', import.meta.url), 'utf8');
 assert.match(css, /\.layout \{[^}]*height: 100dvh/);

@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { CreateTablePanel, customTableMenuLabels, SHARED_TABLES_LOAD_ERROR } from './CreateTablePanel.tsx';
+import { CreateTablePanel, listCustomTableMenuLabels, SHARED_TABLES_LOAD_ERROR } from './CreateTablePanel.tsx';
 import { TableContentToggle } from './TableContentToggle.tsx';
 
 Object.assign(globalThis, {
@@ -43,8 +43,8 @@ assert.match(html, />Label</);
 assert.match(html, />Color</);
 assert.match(html, />Save</);
 assert.match(html, /aria-label="Table actions"/);
-assert.deepEqual(customTableMenuLabels(false), ['Rename', 'Share', 'Delete']);
-assert.deepEqual(customTableMenuLabels(true), ['Rename', 'Duplicate', 'Share', 'Delete']);
+assert.deepEqual(listCustomTableMenuLabels(false), ['Rename', 'Share', 'Delete']);
+assert.deepEqual(listCustomTableMenuLabels(true), ['Rename', 'Duplicate', 'Share', 'Delete']);
 assert.doesNotMatch(html, />Delete</);
 assert.equal(SHARED_TABLES_LOAD_ERROR, 'Shared tables could not be loaded.');
 

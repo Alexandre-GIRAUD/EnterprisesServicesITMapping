@@ -40,7 +40,7 @@ function includesQuery(haystack: string, query: string): boolean {
   return haystack.toLowerCase().includes(query);
 }
 
-function filterNameHits(input: FilterSearchInput, query: string): FilterSearchHit[] {
+function collectFilterNameHits(input: FilterSearchInput, query: string): FilterSearchHit[] {
   const hits: FilterSearchHit[] = [];
   if ('application'.includes(query) || 'applications'.includes(query)) {
     hits.push({
@@ -63,7 +63,7 @@ function filterNameHits(input: FilterSearchInput, query: string): FilterSearchHi
   return hits;
 }
 
-function applicationHits(input: FilterSearchInput, query: string): FilterSearchHit[] {
+function collectApplicationHits(input: FilterSearchInput, query: string): FilterSearchHit[] {
   const hits: FilterSearchHit[] = [];
   for (const application of input.applications) {
     const label = application.name?.trim() || application.id;
@@ -73,15 +73,15 @@ function applicationHits(input: FilterSearchInput, query: string): FilterSearchH
   return hits;
 }
 
-function attributeHits(input: FilterSearchInput, query: string): FilterSearchHit[] {
+function collectAttributeHits(input: FilterSearchInput, query: string): FilterSearchHit[] {
   const hits: FilterSearchHit[] = [];
   for (const dimension of input.dimensions) {
-    hits.push(...attributeHitsForDimension(input, dimension, query));
+    hits.push(...collectAttributeHitsForDimension(input, dimension, query));
   }
   return hits;
 }
 
-function attributeHitsForDimension(
+function collectAttributeHitsForDimension(
   input: FilterSearchInput,
   dimension: GraphNodeFilterDto,
   query: string,
@@ -101,7 +101,7 @@ function attributeHitsForDimension(
   return hits;
 }
 
-function edgeHits(input: FilterSearchInput, query: string): FilterSearchHit[] {
+function collectEdgeHits(input: FilterSearchInput, query: string): FilterSearchHit[] {
   const hits: FilterSearchHit[] = [];
   for (const edge of input.edges) {
     if (!includesQuery(edge.label, query)) continue;
@@ -110,14 +110,17 @@ function edgeHits(input: FilterSearchInput, query: string): FilterSearchHit[] {
   return hits;
 }
 
+function limitHits(hits: FilterSearchHit[]): FilterSearchHit[] {
+  return hits.slice(0, FILTER_SEARCH_LIMIT);
+}
+
 export function searchFilterHits(input: FilterSearchInput): FilterSearchHit[] {
   const query = input.query.trim().toLowerCase();
   if (!query) return [];
-  const hits = [
-    ...filterNameHits(input, query),
-    ...applicationHits(input, query),
-    ...attributeHits(input, query),
-    ...edgeHits(input, query),
+  return [
+    ...limitHits(collectFilterNameHits(input, query)),
+    ...limitHits(collectApplicationHits(input, query)),
+    ...limitHits(collectAttributeHits(input, query)),
+    ...limitHits(collectEdgeHits(input, query)),
   ];
-  return hits.slice(0, FILTER_SEARCH_LIMIT);
 }

@@ -11,6 +11,6 @@ const canvas = readFileSync(new URL('./GraphCanvas.tsx', import.meta.url), 'utf8
 assert.match(drawer, /label: 'Edit app'/);
 assert.match(drawer, /label: 'Edit flow'/);
 assert.match(drawer, /sandboxMode \? TOOLKIT_ACTIONS : CORRECTIONS_ACTIONS/);
-assert.match(canvas, /openInEditMode/);
+assert.match(canvas, /shouldOpenInEditMode/);
 
 console.log('correctionsMenu.check: ok');

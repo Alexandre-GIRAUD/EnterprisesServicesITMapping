@@ -56,7 +56,7 @@ assert.match(html, /sandbox-library-switch[\s\S]*?>New</);
 assert.match(html, /aria-pressed="false"[^>]*>Saved</);
 assert.match(html, /title="Double-click to rename"/);
 assert.match(html, /aria-label="Actions for Draft"/);
-assert.doesNotMatch(beforeSaved, />Save</);
+assert.match(savedAndAfter, />Save</);
 assert.doesNotMatch(beforeSaved, />Duplicate</);
 assert.doesNotMatch(beforeSaved, />Close</);
 assert.doesNotMatch(html, />Payroll</);

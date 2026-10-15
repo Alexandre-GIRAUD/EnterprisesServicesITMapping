@@ -96,7 +96,7 @@ import { GraphViewsPanel } from './GraphViewsPanel';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { MappingChatPanel } from './MappingChatPanel';
-import { nextDiagramHeight } from './diagramFrame';
+import { resolveNextDiagramHeight } from './diagramFrame';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { GraphExportMenu } from './GraphExportMenu';
@@ -259,8 +259,8 @@ export function GraphCanvas() {
   const { graphMode, sandboxDirty, graphModeRef, isSandbox, isViewsMode } = mode;
 
   useEffect(() => {
-    const diagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;
-    document.body.classList.toggle('is-diagram-grown', diagramGrown);
+    const isDiagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;
+    document.body.classList.toggle('is-diagram-grown', isDiagramGrown);
     return () => document.body.classList.remove('is-diagram-grown');
   }, [diagramHeight, displayMode, isViewsMode]);
   const sandboxes = useSandboxes();
@@ -913,17 +913,17 @@ export function GraphCanvas() {
     setMenuEditKind((kind) => (kind === 'app' ? null : kind));
   }, []);
 
-  const openApplicationDetails = useCallback((id: string, label: string, fromMenu = false) => {
+  const openApplicationDetails = useCallback((id: string, label: string, isFromMenu = false) => {
     closeEdgeDetails();
-    setMenuEditKind(fromMenu ? 'app' : null);
+    setMenuEditKind(isFromMenu ? 'app' : null);
     setSelectedApplication({ id, label });
     setIsDetailsDrawerOpen(true);
   }, [closeEdgeDetails]);
 
-  const openEdgeDetails = useCallback((details: SelectedEdgeDetails, fromMenu = false) => {
+  const openEdgeDetails = useCallback((details: SelectedEdgeDetails, isFromMenu = false) => {
     setIsDetailsDrawerOpen(false);
     setSelectedApplication(null);
-    setMenuEditKind(fromMenu ? 'flow' : null);
+    setMenuEditKind(isFromMenu ? 'flow' : null);
     setSelectedEdge(details);
     setIsEdgeDetailsDrawerOpen(true);
   }, []);
@@ -1650,8 +1650,8 @@ export function GraphCanvas() {
             editPanel={
               menuEditKind === 'app' && selectedApplication ? (
                 <ApplicationDetailsDrawer
-                  embedded
-                  openInEditMode
+                  isEmbedded
+                  shouldOpenInEditMode
                   isOpen
                   application={selectedApplication}
                   onClose={closeApplicationDetails}
@@ -1665,8 +1665,8 @@ export function GraphCanvas() {
                 />
               ) : menuEditKind === 'flow' && selectedEdge ? (
                 <EdgeDetailsDrawer
-                  embedded
-                  openInEditMode
+                  isEmbedded
+                  shouldOpenInEditMode
                   isOpen
                   edge={selectedEdge}
                   onClose={closeEdgeDetails}
@@ -1738,7 +1738,6 @@ export function GraphCanvas() {
                 setSandboxToast(`Shared with ${username}.`);
               } catch (error) {
                 setSandboxToast(error instanceof Error ? error.message : 'Unable to share.');
-                throw error;
               }
             }}
           />
@@ -1778,7 +1777,7 @@ export function GraphCanvas() {
     toolkitRequest,
   ]);
 
-  const diagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;
+  const isDiagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;
 
   function onDiagramResizePointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
     event.preventDefault();
@@ -1793,7 +1792,7 @@ export function GraphCanvas() {
     handle.setPointerCapture(event.pointerId);
 
     function onMove(moveEvent: PointerEvent) {
-      setDiagramHeight(nextDiagramHeight(fitted, startHeight + (moveEvent.clientY - startY)));
+      setDiagramHeight(resolveNextDiagramHeight(fitted, startHeight + (moveEvent.clientY - startY)));
     }
     function onUp(upEvent: PointerEvent) {
       handle.removeEventListener('pointermove', onMove);
@@ -1860,8 +1859,8 @@ export function GraphCanvas() {
 
         <div className="map-graph-body">
           <div
-            className={`graph-stage${diagramGrown ? ' is-grown' : ''}`}
-            style={diagramGrown ? ({ '--diagram-height': `${diagramHeight}px` } as CSSProperties) : undefined}
+            className={`graph-stage${isDiagramGrown ? ' is-grown' : ''}`}
+            style={isDiagramGrown ? ({ '--diagram-height': `${diagramHeight}px` } as CSSProperties) : undefined}
           >
             {isViewsMode ? (
               <GraphViewsPanel onApply={applySavedView} />
@@ -1932,7 +1931,6 @@ export function GraphCanvas() {
                         setSandboxToast(`Shared with ${username}.`);
                       } catch (error) {
                         setSandboxToast(error instanceof Error ? error.message : 'Unable to share.');
-                        throw error;
                       }
                     }}
                     onClose={() => sandboxes.closeDoc(doc.id)}

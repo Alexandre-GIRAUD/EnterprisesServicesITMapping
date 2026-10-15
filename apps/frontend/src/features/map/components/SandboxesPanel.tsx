@@ -13,7 +13,6 @@ import {
   SANDBOX_MENU_MOVE,
   SANDBOX_MENU_NEW_FOLDER,
   SANDBOX_MENU_RENAME,
-  SANDBOX_MENU_SAVE,
   SANDBOX_MENU_SHARE,
   SANDBOX_ROOT_DESTINATION,
   deleteSandboxFolderTree,
@@ -148,13 +147,9 @@ export function SandboxesPanel({
   async function shareSandbox(id: string) {
     const username = draftUsername.trim();
     if (!username) return;
-    try {
-      await onShareSandbox(id, username);
-      setDraftUsername('');
-      setSharingId(null);
-    } catch {
-      // The caller reports the failure.
-    }
+    await onShareSandbox(id, username);
+    setDraftUsername('');
+    setSharingId(null);
   }
 
   function commitOpenRename(id: string) {
@@ -164,7 +159,6 @@ export function SandboxesPanel({
   }
 
   function runOpenAction(id: string, name: string, label: string) {
-    if (label === SANDBOX_MENU_SAVE) onSaveSandbox(id);
     if (label === SANDBOX_MENU_DUPLICATE) onDuplicateSandbox(id);
     if (label === SANDBOX_MENU_CLOSE) onCloseSandbox(id);
     if (label === SANDBOX_MENU_RENAME) {
@@ -274,6 +268,9 @@ export function SandboxesPanel({
                     </span>
                   </button>
                 )}
+                <button type="button" className="sandbox-manage-mini" onClick={() => onSaveSandbox(sandbox.id)}>
+                  Save
+                </button>
                 <RowActions
                   label={`Actions for ${sandbox.name}`}
                   entries={OPEN_SANDBOX_MENU}
@@ -406,13 +403,9 @@ function SavedSandboxLibrary({
   async function shareSaved(id: string) {
     const username = draftUsername.trim();
     if (!username) return;
-    try {
-      await onShareSaved(id, username);
-      setDraftUsername('');
-      setSharingId(null);
-    } catch {
-      // The caller reports the failure.
-    }
+    await onShareSaved(id, username);
+    setDraftUsername('');
+    setSharingId(null);
   }
 
   if (!isOpen) return null;
