@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/context/AuthContext';
 import { GraphSnapshotsProvider } from '@/features/map/context/GraphSnapshotsContext';
 import type { MapLocationState } from '@/features/map/utils/mapNavigation';
 import { COLOR_THEME_STORAGE_KEY, storedColorTheme, toggledColorTheme, type ColorTheme } from './colorTheme';
+import { SettingsMenu } from './SettingsMenu';
 import { ThemeModeButton } from './ThemeModeButton';
 
 function navigationLinkClassName({ isActive }: { isActive: boolean }) {
@@ -12,7 +13,7 @@ function navigationLinkClassName({ isActive }: { isActive: boolean }) {
 }
 
 export function Layout() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const roleLabel = user?.roles?.length ? user.roles.join(' · ') : null;
   const [theme, setTheme] = useState<ColorTheme>(() =>
@@ -32,13 +33,10 @@ export function Layout() {
             <div className="layout-header-brand-group">
               <Link to="/map" className="layout-brand layout-brand-link">
                 <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
-                <h1>admin</h1>
+                {user ? <h1 title={user.username}>{user.username}</h1> : null}
               </Link>
               {user ? (
                 <span className="layout-header-user-meta">
-                  <span className="layout-header-user" title={user.username}>
-                    {user.username}
-                  </span>
                   {roleLabel ? (
                     <span className="layout-header-role" title={roleLabel}>
                       {roleLabel}
@@ -68,11 +66,7 @@ export function Layout() {
                   <NavLink to="/admin/changes" className={navigationLinkClassName}>
                     Changes
                   </NavLink>
-                  {isAdmin ? (
-                    <NavLink to="/admin/users" className={navigationLinkClassName}>
-                      Admin
-                    </NavLink>
-                  ) : null}
+                  <SettingsMenu />
                 </>
               ) : null}
               {user ? (

@@ -87,15 +87,6 @@ body {
   text-underline-offset: 0.35rem;
 }
 
-.layout-header-user {
-  font-size: 0.85rem;
-  color: #94a3b8;
-  max-width: 10rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .layout-header-role {
   font-size: 0.72rem;
   font-weight: 600;
@@ -160,11 +151,43 @@ body {
   outline-offset: 2px;
 }
 
+.layout-settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 0.35rem;
+  color: #e2e8f0;
+  text-decoration: none;
+}
+
+.layout-settings-button svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.layout-settings-button:hover,
+.layout-settings-button.is-active {
+  background-color: rgb(148 163 184 / 15%);
+  color: #ffffff;
+}
+
+.layout-settings-button:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
 .layout-header h1 {
   margin: 0;
+  max-width: 16rem;
+  overflow: hidden;
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .layout-brand {
