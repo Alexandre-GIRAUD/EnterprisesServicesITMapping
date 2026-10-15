@@ -24,9 +24,9 @@ import {
   validateChangeMeta,
 } from './AttributeChangeReasonFields';
 
-type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-icons' | 'edit-app' | 'edit-flow';
+type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-icons' | 'edit-application' | 'edit-flow';
 
-type DrawerActionId = 'add-node' | 'add-edge' | 'add-icons' | 'add-text' | 'edit-app' | 'edit-flow';
+type DrawerActionId = 'add-node' | 'add-edge' | 'add-icons' | 'add-text' | 'edit-application' | 'edit-flow';
 
 type WorkspaceDrawerProps = {
   isOpen: boolean;
@@ -83,7 +83,7 @@ type DrawerActionItem = {
 const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
   { id: 'add-node', label: 'Add App' },
   { id: 'add-edge', label: 'Add flow' },
-  { id: 'edit-app', label: 'Edit app' },
+  { id: 'edit-application', label: 'Edit app' },
   { id: 'edit-flow', label: 'Edit flow' },
 ];
 
@@ -96,7 +96,7 @@ const DRAWER_COPY: Partial<Record<DrawerView, { title: string; description: stri
     title: 'Icons',
     description: 'Click to place once. Double-click to place many.',
   },
-  'edit-app': {
+  'edit-application': {
     title: 'Edit app',
     description: 'Pick one, then change its attributes here.',
   },
@@ -137,7 +137,7 @@ function actionHandler(
   if (id === 'add-edge') return handlers.openAddEdgeForm;
   if (id === 'add-icons') return handlers.openAddIcons;
   if (id === 'add-text') return handlers.startTextPlacement;
-  if (id === 'edit-app') return handlers.openEditApplication;
+  if (id === 'edit-application') return handlers.openEditApplication;
   if (id === 'edit-flow') return handlers.openEditFlow;
   return undefined;
 }
@@ -236,7 +236,7 @@ export function WorkspaceDrawer({
 
   function openEditApplication() {
     setEditChoice('');
-    setView('edit-app');
+    setView('edit-application');
     setLocalError(null);
     setFeedbackMessage(null);
     onEditApplication?.('');
@@ -620,22 +620,22 @@ export function WorkspaceDrawer({
             })}
           </div>
         </>
-      ) : view === 'edit-app' || view === 'edit-flow' ? (
+      ) : view === 'edit-application' || view === 'edit-flow' ? (
         <div className="graph-drawer-edit-picker">
           <label className="graph-drawer-field">
-            <span>{view === 'edit-app' ? 'Application' : 'Flow'}</span>
+            <span>{view === 'edit-application' ? 'Application' : 'Flow'}</span>
             <select
               className="graph-drawer-input"
               value={editChoice}
               onChange={(event) => {
                 const id = event.target.value;
                 setEditChoice(id);
-                if (view === 'edit-app') onEditApplication?.(id);
+                if (view === 'edit-application') onEditApplication?.(id);
                 else onEditFlow?.(id);
               }}
             >
               <option value="">Choose…</option>
-              {view === 'edit-app'
+              {view === 'edit-application'
                 ? applications.map((app) => (
                     <option key={app.id} value={app.id}>
                       {app.name?.trim() || app.id}

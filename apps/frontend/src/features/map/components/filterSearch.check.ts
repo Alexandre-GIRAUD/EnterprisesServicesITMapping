@@ -36,7 +36,7 @@ const hits = searchFilterHits({
 
 assert.deepEqual(
   hits.map((hit) => `${hit.label}:${hit.kind}`),
-  ['Application:filter', 'App 18:app', 'App 18 → App 7:edge'],
+  ['Application:filter', 'App 18:application', 'App 18 → App 7:edge'],
 );
 
 const descriptionHits = searchFilterHits({
@@ -76,7 +76,7 @@ const northHits = searchFilterHits({
   edges: [{ id: 'e-north', label: 'North flow' }],
   valueLabel: (_dimension, value) => value,
 });
-assert.ok(northHits.some((hit) => hit.kind === 'app'));
+assert.ok(northHits.some((hit) => hit.kind === 'application'));
 assert.ok(northHits.some((hit) => hit.kind === 'attribute'));
 assert.ok(northHits.some((hit) => hit.kind === 'edge'));
 

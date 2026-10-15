@@ -647,7 +647,7 @@ export function cloneSandboxDocument(source: SandboxDocument, name: string): San
   };
 }
 
-export function copiedSavedSandbox(source: SavedSandboxMeta): SavedSandboxMeta {
+export function copySavedSandbox(source: SavedSandboxMeta): SavedSandboxMeta {
   const copy = cloneSandboxDocument(normalizeSandboxDocument(source.document), `${source.name} copy`);
   copy.dirty = false;
   return {

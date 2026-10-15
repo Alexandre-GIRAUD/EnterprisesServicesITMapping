@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { CreateTablePanel, copiedCustomTable, listCustomTableMenuLabels, renamedCustomTable, SHARED_TABLES_LOAD_ERROR } from './CreateTablePanel.tsx';
+import { CreateTablePanel, copyCustomTable, listCustomTableMenuLabels, renameCustomTable, SHARED_TABLES_LOAD_ERROR } from './CreateTablePanel.tsx';
 import { TableContentToggle } from './TableContentToggle.tsx';
 
 Object.assign(globalThis, {
@@ -49,8 +49,8 @@ assert.doesNotMatch(html, />Delete</);
 assert.equal(SHARED_TABLES_LOAD_ERROR, 'Shared tables could not be loaded.');
 
 const regions = { id: 'saved-1', name: 'Regions', row: null, column: null, label: null, color: null };
-assert.equal(renamedCustomTable(regions, 'Countries').name, 'Countries');
-const copy = copiedCustomTable(regions, 'saved-2');
+assert.equal(renameCustomTable(regions, 'Countries').name, 'Countries');
+const copy = copyCustomTable(regions, 'saved-2');
 assert.equal(copy.name, 'Regions copy');
 assert.equal(copy.id, 'saved-2');
 assert.equal(copy.row, null);

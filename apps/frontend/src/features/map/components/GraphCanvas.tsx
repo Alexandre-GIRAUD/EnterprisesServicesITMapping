@@ -170,7 +170,7 @@ export function GraphCanvas() {
   const [graphContextMenu, setGraphContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
-  const [menuEditKind, setMenuEditKind] = useState<'app' | 'flow' | null>(null);
+  const [menuEditKind, setMenuEditKind] = useState<'application' | 'flow' | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdgeDetails | null>(null);
   const [isEdgeDetailsDrawerOpen, setIsEdgeDetailsDrawerOpen] = useState(false);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
@@ -911,12 +911,12 @@ export function GraphCanvas() {
   const closeApplicationDetails = useCallback(() => {
     setIsDetailsDrawerOpen(false);
     setSelectedApplication(null);
-    setMenuEditKind((kind) => (kind === 'app' ? null : kind));
+    setMenuEditKind((kind) => (kind === 'application' ? null : kind));
   }, []);
 
   const openApplicationDetails = useCallback((id: string, label: string, isFromMenu = false) => {
     closeEdgeDetails();
-    setMenuEditKind(isFromMenu ? 'app' : null);
+    setMenuEditKind(isFromMenu ? 'application' : null);
     setSelectedApplication({ id, label });
     setIsDetailsDrawerOpen(true);
   }, [closeEdgeDetails]);
@@ -1649,7 +1649,7 @@ export function GraphCanvas() {
               setMenuEditKind('flow');
             }}
             editPanel={
-              menuEditKind === 'app' && selectedApplication ? (
+              menuEditKind === 'application' && selectedApplication ? (
                 <ApplicationDetailsDrawer
                   isEmbedded
                   shouldOpenInEditMode
@@ -2311,7 +2311,7 @@ export function GraphCanvas() {
               }}
             />
             <ApplicationDetailsDrawer
-              isOpen={isDetailsDrawerOpen && menuEditKind !== 'app'}
+              isOpen={isDetailsDrawerOpen && menuEditKind !== 'application'}
               application={selectedApplication}
               onClose={closeApplicationDetails}
               sandboxMode={isSandbox}
