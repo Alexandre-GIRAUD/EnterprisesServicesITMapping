@@ -12,6 +12,7 @@ import {
 } from './AttributeChangeReasonFields';
 import { AttributeHistorySection } from './AttributeHistorySection';
 import { CloseIcon } from './CloseIcon';
+import { useDrawerSignOff } from './DrawerSignOff';
 import { AttributeValueControl } from './AttributeValueControl';
 import {
   dedupeAttributeValues,
@@ -81,6 +82,7 @@ export function EdgeDetailsDrawer({
   onEdgeAttributesUpdated,
   onEdgeDeleted,
 }: EdgeDetailsDrawerProps) {
+  const signOff = useDrawerSignOff('EDGE', edge?.id ?? null, isOpen && !edge?.sandbox);
   const [edgeFields, setEdgeFields] = useState<DataModelFieldDto[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -295,22 +297,27 @@ export function EdgeDetailsDrawer({
             <h2 className="graph-drawer-title" title={title}>
               {title}
             </h2>
+            {signOff.line}
             {edge?.id ? (
               <p className="graph-details-id" title={edge.id}>
                 {edge.id}
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            className="graph-drawer-close"
-            onClick={onClose}
-            aria-label="Close connection details"
-          >
-            <CloseIcon />
-          </button>
+          <div className="graph-drawer-header-actions">
+            {signOff.button}
+            <button
+              type="button"
+              className="graph-drawer-close"
+              onClick={onClose}
+              aria-label="Close connection details"
+            >
+              <CloseIcon />
+            </button>
+          </div>
         </div>
       </header>
+      {signOff.dialog}
 
       <div className="graph-details-content">
         {!edge ? (
