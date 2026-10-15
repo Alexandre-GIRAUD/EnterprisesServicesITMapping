@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.feature.table.infrastructure.persistence;
 
+import com.enterprise.itmapping.feature.table.CustomTableShareLimits;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.Column;
@@ -27,10 +28,10 @@ public class SharedCustomTableEntity {
   @JoinColumn(name = "recipient_id", nullable = false, updatable = false)
   private UserEntity recipient;
 
-  @Column(name = "sender_username", nullable = false, length = 64)
+  @Column(name = "sender_username", nullable = false, length = CustomTableShareLimits.MAX_USERNAME_LENGTH)
   private String senderUsername;
 
-  @Column(nullable = false, length = 80)
+  @Column(nullable = false, length = CustomTableShareLimits.MAX_NAME_LENGTH)
   private String name;
 
   @JdbcTypeCode(SqlTypes.JSON)
