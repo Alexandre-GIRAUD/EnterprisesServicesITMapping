@@ -9,13 +9,14 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-function source(relativePath: string): string {
+function readSource(relativePath: string): string {
   return readFileSync(join(here, relativePath), 'utf8');
 }
 
-const layout = source('Layout.tsx');
-const login = source('../features/auth/pages/LoginPage.tsx');
-const about = source('../features/about/AboutPage.tsx');
+const layout = readSource('Layout.tsx');
+const login = readSource('../features/auth/pages/LoginPage.tsx');
+const about = readSource('../features/about/AboutPage.tsx');
+const css = readSource('../index.css');
 
 assert.match(layout, /<h1>Flowra<\/h1>/);
 assert.doesNotMatch(layout, /<h1>Flora<\/h1>/);
@@ -23,5 +24,7 @@ assert.match(login, /auth-brand-title">Flowra</);
 assert.doesNotMatch(login, />Flora</);
 assert.match(about, />Flowra</);
 assert.doesNotMatch(about, />Flora</);
+assert.match(layout, /to="\/about"/);
+assert.match(css, /\.layout-main \{[^}]*overflow: auto/);
 
 console.log('brandName.check: ok');
