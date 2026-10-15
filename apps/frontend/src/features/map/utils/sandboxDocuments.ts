@@ -3,6 +3,7 @@ import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import type { AppNode } from '../hooks/useGraphData';
 import type { OrientedEdgeType } from '../components/OrientedEdge';
 import { createClientUuid } from './clientId';
+import { EMPTY_FILTER_VALUE } from './emptyFilterValue';
 
 export const MAX_OPEN_SANDBOXES = 4;
 export const SANDBOX_SAVED_STORAGE_KEY = 'flowra.sandbox.savedDocuments';
@@ -50,39 +51,37 @@ export function graphNodeMatchesSandboxFilters(
   ) {
     return false;
   }
-  if (!recordMatches(node.properties, filters.nodeAttributes)) return false;
-  if (!recordMatches(node.properties, filters.nodeRefs)) return false;
+  if (!hasSelectedValues(node.properties, filters.nodeAttributes)) return false;
+  if (!hasSelectedValues(node.properties, filters.nodeRefs)) return false;
   return true;
 }
-
-const BLANK_FILTER_VALUE = '__empty__';
 
 function isBlankValue(stored: string | undefined): boolean {
   return stored == null || stored.trim() === '';
 }
 
 /** A selected "empty" value matches a missing or blank property. */
-export function sandboxValueSelected(stored: string | undefined, selected: readonly string[]): boolean {
-  if (isBlankValue(stored)) return selected.includes(BLANK_FILTER_VALUE);
+export function isSandboxValueSelected(stored: string | undefined, selected: readonly string[]): boolean {
+  if (isBlankValue(stored)) return selected.includes(EMPTY_FILTER_VALUE);
   return selected.includes(stored ?? '');
 }
 
-function recordMatches(
+function hasSelectedValues(
   properties: Record<string, string> | undefined,
   selectedByKey: Record<string, string[]> | undefined,
 ): boolean {
   for (const [key, values] of Object.entries(selectedByKey ?? {})) {
     if (!values.length) continue;
-    if (!sandboxValueSelected(properties?.[key], values)) return false;
+    if (!isSandboxValueSelected(properties?.[key], values)) return false;
   }
   return true;
 }
 
-export function sandboxEdgeMatchesFilters(
+export function isSandboxEdgeSelected(
   edge: GraphEdgeDto,
   filters: SandboxDocFilters,
 ): boolean {
-  return recordMatches(edge.properties, filters.edgeAttributes);
+  return hasSelectedValues(edge.properties, filters.edgeAttributes);
 }
 
 export function sandboxFilterVisibleIds(doc: {

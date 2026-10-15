@@ -590,10 +590,10 @@ export function FilterDrawer({
     const next = toggleSortedValue(selectedFlowIds, edgeId);
     setSelectedFlowIds(next);
     if (!next.includes(edgeId)) return;
-    const ends = edges
+    const endpointIds = edges
       .filter((edge) => next.includes(edge.id))
       .flatMap((edge) => [edge.sourceId, edge.targetId]);
-    setSelectedApplicationIds((current) => keepApplicationsForCheckedFlows(current, appCatalog, ends));
+    setSelectedApplicationIds((current) => keepApplicationsForCheckedFlows(current, appCatalog, endpointIds));
   }
 
   function isSearchHitChecked(hit: FilterSearchHit): boolean {
