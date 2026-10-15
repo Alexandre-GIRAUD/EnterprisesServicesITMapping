@@ -11,6 +11,7 @@ import {
   EMPTY_SANDBOX_FILTERS,
   cloneIntoSandboxDocument,
   cloneSandboxDocument,
+  copiedSavedSandbox,
   createSandboxIconId,
   loadSavedSandboxes,
   normalizeSandboxDocument,
@@ -392,18 +393,8 @@ export function useSandboxes() {
     setSaved((list) => {
       const source = list.find((item) => item.id === id);
       if (!source) return list;
-      const copy = cloneSandboxDocument(normalizeSandboxDocument(source.document), `${source.name} copy`);
-      copy.dirty = false;
-      const next: SavedSandboxMeta[] = [
-        {
-          id: copy.id,
-          name: copy.name,
-          updatedAt: new Date().toISOString(),
-          document: copy,
-          folderId: source.folderId ?? null,
-        },
-        ...list,
-      ];
+      const copy = copiedSavedSandbox(source);
+      const next = [copy, ...list];
       storeSavedSandboxes(next);
       return next;
     });

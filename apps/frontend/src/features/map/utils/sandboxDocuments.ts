@@ -653,6 +653,18 @@ export function cloneSandboxDocument(source: SandboxDocument, name: string): San
   };
 }
 
+export function copiedSavedSandbox(source: SavedSandboxMeta): SavedSandboxMeta {
+  const copy = cloneSandboxDocument(normalizeSandboxDocument(source.document), `${source.name} copy`);
+  copy.dirty = false;
+  return {
+    id: copy.id,
+    name: copy.name,
+    updatedAt: new Date().toISOString(),
+    document: copy,
+    folderId: source.folderId ?? null,
+  };
+}
+
 /** Normalize older saved docs that may omit newer fields. */
 export function normalizeSandboxDocument(doc: SandboxDocument): SandboxDocument {
   const rawBoxes = Array.isArray(doc.textBoxes) ? doc.textBoxes : [];

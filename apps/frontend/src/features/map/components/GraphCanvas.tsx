@@ -2385,7 +2385,6 @@ export function GraphCanvas() {
             aria-label="Resize diagram and menu together"
             title="Drag to extend the diagram and the menu. Double-click to fit the screen."
             onPointerDown={onDiagramResizePointerDown}
-            onDoubleClick={() => setDiagramHeight(null)}
           />
         ) : null}
       </div>

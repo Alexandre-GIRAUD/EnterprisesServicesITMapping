@@ -36,7 +36,7 @@ type FilterSearchInput = {
   valueLabel: (dimension: GraphNodeFilterDto, value: string) => string;
 };
 
-function doesTextIncludeQuery(haystack: string, query: string): boolean {
+function isQueryInText(haystack: string, query: string): boolean {
   return haystack.toLowerCase().includes(query);
 }
 
@@ -52,7 +52,7 @@ function collectFilterNameHits(input: FilterSearchInput, query: string): FilterS
   }
   for (const dimension of input.dimensions) {
     const haystack = `${dimension.label} ${dimension.key}`;
-    if (!doesTextIncludeQuery(haystack, query)) continue;
+    if (!isQueryInText(haystack, query)) continue;
     hits.push({
       key: `filter:${dimension.key}`,
       label: dimension.label,
@@ -67,7 +67,7 @@ function collectApplicationHits(input: FilterSearchInput, query: string): Filter
   const hits: FilterSearchHit[] = [];
   for (const application of input.applications) {
     const label = application.name?.trim() || application.id;
-    if (!doesTextIncludeQuery(`${label} ${application.id}`, query)) continue;
+    if (!isQueryInText(`${label} ${application.id}`, query)) continue;
     hits.push({ key: `app:${application.id}`, label, kind: 'app', applicationId: application.id });
   }
   return hits;
@@ -89,7 +89,7 @@ function collectAttributeHitsForDimension(
   const hits: FilterSearchHit[] = [];
   for (const value of dimension.values) {
     const label = displayFilterValue(value, input.valueLabel(dimension, value));
-    if (!doesTextIncludeQuery(`${label} ${dimension.label}`, query)) continue;
+    if (!isQueryInText(`${label} ${dimension.label}`, query)) continue;
     hits.push({
       key: `attribute:${dimension.key}:${value}`,
       label,
@@ -104,7 +104,7 @@ function collectAttributeHitsForDimension(
 function collectEdgeHits(input: FilterSearchInput, query: string): FilterSearchHit[] {
   const hits: FilterSearchHit[] = [];
   for (const edge of input.edges) {
-    if (!doesTextIncludeQuery(edge.label, query)) continue;
+    if (!isQueryInText(edge.label, query)) continue;
     hits.push({ key: `edge:${edge.id}`, label: edge.label, kind: 'edge', edgeId: edge.id });
   }
   return hits;
