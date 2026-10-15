@@ -64,13 +64,21 @@ public class AiDecisionSourceService {
 
   @Transactional
   public void record(Decision decision) {
+    save(decision, ground(decision == null ? null : decision.citedFiles(), decision == null ? null : decision.observedFiles()));
+  }
+
+  /** Stores document excerpts as cited. They are sentences, not repository paths. */
+  @Transactional
+  public void recordQuoted(Decision decision) {
+    save(decision, capQuotes(decision == null ? null : decision.citedFiles()));
+  }
+
+  private void save(Decision decision, List<String> files) {
     if (decision == null
         || !StringUtils.hasText(decision.targetId())
-        || !StringUtils.hasText(decision.repositoryName())) {
-      return;
-    }
-    List<String> files = ground(decision.citedFiles(), decision.observedFiles());
-    if (files.isEmpty()) {
+        || !StringUtils.hasText(decision.repositoryName())
+        || files == null
+        || files.isEmpty()) {
       return;
     }
     AiDecisionSourceEntity entity = new AiDecisionSourceEntity();
@@ -82,6 +90,27 @@ public class AiDecisionSourceService {
     entity.setRepositoryName(decision.repositoryName().trim());
     entity.setSourceFiles(files);
     repository.save(entity);
+  }
+
+  private static List<String> capQuotes(List<String> cited) {
+    if (cited == null || cited.isEmpty()) {
+      return List.of();
+    }
+    List<String> kept = new ArrayList<>();
+    for (String raw : cited) {
+      if (raw == null) {
+        continue;
+      }
+      String quote = raw.trim();
+      if (quote.isEmpty() || kept.contains(quote)) {
+        continue;
+      }
+      kept.add(quote);
+      if (kept.size() == MAX_SOURCE_FILES) {
+        break;
+      }
+    }
+    return List.copyOf(kept);
   }
 
   @Transactional(readOnly = true)

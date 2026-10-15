@@ -100,6 +100,67 @@ public class ConnectionDiscoveryAgent {
     return new DiscoveryResult(payload, analyzedFiles, tools.getObservedFiles());
   }
 
+  /**
+   * Reads one stored document. There is no repository and no tool loop. {@code source_files} in the
+   * answer must be verbatim excerpts of {@code documentBody}.
+   */
+  public DiscoveryResult discoverFromDocument(
+      String sourceName,
+      String documentTitle,
+      String documentBody,
+      String catalogText,
+      String dataModelPromptSection) {
+    String userMessage =
+        buildDocumentUserMessage(
+            sourceName, documentTitle, documentBody, catalogText, dataModelPromptSection);
+    log.info("Connection discovery from document app={} title={}", sourceName, documentTitle);
+    AiApplicationConnectionPayload payload;
+    try {
+      payload =
+          chatClient.prompt().system(systemPrompt).user(userMessage).call().entity(AiApplicationConnectionPayload.class);
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_GATEWAY, "Échec de l'agent LLM: " + e.getMessage(), e);
+    }
+    if (payload == null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Réponse IA vide ou schéma illisible.");
+    }
+    return new DiscoveryResult(payload, List.of(documentTitle), List.of());
+  }
+
+  private String buildDocumentUserMessage(
+      String sourceName,
+      String documentTitle,
+      String documentBody,
+      String catalogText,
+      String dataModelPromptSection) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(
+        """
+        Analyze the document "%s" for application "%s".
+        This document is the only evidence. Do not use tools and do not invent file paths.
+        Find OUTBOUND and INBOUND integration connections with the catalogue below.
+        Match peer_application_name EXACTLY to one catalogue name; never invent applications.
+        source_files and node_source_files must be verbatim excerpts from the document
+        (a sentence or short passage copied from the text).
+
+        Known IT applications (name | id):
+        %s
+
+        Document:
+        %s
+        """
+            .formatted(documentTitle, sourceName, catalogText, documentBody));
+    if (dataModelPromptSection != null && !dataModelPromptSection.isBlank()) {
+      sb.append('\n').append(dataModelPromptSection.trim()).append('\n');
+    }
+    sb.append("\nThen return ONLY the final JSON following the required schema exactly.");
+    return sb.toString();
+  }
+
   private String buildUserMessage(
       String owner,
       String repo,

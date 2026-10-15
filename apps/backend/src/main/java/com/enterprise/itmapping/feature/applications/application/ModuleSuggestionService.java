@@ -59,6 +59,7 @@ public class ModuleSuggestionService {
   private final ObjectProvider<ModuleSuggestionService> self;
   private final ApplicationModuleSubtreeQuery moduleSubtreeQuery;
   private final AiDecisionSourceService decisionSources;
+  private final ApplicationDetectionDocumentService documentService;
 
   public ModuleSuggestionService(
       ApplicationRepository applicationRepository,
@@ -68,7 +69,8 @@ public class ModuleSuggestionService {
       Neo4jClient neo4jClient,
       ObjectProvider<ModuleSuggestionService> self,
       ApplicationModuleSubtreeQuery moduleSubtreeQuery,
-      AiDecisionSourceService decisionSources) {
+      AiDecisionSourceService decisionSources,
+      ApplicationDetectionDocumentService documentService) {
     this.applicationRepository = applicationRepository;
     this.cloneService = cloneService;
     this.moduleDiscoveryAgent = moduleDiscoveryAgent;
@@ -77,6 +79,7 @@ public class ModuleSuggestionService {
     this.self = self;
     this.moduleSubtreeQuery = moduleSubtreeQuery;
     this.decisionSources = decisionSources;
+    this.documentService = documentService;
   }
 
   public SuggestModulesFromGithubResponse suggestFromGithub(
@@ -120,14 +123,43 @@ public class ModuleSuggestionService {
     Path workspace = cloneService.clone(owner, repo, properties.cloneTimeoutSeconds());
     try {
       DiscoveryResult discovery = moduleDiscoveryAgent.discover(workspace, owner, repo);
-      return persist(applicationId, owner + "/" + repo, discovery);
+      return persist(applicationId, owner + "/" + repo, discovery, null);
     } finally {
       cloneService.deleteQuietly(workspace);
     }
   }
 
+  public SuggestModulesFromGithubResponse suggestFromDocument(String applicationId) {
+    return self.getObject().suggestFromDocumentTransactional(applicationId);
+  }
+
+  @Transactional
+  protected SuggestModulesFromGithubResponse suggestFromDocumentTransactional(String applicationId) {
+    var appRow =
+        applicationRepository
+            .findProjectionById(applicationId)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Application introuvable: " + applicationId));
+    if (GithubRepoIdentityResolver.resolveFullName(appRow.getName(), appRow.getDescription(), null)
+        .isPresent()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "This application is linked to GitHub.");
+    }
+    if (moduleSubtreeQuery.hasAnyModuleViaContains(applicationId)) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Les modules ont déjà été suggérés pour cette application.");
+    }
+    ApplicationDetectionDocumentService.StoredDocument document = documentService.require(applicationId);
+    String sourceName = StringUtils.hasText(appRow.getName()) ? appRow.getName() : applicationId;
+    DiscoveryResult discovery =
+        moduleDiscoveryAgent.discoverFromDocument(sourceName, document.title(), document.body());
+    return persist(applicationId, document.title(), discovery, document.body());
+  }
+
   private SuggestModulesFromGithubResponse persist(
-      String applicationId, String repositoryName, DiscoveryResult discovery) {
+      String applicationId, String repositoryName, DiscoveryResult discovery, String documentBody) {
 
     var payload = discovery.payload();
     List<CreatedItem> created = new ArrayList<>();
@@ -147,6 +179,14 @@ public class ModuleSuggestionService {
       if (acceptedBySlug.containsKey(slug)) {
         skipped.add(new SkippedItem("module", "doublon_slug_ia", slug));
         continue;
+      }
+      if (documentBody != null) {
+        List<String> quotes = DocumentExcerpt.matching(documentBody, mod.getSourceFiles());
+        if (quotes.isEmpty()) {
+          skipped.add(new SkippedItem("module", "evidence_absente", slug));
+          continue;
+        }
+        mod.setSourceFiles(quotes);
       }
       acceptedBySlug.put(slug, mod);
     }
@@ -175,6 +215,18 @@ public class ModuleSuggestionService {
                 "module_slug_inconnu",
                 r.getFromModuleId() + "->" + r.getToModuleId()));
         continue;
+      }
+      if (documentBody != null) {
+        List<String> quotes = DocumentExcerpt.matching(documentBody, r.getSourceFiles());
+        if (quotes.isEmpty()) {
+          skipped.add(
+              new SkippedItem(
+                  "relationship",
+                  "evidence_absente",
+                  r.getFromModuleId() + "->" + r.getToModuleId()));
+          continue;
+        }
+        r.setSourceFiles(quotes);
       }
       relsAccepted.add(new Rel(r.getFromModuleId(), r.getToModuleId(), r.getSourceFiles()));
     }
@@ -216,7 +268,8 @@ public class ModuleSuggestionService {
           neoId,
           null,
           e.getValue().getSourceFiles(),
-          discovery.observedFiles());
+          discovery.observedFiles(),
+          documentBody);
     }
 
     for (String slug : acceptedBySlug.keySet()) {
@@ -230,7 +283,8 @@ public class ModuleSuggestionService {
             AiDecisionSourceService.containsTargetId(applicationId, moduleId),
             null,
             acceptedBySlug.get(slug).getSourceFiles(),
-            discovery.observedFiles());
+            discovery.observedFiles(),
+            documentBody);
       }
     }
 
@@ -245,7 +299,8 @@ public class ModuleSuggestionService {
           AiDecisionSourceService.containsTargetId(parentId, childId),
           null,
           rel.sourceFiles(),
-          discovery.observedFiles());
+          discovery.observedFiles(),
+          documentBody);
     }
 
     log.info(
@@ -356,8 +411,9 @@ public class ModuleSuggestionService {
       String targetId,
       String fieldKey,
       List<String> citedFiles,
-      List<String> observedFiles) {
-    decisionSources.record(
+      List<String> observedFiles,
+      String documentBody) {
+    AiDecisionSourceService.Decision decision =
         new AiDecisionSourceService.Decision(
             AiDecisionSourceService.PIPELINE_MODULE,
             decisionKind,
@@ -366,7 +422,12 @@ public class ModuleSuggestionService {
             fieldKey,
             repositoryName,
             citedFiles,
-            observedFiles));
+            documentBody != null ? citedFiles : observedFiles);
+    if (documentBody != null) {
+      decisionSources.recordQuoted(decision);
+      return;
+    }
+    decisionSources.record(decision);
   }
 
   private record Rel(String parent, String child, List<String> sourceFiles) {}

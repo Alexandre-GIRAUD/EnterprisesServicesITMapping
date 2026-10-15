@@ -99,6 +99,50 @@ public class ModuleDiscoveryAgent {
     return new DiscoveryResult(payload, analyzedFiles, tools.getObservedFiles());
   }
 
+  /**
+   * Reads one stored document. There is no repository and no tool loop. {@code source_files} must be
+   * verbatim excerpts of {@code documentBody}.
+   */
+  public DiscoveryResult discoverFromDocument(
+      String sourceName, String documentTitle, String documentBody) {
+    String userMessage =
+        """
+        Analyze the document "%s" for application "%s".
+        This document is the only evidence. Do not use tools and do not invent file paths.
+        Discover business modules that the document describes as parts of this application.
+        Do not turn a product feature list into modules unless the text says those parts belong to this application.
+        relationships use only structural_contains, and only when the document says a part sits inside another.
+        source_files must be verbatim excerpts from the document (a sentence or short passage).
+
+        Document:
+        %s
+
+        Then return ONLY the final JSON following the required schema exactly.
+        """
+            .formatted(documentTitle, sourceName, documentBody);
+    log.info("Module discovery from document app={} title={}", sourceName, documentTitle);
+    AiModuleSuggestionPayload payload;
+    try {
+      payload =
+          chatClient
+              .prompt()
+              .system(systemPrompt)
+              .user(userMessage)
+              .call()
+              .entity(AiModuleSuggestionPayload.class);
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_GATEWAY, "Échec de l'agent LLM: " + e.getMessage(), e);
+    }
+    if (payload == null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Réponse IA vide ou schéma illisible.");
+    }
+    return new DiscoveryResult(payload, List.of(documentTitle), List.of());
+  }
+
   private static String loadPrompt(ResourceLoader resourceLoader) {
     Resource resource = resourceLoader.getResource(SYSTEM_PROMPT_LOCATION);
     if (!resource.exists()) {
