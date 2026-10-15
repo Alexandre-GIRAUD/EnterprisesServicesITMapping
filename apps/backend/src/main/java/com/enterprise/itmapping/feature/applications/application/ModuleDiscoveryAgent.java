@@ -96,7 +96,7 @@ public class ModuleDiscoveryAgent {
         payload.getModules().size(),
         payload.getRelationships().size(),
         analyzedFiles.size());
-    return new DiscoveryResult(payload, analyzedFiles);
+    return new DiscoveryResult(payload, analyzedFiles, tools.getObservedFiles());
   }
 
   private static String loadPrompt(ResourceLoader resourceLoader) {
@@ -111,6 +111,15 @@ public class ModuleDiscoveryAgent {
     }
   }
 
-  /** Agent output: the parsed payload plus the files whose content was actually read. */
-  public record DiscoveryResult(AiModuleSuggestionPayload payload, List<String> analyzedFiles) {}
+  /** Agent output: parsed payload, files whose content was read, and files read or grepped. */
+  public record DiscoveryResult(
+      AiModuleSuggestionPayload payload, List<String> analyzedFiles, List<String> observedFiles) {
+
+    public DiscoveryResult(AiModuleSuggestionPayload payload, List<String> analyzedFiles) {
+      this(
+          payload,
+          analyzedFiles != null ? List.copyOf(analyzedFiles) : List.of(),
+          analyzedFiles != null ? List.copyOf(analyzedFiles) : List.of());
+    }
+  }
 }

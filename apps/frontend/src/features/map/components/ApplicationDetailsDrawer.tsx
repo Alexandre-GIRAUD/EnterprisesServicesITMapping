@@ -28,6 +28,7 @@ import {
 } from './AttributeChangeReasonFields';
 import { AttributeHistorySection } from './AttributeHistorySection';
 import { CloseIcon } from './CloseIcon';
+import { useDrawerSignOff } from './DrawerSignOff';
 import { AttributeValueControl } from './AttributeValueControl';
 import {
   dedupeAttributeValues,
@@ -106,6 +107,11 @@ export function ApplicationDetailsDrawer({
   onOpenModuleGraph,
   onApplicationDeleted,
 }: ApplicationDetailsDrawerProps) {
+  const signOff = useDrawerSignOff(
+    'APPLICATION',
+    application?.id ?? null,
+    isOpen && !sandboxMode && !isSandboxId(application?.id ?? '')
+  );
   const [details, setDetails] = useState<ApplicationResponse | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [isEditing, setIsEditing] = useState(false);
@@ -555,22 +561,27 @@ export function ApplicationDetailsDrawer({
             <h2 className="graph-drawer-title" title={application?.label}>
               {application?.label ?? 'Details'}
             </h2>
+            {signOff.line}
             {application?.id && (
               <p className="graph-details-id" title={application.id}>
                 {application.id}
               </p>
             )}
           </div>
-          <button
-            type="button"
-            className="graph-drawer-close"
-            onClick={onClose}
-            aria-label="Close application details"
-          >
-            <CloseIcon />
-          </button>
+          <div className="graph-drawer-header-actions">
+            {signOff.button}
+            <button
+              type="button"
+              className="graph-drawer-close"
+              onClick={onClose}
+              aria-label="Close application details"
+            >
+              <CloseIcon />
+            </button>
+          </div>
         </div>
       </header>
+      {signOff.dialog}
 
       <div className="graph-details-content">
         {status === 'loading' && <p className="graph-details-text">Loading...</p>}

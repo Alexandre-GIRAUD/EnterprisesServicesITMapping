@@ -56,6 +56,7 @@ class AiApplicationConnectionPayloadParseTest {
     assertThat(first.getChannel()).isEqualTo("https://orders.internal/api/v1");
     assertThat(first.getConfidence()).isEqualTo("high");
     assertThat(first.getEdgeAttributes()).containsEntry("product_line", "ALPHA");
+    assertThat(first.citedSourceFiles()).containsExactly("src/client/OrdersFeignClient.java");
 
     AiConnectionEntry second = payload.getConnections().get(1);
     assertThat(second.getDirection()).isEqualTo("inbound");

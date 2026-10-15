@@ -78,6 +78,9 @@ class ModuleDiscoveryToolsTest {
 
     assertThat(hits).contains("InvoiceService.java");
     assertThat(hits).contains("class InvoiceService");
+    assertThat(tools.getAnalyzedFiles()).isEmpty();
+    assertThat(tools.getObservedFiles())
+        .contains("src/main/java/billing/InvoiceService.java");
   }
 
   @Test

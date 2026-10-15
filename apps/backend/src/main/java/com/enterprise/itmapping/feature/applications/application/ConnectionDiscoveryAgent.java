@@ -97,7 +97,7 @@ public class ConnectionDiscoveryAgent {
         repo,
         payload.getConnections().size(),
         analyzedFiles.size());
-    return new DiscoveryResult(payload, analyzedFiles);
+    return new DiscoveryResult(payload, analyzedFiles, tools.getObservedFiles());
   }
 
   private String buildUserMessage(
@@ -155,7 +155,17 @@ public class ConnectionDiscoveryAgent {
     }
   }
 
-  /** Agent output: the parsed payload plus the files whose content was actually read. */
+  /** Agent output: parsed payload, files whose content was read, and files read or grepped. */
   public record DiscoveryResult(
-      AiApplicationConnectionPayload payload, List<String> analyzedFiles) {}
+      AiApplicationConnectionPayload payload,
+      List<String> analyzedFiles,
+      List<String> observedFiles) {
+
+    public DiscoveryResult(AiApplicationConnectionPayload payload, List<String> analyzedFiles) {
+      this(
+          payload,
+          analyzedFiles != null ? List.copyOf(analyzedFiles) : List.of(),
+          analyzedFiles != null ? List.copyOf(analyzedFiles) : List.of());
+    }
+  }
 }

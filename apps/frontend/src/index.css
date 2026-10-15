@@ -5717,6 +5717,37 @@ body {
   font-size: 0.9rem;
 }
 
+.graph-drawer-header-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.graph-drawer-signoff {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.graph-drawer-signoff:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.graph-drawer-signoff:focus:not(:focus-visible) {
+  outline: none;
+}
+
 .graph-drawer-close {
   display: inline-flex;
   align-items: center;
