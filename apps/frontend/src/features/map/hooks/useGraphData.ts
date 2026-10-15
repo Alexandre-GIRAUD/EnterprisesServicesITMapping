@@ -465,14 +465,14 @@ export function useGraphData({
   }, [status, layoutRevision, rfRef]);
 
   useEffect(() => {
-    let cancelled = false;
+    let isCancelled = false;
 
     (async () => {
       try {
         setStatus('loading');
         setMessage(null);
         if (matchNothing) {
-          if (cancelled) return;
+          if (isCancelled) return;
           setGraphNodes([]);
           setGraphEdges([]);
           setNodes([]);
@@ -487,7 +487,7 @@ export function useGraphData({
           nodeRefs: Object.keys(nodeRefs).length > 0 ? nodeRefs : undefined,
           edgeAttributes: Object.keys(edgeAttributes).length > 0 ? edgeAttributes : undefined,
         });
-        if (cancelled) return;
+        if (isCancelled) return;
 
         setGraphNodes(data.nodes);
         setGraphEdges(data.edges);
@@ -547,12 +547,12 @@ export function useGraphData({
             layerSeparation: 100,
             aspectRatio,
           });
-          if (cancelled) return;
+          if (isCancelled) return;
           const jumps = computeBridges(routes);
           setNodes(laidOut);
           setEdges(builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id))));
         } catch {
-          if (cancelled) return;
+          if (isCancelled) return;
           setNodes(
             layoutGraph(baseNodes, builtEdges, {
               nodeWidth: NODE_WIDTH,
@@ -566,7 +566,7 @@ export function useGraphData({
           setEdges(builtEdges);
         }
 
-        if (!cancelled) setLayoutRevision((v) => v + 1);
+        if (!isCancelled) setLayoutRevision((v) => v + 1);
 
         setStatus('ready');
         if (pendingSandboxFilterHint) {
@@ -584,7 +584,7 @@ export function useGraphData({
           setMessage(emptyHint);
         }
       } catch (e) {
-        if (!cancelled) {
+        if (!isCancelled) {
           setGraphNodes([]);
           setGraphEdges([]);
           setNodes([]);
@@ -601,7 +601,7 @@ export function useGraphData({
     })();
 
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-fetch only on filters / reload nonce
   }, [

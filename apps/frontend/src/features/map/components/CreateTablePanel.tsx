@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type Ref } from 'react';
 import type { ApplicationResponse, GraphEdgeDto, GraphNodeDto, GraphNodeFilterDto } from '@/types/api';
 import { nodeFillColorForValue } from './edgeColorProperty';
+import { MenuChoiceList, MenuToggleButton, useMenuOpenState } from './actionMenu';
 import {
   EMPTY_CUSTOM_VALUE,
   axisRef,
@@ -110,26 +111,26 @@ export function CreateTablePanel({
   }, [savedTables]);
 
   useEffect(() => {
-    let cancelled = false;
-    import('../api/customTableSharesApi')
-      .then(({ listCustomTableShares, deleteCustomTableShare }) => listCustomTableShares()
-        .then(async (items) => {
-          if (cancelled || items.length === 0) return;
-          setSavedTables((current) => [
-            ...current,
-            ...items.map((item) => ({
-              ...item.document,
-              id: newTableId(),
-              name: item.name || item.document.name,
-            })),
-          ]);
-          await Promise.all(items.map((item) => deleteCustomTableShare(item.id)));
-        }))
+    let isCancelled = false;
+    void import('../api/customTableSharesApi')
+      .then(({ listCustomTableShares, deleteCustomTableShare }) => listCustomTableShares())
+      .then(async (items) => {
+        if (isCancelled || items.length === 0) return;
+        setSavedTables((current) => [
+          ...current,
+          ...items.map((item) => ({
+            ...item.document,
+            id: newTableId(),
+            name: item.name || item.document.name,
+          })),
+        ]);
+        await Promise.all(items.map((item) => deleteCustomTableShare(item.id)));
+      })
       .catch(() => {
-        if (!cancelled) setShareMessage(SHARED_TABLES_LOAD_ERROR);
+        if (!isCancelled) setShareMessage(SHARED_TABLES_LOAD_ERROR);
       });
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
   }, []);
 
@@ -422,52 +423,23 @@ function TableActions({
   labels: readonly string[];
   onPick: (label: string) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    function onPointer(event: MouseEvent) {
-      if (rootRef.current?.contains(event.target as Node)) return;
-      setIsOpen(false);
-    }
-    document.addEventListener('mousedown', onPointer);
-    return () => document.removeEventListener('mousedown', onPointer);
-  }, [isOpen]);
-
+  const { isOpen, setIsOpen, rootRef } = useMenuOpenState(false);
   return (
     <div className="graph-views-actions" ref={rootRef}>
-      <button
-        type="button"
-        className="graph-views-actions-btn"
-        aria-label="Table actions"
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen((open) => !open)}
-      >
-        <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
-          <circle cx="10" cy="4.5" r="1.3" fill="currentColor" />
-          <circle cx="10" cy="10" r="1.3" fill="currentColor" />
-          <circle cx="10" cy="15.5" r="1.3" fill="currentColor" />
-        </svg>
-      </button>
+      <MenuToggleButton
+        label="Table actions"
+        isOpen={isOpen}
+        onToggle={() => setIsOpen((current) => !current)}
+      />
       {isOpen ? (
-        <div className="graph-views-actions-menu" role="menu">
-          {labels.map((label) => (
-            <button
-              key={label}
-              type="button"
-              role="menuitem"
-              className={label === 'Delete' ? 'quiet-danger' : undefined}
-              onClick={() => {
-                setIsOpen(false);
-                onPick(label);
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <MenuChoiceList
+          labels={labels}
+          isDanger={(label) => label === 'Delete'}
+          onPick={(label) => {
+            setIsOpen(false);
+            onPick(label);
+          }}
+        />
       ) : null}
     </div>
   );

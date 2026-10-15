@@ -13,11 +13,12 @@ assert.equal(isSandboxValueSelected('Billing', ['Billing', '__empty__']), true);
 const node = { id: 'a', type: 'Application', label: 'A', properties: {} };
 assert.equal(
   graphNodeMatchesSandboxFilters(node, {
-    applicationIds: [],
-    nodeAttributes: { description: ['__empty__'] },
+    applicationIds: ['a'],
+    nodeAttributes: {},
     nodeRefs: {},
+    matchNothing: true,
   }),
-  true,
+  false,
 );
 
 assert.equal(

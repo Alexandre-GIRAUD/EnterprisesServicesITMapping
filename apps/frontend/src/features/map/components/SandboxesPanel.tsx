@@ -22,6 +22,7 @@ import {
   type SandboxFolder,
 } from '../utils/sandboxFolders';
 import { parentFolderId } from '../utils/viewFolderRules';
+import { MenuChoiceList, MenuToggleButton, useMenuOpenState } from './actionMenu';
 
 type OpenSandbox = { id: string; name: string; dirty: boolean };
 
@@ -774,70 +775,28 @@ function RowActions({
   entries: readonly string[];
   onPick: (entry: string) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    function onPointer(event: MouseEvent) {
-      if (rootRef.current?.contains(event.target as Node)) return;
-      setIsOpen(false);
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsOpen(false);
-    }
-    document.addEventListener('mousedown', onPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onPointer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [isOpen]);
-
+  const { isOpen, setIsOpen, rootRef } = useMenuOpenState(true);
   return (
     <div className="graph-views-actions" ref={rootRef}>
-      <button
-        type="button"
-        className="graph-views-actions-btn"
-        aria-label={label}
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onClick={(event) => {
+      <MenuToggleButton
+        label={label}
+        isOpen={isOpen}
+        onToggle={(event) => {
           event.stopPropagation();
-          setIsOpen((open) => !open);
+          setIsOpen((current) => !current);
         }}
-      >
-        <KebabIcon />
-      </button>
+      />
       {isOpen ? (
-        <div className="graph-views-actions-menu" role="menu">
-          {entries.map((entry) => (
-            <button
-              key={entry}
-              type="button"
-              role="menuitem"
-              className={isQuietDangerAction(entry) ? 'quiet-danger' : undefined}
-              onClick={(event) => {
-                event.stopPropagation();
-                setIsOpen(false);
-                onPick(entry);
-              }}
-            >
-              {entry}
-            </button>
-          ))}
-        </div>
+        <MenuChoiceList
+          labels={entries}
+          isDanger={isQuietDangerAction}
+          onPick={(entry, event) => {
+            event.stopPropagation();
+            setIsOpen(false);
+            onPick(entry);
+          }}
+        />
       ) : null}
     </div>
-  );
-}
-
-function KebabIcon() {
-  return (
-    <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
-      <circle cx="10" cy="4.5" r="1.3" fill="currentColor" />
-      <circle cx="10" cy="10" r="1.3" fill="currentColor" />
-      <circle cx="10" cy="15.5" r="1.3" fill="currentColor" />
-    </svg>
   );
 }

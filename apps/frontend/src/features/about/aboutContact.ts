@@ -9,7 +9,7 @@ export const FLOWRA_SITE_URL = readConfiguredValue('VITE_FLOWRA_SITE_URL');
 /** Contact mailbox. Set VITE_FLOWRA_CONTACT_EMAIL outside the repo. */
 export const FLOWRA_CONTACT_EMAIL = readConfiguredValue('VITE_FLOWRA_CONTACT_EMAIL');
 
-export function buildContactMailHref(subject: string, message: string): string {
+export function buildContactMailLink(subject: string, message: string): string {
   const params = new URLSearchParams({
     subject: subject.trim() || 'Flowra',
     body: message.trim(),

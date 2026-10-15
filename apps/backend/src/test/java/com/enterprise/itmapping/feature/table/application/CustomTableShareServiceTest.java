@@ -10,10 +10,12 @@ import static org.mockito.Mockito.when;
 import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
+import com.enterprise.itmapping.feature.table.CustomTableShareLimits;
 import com.enterprise.itmapping.feature.table.infrastructure.persistence.SharedCustomTableEntity;
 import com.enterprise.itmapping.feature.table.infrastructure.persistence.SharedCustomTableRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -129,5 +131,67 @@ class CustomTableShareServiceTest {
 
     assertEquals("That table is too large to share.", tooLarge.getReason());
     verify(sharedCustomTableRepository, never()).save(any());
+  }
+
+  @Test
+  void shareRejectsAMissingDocument() {
+    when(sender.getId()).thenReturn(senderId);
+    when(recipient.getId()).thenReturn(recipientId);
+    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.of(recipient));
+
+    ResponseStatusException missing =
+        assertThrows(ResponseStatusException.class, () -> customTableShareService.share("bob", "Regions", null));
+
+    assertEquals("A document is required.", missing.getReason());
+    verify(sharedCustomTableRepository, never()).save(any());
+  }
+
+  @Test
+  void shareRejectsABlankUsername() {
+    when(sender.getId()).thenReturn(senderId);
+
+    ResponseStatusException blank =
+        assertThrows(ResponseStatusException.class, () -> customTableShareService.share("  ", "Regions", objectMapper.createObjectNode()));
+
+    assertEquals("A username is required.", blank.getReason());
+  }
+
+  @Test
+  void shareRejectsAnOverlongName() {
+    when(sender.getId()).thenReturn(senderId);
+    when(recipient.getId()).thenReturn(recipientId);
+    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.of(recipient));
+
+    ResponseStatusException tooLong =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> customTableShareService.share("bob", "n".repeat(CustomTableShareLimits.MAX_NAME_LENGTH + 1), objectMapper.createObjectNode()));
+
+    assertEquals("That name is too long.", tooLong.getReason());
+    verify(sharedCustomTableRepository, never()).save(any());
+  }
+
+  @Test
+  void listReturnsSharesForTheCurrentUser() {
+    when(sender.getId()).thenReturn(senderId);
+    SharedCustomTableEntity entity = new SharedCustomTableEntity();
+    entity.setName("Regions");
+    entity.setSenderUsername("alice");
+    entity.setDocument(objectMapper.createObjectNode());
+    when(sharedCustomTableRepository.findByRecipient_IdOrderByCreatedAtAsc(senderId)).thenReturn(List.of(entity));
+
+    assertEquals("Regions", customTableShareService.listForCurrentUser().get(0).name());
+  }
+
+  @Test
+  void deleteRemovesAShareInTheInbox() {
+    UUID shareId = UUID.fromString("00000000-0000-0000-0000-000000000011");
+    when(sender.getId()).thenReturn(senderId);
+    SharedCustomTableEntity entity = new SharedCustomTableEntity();
+    when(sharedCustomTableRepository.findByIdAndRecipient_Id(shareId, senderId)).thenReturn(Optional.of(entity));
+
+    customTableShareService.deleteForCurrentUser(shareId);
+
+    verify(sharedCustomTableRepository).delete(entity);
   }
 }
