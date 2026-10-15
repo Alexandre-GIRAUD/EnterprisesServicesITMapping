@@ -43,12 +43,12 @@ public class GraphNodeFilterFacetService {
     for (DataModelField field : config.nodeFields()) {
       boolean fromAllowedValues = !field.allowedValues().isEmpty();
       List<String> values =
-          withEmpty(
+          addEmptyValue(
               fromAllowedValues ? field.allowedValues() : facetQuery.distinctValues(field.key()),
               facetQuery.hasBlank(field.key()));
       out.add(
           new GraphNodeFilterDto(
-              field.key(), labelOf(field), values, fromAllowedValues, "NODE", false, List.of()));
+              field.key(), readFieldLabel(field), values, fromAllowedValues, "NODE", false, List.of()));
     }
 
     for (DataModelField field : config.nodeRefFields()) {
@@ -63,7 +63,7 @@ public class GraphNodeFilterFacetService {
       out.add(
           new GraphNodeFilterDto(
               field.key(),
-              labelOf(field),
+              readFieldLabel(field),
               ids,
               true,
               "NODE_REF",
@@ -74,18 +74,18 @@ public class GraphNodeFilterFacetService {
     for (DataModelField field : config.edgeFields()) {
       boolean fromAllowedValues = !field.allowedValues().isEmpty();
       List<String> values =
-          withEmpty(
+          addEmptyValue(
               fromAllowedValues ? field.allowedValues() : edgeFacetQuery.distinctValues(field.key()),
               edgeFacetQuery.hasBlank(field.key()));
       out.add(
           new GraphNodeFilterDto(
-              field.key(), labelOf(field), values, fromAllowedValues, "EDGE", false, List.of()));
+              field.key(), readFieldLabel(field), values, fromAllowedValues, "EDGE", false, List.of()));
     }
 
     return List.copyOf(out);
   }
 
-  private static List<String> withEmpty(List<String> values, boolean hasEmpty) {
+  private static List<String> addEmptyValue(List<String> values, boolean hasEmpty) {
     if (!hasEmpty || values.contains(AttributeMatch.EMPTY)) {
       return values;
     }
@@ -95,7 +95,7 @@ public class GraphNodeFilterFacetService {
     return next;
   }
 
-  private static String labelOf(DataModelField field) {
+  private static String readFieldLabel(DataModelField field) {
     return field.label() != null && !field.label().isBlank() ? field.label() : field.key();
   }
 }

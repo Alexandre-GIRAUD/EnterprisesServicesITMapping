@@ -5,7 +5,7 @@ export const DIAGRAM_GROW_SNAP_PX = 8;
  * Dragged diagram height. `null` means the diagram fills the viewport
  * (no page scroll). A number is an explicit height taller than that fit.
  */
-export function nextDiagramHeight(fittedHeight: number, draggedHeight: number): number | null {
+export function resolveNextDiagramHeight(fittedHeight: number, draggedHeight: number): number | null {
   if (draggedHeight <= fittedHeight + DIAGRAM_GROW_SNAP_PX) return null;
   return Math.round(draggedHeight);
 }

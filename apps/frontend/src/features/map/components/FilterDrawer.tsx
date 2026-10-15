@@ -3,13 +3,13 @@ import { CloseIcon } from './CloseIcon';
 import type { ApplicationResponse, GraphEdgeDto, GraphFilters, GraphNodeFilterDto } from '@/types/api';
 import {
   type FilterView,
-  appsForCheckedFlows,
+  isGraphBlankedBySelection,
+  keepApplicationsForCheckedFlows,
   dimensionMode,
   dimensionStatusLabel,
   nodeAttributeKeyFromView,
   nodeAttributeView,
   rootCheckboxState,
-  selectionBlanksGraph,
   selectAllCatalog,
   toApiFilterList,
   toggleSortedValue,
@@ -146,7 +146,7 @@ export function FilterDrawer({
       ),
     [nodeFilters, selectedNodeValues, nodeCatalogs]
   );
-  const blanksGraph = selectionBlanksGraph([appMode, ...nodeModes]);
+  const isGraphBlank = isGraphBlankedBySelection([appMode, ...nodeModes]);
 
   const detailSelectAllRef = useRef<HTMLInputElement | null>(null);
 
@@ -544,8 +544,8 @@ export function FilterDrawer({
   const flowChoices = useMemo(
     () =>
       edges.map((edge) => {
-        const nameOf = (id: string) => applications.find((app) => app.id === id)?.name ?? id;
-        const base = `${nameOf(edge.sourceId)} → ${nameOf(edge.targetId)}`;
+        const readApplicationName = (id: string) => applications.find((app) => app.id === id)?.name ?? id;
+        const base = `${readApplicationName(edge.sourceId)} → ${readApplicationName(edge.targetId)}`;
         const data = edge.data?.trim();
         return { id: edge.id, label: data ? `${base} (${data})` : base };
       }),
@@ -583,19 +583,20 @@ export function FilterDrawer({
       }));
       return;
     }
-    if (hit.kind === 'edge' && hit.edgeId) {
-      const edgeId = hit.edgeId;
-      const next = toggleSortedValue(selectedFlowIds, edgeId);
-      setSelectedFlowIds(next);
-      if (!next.includes(edgeId)) return;
-      const ends = edges
-        .filter((edge) => next.includes(edge.id))
-        .flatMap((edge) => [edge.sourceId, edge.targetId]);
-      setSelectedApplicationIds((current) => appsForCheckedFlows(current, appCatalog, ends));
-    }
+    if (hit.kind === 'edge' && hit.edgeId) checkFlow(hit.edgeId);
   }
 
-  function searchHitChecked(hit: FilterSearchHit): boolean {
+  function checkFlow(edgeId: string) {
+    const next = toggleSortedValue(selectedFlowIds, edgeId);
+    setSelectedFlowIds(next);
+    if (!next.includes(edgeId)) return;
+    const ends = edges
+      .filter((edge) => next.includes(edge.id))
+      .flatMap((edge) => [edge.sourceId, edge.targetId]);
+    setSelectedApplicationIds((current) => keepApplicationsForCheckedFlows(current, appCatalog, ends));
+  }
+
+  function isSearchHitChecked(hit: FilterSearchHit): boolean {
     if (hit.kind === 'app' && hit.applicationId) return selectedApplicationIds.includes(hit.applicationId);
     if (hit.kind === 'attribute' && hit.dimensionKey && hit.value != null) {
       return (selectedNodeValues[hit.dimensionKey] ?? []).includes(hit.value);
@@ -673,11 +674,11 @@ export function FilterDrawer({
                           type="button"
                           className="graph-filter-search-hit"
                           role="option"
-                          aria-selected={hit.kind !== 'filter' && searchHitChecked(hit)}
+                          aria-selected={hit.kind !== 'filter' && isSearchHitChecked(hit)}
                           onClick={() => chooseSearchHit(hit)}
                         >
                           {hit.kind === 'filter' ? null : (
-                            <input type="checkbox" tabIndex={-1} readOnly checked={searchHitChecked(hit)} />
+                            <input type="checkbox" tabIndex={-1} readOnly checked={isSearchHitChecked(hit)} />
                           )}
                           <span className="graph-filter-search-hit-label">{hit.label}</span>
                           <span className="graph-filter-search-hit-kind">{hit.kind}</span>
@@ -717,7 +718,7 @@ export function FilterDrawer({
               </p>
             ) : null}
 
-            {blanksGraph ? (
+            {isGraphBlank ? (
               <p className="graph-filter-warning graph-filter-warning--hint" role="status">
                 Nothing is checked on a filter, so the graph is empty.
               </p>

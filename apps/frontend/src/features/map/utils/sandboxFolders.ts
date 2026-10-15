@@ -24,7 +24,6 @@ export const SANDBOX_MENU_DELETE = 'Delete';
 export const SANDBOX_MENU_NEW_FOLDER = 'New folder';
 export const SANDBOX_MENU_SHARE = 'Share';
 export const SANDBOX_MENU_DUPLICATE = 'Duplicate';
-export const SANDBOX_MENU_SAVE = 'Save';
 export const SANDBOX_MENU_CLOSE = 'Close';
 
 const FOLDER_MENU = [SANDBOX_MENU_RENAME, SANDBOX_MENU_MOVE, SANDBOX_MENU_DELETE, SANDBOX_MENU_NEW_FOLDER] as const;
@@ -36,9 +35,8 @@ const SAVED_SANDBOX_MENU = [
   SANDBOX_MENU_DELETE,
 ] as const;
 
-/** Open boards: Load stays off this list. Close is the open-board equivalent of Delete. */
+/** Open boards: Save stays off this list. Close is the open-board equivalent of Delete. */
 export const OPEN_SANDBOX_MENU = [
-  SANDBOX_MENU_SAVE,
   SANDBOX_MENU_DUPLICATE,
   SANDBOX_MENU_SHARE,
   SANDBOX_MENU_RENAME,

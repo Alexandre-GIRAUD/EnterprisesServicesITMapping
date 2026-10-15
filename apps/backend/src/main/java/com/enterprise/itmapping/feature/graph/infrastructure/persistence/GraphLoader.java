@@ -191,11 +191,11 @@ public class GraphLoader {
     String property = alias + ".`" + key + "`";
     String blank = "(" + property + " IS NULL OR trim(toString(" + property + ")) = '')";
     String listed = AttributePropertyCypher.matchesAny(alias, key, parameterName);
-    if (split.includeEmpty() && !split.values().isEmpty()) {
+    if (split.shouldIncludeEmpty() && !split.values().isEmpty()) {
       query.append("  AND (").append(listed).append(" OR ").append(blank).append(")\n");
       return;
     }
-    if (split.includeEmpty()) {
+    if (split.shouldIncludeEmpty()) {
       query.append("  AND ").append(blank).append('\n');
       return;
     }
@@ -220,11 +220,11 @@ public class GraphLoader {
             + idsParam
             + "\n"
             + "  }";
-    if (split.includeEmpty() && split.values().isEmpty()) {
+    if (split.shouldIncludeEmpty() && split.values().isEmpty()) {
       sb.append("  AND ").append(missing).append('\n');
       return;
     }
-    if (split.includeEmpty()) {
+    if (split.shouldIncludeEmpty()) {
       sb.append("  AND (").append(listed).append(" OR ").append(missing).append(")\n");
       return;
     }

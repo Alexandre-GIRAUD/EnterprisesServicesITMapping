@@ -72,23 +72,21 @@ export function dimensionStatusLabel(
 }
 
 /** One dimension with nothing checked blanks the graph (filters combine with AND). */
-export function selectionBlanksGraph(modes: DimensionMode[]): boolean {
+export function isGraphBlankedBySelection(modes: DimensionMode[]): boolean {
   return modes.some((mode) => mode === 'none');
 }
 
 /**
- * Checking a flow shows its applications. If every application was checked, the
- * visible set becomes those endpoints. A narrower selection keeps its checks and
- * adds any missing endpoint.
+ * Checking a flow checks its endpoint applications. Applications already checked
+ * stay checked. A selection with nothing checked becomes those endpoints.
  */
-export function appsForCheckedFlows(
+export function keepApplicationsForCheckedFlows(
   selectedApplicationIds: string[],
   applicationCatalog: string[],
   endpointIds: string[],
 ): string[] {
   const endpoints = selectAllCatalog([...new Set(endpointIds)]);
   if (endpoints.length === 0) return selectedApplicationIds;
-  const mode = dimensionMode(selectedApplicationIds, applicationCatalog);
-  if (mode === 'all' || mode === 'none') return endpoints;
-  return selectAllCatalog([...selectedApplicationIds, ...endpoints]);
+  if (dimensionMode(selectedApplicationIds, applicationCatalog) === 'none') return endpoints;
+  return selectAllCatalog([...new Set([...selectedApplicationIds, ...endpoints])]);
 }

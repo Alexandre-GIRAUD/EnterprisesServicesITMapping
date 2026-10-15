@@ -4,7 +4,11 @@
  */
 import assert from 'node:assert/strict';
 import type { GraphNodeFilterDto } from '@/types/api';
-import { appsForCheckedFlows, dimensionMode, selectionBlanksGraph } from './filterDimensionUtils.ts';
+import {
+  dimensionMode,
+  isGraphBlankedBySelection,
+  keepApplicationsForCheckedFlows,
+} from './filterDimensionUtils.ts';
 import { EMPTY_FILTER_VALUE, searchFilterHits } from './filterSearch.ts';
 
 const description: GraphNodeFilterDto = {
@@ -47,10 +51,33 @@ assert.equal(descriptionHits[0]?.value, 'Billing');
 
 assert.equal(dimensionMode([], ['a', 'b']), 'none');
 assert.equal(dimensionMode(['a', 'b'], ['a', 'b']), 'all');
-assert.equal(selectionBlanksGraph(['all', 'none']), true);
-assert.equal(selectionBlanksGraph(['all', 'some']), false);
+assert.equal(isGraphBlankedBySelection(['all', 'none']), true);
+assert.equal(isGraphBlankedBySelection(['all', 'some']), false);
 
-assert.deepEqual(appsForCheckedFlows(['a', 'b', 'c'], ['a', 'b', 'c'], ['b', 'c']), ['b', 'c']);
-assert.deepEqual(appsForCheckedFlows(['a'], ['a', 'b', 'c'], ['b']), ['a', 'b']);
+assert.deepEqual(keepApplicationsForCheckedFlows(['a', 'b', 'c'], ['a', 'b', 'c'], ['b', 'c']), ['a', 'b', 'c']);
+assert.deepEqual(keepApplicationsForCheckedFlows(['a'], ['a', 'b', 'c'], ['b']), ['a', 'b']);
+
+const manyApplications = Array.from({ length: 13 }, (_item, index) => ({
+  id: `n${index}`,
+  name: `North ${index}`,
+}));
+const northHits = searchFilterHits({
+  query: 'north',
+  dimensions: [
+    {
+      key: 'region',
+      label: 'Region',
+      values: ['North plant'],
+      fromAllowedValues: false,
+      kind: 'NODE',
+    },
+  ],
+  applications: manyApplications,
+  edges: [{ id: 'e-north', label: 'North flow' }],
+  valueLabel: (_dimension, value) => value,
+});
+assert.ok(northHits.some((hit) => hit.kind === 'app'));
+assert.ok(northHits.some((hit) => hit.kind === 'attribute'));
+assert.ok(northHits.some((hit) => hit.kind === 'edge'));
 
 console.log('filterSearch.check: ok');

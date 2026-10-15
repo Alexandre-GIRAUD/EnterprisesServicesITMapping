@@ -27,7 +27,7 @@ const NEW_TABLE_SOURCE = '';
 export const SHARED_TABLES_LOAD_ERROR = 'Shared tables could not be loaded.';
 
 /** Same family of actions as views and sandboxes. Save stays outside the menu. */
-export function customTableMenuLabels(isExisting: boolean): readonly string[] {
+export function listCustomTableMenuLabels(isExisting: boolean): readonly string[] {
   return isExisting ? ['Rename', 'Duplicate', 'Share', 'Delete'] : ['Rename', 'Share', 'Delete'];
 }
 
@@ -254,7 +254,7 @@ export function CreateTablePanel({
         <div className="pivot-actions">
           <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
           <TableActions
-            labels={customTableMenuLabels(Boolean(selectedId))}
+            labels={listCustomTableMenuLabels(Boolean(selectedId))}
             onPick={(label) => {
               if (label === 'Rename') renameTable();
               if (label === 'Duplicate') duplicateTable();

@@ -18,6 +18,10 @@ assert.match(css, /cubic-bezier\(0\.22, 1, 0\.36, 1\)/);
 assert.doesNotMatch(css, /7\.25rem/);
 assert.match(css, /\.self-service-view-list \{[^}]*flex-direction: row/);
 assert.match(css, /\.self-service-view-item\.is-primary \{[^}]*text-decoration: underline/);
+assert.doesNotMatch(
+  css,
+  /\.self-service-view-item:hover,\s*\.self-service-view-item:focus-visible \{[^}]*background:/,
+);
 assert.match(css, /\.graph-filter-compact-btn--pin:not\(:disabled\) \{[^}]*background: #16a34a/);
 assert.match(css, /\.graph-filter-compact-actions > \.graph-filter-compact-btn \{[^}]*flex: 1 1 0/);
 assert.match(css, /\.graph-drawer-action-danger-solid \{[^}]*background: #ffffff/);

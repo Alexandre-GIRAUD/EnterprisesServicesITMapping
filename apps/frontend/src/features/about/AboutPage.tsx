@@ -1,5 +1,7 @@
 import { type FormEvent, useState } from 'react';
-import { contactMailHref, FLOWRA_SITE_URL } from './aboutContact';
+import { buildContactMailHref, FLOWRA_SITE_URL } from './aboutContact';
+
+const MESSAGE_ROWS = 5;
 
 const MODES = [
   {
@@ -16,15 +18,45 @@ const MODES = [
   },
 ] as const;
 
-export function AboutPage() {
+function AboutModeList() {
+  return (
+    <ul className="about-modes">
+      {MODES.map((mode) => (
+        <li key={mode.title}>
+          <strong>{mode.title}</strong>
+          <p>{mode.text}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AboutContactForm() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  function sendContactEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    window.location.href = contactMailHref(subject, message);
+    window.location.href = buildContactMailHref(subject, message);
   }
 
+  return (
+    <form className="about-contact" onSubmit={sendContactEmail}>
+      <h3>Contact</h3>
+      <label>
+        Subject
+        <input value={subject} onChange={(event) => setSubject(event.target.value)} required />
+      </label>
+      <label>
+        Message
+        <textarea value={message} onChange={(event) => setMessage(event.target.value)} required rows={MESSAGE_ROWS} />
+      </label>
+      <button type="submit">Send email</button>
+    </form>
+  );
+}
+
+export function AboutPage() {
   return (
     <main className="about-page">
       <p className="about-kicker">Flowra</p>
@@ -32,31 +64,13 @@ export function AboutPage() {
       <p className="about-lead">
         Flowra maps the applications in an information system and the flows between them.
       </p>
-      <ul className="about-modes">
-        {MODES.map((mode) => (
-          <li key={mode.title}>
-            <strong>{mode.title}</strong>
-            <p>{mode.text}</p>
-          </li>
-        ))}
-      </ul>
+      <AboutModeList />
       {FLOWRA_SITE_URL ? (
         <p className="about-site">
           <a href={FLOWRA_SITE_URL}>Open the Flowra site</a>
         </p>
       ) : null}
-      <form className="about-contact" onSubmit={onSubmit}>
-        <h3>Contact</h3>
-        <label>
-          Subject
-          <input value={subject} onChange={(event) => setSubject(event.target.value)} required />
-        </label>
-        <label>
-          Message
-          <textarea value={message} onChange={(event) => setMessage(event.target.value)} required rows={5} />
-        </label>
-        <button type="submit">Send email</button>
-      </form>
+      <AboutContactForm />
     </main>
   );
 }
