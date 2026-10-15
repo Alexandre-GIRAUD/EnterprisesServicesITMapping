@@ -3,7 +3,7 @@
  * Run: npx --yes tsx src/features/map/utils/sandboxFilters.check.ts
  */
 import assert from 'node:assert/strict';
-import { cloneIntoSandboxDocument, copiedSavedSandbox, graphNodeMatchesSandboxFilters, isSandboxEdgeSelected, isSandboxValueSelected } from './sandboxDocuments.ts';
+import { cloneIntoSandboxDocument, copySavedSandbox, graphNodeMatchesSandboxFilters, isSandboxEdgeSelected, isSandboxValueSelected } from './sandboxDocuments.ts';
 
 assert.equal(isSandboxValueSelected(undefined, ['__empty__']), true);
 assert.equal(isSandboxValueSelected('  ', ['__empty__']), true);
@@ -36,7 +36,7 @@ const source = {
   folderId: 'finance',
   document: cloneIntoSandboxDocument('Payroll', [], [], [], []),
 };
-const savedCopy = copiedSavedSandbox(source);
+const savedCopy = copySavedSandbox(source);
 assert.equal(savedCopy.name, 'Payroll copy');
 assert.equal(savedCopy.folderId, 'finance');
 assert.equal(savedCopy.document.dirty, false);

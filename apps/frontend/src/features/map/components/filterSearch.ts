@@ -6,7 +6,7 @@ export { EMPTY_FILTER_VALUE };
 
 export const FILTER_SEARCH_LIMIT = 12;
 
-export type FilterSearchKind = 'filter' | 'app' | 'attribute' | 'edge';
+export type FilterSearchKind = 'filter' | 'application' | 'attribute' | 'edge';
 
 export type FilterSearchHit = {
   key: string;
@@ -68,7 +68,7 @@ function collectApplicationHits(input: FilterSearchInput, query: string): Filter
   for (const application of input.applications) {
     const label = application.name?.trim() || application.id;
     if (!isQueryInText(`${label} ${application.id}`, query)) continue;
-    hits.push({ key: `app:${application.id}`, label, kind: 'app', applicationId: application.id });
+    hits.push({ key: `application:${application.id}`, label, kind: 'application', applicationId: application.id });
   }
   return hits;
 }

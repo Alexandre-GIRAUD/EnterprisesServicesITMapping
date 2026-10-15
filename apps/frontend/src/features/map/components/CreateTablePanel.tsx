@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Ref } from 'react';
+import { useEffect, useMemo, useState, type Ref } from 'react';
 import type { ApplicationResponse, GraphEdgeDto, GraphNodeDto, GraphNodeFilterDto } from '@/types/api';
 import { nodeFillColorForValue } from './edgeColorProperty';
 import { MenuChoiceList, MenuToggleButton, useMenuOpenState } from './actionMenu';
@@ -22,6 +22,10 @@ import {
 } from '../utils/customTable';
 
 const EMPTY_SETUP: CustomTableSetup = { row: null, column: null, label: null, color: null };
+const TABLE_ACTION_RENAME = 'Rename';
+const TABLE_ACTION_DUPLICATE = 'Duplicate';
+const TABLE_ACTION_SHARE = 'Share';
+const TABLE_ACTION_DELETE = 'Delete';
 const MISSING_COLOR = '#94a3b8';
 const PLAIN_BADGE_COLOR = '#e2e8f0';
 const NEW_TABLE_SOURCE = '';
@@ -29,14 +33,16 @@ export const SHARED_TABLES_LOAD_ERROR = 'Shared tables could not be loaded.';
 
 /** Same family of actions as views and sandboxes. Save stays outside the menu. */
 export function listCustomTableMenuLabels(isExisting: boolean): readonly string[] {
-  return isExisting ? ['Rename', 'Duplicate', 'Share', 'Delete'] : ['Rename', 'Share', 'Delete'];
+  return isExisting
+    ? [TABLE_ACTION_RENAME, TABLE_ACTION_DUPLICATE, TABLE_ACTION_SHARE, TABLE_ACTION_DELETE]
+    : [TABLE_ACTION_RENAME, TABLE_ACTION_SHARE, TABLE_ACTION_DELETE];
 }
 
-export function renamedCustomTable(table: SavedCustomTable, name: string): SavedCustomTable {
+export function renameCustomTable(table: SavedCustomTable, name: string): SavedCustomTable {
   return { ...table, name };
 }
 
-export function copiedCustomTable(table: SavedCustomTable, id: string): SavedCustomTable {
+export function copyCustomTable(table: SavedCustomTable, id: string): SavedCustomTable {
   return { ...table, id, name: `${table.name} copy` };
 }
 
@@ -121,8 +127,8 @@ export function CreateTablePanel({
   useEffect(() => {
     let isCancelled = false;
     void import('../api/customTableSharesApi')
-      .then(({ listCustomTableShares, deleteCustomTableShare }) => listCustomTableShares())
-      .then(async (items) => {
+      .then(async (api) => {
+        const items = await api.listCustomTableShares();
         if (isCancelled || items.length === 0) return;
         setSavedTables((current) => [
           ...current,
@@ -132,7 +138,7 @@ export function CreateTablePanel({
             name: item.name || item.document.name,
           })),
         ]);
-        await Promise.all(items.map((item) => deleteCustomTableShare(item.id)));
+        await Promise.all(items.map((item) => api.deleteCustomTableShare(item.id)));
       })
       .catch(() => {
         if (!isCancelled) setShareMessage(SHARED_TABLES_LOAD_ERROR);
@@ -187,14 +193,14 @@ export function CreateTablePanel({
       return;
     }
     setSavedTables((current) =>
-      current.map((table) => (table.id === selectedId ? renamedCustomTable(table, name) : table)),
+      current.map((table) => (table.id === selectedId ? renameCustomTable(table, name) : table)),
     );
   };
 
   const duplicateTable = () => {
     if (!currentTable) return;
     const id = newTableId();
-    const copy = copiedCustomTable({ ...currentTable, ...axesOf(activeSetup) }, id);
+    const copy = copyCustomTable({ ...currentTable, ...axesOf(activeSetup) }, id);
     setSavedTables((current) => [...current, copy]);
     setSelectedId(id);
   };
@@ -265,10 +271,10 @@ export function CreateTablePanel({
           <TableActions
             labels={listCustomTableMenuLabels(Boolean(selectedId))}
             onPick={(label) => {
-              if (label === 'Rename') renameTable();
-              if (label === 'Duplicate') duplicateTable();
-              if (label === 'Share') void shareTable();
-              if (label === 'Delete') deleteTable();
+              if (label === TABLE_ACTION_RENAME) renameTable();
+              if (label === TABLE_ACTION_DUPLICATE) duplicateTable();
+              if (label === TABLE_ACTION_SHARE) void shareTable();
+              if (label === TABLE_ACTION_DELETE) deleteTable();
             }}
           />
         </div>
@@ -442,7 +448,7 @@ function TableActions({
       {isOpen ? (
         <MenuChoiceList
           labels={labels}
-          isDanger={(label) => label === 'Delete'}
+          isDanger={(label) => label === TABLE_ACTION_DELETE}
           onPick={(label) => {
             setIsOpen(false);
             onPick(label);

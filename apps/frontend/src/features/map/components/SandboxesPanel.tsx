@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import {
   MAX_OPEN_SANDBOXES,
   sandboxLayoutsForCount,

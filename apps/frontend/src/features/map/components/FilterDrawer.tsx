@@ -120,7 +120,7 @@ export function FilterDrawer({
   const [dimensionQuery, setDimensionQuery] = useState('');
   const [valueQuery, setValueQuery] = useState('');
   const [selectedFlowIds, setSelectedFlowIds] = useState(initialEdgeIds);
-  const editedRef = useRef(false);
+  const hasEditedFilters = useRef(false);
 
   const appCatalog = useMemo(
     () =>
@@ -152,10 +152,10 @@ export function FilterDrawer({
 
   useEffect(() => {
     if (!isOpen) {
-      editedRef.current = false;
+      hasEditedFilters.current = false;
       return;
     }
-    if (editedRef.current) return;
+    if (hasEditedFilters.current) return;
     const blanked =
       initialBlankedDimensions.length > 0
         ? initialBlankedDimensions
@@ -205,7 +205,7 @@ export function FilterDrawer({
   ]);
 
   useEffect(() => {
-    if (!isOpen || !editedRef.current) return;
+    if (!isOpen || !hasEditedFilters.current) return;
     const blanked: string[] = [];
     if (dimensionMode(selectedApplicationIds, appCatalog) === 'none') blanked.push('applications');
     for (const dimension of nodeFilters) {
@@ -252,7 +252,7 @@ export function FilterDrawer({
   }
 
   function clearDetailDimension() {
-    editedRef.current = true;
+    hasEditedFilters.current = true;
     if (view === 'applications') {
       setSelectedApplicationIds(selectAllCatalog(appCatalog));
       return;
@@ -295,7 +295,7 @@ export function FilterDrawer({
   }
 
   function onReset() {
-    editedRef.current = true;
+    hasEditedFilters.current = true;
     setSelectedFlowIds([]);
     setSelectedApplicationIds(selectAllCatalog(appCatalog));
     setSelectedNodeValues(
@@ -385,7 +385,7 @@ export function FilterDrawer({
               type="checkbox"
               checked={rootCheckboxState(appMode) === 'checked'}
               onChange={() => {
-                editedRef.current = true;
+                hasEditedFilters.current = true;
                 setSelectedApplicationIds(applyRootToggle(appCatalog, selectedApplicationIds));
               }}
             />
@@ -402,7 +402,7 @@ export function FilterDrawer({
                   type="checkbox"
                   checked={selectedApplicationIds.includes(app.id)}
                   onChange={() => {
-                    editedRef.current = true;
+                    hasEditedFilters.current = true;
                     setSelectedApplicationIds((prev) => toggleSortedValue(prev, app.id));
                   }}
                 />
@@ -455,7 +455,7 @@ export function FilterDrawer({
                   type="checkbox"
                   checked={rootCheckboxState(mode) === 'checked'}
                   onChange={() => {
-                    editedRef.current = true;
+                    hasEditedFilters.current = true;
                     setSelectedNodeValues((prev) => ({
                       ...prev,
                       [dimension.key]: applyRootToggle(catalog, selected),
@@ -475,7 +475,7 @@ export function FilterDrawer({
                       type="checkbox"
                       checked={selected.includes(value)}
                       onChange={() => {
-                        editedRef.current = true;
+                        hasEditedFilters.current = true;
                         setSelectedNodeValues((prev) => ({
                           ...prev,
                           [dimension.key]: toggleSortedValue(prev[dimension.key] ?? [], value),
@@ -569,8 +569,8 @@ export function FilterDrawer({
       openDetail(hit.filterView);
       return;
     }
-    editedRef.current = true;
-    if (hit.kind === 'app' && hit.applicationId) {
+    hasEditedFilters.current = true;
+    if (hit.kind === 'application' && hit.applicationId) {
       setSelectedApplicationIds((prev) => toggleSortedValue(prev, hit.applicationId ?? ''));
       return;
     }
@@ -597,7 +597,7 @@ export function FilterDrawer({
   }
 
   function isSearchHitChecked(hit: FilterSearchHit): boolean {
-    if (hit.kind === 'app' && hit.applicationId) return selectedApplicationIds.includes(hit.applicationId);
+    if (hit.kind === 'application' && hit.applicationId) return selectedApplicationIds.includes(hit.applicationId);
     if (hit.kind === 'attribute' && hit.dimensionKey && hit.value != null) {
       return (selectedNodeValues[hit.dimensionKey] ?? []).includes(hit.value);
     }
