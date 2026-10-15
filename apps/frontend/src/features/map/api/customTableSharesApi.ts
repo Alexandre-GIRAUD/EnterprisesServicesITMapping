@@ -1,6 +1,6 @@
 import { authenticatedFetch, resolveApiUrl } from '@/config/api';
 import type { SavedCustomTable } from '../utils/customTable';
-import { messageForShareFailure } from './shareFailureMessage';
+import { formatShareFailure } from './shareFailureMessage';
 
 export type SharedCustomTable = {
   id: string;
@@ -21,7 +21,7 @@ export async function shareCustomTable(
   });
   if (response.status === 204) return;
   const detail = await response.text().catch(() => '');
-  throw new Error(messageForShareFailure(response.status, detail));
+  throw new Error(formatShareFailure(response.status, detail));
 }
 
 export async function listCustomTableShares(): Promise<SharedCustomTable[]> {
@@ -30,7 +30,7 @@ export async function listCustomTableShares(): Promise<SharedCustomTable[]> {
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
-    throw new Error(messageForShareFailure(response.status, detail, 'Table shares'));
+    throw new Error(formatShareFailure(response.status, detail, 'Table shares'));
   }
   return response.json();
 }
@@ -42,6 +42,6 @@ export async function deleteCustomTableShare(id: string): Promise<void> {
   );
   if (!response.ok && response.status !== 204) {
     const detail = await response.text().catch(() => '');
-    throw new Error(messageForShareFailure(response.status, detail, 'Dismiss table share'));
+    throw new Error(formatShareFailure(response.status, detail, 'Dismiss table share'));
   }
 }

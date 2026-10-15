@@ -97,7 +97,7 @@ import { GraphViewsPanel } from './GraphViewsPanel';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { MappingChatPanel } from './MappingChatPanel';
-import { resolveNextDiagramHeight } from './diagramFrame';
+import { isDiagramFitGesture, resolveNextDiagramHeight } from './diagramFrame';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { GraphExportMenu } from './GraphExportMenu';
@@ -198,6 +198,7 @@ export function GraphCanvas() {
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
   const [diagramHeight, setDiagramHeight] = useState<number | null>(null);
   const diagramFitHeightRef = useRef(0);
+  const diagramPointerDownAtRef = useRef(0);
   const [isExportingGraph, setIsExportingGraph] = useState(false);
   /** Local-only collapse set; tables keep using the full graph DTOs. */
   const hiddenNodeIdsRef = useRef<Set<string>>(new Set());
@@ -1784,7 +1785,13 @@ export function GraphCanvas() {
   const isDiagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;
 
   function onDiagramResizePointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
-    event.preventDefault();
+    const now = event.timeStamp;
+    if (isDiagramFitGesture(diagramPointerDownAtRef.current, now)) {
+      diagramPointerDownAtRef.current = 0;
+      setDiagramHeight(null);
+      return;
+    }
+    diagramPointerDownAtRef.current = now;
     const handle = event.currentTarget;
     const stage = handle.closest('.map-graph-panel')?.querySelector('.graph-stage');
     if (diagramHeight == null) {

@@ -1,5 +1,10 @@
 /** Snap back to the viewport fit when the drag is within this many pixels of it. */
 export const DIAGRAM_GROW_SNAP_PIXELS = 8;
+export const DIAGRAM_DOUBLE_PRESS_MS = 400;
+
+export function isDiagramFitGesture(previousTime: number, currentTime: number): boolean {
+  return previousTime > 0 && currentTime - previousTime < DIAGRAM_DOUBLE_PRESS_MS;
+}
 
 /**
  * Dragged diagram height. `null` means the diagram fills the viewport
