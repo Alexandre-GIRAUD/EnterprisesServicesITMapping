@@ -636,9 +636,9 @@ export function WorkspaceDrawer({
             >
               <option value="">Choose…</option>
               {view === 'edit-application'
-                ? applications.map((app) => (
-                    <option key={app.id} value={app.id}>
-                      {app.name?.trim() || app.id}
+                ? applications.map((application) => (
+                    <option key={application.id} value={application.id}>
+                      {application.name?.trim() || application.id}
                     </option>
                   ))
                 : flows.map((flow) => (

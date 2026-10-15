@@ -214,13 +214,13 @@ function SandboxPaneInner({
   }, [doc.filters, doc.graphEdges]);
   const attributeEndpoints = useMemo(() => {
     if (!attributeEdgeIds) return null;
-    const ids = new Set<string>();
+    const endpointIds = new Set<string>();
     for (const edge of doc.graphEdges) {
       if (!attributeEdgeIds.has(edge.id)) continue;
-      ids.add(edge.sourceId);
-      ids.add(edge.targetId);
+      endpointIds.add(edge.sourceId);
+      endpointIds.add(edge.targetId);
     }
-    return ids;
+    return endpointIds;
   }, [attributeEdgeIds, doc.graphEdges]);
 
   const appNodes = useMemo(

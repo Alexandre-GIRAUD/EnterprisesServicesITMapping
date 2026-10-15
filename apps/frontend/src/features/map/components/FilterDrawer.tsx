@@ -215,15 +215,15 @@ export function FilterDrawer({
       );
       if (mode === 'none') blanked.push(dimension.key);
     }
-    const api = filtersForApi();
+    const attributeFilters = collectAttributeFilters();
     onApply({
       applicationIds: toApiFilterList(selectedApplicationIds, appCatalog) ?? [],
-      ...api,
+      ...attributeFilters,
       edgeIds: selectedFlowIds,
       matchNothing: blanked.length > 0,
       blankedDimensions: blanked,
     });
-    // filtersForApi closes over the same selection state as this effect.
+    // collectAttributeFilters closes over the same selection state as this effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedApplicationIds, selectedNodeValues, selectedFlowIds, isOpen]);
 
@@ -269,7 +269,7 @@ export function FilterDrawer({
     setView('root');
   }
 
-  function filtersForApi(): Pick<GraphFilters, 'nodeAttributes' | 'nodeRefs' | 'edgeAttributes'> {
+  function collectAttributeFilters(): Pick<GraphFilters, 'nodeAttributes' | 'nodeRefs' | 'edgeAttributes'> {
     const nodeAttributes: Record<string, string[]> = {};
     const nodeRefs: Record<string, string[]> = {};
     const edgeAttributes: Record<string, string[]> = {};
@@ -544,7 +544,8 @@ export function FilterDrawer({
   const flowChoices = useMemo(
     () =>
       edges.map((edge) => {
-        const readApplicationName = (id: string) => applications.find((app) => app.id === id)?.name ?? id;
+        const readApplicationName = (endpointId: string) =>
+          applications.find((application) => application.id === endpointId)?.name ?? endpointId;
         const base = `${readApplicationName(edge.sourceId)} → ${readApplicationName(edge.targetId)}`;
         const data = edge.data?.trim();
         return { id: edge.id, label: data ? `${base} (${data})` : base };
@@ -571,15 +572,15 @@ export function FilterDrawer({
     }
     hasEditedFilters.current = true;
     if (hit.kind === 'application' && hit.applicationId) {
-      setSelectedApplicationIds((prev) => toggleSortedValue(prev, hit.applicationId ?? ''));
+      setSelectedApplicationIds((previous) => toggleSortedValue(previous, hit.applicationId ?? ''));
       return;
     }
     if (hit.kind === 'attribute' && hit.dimensionKey && hit.value != null) {
       const key = hit.dimensionKey;
       const value = hit.value;
-      setSelectedNodeValues((prev) => ({
-        ...prev,
-        [key]: toggleSortedValue(prev[key] ?? [], value),
+      setSelectedNodeValues((previous) => ({
+        ...previous,
+        [key]: toggleSortedValue(previous[key] ?? [], value),
       }));
       return;
     }
