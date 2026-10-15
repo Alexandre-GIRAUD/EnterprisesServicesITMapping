@@ -110,8 +110,8 @@ class ModuleDiscoveryToolsTest {
 
   @Test
   void rootFileMatchesADoubleStarGlob() {
-    assertThat(ModuleDiscoveryTools.doesPathMatchGlob(Path.of("pom.xml"), "**/*.xml")).isTrue();
-    assertThat(ModuleDiscoveryTools.doesPathMatchGlob(Path.of("src/App.java"), "**/*.java")).isTrue();
-    assertThat(ModuleDiscoveryTools.doesPathMatchGlob(Path.of("pom.xml"), "*.md")).isFalse();
+    assertThat(ModuleDiscoveryTools.isGlobMatch(Path.of("pom.xml"), "**/*.xml")).isTrue();
+    assertThat(ModuleDiscoveryTools.isGlobMatch(Path.of("src/App.java"), "**/*.java")).isTrue();
+    assertThat(ModuleDiscoveryTools.isGlobMatch(Path.of("pom.xml"), "*.md")).isFalse();
   }
 }

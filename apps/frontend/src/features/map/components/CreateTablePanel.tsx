@@ -32,6 +32,14 @@ export function listCustomTableMenuLabels(isExisting: boolean): readonly string[
   return isExisting ? ['Rename', 'Duplicate', 'Share', 'Delete'] : ['Rename', 'Share', 'Delete'];
 }
 
+export function renamedCustomTable(table: SavedCustomTable, name: string): SavedCustomTable {
+  return { ...table, name };
+}
+
+export function copiedCustomTable(table: SavedCustomTable, id: string): SavedCustomTable {
+  return { ...table, id, name: `${table.name} copy` };
+}
+
 export type CreateTableExportState = {
   setup: CustomTableSetup;
   status: CustomTableModel['status'];
@@ -179,14 +187,14 @@ export function CreateTablePanel({
       return;
     }
     setSavedTables((current) =>
-      current.map((table) => (table.id === selectedId ? { ...table, name } : table)),
+      current.map((table) => (table.id === selectedId ? renamedCustomTable(table, name) : table)),
     );
   };
 
   const duplicateTable = () => {
     if (!currentTable) return;
     const id = newTableId();
-    const copy = { ...currentTable, ...axesOf(activeSetup), id, name: `${currentTable.name} copy` };
+    const copy = copiedCustomTable({ ...currentTable, ...axesOf(activeSetup) }, id);
     setSavedTables((current) => [...current, copy]);
     setSelectedId(id);
   };

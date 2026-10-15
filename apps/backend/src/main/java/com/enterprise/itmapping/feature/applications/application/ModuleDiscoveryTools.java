@@ -234,7 +234,7 @@ public class ModuleDiscoveryTools {
                 return !rel.isEmpty()
                     && !GithubTreePathFilter.shouldExcludePath(rel, Integer.MAX_VALUE);
               })
-          .filter(p -> doesPathMatchGlob(repoRoot.relativize(p), glob))
+          .filter(p -> isGlobMatch(repoRoot.relativize(p), glob))
           .forEach(
               p -> {
                 if (hits.size() >= limit) {
@@ -250,7 +250,7 @@ public class ModuleDiscoveryTools {
     return hits;
   }
 
-  static boolean doesPathMatchGlob(Path relative, String glob) {
+  static boolean isGlobMatch(Path relative, String glob) {
     if (glob == null || glob.isBlank()) {
       return true;
     }
