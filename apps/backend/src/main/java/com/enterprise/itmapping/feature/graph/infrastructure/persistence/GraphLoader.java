@@ -27,7 +27,7 @@ public class GraphLoader {
 
   private static final Logger log = LoggerFactory.getLogger(GraphLoader.class);
   private static final String NODE_REF_FIELD_PARAM = "nodeRefField_";
-  private static final String NODE_REF_IDS_PARAM = "nodeRefIds_";
+  private static final String NODE_REF_IDENTIFIER_PARAM = "nodeRefIds_";
 
   private static final Set<String> NON_BUSINESS_NODE_KEYS =
       Set.of("id", "name", "description", "year", "validFrom", "validTo");
@@ -190,7 +190,7 @@ public class GraphLoader {
 
   private static void appendNodeRefFilter(StringBuilder query, int index, AttributeMatch.Split split) {
     String fieldParam = NODE_REF_FIELD_PARAM + index;
-    String idsParam = NODE_REF_IDS_PARAM + index;
+    String identifierParameter = NODE_REF_IDENTIFIER_PARAM + index;
     String missing =
         "NOT EXISTS {\n"
             + "    MATCH (a)-[:CLASSIFIED_AS {fieldKey: $"
@@ -203,7 +203,7 @@ public class GraphLoader {
             + fieldParam
             + "}]->(ref:DataModelRef)\n"
             + "    WHERE ref.id IN $"
-            + idsParam
+            + identifierParameter
             + "\n"
             + "  }";
     if (split.shouldIncludeEmpty() && split.values().isEmpty()) {
@@ -235,7 +235,7 @@ public class GraphLoader {
       int i = 0;
       for (Map.Entry<String, List<String>> entry : nodeRefFilters.entrySet()) {
         params.put(NODE_REF_FIELD_PARAM + i, entry.getKey());
-        params.put(NODE_REF_IDS_PARAM + i, AttributeMatch.split(entry.getValue()).values());
+        params.put(NODE_REF_IDENTIFIER_PARAM + i, AttributeMatch.split(entry.getValue()).values());
         i++;
       }
     }

@@ -111,7 +111,7 @@ const EDGE_DRAWER_COPY = {
   description: 'Create a typed relationship between two nodes already visible in the graph.',
 };
 
-function drawerCopy(view: DrawerView): { title: string; description: string } {
+function readDrawerCopy(view: DrawerView): { title: string; description: string } {
   return DRAWER_COPY[view] ?? EDGE_DRAWER_COPY;
 }
 
@@ -129,7 +129,7 @@ function actionHandler(
     openAddEdgeForm: () => void;
     openAddIcons: () => void;
     startTextPlacement: () => void;
-    openEditApp: () => void;
+    openEditApplication: () => void;
     openEditFlow: () => void;
   }
 ): (() => void) | undefined {
@@ -137,7 +137,7 @@ function actionHandler(
   if (id === 'add-edge') return handlers.openAddEdgeForm;
   if (id === 'add-icons') return handlers.openAddIcons;
   if (id === 'add-text') return handlers.startTextPlacement;
-  if (id === 'edit-app') return handlers.openEditApp;
+  if (id === 'edit-app') return handlers.openEditApplication;
   if (id === 'edit-flow') return handlers.openEditFlow;
   return undefined;
 }
@@ -234,7 +234,7 @@ export function WorkspaceDrawer({
     setFeedbackMessage(null);
   }
 
-  function openEditApp() {
+  function openEditApplication() {
     setEditChoice('');
     setView('edit-app');
     setLocalError(null);
@@ -555,8 +555,8 @@ export function WorkspaceDrawer({
           >
             {view !== 'menu' ? (
               <div className="graph-drawer-title-block">
-                <h2 className="graph-drawer-title">{drawerCopy(view).title}</h2>
-                <p className="graph-drawer-description">{drawerCopy(view).description}</p>
+                <h2 className="graph-drawer-title">{readDrawerCopy(view).title}</h2>
+                <p className="graph-drawer-description">{readDrawerCopy(view).description}</p>
               </div>
             ) : (
               <div className="graph-drawer-title-spacer" aria-hidden="true" />
@@ -601,7 +601,7 @@ export function WorkspaceDrawer({
                 openAddEdgeForm,
                 openAddIcons,
                 startTextPlacement,
-                openEditApp,
+                openEditApplication,
                 openEditFlow,
               });
               return (

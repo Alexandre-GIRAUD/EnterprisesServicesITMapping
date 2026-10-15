@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react';
-import { buildContactMailHref, FLOWRA_SITE_URL } from './aboutContact';
+import { buildContactMailLink, FLOWRA_SITE_URL } from './aboutContact';
 
 const MESSAGE_ROWS = 5;
 
@@ -37,7 +37,7 @@ function AboutContactForm() {
 
   function sendContactEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    window.location.href = buildContactMailHref(subject, message);
+    window.location.href = buildContactMailLink(subject, message);
   }
 
   return (

@@ -1625,9 +1625,9 @@ export function GraphCanvas() {
             onRequestedViewConsumed={() => setToolkitRequest(null)}
             applications={applications}
             flows={graphEdges.map((edge) => {
-              const nameOf = (id: string) => applications.find((app) => app.id === id)?.name ?? id;
+              const readFlowEndName = (id: string) => applications.find((app) => app.id === id)?.name ?? id;
               const data = edge.data?.trim();
-              const base = `${nameOf(edge.sourceId)} → ${nameOf(edge.targetId)}`;
+              const base = `${readFlowEndName(edge.sourceId)} → ${readFlowEndName(edge.targetId)}`;
               return { id: edge.id, label: data ? `${base} (${data})` : base };
             })}
             onEditApplication={(id) => {
