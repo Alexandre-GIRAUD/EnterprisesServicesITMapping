@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type {
   ApplicationRequest,
@@ -13,8 +13,14 @@ import {
   patchApplicationNodeAttributes,
   patchApplicationNodeRefs,
   suggestConnectionsFromGithub,
+  suggestConnectionsFromDocument,
+  suggestModulesFromDocument,
   suggestModulesFromGithub,
+  fetchDetectionDocument,
+  saveDetectionDocumentFile,
+  saveDetectionDocumentText,
   updateApplicationById,
+  type DetectionDocument,
 } from '../api/applicationsApi';
 import { fetchGraphNodeFilters } from '../api/graphApi';
 import { moduleGraphMapState } from '../utils/mapNavigation';
@@ -128,6 +134,13 @@ export function ApplicationDetailsDrawer({
   const [connBusy, setConnBusy] = useState(false);
   const [connErrorMessage, setConnErrorMessage] = useState<string | null>(null);
   const [connSuccessMessage, setConnSuccessMessage] = useState<string | null>(null);
+  const [storedDocument, setStoredDocument] = useState<DetectionDocument | null>(null);
+  const [documentTitle, setDocumentTitle] = useState('');
+  const [documentBody, setDocumentBody] = useState('');
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [documentBusy, setDocumentBusy] = useState(false);
+  const [documentErrorMessage, setDocumentErrorMessage] = useState<string | null>(null);
+  const documentFileInput = useRef<HTMLInputElement>(null);
   const [nodeFields, setNodeFields] = useState<DataModelFieldDto[]>([]);
   const [nodeRefFields, setNodeRefFields] = useState<DataModelFieldDto[]>([]);
   const [nodeRefOptions, setNodeRefOptions] = useState<Record<string, GraphNodeFilterDto>>({});
@@ -224,8 +237,37 @@ export function ApplicationDetailsDrawer({
       setConnBusy(false);
       setConnErrorMessage(null);
       setConnSuccessMessage(null);
+      setStoredDocument(null);
+      setDocumentTitle('');
+      setDocumentBody('');
+      setDocumentFile(null);
+      setDocumentBusy(false);
+      setDocumentErrorMessage(null);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !details || sandboxMode || isGitHubLinkedApplication(details)) {
+      return;
+    }
+    const applicationId = details.id;
+    let cancelled = false;
+    void fetchDetectionDocument(applicationId)
+      .then((document) => {
+        if (cancelled) return;
+        setStoredDocument(document);
+        setDocumentTitle(document.title ?? '');
+        setDocumentBody(document.body ?? '');
+        setDocumentFile(null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setDocumentErrorMessage(e instanceof Error ? e.message : 'Unable to load the document.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [details, isOpen, sandboxMode]);
 
   const description =
     details?.description && details.description.trim().length > 0
@@ -438,6 +480,75 @@ export function ApplicationDetailsDrawer({
     try {
       setConnBusy(true);
       const res = await suggestConnectionsFromGithub(id);
+      const outbound = res.created.filter((c) => c.direction === 'outbound').length;
+      const inbound = res.created.length - outbound;
+      setConnSuccessMessage(
+        `${res.created.length} connexion(s) créée(s) (${outbound} sortante(s), ${inbound} entrante(s)). ${res.skipped.length} ignorée(s).`
+      );
+      setDetails(await fetchApplicationById(id));
+    } catch (e) {
+      setConnErrorMessage(e instanceof Error ? e.message : 'AI connection suggestion failed.');
+    } finally {
+      setConnBusy(false);
+    }
+  }
+
+  const documentDirty =
+    (storedDocument?.title ?? '') !== documentTitle ||
+    (storedDocument?.body ?? '') !== documentBody ||
+    documentFile !== null;
+  const documentReady = (storedDocument?.characterCount ?? 0) > 0 && !documentDirty;
+
+  async function onSaveDocument() {
+    const id = application?.id;
+    if (!id) return;
+    setDocumentErrorMessage(null);
+    try {
+      setDocumentBusy(true);
+      const saved = documentFile
+        ? await saveDetectionDocumentFile(id, documentFile, documentTitle)
+        : await saveDetectionDocumentText(id, documentTitle, documentBody);
+      setStoredDocument(saved);
+      setDocumentTitle(saved.title ?? '');
+      setDocumentBody(saved.body ?? '');
+      setDocumentFile(null);
+      if (documentFileInput.current) {
+        documentFileInput.current.value = '';
+      }
+    } catch (e) {
+      setDocumentErrorMessage(e instanceof Error ? e.message : 'Unable to save the document.');
+    } finally {
+      setDocumentBusy(false);
+    }
+  }
+
+  async function onSuggestModulesFromDocument() {
+    const id = application?.id;
+    if (!id) return;
+    setSuggestErrorMessage(null);
+    setSuggestSuccessMessage(null);
+    try {
+      setSuggestBusy(true);
+      const res = await suggestModulesFromDocument(id);
+      setDetails(await fetchApplicationById(id));
+      setSuggestSuccessMessage(
+        `${res.created.length} module(s) created. ${res.skipped.length} entry(ies) skipped.`
+      );
+    } catch (e) {
+      setSuggestErrorMessage(e instanceof Error ? e.message : 'AI module suggestion failed.');
+    } finally {
+      setSuggestBusy(false);
+    }
+  }
+
+  async function onSuggestConnectionsFromDocument() {
+    const id = application?.id;
+    if (!id) return;
+    setConnErrorMessage(null);
+    setConnSuccessMessage(null);
+    try {
+      setConnBusy(true);
+      const res = await suggestConnectionsFromDocument(id);
       const outbound = res.created.filter((c) => c.direction === 'outbound').length;
       const inbound = res.created.length - outbound;
       setConnSuccessMessage(
@@ -841,6 +952,97 @@ export function ApplicationDetailsDrawer({
             ) : null}
           </p>
         )}
+        {application?.id &&
+          status === 'ready' &&
+          !isEditing &&
+          details &&
+          !sandboxMode &&
+          !isGitHubLinkedApplication(details) && (
+            <div className="graph-drawer-form">
+              <label className="graph-drawer-field">
+                <span className="graph-drawer-field-label">Document title</span>
+                <input
+                  className="graph-drawer-input"
+                  value={documentTitle}
+                  onChange={(event) => setDocumentTitle(event.target.value)}
+                />
+              </label>
+              <label className="graph-drawer-field">
+                <span className="graph-drawer-field-label">Document text</span>
+                <textarea
+                  className="graph-drawer-input graph-drawer-textarea"
+                  value={documentBody}
+                  onChange={(event) => setDocumentBody(event.target.value)}
+                  rows={6}
+                />
+              </label>
+              <label className="graph-drawer-field">
+                <span className="graph-drawer-field-label">Or upload .txt, .md, or .pdf</span>
+                <input
+                  ref={documentFileInput}
+                  className="graph-drawer-input"
+                  type="file"
+                  accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf"
+                  onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)}
+                />
+              </label>
+              {storedDocument && storedDocument.characterCount > 0 && (
+                <p className="graph-drawer-field-hint">
+                  {storedDocument.title ?? 'Documentation'} · {storedDocument.characterCount}{' '}
+                  characters
+                  {storedDocument.updatedAt
+                    ? ` · saved ${new Date(storedDocument.updatedAt).toLocaleString()}`
+                    : ''}
+                </p>
+              )}
+              {documentErrorMessage && (
+                <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
+                  {documentErrorMessage}
+                </p>
+              )}
+              <button
+                type="button"
+                className="graph-drawer-action"
+                disabled={documentBusy || isDeleting || (!documentBody.trim() && !documentFile)}
+                onClick={() => void onSaveDocument()}
+              >
+                <span className="graph-drawer-action-title">
+                  {documentBusy ? 'Saving document…' : 'Save document'}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="graph-drawer-action"
+                disabled={
+                  !documentReady || suggestBusy || isDeleting || Boolean(details.hasModuleSubtree)
+                }
+                title={
+                  details.hasModuleSubtree
+                    ? 'Modules are already linked to this application. AI suggestion cannot be run again.'
+                    : undefined
+                }
+                onClick={() => void onSuggestModulesFromDocument()}
+              >
+                <span className="graph-drawer-action-title">
+                  {suggestBusy
+                    ? 'AI analysis…'
+                    : details.hasModuleSubtree
+                      ? 'Modules already in place'
+                      : 'Suggest modules (AI)'}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="graph-drawer-action"
+                disabled={!documentReady || connBusy || suggestBusy || isDeleting}
+                onClick={() => void onSuggestConnectionsFromDocument()}
+              >
+                <span className="graph-drawer-action-title">
+                  {connBusy ? 'Analyse des connexions…' : 'Suggérer les connexions (IA)'}
+                </span>
+              </button>
+            </div>
+          )}
         {application?.id &&
           status === 'ready' &&
           !isEditing &&

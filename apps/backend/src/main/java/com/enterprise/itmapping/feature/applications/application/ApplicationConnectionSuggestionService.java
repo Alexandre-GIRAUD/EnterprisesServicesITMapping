@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.applications.application;
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery.CatalogRow;
 import com.enterprise.itmapping.feature.applications.application.ConnectionDiscoveryAgent.DiscoveryResult;
 import com.enterprise.itmapping.feature.applications.application.dto.AiApplicationConnectionPayload.AiConnectionEntry;
+import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationGraphNodeProjection;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse;
@@ -95,6 +96,7 @@ public class ApplicationConnectionSuggestionService {
   private final DataModelAttributeResolver dataModelAttributeResolver;
   private final AiDecisionSourceService decisionSources;
   private final ApplicationNodeRefLinkReader nodeRefLinkReader;
+  private final ApplicationDetectionDocumentService documentService;
 
   public ApplicationConnectionSuggestionService(
       ApplicationRepository applicationRepository,
@@ -113,7 +115,8 @@ public class ApplicationConnectionSuggestionService {
       DataModelPromptBuilder dataModelPromptBuilder,
       DataModelAttributeResolver dataModelAttributeResolver,
       AiDecisionSourceService decisionSources,
-      ApplicationNodeRefLinkReader nodeRefLinkReader) {
+      ApplicationNodeRefLinkReader nodeRefLinkReader,
+      ApplicationDetectionDocumentService documentService) {
     this.applicationRepository = applicationRepository;
     this.cloneService = cloneService;
     this.connectionDiscoveryAgent = connectionDiscoveryAgent;
@@ -131,6 +134,7 @@ public class ApplicationConnectionSuggestionService {
     this.dataModelAttributeResolver = dataModelAttributeResolver;
     this.decisionSources = decisionSources;
     this.nodeRefLinkReader = nodeRefLinkReader;
+    this.documentService = documentService;
   }
 
   public SuggestConnectionsFromGithubResponse suggestFromGithub(
@@ -203,9 +207,54 @@ public class ApplicationConnectionSuggestionService {
               sourceName,
               catalog.promptText(properties.maxCatalogAppsInPrompt()),
               dataModelPromptSection);
-      return persist(applicationId, owner + "/" + repo, catalog, discovery, dataModelConfig);
+      return persist(applicationId, owner + "/" + repo, catalog, discovery, dataModelConfig, null);
     } finally {
       cloneService.deleteQuietly(workspace);
+    }
+  }
+
+  public SuggestConnectionsFromGithubResponse suggestFromDocument(String applicationId) {
+    var appRow = requireApplication(applicationId);
+    rejectGitHubLinked(appRow.getName(), appRow.getDescription());
+    ApplicationDetectionDocumentService.StoredDocument document = documentService.require(applicationId);
+
+    Catalog catalog = loadCatalog(applicationId);
+    if (catalog.entries().isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Aucune autre application dans le graphe: impossible de deviner des connexions.");
+    }
+
+    String sourceName = StringUtils.hasText(appRow.getName()) ? appRow.getName() : applicationId;
+    DataModelConfig dataModelConfig = dataModelService.loadConfig();
+    String dataModelPromptSection =
+        dataModelConfig.hasAutomaticFields()
+            ? dataModelPromptBuilder.buildPromptSection(dataModelConfig)
+            : "";
+    DiscoveryResult discovery =
+        connectionDiscoveryAgent.discoverFromDocument(
+            sourceName,
+            document.title(),
+            document.body(),
+            catalog.promptText(properties.maxCatalogAppsInPrompt()),
+            dataModelPromptSection);
+    return persist(
+        applicationId, document.title(), catalog, discovery, dataModelConfig, document.body());
+  }
+
+  private ApplicationGraphNodeProjection requireApplication(String applicationId) {
+    return applicationRepository
+        .findProjectionById(applicationId)
+        .orElseThrow(
+            () ->
+                new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Application introuvable: " + applicationId));
+  }
+
+  private static void rejectGitHubLinked(String name, String description) {
+    if (GithubRepoIdentityResolver.resolveFullName(name, description, null).isPresent()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "This application is linked to GitHub.");
     }
   }
 
@@ -214,7 +263,8 @@ public class ApplicationConnectionSuggestionService {
       String repositoryName,
       Catalog catalog,
       DiscoveryResult discovery,
-      DataModelConfig dataModelConfig) {
+      DataModelConfig dataModelConfig,
+      String documentBody) {
 
     List<CreatedConnectionItem> created = new ArrayList<>();
     List<SkippedItem> skipped = new ArrayList<>();
@@ -262,6 +312,15 @@ public class ApplicationConnectionSuggestionService {
       if (properties.skipLowConfidence() && "low".equals(confidence)) {
         skipped.add(new SkippedItem("connection", "confidence_trop_basse", peerName));
         continue;
+      }
+
+      if (documentBody != null) {
+        List<String> quotes = DocumentExcerpt.matching(documentBody, entry.citedSourceFiles());
+        if (quotes.isEmpty()) {
+          skipped.add(new SkippedItem("connection", "evidence_absente", peerName));
+          continue;
+        }
+        entry.setSourceFiles(quotes);
       }
 
       Map<String, Object> validatedAttributes = Map.of();
@@ -352,7 +411,8 @@ public class ApplicationConnectionSuggestionService {
               result.outcome(),
               repositoryName,
               entry.citedSourceFiles(),
-              discovery.observedFiles());
+              discovery.observedFiles(),
+              documentBody);
           if (result.outcome() == ApplicationConnectionEdgeWriter.Outcome.CREATED) {
             edgeLinkService.recordCreateAiFromIds(
                 result.edgeId(),
@@ -364,21 +424,22 @@ public class ApplicationConnectionSuggestionService {
                 entry.getChannel(),
                 null,
                 "CONNECTION_SUGGESTION");
-            trace(
+            traceEvidence(
                 repositoryName,
                 AiDecisionSourceService.KIND_EDGE,
                 AiDecisionSourceService.TARGET_EDGE,
                 result.edgeId(),
                 GraphEdgeLinkService.LINK_FIELD_KEY,
                 entry.citedSourceFiles(),
-                discovery.observedFiles());
+                discovery.observedFiles(),
+                documentBody);
           }
         }
       }
     }
 
-    persistNodeAttributes(applicationId, repositoryName, discovery, dataModelConfig);
-    persistNodeRefs(applicationId, repositoryName, discovery, dataModelConfig);
+    persistNodeAttributes(applicationId, repositoryName, discovery, dataModelConfig, documentBody);
+    persistNodeRefs(applicationId, repositoryName, discovery, dataModelConfig, documentBody);
 
     log.info(
         "Connection suggestion result applicationId={} created={} (outbound={} inbound={}) skipped={} analyzedFiles={}",
@@ -410,7 +471,8 @@ public class ApplicationConnectionSuggestionService {
       String applicationId,
       String repositoryName,
       DiscoveryResult discovery,
-      DataModelConfig dataModelConfig) {
+      DataModelConfig dataModelConfig,
+      String documentBody) {
     Map<String, Object> rawNodeAttrs = discovery.payload().getNodeAttributes();
     if (!dataModelConfig.hasAutomaticNodeFields()) {
       if (!rawNodeAttrs.isEmpty()) {
@@ -437,6 +499,18 @@ public class ApplicationConnectionSuggestionService {
       log.debug("No validated node_attributes to persist applicationId={}", applicationId);
       return;
     }
+    List<String> citedFiles = discovery.payload().getNodeSourceFiles();
+    List<String> observedFiles = discovery.observedFiles();
+    if (documentBody != null) {
+      citedFiles = DocumentExcerpt.matching(documentBody, citedFiles);
+      if (citedFiles.isEmpty()) {
+        log.warn(
+            "Skipping Application node Data Model enrichment applicationId={} reason=evidence_absente (edges unaffected)",
+            applicationId);
+        return;
+      }
+      observedFiles = citedFiles;
+    }
 
     for (Map.Entry<String, List<String>> attr : attrs.entrySet()) {
       log.debug(
@@ -453,14 +527,15 @@ public class ApplicationConnectionSuggestionService {
         nodeAttributePatchService.patchAi(applicationId, attrs, "CONNECTION_SUGGESTION");
     if (changedKeys != null) {
       for (String key : changedKeys) {
-        trace(
+        traceEvidence(
             repositoryName,
             AiDecisionSourceService.KIND_NODE_PROPERTY,
             AiDecisionSourceService.TARGET_APPLICATION,
             applicationId,
             key,
-            discovery.payload().getNodeSourceFiles(),
-            discovery.observedFiles());
+            citedFiles,
+            observedFiles,
+            documentBody);
       }
     }
     log.debug(
@@ -496,7 +571,8 @@ public class ApplicationConnectionSuggestionService {
       ApplicationConnectionEdgeWriter.Outcome outcome,
       String repositoryName,
       List<String> citedFiles,
-      List<String> observedFiles) {
+      List<String> observedFiles,
+      String documentBody) {
     if (attrs == null || attrs.isEmpty() || !StringUtils.hasText(edgeId)) {
       return;
     }
@@ -520,14 +596,15 @@ public class ApplicationConnectionSuggestionService {
               nextValue,
               "CONNECTION_SUGGESTION"));
       if (!Objects.equals(previousValue, nextValue)) {
-        trace(
+        traceEvidence(
             repositoryName,
             AiDecisionSourceService.KIND_EDGE_PROPERTY,
             AiDecisionSourceService.TARGET_EDGE,
             edgeId,
             attr.getKey(),
             citedFiles,
-            observedFiles);
+            observedFiles,
+            documentBody);
       }
     }
     attributeChangeAuditService.recordAll(events);
@@ -572,7 +649,8 @@ public class ApplicationConnectionSuggestionService {
       String applicationId,
       String repositoryName,
       DiscoveryResult discovery,
-      DataModelConfig dataModelConfig) {
+      DataModelConfig dataModelConfig,
+      String documentBody) {
     Map<String, List<String>> rawRefs = discovery.payload().getNodeRefs();
     if (!dataModelConfig.hasAutomaticNodeRefFields()) {
       if (!rawRefs.isEmpty()) {
@@ -618,6 +696,18 @@ public class ApplicationConnectionSuggestionService {
       log.debug("No validated node_refs to persist applicationId={}", applicationId);
       return;
     }
+    List<String> citedFiles = discovery.payload().getNodeSourceFiles();
+    List<String> observedFiles = discovery.observedFiles();
+    if (documentBody != null) {
+      citedFiles = DocumentExcerpt.matching(documentBody, citedFiles);
+      if (citedFiles.isEmpty()) {
+        log.warn(
+            "Skipping Application NODE_REF enrichment applicationId={} reason=evidence_absente (edges unaffected)",
+            applicationId);
+        return;
+      }
+      observedFiles = citedFiles;
+    }
 
     Map<String, List<ApplicationNodeRefLinkReader.RefSummary>> current =
         nodeRefLinkReader.read(applicationId);
@@ -632,14 +722,15 @@ public class ApplicationConnectionSuggestionService {
               .toList();
       List<String> nextIds = entry.getValue().stream().sorted().distinct().toList();
       if (!previousIds.equals(nextIds)) {
-        trace(
+        traceEvidence(
             repositoryName,
             AiDecisionSourceService.KIND_NODE_PROPERTY,
             AiDecisionSourceService.TARGET_APPLICATION,
             applicationId,
             entry.getKey(),
-            discovery.payload().getNodeSourceFiles(),
-            discovery.observedFiles());
+            citedFiles,
+            observedFiles,
+            documentBody);
       }
     }
 
@@ -648,6 +739,38 @@ public class ApplicationConnectionSuggestionService {
         "Application NODE_REF links written applicationId={} fields={}",
         applicationId,
         byFieldKey.keySet());
+  }
+
+  private void traceEvidence(
+      String repositoryName,
+      String decisionKind,
+      String targetType,
+      String targetId,
+      String fieldKey,
+      List<String> citedFiles,
+      List<String> observedFiles,
+      String documentBody) {
+    if (documentBody != null) {
+      decisionSources.recordQuoted(
+          new AiDecisionSourceService.Decision(
+              AiDecisionSourceService.PIPELINE_CONNECTION,
+              decisionKind,
+              targetType,
+              targetId,
+              fieldKey,
+              repositoryName,
+              citedFiles,
+              citedFiles));
+      return;
+    }
+    trace(
+        repositoryName,
+        decisionKind,
+        targetType,
+        targetId,
+        fieldKey,
+        citedFiles,
+        observedFiles);
   }
 
   private void trace(

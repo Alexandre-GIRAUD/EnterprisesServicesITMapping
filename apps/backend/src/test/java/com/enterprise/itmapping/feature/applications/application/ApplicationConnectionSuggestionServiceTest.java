@@ -37,7 +37,9 @@ import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributeRead
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeLinkService;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService;
 import com.enterprise.itmapping.feature.integrations.llm.ConnectionDiscoveryProperties;
+import com.enterprise.itmapping.feature.applications.application.ApplicationDetectionDocumentService.StoredDocument;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +75,7 @@ class ApplicationConnectionSuggestionServiceTest {
   @Mock DataModelAttributeResolver dataModelAttributeResolver;
   @Mock AiDecisionSourceRepository decisionSourceRepository;
   @Mock ApplicationNodeRefLinkReader nodeRefLinkReader;
+  @Mock ApplicationDetectionDocumentService documentService;
 
   private final List<AiDecisionSourceEntity> storedSources = new ArrayList<>();
   private AiDecisionSourceService decisionSources;
@@ -110,7 +113,8 @@ class ApplicationConnectionSuggestionServiceTest {
             dataModelPromptBuilder,
             dataModelAttributeResolver,
             decisionSources,
-            nodeRefLinkReader);
+            nodeRefLinkReader,
+            documentService);
 
     lenient().when(applicationRepository.findProjectionById(APP_ID)).thenReturn(Optional.of(projection()));
     lenient().when(cloneService.clone(anyString(), anyString(), anyInt())).thenReturn(Path.of("dummy"));
@@ -769,6 +773,123 @@ class ApplicationConnectionSuggestionServiceTest {
               assertThat(trace.fieldKey()).isEqualTo("domain");
               assertThat(trace.sourceFiles()).containsExactly("docs/domain.md");
             });
+  }
+
+  @Test
+  void documentRunCreatesALinkAndKeepsTheExcerpt() {
+    when(applicationRepository.findProjectionById(APP_ID)).thenReturn(Optional.of(named("Billing")));
+    when(documentService.require(APP_ID))
+        .thenReturn(new StoredDocument("Vendor note", "Service B exposes an API.", Instant.parse("2026-10-15T00:00:00Z")));
+    AiConnectionEntry entry = connection("Service B", "outbound", "API", "orders");
+    entry.setSourceFiles(List.of("Service B exposes an API."));
+    when(agent.discoverFromDocument(anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(new DiscoveryResult(payloadOf(entry), List.of("Vendor note")));
+    when(edgeWriter.createOrMerge(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            any(),
+            anySet()))
+        .thenReturn(new WriteResult(Outcome.CREATED, "edge-1"));
+
+    SuggestConnectionsFromGithubResponse response = service.suggestFromDocument(APP_ID);
+
+    assertThat(response.created()).hasSize(1);
+    verify(cloneService, never()).clone(anyString(), anyString(), anyInt());
+    assertThat(decisionSources.list(AiDecisionSourceService.TARGET_EDGE, "edge-1"))
+        .singleElement()
+        .satisfies(
+            trace -> {
+              assertThat(trace.repositoryName()).isEqualTo("Vendor note");
+              assertThat(trace.sourceFiles()).containsExactly("Service B exposes an API.");
+            });
+  }
+
+  @Test
+  void documentRunSkipsAnUnknownPeer() {
+    when(applicationRepository.findProjectionById(APP_ID)).thenReturn(Optional.of(named("Billing")));
+    when(documentService.require(APP_ID))
+        .thenReturn(new StoredDocument("Vendor note", "Ghost App sends invoices.", Instant.now()));
+    AiConnectionEntry entry = connection("Ghost App", "outbound", "API", "invoices");
+    entry.setSourceFiles(List.of("Ghost App sends invoices."));
+    when(agent.discoverFromDocument(anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(new DiscoveryResult(payloadOf(entry), List.of("Vendor note")));
+
+    SuggestConnectionsFromGithubResponse response = service.suggestFromDocument(APP_ID);
+
+    assertThat(response.created()).isEmpty();
+    assertThat(response.skipped()).extracting(SuggestConnectionsFromGithubResponse.SkippedItem::reason)
+        .contains("peer_inconnu");
+    verify(edgeWriter, never())
+        .createOrMerge(
+            anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), any(), anySet());
+  }
+
+  @Test
+  void documentRunSkipsAQuoteThatIsNotInTheDocument() {
+    when(applicationRepository.findProjectionById(APP_ID)).thenReturn(Optional.of(named("Billing")));
+    when(documentService.require(APP_ID))
+        .thenReturn(new StoredDocument("Vendor note", "Service B exposes an API.", Instant.now()));
+    AiConnectionEntry entry = connection("Service B", "outbound", "API", "orders");
+    entry.setSourceFiles(List.of("not in the note"));
+    when(agent.discoverFromDocument(anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(new DiscoveryResult(payloadOf(entry), List.of("Vendor note")));
+
+    SuggestConnectionsFromGithubResponse response = service.suggestFromDocument(APP_ID);
+
+    assertThat(response.skipped()).extracting(SuggestConnectionsFromGithubResponse.SkippedItem::reason)
+        .contains("evidence_absente");
+    verify(edgeWriter, never())
+        .createOrMerge(
+            anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), any(), anySet());
+  }
+
+  @Test
+  void documentRunRejectsWhenNoDocumentIsStored() {
+    when(applicationRepository.findProjectionById(APP_ID)).thenReturn(Optional.of(named("Billing")));
+    when(documentService.require(APP_ID))
+        .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Add a document first."));
+
+    assertThatThrownBy(() -> service.suggestFromDocument(APP_ID))
+        .isInstanceOf(ResponseStatusException.class)
+        .hasMessageContaining("Add a document first.");
+    verify(agent, never()).discoverFromDocument(anyString(), anyString(), anyString(), anyString(), anyString());
+  }
+
+  @Test
+  void documentRunRejectsAnEmptyCatalogue() {
+    when(applicationRepository.findProjectionById(APP_ID)).thenReturn(Optional.of(named("Billing")));
+    when(documentService.require(APP_ID))
+        .thenReturn(new StoredDocument("Vendor note", "Service B exposes an API.", Instant.now()));
+    when(catalogQuery.loadExcluding(APP_ID)).thenReturn(List.of());
+
+    assertThatThrownBy(() -> service.suggestFromDocument(APP_ID))
+        .isInstanceOf(ResponseStatusException.class)
+        .hasMessageContaining("Aucune autre application");
+    verify(agent, never()).discoverFromDocument(anyString(), anyString(), anyString(), anyString(), anyString());
+  }
+
+  private static ApplicationGraphNodeProjection named(String name) {
+    return new ApplicationGraphNodeProjection() {
+      @Override
+      public String getId() {
+        return APP_ID;
+      }
+
+      @Override
+      public String getName() {
+        return name;
+      }
+
+      @Override
+      public String getDescription() {
+        return null;
+      }
+    };
   }
 
   private void stubAgent(AiConnectionEntry... entries) {
