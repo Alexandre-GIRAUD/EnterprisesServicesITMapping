@@ -634,6 +634,8 @@ export function cloneIntoSandboxDocument(
   };
 }
 
+const SAVED_COPY_NAME_SUFFIX = ' copy';
+
 /** Deep-clone an open sandbox into a new independent document. */
 export function cloneSandboxDocument(source: SandboxDocument, name: string): SandboxDocument {
   const copy = cloneJson(source);
@@ -648,7 +650,7 @@ export function cloneSandboxDocument(source: SandboxDocument, name: string): San
 }
 
 export function copySavedSandbox(source: SavedSandboxMeta): SavedSandboxMeta {
-  const copy = cloneSandboxDocument(normalizeSandboxDocument(source.document), `${source.name} copy`);
+  const copy = cloneSandboxDocument(normalizeSandboxDocument(source.document), `${source.name}${SAVED_COPY_NAME_SUFFIX}`);
   copy.dirty = false;
   return {
     id: copy.id,

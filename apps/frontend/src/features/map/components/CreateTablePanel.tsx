@@ -22,6 +22,7 @@ import {
 } from '../utils/customTable';
 
 const EMPTY_SETUP: CustomTableSetup = { row: null, column: null, label: null, color: null };
+const TABLE_COPY_NAME_SUFFIX = ' copy';
 const TABLE_ACTION_RENAME = 'Rename';
 const TABLE_ACTION_DUPLICATE = 'Duplicate';
 const TABLE_ACTION_SHARE = 'Share';
@@ -43,7 +44,7 @@ export function renameCustomTable(table: SavedCustomTable, name: string): SavedC
 }
 
 export function copyCustomTable(table: SavedCustomTable, id: string): SavedCustomTable {
-  return { ...table, id, name: `${table.name} copy` };
+  return { ...table, id, name: `${table.name}${TABLE_COPY_NAME_SUFFIX}` };
 }
 
 export type CreateTableExportState = {
@@ -127,8 +128,8 @@ export function CreateTablePanel({
   useEffect(() => {
     let isCancelled = false;
     void import('../api/customTableSharesApi')
-      .then(async (api) => {
-        const items = await api.listCustomTableShares();
+      .then(async (shares) => {
+        const items = await shares.listCustomTableShares();
         if (isCancelled || items.length === 0) return;
         setSavedTables((current) => [
           ...current,
@@ -138,7 +139,7 @@ export function CreateTablePanel({
             name: item.name || item.document.name,
           })),
         ]);
-        await Promise.all(items.map((item) => api.deleteCustomTableShare(item.id)));
+        await Promise.all(items.map((item) => shares.deleteCustomTableShare(item.id)));
       })
       .catch(() => {
         if (!isCancelled) setShareMessage(SHARED_TABLES_LOAD_ERROR);

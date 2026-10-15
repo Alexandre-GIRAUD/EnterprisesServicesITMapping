@@ -33,7 +33,7 @@ public class ModuleDiscoveryTools {
   private static final Logger log = LoggerFactory.getLogger(ModuleDiscoveryTools.class);
   private static final int MAX_LINE_LENGTH = 300;
   private static final int DEFAULT_TREE_DEPTH = 3;
-  private static final String REPO_ROOT_GLOB_PREFIX = "**/";
+  private static final String REPOSITORY_ROOT_GLOB_PREFIX = "**/";
 
   private final Path repoRoot;
   private final int maxGrepHits;
@@ -257,8 +257,8 @@ public class ModuleDiscoveryTools {
     if (buildGlobMatcher(glob).matches(relative)) {
       return true;
     }
-    if (glob.startsWith(REPO_ROOT_GLOB_PREFIX)) {
-      return buildGlobMatcher(glob.substring(REPO_ROOT_GLOB_PREFIX.length())).matches(relative);
+    if (glob.startsWith(REPOSITORY_ROOT_GLOB_PREFIX)) {
+      return buildGlobMatcher(glob.substring(REPOSITORY_ROOT_GLOB_PREFIX.length())).matches(relative);
     }
     return false;
   }

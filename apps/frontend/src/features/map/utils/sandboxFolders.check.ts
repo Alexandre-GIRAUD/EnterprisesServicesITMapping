@@ -7,6 +7,7 @@ import {
   canMoveSandboxTo,
   createSandboxFolderRecord,
   deleteSandboxFolderTree,
+  isQuietDangerAction,
   listSandboxMenuEntries,
   OPEN_SANDBOX_MENU,
   loadSandboxFolders,
@@ -69,5 +70,8 @@ assert.deepEqual(listSandboxMenuEntries('empty'), ['New folder']);
 assert.deepEqual(listSandboxMenuEntries('folder'), ['Rename', 'Move', 'Delete', 'New folder']);
 assert.deepEqual(listSandboxMenuEntries('sandbox'), ['Rename', 'Duplicate', 'Share', 'Move', 'Delete']);
 assert.deepEqual([...OPEN_SANDBOX_MENU], ['Duplicate', 'Share', 'Rename', 'Close']);
+assert.equal(isQuietDangerAction('Delete'), true);
+assert.equal(isQuietDangerAction('Close'), true);
+assert.equal(isQuietDangerAction('Duplicate'), false);
 
 console.log('sandboxFolders.check: ok');

@@ -1514,8 +1514,8 @@ export function GraphCanvas() {
         return (
           <MappingChatPanel
             onFocusApplication={(applicationId) => {
-              const app = applications.find((a) => a.id === applicationId);
-              openApplicationDetails(applicationId, app?.name ?? applicationId);
+              const application = applications.find((item) => item.id === applicationId);
+              openApplicationDetails(applicationId, application?.name ?? applicationId);
             }}
             onFocusEdge={(edgeId) => {
               openEdgeByIdRef.current(edgeId);
@@ -1626,7 +1626,8 @@ export function GraphCanvas() {
             onRequestedViewConsumed={() => setToolkitRequest(null)}
             applications={applications}
             flows={graphEdges.map((edge) => {
-              const readFlowEndName = (id: string) => applications.find((app) => app.id === id)?.name ?? id;
+              const readFlowEndName = (endpointId: string) =>
+                applications.find((application) => application.id === endpointId)?.name ?? endpointId;
               const data = edge.data?.trim();
               const base = `${readFlowEndName(edge.sourceId)} → ${readFlowEndName(edge.targetId)}`;
               return { id: edge.id, label: data ? `${base} (${data})` : base };
@@ -1636,8 +1637,8 @@ export function GraphCanvas() {
                 closeApplicationDetails();
                 return;
               }
-              const app = applications.find((item) => item.id === id);
-              openApplicationDetails(id, app?.name?.trim() || id, true);
+              const application = applications.find((item) => item.id === id);
+              openApplicationDetails(id, application?.name?.trim() || id, true);
             }}
             onEditFlow={(id) => {
               if (!id) {
@@ -1731,11 +1732,11 @@ export function GraphCanvas() {
             onDuplicateSavedSandbox={sandboxes.duplicateSaved}
             onShareSandbox={async (id, username) => {
               const open = sandboxes.openDocs.find((item) => item.id === id);
-              const savedMeta = sandboxes.saved.find((item) => item.id === id);
-              const doc = open ?? savedMeta?.document;
-              if (!doc) return;
+              const savedSandbox = sandboxes.saved.find((item) => item.id === id);
+              const sandboxDocument = open ?? savedSandbox?.document;
+              if (!sandboxDocument) return;
               try {
-                await shareSavedSandbox(username, open?.name ?? savedMeta?.name ?? doc.name, doc);
+                await shareSavedSandbox(username, open?.name ?? savedSandbox?.name ?? sandboxDocument.name, sandboxDocument);
                 setSandboxToast(`Shared with ${username}.`);
               } catch (error) {
                 setSandboxToast(error instanceof Error ? error.message : 'Unable to share.');
@@ -1780,7 +1781,7 @@ export function GraphCanvas() {
 
   const isDiagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;
 
-  function onDiagramResizePointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
+  function resizeDiagramFromPointer(event: ReactPointerEvent<HTMLButtonElement>) {
     const now = event.timeStamp;
     if (isDiagramFitGesture(diagramPointerDownAtRef.current, now)) {
       diagramPointerDownAtRef.current = 0;
@@ -1798,18 +1799,18 @@ export function GraphCanvas() {
     const startY = event.clientY;
     handle.setPointerCapture(event.pointerId);
 
-    function onMove(moveEvent: PointerEvent) {
+    function moveDiagram(moveEvent: PointerEvent) {
       setDiagramHeight(resolveNextDiagramHeight(fitted, startHeight + (moveEvent.clientY - startY)));
     }
-    function onUp(upEvent: PointerEvent) {
-      handle.removeEventListener('pointermove', onMove);
-      handle.removeEventListener('pointerup', onUp);
+    function releaseDiagramPointer(upEvent: PointerEvent) {
+      handle.removeEventListener('pointermove', moveDiagram);
+      handle.removeEventListener('pointerup', releaseDiagramPointer);
       if (handle.hasPointerCapture(upEvent.pointerId)) {
         handle.releasePointerCapture(upEvent.pointerId);
       }
     }
-    handle.addEventListener('pointermove', onMove);
-    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointermove', moveDiagram);
+    handle.addEventListener('pointerup', releaseDiagramPointer);
   }
 
   return (
@@ -2380,7 +2381,7 @@ export function GraphCanvas() {
             className="diagram-resize-handle"
             aria-label="Resize diagram and menu together"
             title="Drag to extend the diagram and the menu. Double-click to fit the screen."
-            onPointerDown={onDiagramResizePointerDown}
+            onPointerDown={resizeDiagramFromPointer}
           />
         ) : null}
       </div>
