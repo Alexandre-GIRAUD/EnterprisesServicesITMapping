@@ -3,12 +3,12 @@
  * Run: npx --yes tsx src/features/map/utils/sandboxFilters.check.ts
  */
 import assert from 'node:assert/strict';
-import { graphNodeMatchesSandboxFilters, sandboxEdgeMatchesFilters, sandboxValueSelected } from './sandboxDocuments.ts';
+import { graphNodeMatchesSandboxFilters, isSandboxEdgeSelected, isSandboxValueSelected } from './sandboxDocuments.ts';
 
-assert.equal(sandboxValueSelected(undefined, ['__empty__']), true);
-assert.equal(sandboxValueSelected('  ', ['__empty__']), true);
-assert.equal(sandboxValueSelected('Billing', ['__empty__']), false);
-assert.equal(sandboxValueSelected('Billing', ['Billing', '__empty__']), true);
+assert.equal(isSandboxValueSelected(undefined, ['__empty__']), true);
+assert.equal(isSandboxValueSelected('  ', ['__empty__']), true);
+assert.equal(isSandboxValueSelected('Billing', ['__empty__']), false);
+assert.equal(isSandboxValueSelected('Billing', ['Billing', '__empty__']), true);
 
 const node = { id: 'a', type: 'Application', label: 'A', properties: {} };
 assert.equal(
@@ -21,7 +21,7 @@ assert.equal(
 );
 
 assert.equal(
-  sandboxEdgeMatchesFilters(
+  isSandboxEdgeSelected(
     { id: 'e', sourceId: 'a', targetId: 'b', type: 'DEPENDS_ON', properties: { frequency: 'daily' } },
     { applicationIds: [], nodeAttributes: {}, nodeRefs: {}, edgeAttributes: { frequency: ['weekly'] } },
   ),

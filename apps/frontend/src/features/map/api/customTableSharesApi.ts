@@ -13,7 +13,7 @@ export type SharedCustomTable = {
   document: SavedCustomTable;
 };
 
-function shareFailure(status: number, detail: string, fallback: string): Error {
+function buildShareFailure(status: number, detail: string, fallback: string): Error {
   const clipped = detail ? `: ${detail.slice(0, ERROR_DETAIL_LIMIT)}` : '';
   return new Error(`${fallback} ${status}${clipped}`);
 }
@@ -33,7 +33,7 @@ export async function shareCustomTable(
   if (detail.includes(CANNOT_SHARE_WITH_YOURSELF)) throw new Error(CANNOT_SHARE_WITH_YOURSELF);
   if (detail.includes(USER_NOT_FOUND)) throw new Error(USER_NOT_FOUND);
   if (detail.includes(TABLE_TOO_LARGE)) throw new Error(TABLE_TOO_LARGE);
-  throw shareFailure(response.status, detail, 'Share table');
+  throw buildShareFailure(response.status, detail, 'Share table');
 }
 
 export async function listCustomTableShares(): Promise<SharedCustomTable[]> {
@@ -42,7 +42,7 @@ export async function listCustomTableShares(): Promise<SharedCustomTable[]> {
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
-    throw shareFailure(response.status, detail, 'Table shares');
+    throw buildShareFailure(response.status, detail, 'Table shares');
   }
   return response.json();
 }
@@ -54,6 +54,6 @@ export async function deleteCustomTableShare(id: string): Promise<void> {
   );
   if (!response.ok && response.status !== 204) {
     const detail = await response.text().catch(() => '');
-    throw shareFailure(response.status, detail, 'Dismiss table share');
+    throw buildShareFailure(response.status, detail, 'Dismiss table share');
   }
 }

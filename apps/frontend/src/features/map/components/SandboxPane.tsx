@@ -30,7 +30,7 @@ import { OrientedEdge } from './OrientedEdge';
 import { SandboxIconNode } from './SandboxIconNode';
 import { SandboxTextNode } from './SandboxTextNode';
 import {
-  sandboxEdgeMatchesFilters,
+  isSandboxEdgeSelected,
   sandboxFilterVisibleIds,
   type SandboxDocument,
   type SandboxIcon,
@@ -209,7 +209,7 @@ function SandboxPaneInner({
     const attributes = filters?.edgeAttributes;
     if (!filters || !attributes || Object.keys(attributes).length === 0) return null;
     return new Set(
-      doc.graphEdges.filter((edge) => sandboxEdgeMatchesFilters(edge, filters)).map((edge) => edge.id),
+      doc.graphEdges.filter((edge) => isSandboxEdgeSelected(edge, filters)).map((edge) => edge.id),
     );
   }, [doc.filters, doc.graphEdges]);
   const attributeEndpoints = useMemo(() => {
