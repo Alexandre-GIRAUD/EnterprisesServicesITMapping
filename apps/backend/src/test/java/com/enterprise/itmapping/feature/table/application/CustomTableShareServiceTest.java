@@ -67,9 +67,11 @@ class CustomTableShareServiceTest {
   void shareRejectsAnUnknownUsername() {
     when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.empty());
 
-    assertThrows(
-        ResponseStatusException.class,
-        () -> customTableShareService.share("bob", "Regions", objectMapper.createObjectNode()));
+    ResponseStatusException unknownUser =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> customTableShareService.share("bob", "Regions", objectMapper.createObjectNode()));
+    assertEquals("No user with that username.", unknownUser.getReason());
 
     verify(sharedCustomTableRepository, never()).save(any());
   }
@@ -79,9 +81,11 @@ class CustomTableShareServiceTest {
     when(sender.getId()).thenReturn(senderId);
     when(userRepository.findByUsernameIgnoreCase("alice")).thenReturn(Optional.of(sender));
 
-    assertThrows(
-        ResponseStatusException.class,
-        () -> customTableShareService.share("alice", "Regions", objectMapper.createObjectNode()));
+    ResponseStatusException selfShare =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> customTableShareService.share("alice", "Regions", objectMapper.createObjectNode()));
+    assertEquals("You cannot share with yourself.", selfShare.getReason());
 
     verify(sharedCustomTableRepository, never()).save(any());
   }
