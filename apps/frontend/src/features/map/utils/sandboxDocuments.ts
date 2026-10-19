@@ -68,7 +68,7 @@ export function isSandboxValueSelected(stored: string | undefined, selected: rea
 }
 
 function hasSelectedValues(
-  properties: Record<string, string> | undefined,
+  properties: Record<string, unknown> | undefined,
   selectedByKey: Record<string, string[]> | undefined,
 ): boolean {
   for (const [key, values] of Object.entries(selectedByKey ?? {})) {
