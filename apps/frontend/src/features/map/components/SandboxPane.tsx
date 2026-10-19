@@ -30,6 +30,7 @@ import { OrientedEdge } from './OrientedEdge';
 import { SandboxIconNode } from './SandboxIconNode';
 import { SandboxTextNode } from './SandboxTextNode';
 import {
+  isSandboxEdgeSelected,
   sandboxFilterVisibleIds,
   type SandboxDocument,
   type SandboxIcon,
@@ -203,13 +204,33 @@ function SandboxPaneInner({
   const hiddenIds = doc.hiddenNodeIds ?? [];
   const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
   const filterVisibleIds = useMemo(() => sandboxFilterVisibleIds(doc), [doc]);
+  const attributeEdgeIds = useMemo(() => {
+    const filters = doc.filters;
+    const attributes = filters?.edgeAttributes;
+    if (!filters || !attributes || Object.keys(attributes).length === 0) return null;
+    return new Set(
+      doc.graphEdges.filter((edge) => isSandboxEdgeSelected(edge, filters)).map((edge) => edge.id),
+    );
+  }, [doc.filters, doc.graphEdges]);
+  const attributeEndpoints = useMemo(() => {
+    if (!attributeEdgeIds) return null;
+    const endpointIds = new Set<string>();
+    for (const edge of doc.graphEdges) {
+      if (!attributeEdgeIds.has(edge.id)) continue;
+      endpointIds.add(edge.sourceId);
+      endpointIds.add(edge.targetId);
+    }
+    return endpointIds;
+  }, [attributeEdgeIds, doc.graphEdges]);
 
   const appNodes = useMemo(
     () =>
       doc.nodes
         .filter(
           (n) =>
-            !hiddenSet.has(n.id) && (!filterVisibleIds || filterVisibleIds.has(n.id))
+            !hiddenSet.has(n.id) &&
+            (!filterVisibleIds || filterVisibleIds.has(n.id)) &&
+            (!attributeEndpoints || attributeEndpoints.has(n.id))
         )
         .map((n) => ({
           ...n,
@@ -226,6 +247,7 @@ function SandboxPaneInner({
       doc.nodeLabelOverrides,
       hiddenSet,
       filterVisibleIds,
+      attributeEndpoints,
       onNodeDisplayLabel,
       onHideNode,
     ]
@@ -237,6 +259,8 @@ function SandboxPaneInner({
           (e) =>
             !hiddenSet.has(e.source) &&
             !hiddenSet.has(e.target) &&
+            (!(doc.filters?.edgeIds?.length) || doc.filters.edgeIds.includes(e.id)) &&
+            (!attributeEdgeIds || attributeEdgeIds.has(e.id)) &&
             (!filterVisibleIds ||
               (filterVisibleIds.has(e.source) && filterVisibleIds.has(e.target)))
         )
@@ -256,7 +280,7 @@ function SandboxPaneInner({
             },
           };
         }),
-    [doc.edges, doc.edgeLabelOverrides, hiddenSet, filterVisibleIds, onEdgeDisplayLabel, onOpenEdgeDetails]
+    [doc.edges, doc.edgeLabelOverrides, doc.filters?.edgeIds, attributeEdgeIds, hiddenSet, filterVisibleIds, onEdgeDisplayLabel, onOpenEdgeDetails]
   );
 
   const hiddenOptions = useMemo(
@@ -440,7 +464,15 @@ function SandboxPaneInner({
       role="group"
       aria-label={doc.name}
     >
-      <header className="sandbox-pane__header">
+      <header
+        className="sandbox-pane__header"
+        onDoubleClick={(event) => {
+          if ((event.target as HTMLElement).closest('button')) return;
+          event.stopPropagation();
+          setTitleDraft(doc.name);
+          setEditingTitle(true);
+        }}
+      >
         {editingTitle ? (
           <input
             className="sandbox-pane__title-input"

@@ -26,7 +26,6 @@ type SelfServiceSideMenuProps = {
   onActiveToolChange: (tool: SideMenuTool) => void;
   onModeChange: (mode: GraphMode) => void;
   toolDetail: ReactNode;
-  pendingChangeCount?: number;
   /** When true (table view), hide tool rail and show Columns panel only. */
   columnsOnly?: boolean;
   columnsDetail?: ReactNode;
@@ -188,13 +187,11 @@ export function SelfServiceSideMenu({
   onActiveToolChange,
   onModeChange,
   toolDetail,
-  pendingChangeCount = 0,
   columnsOnly = false,
   columnsDetail = null,
 }: SelfServiceSideMenuProps) {
   const showGraphTools = graphMode === 'normal' || graphMode === 'sandbox';
-  const [hoveredMode, setHoveredMode] = useState<GraphMode | null>(null);
-  const primaryMode = primaryWorkspaceMode(graphMode, hoveredMode);
+  const primaryMode = primaryWorkspaceMode(graphMode);
   const defaultWidth = DEFAULT_MENU_WIDTH;
   const resize = useResizableMenu(isOpen, defaultWidth);
   const toolDetailTitle = columnsOnly
@@ -257,12 +254,6 @@ export function SelfServiceSideMenu({
               className="self-service-view-list"
               role="tablist"
               aria-label="Workspace views"
-              onMouseLeave={() => setHoveredMode(null)}
-              onBlur={(event) => {
-                const next = event.relatedTarget;
-                if (next instanceof Node && event.currentTarget.contains(next)) return;
-                setHoveredMode(null);
-              }}
             >
               {VIEWS.map((view) => {
                 const isActive = graphMode === view.mode;
@@ -276,8 +267,6 @@ export function SelfServiceSideMenu({
                     className={`self-service-view-item self-service-view-item--${view.accent}${isPrimary ? ' is-primary' : ''}`}
                     aria-selected={isActive}
                     aria-controls={view.mode === 'views' ? 'graph-views-pane' : 'graph-canvas-pane'}
-                    onMouseEnter={() => setHoveredMode(view.mode)}
-                    onFocus={() => setHoveredMode(view.mode)}
                     onClick={() => {
                       if (!isActive) onModeChange(view.mode);
                     }}
@@ -296,19 +285,6 @@ export function SelfServiceSideMenu({
             <>
               {columnsOnly ? null : (
                 <>
-                  {graphMode === 'normal' ? (
-                    <button
-                      type="button"
-                      className={`self-service-changes-entry${activeTool === 'changes' ? ' is-active' : ''}`}
-                      aria-pressed={activeTool === 'changes'}
-                      onClick={() => onActiveToolChange('changes')}
-                    >
-                      <span>Changes</span>
-                      <span className="self-service-changes-entry-count">
-                        {pendingChangeCount > 99 ? '99+' : pendingChangeCount}
-                      </span>
-                    </button>
-                  ) : null}
                   <SelfServiceToolBar
                     graphMode={graphMode}
                     filtersActive={filtersActive}

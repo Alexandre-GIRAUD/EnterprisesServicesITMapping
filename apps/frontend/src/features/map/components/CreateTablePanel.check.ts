@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { CreateTablePanel } from './CreateTablePanel.tsx';
+import { CreateTablePanel, copyCustomTable, listCustomTableMenuLabels, renameCustomTable, SHARED_TABLES_LOAD_ERROR } from './CreateTablePanel.tsx';
 import { TableContentToggle } from './TableContentToggle.tsx';
 
 Object.assign(globalThis, {
@@ -42,9 +42,18 @@ assert.match(html, />Columns</);
 assert.match(html, />Label</);
 assert.match(html, />Color</);
 assert.match(html, />Save</);
-assert.doesNotMatch(html, />Rename</);
-assert.doesNotMatch(html, />Duplicate</);
-assert.doesNotMatch(html, /Table name/);
+assert.match(html, /aria-label="Table actions"/);
+assert.deepEqual(listCustomTableMenuLabels(false), ['Rename', 'Share', 'Delete']);
+assert.deepEqual(listCustomTableMenuLabels(true), ['Rename', 'Duplicate', 'Share', 'Delete']);
+assert.doesNotMatch(html, />Delete</);
+assert.equal(SHARED_TABLES_LOAD_ERROR, 'Shared tables could not be loaded.');
+
+const regions = { id: 'saved-1', name: 'Regions', row: null, column: null, label: null, color: null };
+assert.equal(renameCustomTable(regions, 'Countries').name, 'Countries');
+const copy = copyCustomTable(regions, 'saved-2');
+assert.equal(copy.name, 'Regions copy');
+assert.equal(copy.id, 'saved-2');
+assert.equal(copy.row, null);
 
 const ticker = renderToStaticMarkup(
   createElement(TableContentToggle, { value: 'apps', onChange: () => undefined }),

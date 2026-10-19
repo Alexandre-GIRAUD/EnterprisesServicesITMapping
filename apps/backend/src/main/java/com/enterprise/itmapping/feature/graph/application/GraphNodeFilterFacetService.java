@@ -1,9 +1,9 @@
 package com.enterprise.itmapping.feature.graph.application;
 
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
+import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto.GraphFilterOptionDto;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto;
-import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto.GraphFilterOptionDto;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.ApplicationNodeAttributeFacetQuery;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.DataModelRefFacetQuery;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.DependsOnEdgeAttributeFacetQuery;
@@ -43,43 +43,59 @@ public class GraphNodeFilterFacetService {
     for (DataModelField field : config.nodeFields()) {
       boolean fromAllowedValues = !field.allowedValues().isEmpty();
       List<String> values =
-          fromAllowedValues ? field.allowedValues() : facetQuery.distinctValues(field.key());
+          addEmptyValue(
+              fromAllowedValues ? field.allowedValues() : facetQuery.distinctValues(field.key()),
+              facetQuery.hasBlank(field.key()));
       out.add(
           new GraphNodeFilterDto(
-              field.key(), labelOf(field), values, fromAllowedValues, "NODE", false, List.of()));
+              field.key(), readFieldLabel(field), values, fromAllowedValues, "NODE", false, List.of()));
     }
 
     for (DataModelField field : config.nodeRefFields()) {
       List<DataModelRefFacetQuery.RefOption> refs = refFacetQuery.activeOptions(field.key());
       List<GraphFilterOptionDto> options =
           refs.stream().map(r -> new GraphFilterOptionDto(r.id(), r.name())).toList();
-      List<String> ids = options.stream().map(GraphFilterOptionDto::id).toList();
+      List<GraphFilterOptionDto> optionsWithEmpty = new ArrayList<>(options);
+      if (refFacetQuery.hasUnclassified(field.key())) {
+        optionsWithEmpty.add(0, new GraphFilterOptionDto(AttributeMatch.EMPTY, "empty"));
+      }
+      List<String> ids = optionsWithEmpty.stream().map(GraphFilterOptionDto::id).toList();
       out.add(
           new GraphNodeFilterDto(
               field.key(),
-              labelOf(field),
+              readFieldLabel(field),
               ids,
               true,
               "NODE_REF",
               field.multiple(),
-              options));
+              optionsWithEmpty));
     }
 
     for (DataModelField field : config.edgeFields()) {
       boolean fromAllowedValues = !field.allowedValues().isEmpty();
       List<String> values =
-          fromAllowedValues
-              ? field.allowedValues()
-              : edgeFacetQuery.distinctValues(field.key());
+          addEmptyValue(
+              fromAllowedValues ? field.allowedValues() : edgeFacetQuery.distinctValues(field.key()),
+              edgeFacetQuery.hasBlank(field.key()));
       out.add(
           new GraphNodeFilterDto(
-              field.key(), labelOf(field), values, fromAllowedValues, "EDGE", false, List.of()));
+              field.key(), readFieldLabel(field), values, fromAllowedValues, "EDGE", false, List.of()));
     }
 
     return List.copyOf(out);
   }
 
-  private static String labelOf(DataModelField field) {
+  private static List<String> addEmptyValue(List<String> values, boolean hasEmpty) {
+    if (!hasEmpty || values.contains(AttributeMatch.EMPTY)) {
+      return values;
+    }
+    List<String> next = new ArrayList<>();
+    next.add(AttributeMatch.EMPTY);
+    next.addAll(values);
+    return next;
+  }
+
+  private static String readFieldLabel(DataModelField field) {
     return field.label() != null && !field.label().isBlank() ? field.label() : field.key();
   }
 }

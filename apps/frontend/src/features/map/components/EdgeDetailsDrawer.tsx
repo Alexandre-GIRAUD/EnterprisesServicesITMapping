@@ -31,6 +31,8 @@ type EdgeDetailsDrawerProps = {
   onEdgeAttributesUpdated?: (edgeId: string, properties: Record<string, StoredAttribute>) => void;
   /** Invoked after a successful edge delete so the parent can remove it from the graph. */
   onEdgeDeleted?: (edgeId: string) => void;
+  isEmbedded?: boolean;
+  shouldOpenInEditMode?: boolean;
 };
 
 function dash(value: string | null | undefined): string {
@@ -81,6 +83,8 @@ export function EdgeDetailsDrawer({
   onOpenApplication,
   onEdgeAttributesUpdated,
   onEdgeDeleted,
+  isEmbedded = false,
+  shouldOpenInEditMode = false,
 }: EdgeDetailsDrawerProps) {
   const signOff = useDrawerSignOff('EDGE', edge?.id ?? null, isOpen && !edge?.sandbox);
   const [edgeFields, setEdgeFields] = useState<DataModelFieldDto[]>([]);
@@ -118,7 +122,7 @@ export function EdgeDetailsDrawer({
   useEffect(() => {
     if (!isOpen || !edge) return;
     setLocalProperties(edge.properties ?? {});
-    setIsEditing(false);
+    setIsEditing(shouldOpenInEditMode);
     setIsSaving(false);
     setFormErrorMessage(null);
     setSaveSuccessMessage(null);
@@ -130,7 +134,7 @@ export function EdgeDetailsDrawer({
     setDeleteReason('');
     setDeleteReasonComment('');
     setAttributeForm(attributeValues(edgeFields, edge.properties));
-  }, [edge, edgeFields, isOpen]);
+  }, [edge, edgeFields, isOpen, shouldOpenInEditMode]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -284,7 +288,7 @@ export function EdgeDetailsDrawer({
 
   return (
     <aside
-      className={`graph-details-drawer graph-details-drawer--edge${isOpen ? ' is-open' : ''}`}
+      className={`graph-details-drawer graph-details-drawer--edge${isEmbedded ? ' is-embedded' : ''}${isOpen ? ' is-open' : ''}`}
       aria-hidden={!isOpen}
       aria-label="Connection details panel"
     >

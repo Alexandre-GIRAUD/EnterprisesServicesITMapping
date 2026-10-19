@@ -66,6 +66,10 @@ type ApplicationDetailsDrawerProps = {
   onOpenModuleGraph: (applicationId: string) => void;
   /** Invoked after backend delete succeeds; parent should remove the node from the graph and close UI. */
   onApplicationDeleted: (applicationId: string) => void;
+  /** Sit in the corrections menu instead of the overlay. */
+  isEmbedded?: boolean;
+  /** Open the attribute form immediately. */
+  shouldOpenInEditMode?: boolean;
 };
 
 function attributeValues(
@@ -112,6 +116,8 @@ export function ApplicationDetailsDrawer({
   onApplicationUpdated,
   onOpenModuleGraph,
   onApplicationDeleted,
+  isEmbedded = false,
+  shouldOpenInEditMode = false,
 }: ApplicationDetailsDrawerProps) {
   const signOff = useDrawerSignOff(
     'APPLICATION',
@@ -221,6 +227,12 @@ export function ApplicationDetailsDrawer({
       cancelled = true;
     };
   }, [application?.id, isOpen, resolveSandboxApplication, sandboxMode]);
+
+  useEffect(() => {
+    if (isOpen && shouldOpenInEditMode && details) startEditing(details);
+    // Refill when the data-model fields arrive after the application.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, shouldOpenInEditMode, details, nodeFields, nodeRefFields]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -662,7 +674,7 @@ export function ApplicationDetailsDrawer({
 
   return (
     <aside
-      className={`graph-details-drawer${isOpen ? ' is-open' : ''}`}
+      className={`graph-details-drawer${isEmbedded ? ' is-embedded' : ''}${isOpen ? ' is-open' : ''}`}
       aria-label="Application details panel"
     >
       <header className="graph-details-header">

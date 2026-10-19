@@ -15,6 +15,8 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
   type SetStateAction,
 } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -94,12 +96,10 @@ import { customTableExportFormats } from '../utils/customTable';
 import { GraphViewsPanel } from './GraphViewsPanel';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
-import { PendingChangesPanel, pendingItemsCount } from './PendingChangesPanel';
 import { MappingChatPanel } from './MappingChatPanel';
+import { isDiagramFitGesture, resolveNextDiagramHeight } from './diagramFrame';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
-import { listChangeDetections } from '../api/changeDetectionsApi';
-import { fetchOverrideConflictPendingCount } from '../api/overrideConflictsApi';
 import { GraphExportMenu } from './GraphExportMenu';
 import { TableExportMenu } from './TableExportMenu';
 import {
@@ -171,6 +171,7 @@ export function GraphCanvas() {
   const [graphContextMenu, setGraphContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<SelectedApplication | null>(null);
   const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
+  const [menuEditKind, setMenuEditKind] = useState<'application' | 'flow' | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdgeDetails | null>(null);
   const [isEdgeDetailsDrawerOpen, setIsEdgeDetailsDrawerOpen] = useState(false);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
@@ -195,7 +196,9 @@ export function GraphCanvas() {
   const tableColumns = useTableColumns(tableContent, nodeFilters);
   const [moduleGraphApp, setModuleGraphApp] = useState<{ id: string; label: string } | null>(null);
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
-  const [pendingChangeCount, setPendingChangeCount] = useState(0);
+  const [diagramHeight, setDiagramHeight] = useState<number | null>(null);
+  const diagramFitHeightRef = useRef(0);
+  const diagramPointerDownAtRef = useRef(0);
   const [isExportingGraph, setIsExportingGraph] = useState(false);
   /** Local-only collapse set; tables keep using the full graph DTOs. */
   const hiddenNodeIdsRef = useRef<Set<string>>(new Set());
@@ -246,18 +249,6 @@ export function GraphCanvas() {
 
   const reloadGraph = useCallback(() => setGraphReloadNonce((n) => n + 1), []);
 
-  useEffect(() => {
-    let cancelled = false;
-    void Promise.all([
-      listChangeDetections().catch(() => [] as Awaited<ReturnType<typeof listChangeDetections>>),
-      fetchOverrideConflictPendingCount().catch(() => 0),
-    ]).then(([runs, overridePending]) => {
-      if (!cancelled) setPendingChangeCount(pendingItemsCount(runs) + overridePending);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [graphReloadNonce]);
 
   const mode = useGraphMode({
     setMessage,
@@ -268,6 +259,12 @@ export function GraphCanvas() {
     reloadGraph,
   });
   const { graphMode, sandboxDirty, graphModeRef, isSandbox, isViewsMode } = mode;
+
+  useEffect(() => {
+    const isDiagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;
+    document.body.classList.toggle('is-diagram-grown', isDiagramGrown);
+    return () => document.body.classList.remove('is-diagram-grown');
+  }, [diagramHeight, displayMode, isViewsMode]);
   const sandboxes = useSandboxes();
 
   const filters = useGraphFilters({
@@ -281,6 +278,9 @@ export function GraphCanvas() {
     nodeAttributes,
     nodeRefs,
     edgeAttributes,
+    edgeIds,
+    matchNothing,
+    blankedDimensions,
     filtersActive: productionFiltersActive,
     applyGraphFilters,
     currentGraphFilters,
@@ -338,6 +338,8 @@ export function GraphCanvas() {
     nodeAttributes,
     nodeRefs,
     edgeAttributes,
+    edgeIds,
+    matchNothing,
     filtersActive: productionFiltersActive,
     graphReloadNonce,
     hiddenNodeIds: hiddenNodeIdsForLegend,
@@ -582,7 +584,7 @@ export function GraphCanvas() {
       setSelectedEdge(null);
     }
 
-    if (state.sideMenuTool) {
+    if (state.sideMenuTool && state.sideMenuTool !== 'changes') {
       setActiveSideMenuTool(state.sideMenuTool);
     }
 
@@ -857,6 +859,7 @@ export function GraphCanvas() {
   const closeEdgeDetails = useCallback(() => {
     setIsEdgeDetailsDrawerOpen(false);
     setSelectedEdge(null);
+    setMenuEditKind((kind) => (kind === 'flow' ? null : kind));
   }, []);
 
   const handleEdgeAttributesUpdated = useCallback(
@@ -909,17 +912,20 @@ export function GraphCanvas() {
   const closeApplicationDetails = useCallback(() => {
     setIsDetailsDrawerOpen(false);
     setSelectedApplication(null);
+    setMenuEditKind((kind) => (kind === 'application' ? null : kind));
   }, []);
 
-  const openApplicationDetails = useCallback((id: string, label: string) => {
+  const openApplicationDetails = useCallback((id: string, label: string, isFromMenu = false) => {
     closeEdgeDetails();
+    setMenuEditKind(isFromMenu ? 'application' : null);
     setSelectedApplication({ id, label });
     setIsDetailsDrawerOpen(true);
   }, [closeEdgeDetails]);
 
-  const openEdgeDetails = useCallback((details: SelectedEdgeDetails) => {
+  const openEdgeDetails = useCallback((details: SelectedEdgeDetails, isFromMenu = false) => {
     setIsDetailsDrawerOpen(false);
     setSelectedApplication(null);
+    setMenuEditKind(isFromMenu ? 'flow' : null);
     setSelectedEdge(details);
     setIsEdgeDetailsDrawerOpen(true);
   }, []);
@@ -1503,14 +1509,7 @@ export function GraphCanvas() {
 
     switch (activeSideMenuTool) {
       case 'changes':
-        if (!isExplorer) return null;
-        return (
-          <PendingChangesPanel
-            variant="embedded"
-            applications={applications}
-            onPendingCountChange={setPendingChangeCount}
-          />
-        );
+        return null;
       case 'chat':
         if (!isExplorer) return null;
         return (
@@ -1519,8 +1518,8 @@ export function GraphCanvas() {
             onApplyFilters={applyGraphFilters}
             onGraphChanged={reloadGraph}
             onFocusApplication={(applicationId) => {
-              const app = applications.find((a) => a.id === applicationId);
-              openApplicationDetails(applicationId, app?.name ?? applicationId);
+              const application = applications.find((item) => item.id === applicationId);
+              openApplicationDetails(applicationId, application?.name ?? applicationId);
             }}
             onFocusEdge={(edgeId) => {
               openEdgeByIdRef.current(edgeId);
@@ -1549,12 +1548,21 @@ export function GraphCanvas() {
               isSandbox ? activeSandboxFilters.nodeAttributes : nodeAttributes
             }
             initialNodeRefs={isSandbox ? activeSandboxFilters.nodeRefs : nodeRefs}
-            initialEdgeAttributes={isSandbox ? {} : edgeAttributes}
+            initialEdgeAttributes={isSandbox ? activeSandboxFilters.edgeAttributes ?? {} : edgeAttributes}
+            initialEdgeIds={isSandbox ? activeSandboxFilters.edgeIds ?? [] : edgeIds}
+            initialMatchNothing={isSandbox ? Boolean(activeSandboxFilters.matchNothing) : matchNothing}
+            initialBlankedDimensions={
+              isSandbox ? activeSandboxFilters.blankedDimensions ?? [] : blankedDimensions
+            }
+            edges={graphEdges}
             onApply={({
               applicationIds: appIds,
               nodeAttributes: attrs,
               nodeRefs: refs,
               edgeAttributes: edgeAttrs,
+              edgeIds: nextEdgeIds,
+              matchNothing: nextMatchNothing,
+              blankedDimensions: nextBlanked,
             }) => {
               if (isSandbox) {
                 const id = sandboxes.activeId ?? sandboxes.activeDoc?.id;
@@ -1564,6 +1572,10 @@ export function GraphCanvas() {
                     applicationIds: appIds,
                     nodeAttributes: attrs,
                     nodeRefs: refs,
+                    edgeAttributes: edgeAttrs ?? {},
+                    edgeIds: nextEdgeIds ?? [],
+                    matchNothing: Boolean(nextMatchNothing),
+                    blankedDimensions: nextBlanked ?? [],
                   },
                   dirty: true,
                 });
@@ -1573,6 +1585,9 @@ export function GraphCanvas() {
               filters.setNodeAttributes(attrs);
               filters.setNodeRefs(refs);
               filters.setEdgeAttributes(edgeAttrs ?? {});
+              filters.setEdgeIds(nextEdgeIds ?? []);
+              filters.setMatchNothing(Boolean(nextMatchNothing));
+              filters.setBlankedDimensions(nextBlanked ?? []);
             }}
             showPinView={isExplorer}
             pinViewDisabled={status !== 'ready'}
@@ -1613,6 +1628,60 @@ export function GraphCanvas() {
             }}
             requestedView={toolkitRequest}
             onRequestedViewConsumed={() => setToolkitRequest(null)}
+            applications={applications}
+            flows={graphEdges.map((edge) => {
+              const readFlowEndName = (endpointId: string) =>
+                applications.find((application) => application.id === endpointId)?.name ?? endpointId;
+              const data = edge.data?.trim();
+              const base = `${readFlowEndName(edge.sourceId)} → ${readFlowEndName(edge.targetId)}`;
+              return { id: edge.id, label: data ? `${base} (${data})` : base };
+            })}
+            onEditApplication={(id) => {
+              if (!id) {
+                closeApplicationDetails();
+                return;
+              }
+              const application = applications.find((item) => item.id === id);
+              openApplicationDetails(id, application?.name?.trim() || id, true);
+            }}
+            onEditFlow={(id) => {
+              if (!id) {
+                closeEdgeDetails();
+                setMenuEditKind(null);
+                return;
+              }
+              openEdgeByIdRef.current(id);
+              setMenuEditKind('flow');
+            }}
+            editPanel={
+              menuEditKind === 'application' && selectedApplication ? (
+                <ApplicationDetailsDrawer
+                  isEmbedded
+                  shouldOpenInEditMode
+                  isOpen
+                  application={selectedApplication}
+                  onClose={closeApplicationDetails}
+                  sandboxMode={isSandbox}
+                  resolveSandboxApplication={resolveSandboxApplication}
+                  onApplicationUpdated={handleApplicationUpdated}
+                  onOpenModuleGraph={(applicationId) => {
+                    openModuleGraphById(applicationId, selectedApplication.label);
+                  }}
+                  onApplicationDeleted={onApplicationDeletedHandler}
+                />
+              ) : menuEditKind === 'flow' && selectedEdge ? (
+                <EdgeDetailsDrawer
+                  isEmbedded
+                  shouldOpenInEditMode
+                  isOpen
+                  edge={selectedEdge}
+                  onClose={closeEdgeDetails}
+                  onOpenApplication={(id, label) => openApplicationDetails(id, label, true)}
+                  onEdgeAttributesUpdated={handleEdgeAttributesUpdated}
+                  onEdgeDeleted={handleEdgeDeleted}
+                />
+              ) : null
+            }
           />
         );
       case 'sandboxes':
@@ -1642,6 +1711,11 @@ export function GraphCanvas() {
               sandboxes.saveDoc(doc.id, doc.name);
               setSandboxToast('Saved');
             }}
+            onDuplicateSandbox={(id) => {
+              if (!sandboxes.duplicateDoc(id)) {
+                setSandboxToast('Close at least one sandbox before opening another.');
+              }
+            }}
             onCloseSandbox={sandboxes.closeDoc}
             savedSandboxes={sandboxes.saved}
             sandboxFolders={sandboxes.sandboxFolders}
@@ -1658,15 +1732,18 @@ export function GraphCanvas() {
             onMoveSandboxFolder={sandboxes.moveSandboxFolder}
             onRenameSavedSandbox={sandboxes.renameSavedSandbox}
             onMoveSavedSandbox={sandboxes.moveSavedSandbox}
+            onRenameOpenSandbox={(id, name) => sandboxes.patchDoc(id, { name, dirty: true })}
+            onDuplicateSavedSandbox={sandboxes.duplicateSaved}
             onShareSandbox={async (id, username) => {
-              const doc = sandboxes.openDocs.find((item) => item.id === id);
-              if (!doc) return;
+              const open = sandboxes.openDocs.find((item) => item.id === id);
+              const savedSandbox = sandboxes.saved.find((item) => item.id === id);
+              const sandboxDocument = open ?? savedSandbox?.document;
+              if (!sandboxDocument) return;
               try {
-                await shareSavedSandbox(username, doc.name, doc);
+                await shareSavedSandbox(username, open?.name ?? savedSandbox?.name ?? sandboxDocument.name, sandboxDocument);
                 setSandboxToast(`Shared with ${username}.`);
               } catch (error) {
                 setSandboxToast(error instanceof Error ? error.message : 'Unable to share.');
-                throw error;
               }
             }}
           />
@@ -1683,6 +1760,13 @@ export function GraphCanvas() {
     nodeAttributes,
     nodeRefs,
     edgeAttributes,
+    edgeIds,
+    matchNothing,
+    blankedDimensions,
+    graphEdges,
+    menuEditKind,
+    selectedApplication,
+    selectedEdge,
     activeSandboxFilters,
     isSandbox,
     filters,
@@ -1698,6 +1782,40 @@ export function GraphCanvas() {
     rememberSandboxIcon,
     toolkitRequest,
   ]);
+
+  const isDiagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;
+
+  function resizeDiagramFromPointer(event: ReactPointerEvent<HTMLButtonElement>) {
+    const now = event.timeStamp;
+    if (isDiagramFitGesture(diagramPointerDownAtRef.current, now)) {
+      diagramPointerDownAtRef.current = 0;
+      setDiagramHeight(null);
+      return;
+    }
+    diagramPointerDownAtRef.current = now;
+    const handle = event.currentTarget;
+    const stage = handle.closest('.map-graph-panel')?.querySelector('.graph-stage');
+    if (diagramHeight == null) {
+      diagramFitHeightRef.current = stage?.getBoundingClientRect().height ?? 0;
+    }
+    const fitted = diagramFitHeightRef.current;
+    const startHeight = diagramHeight ?? fitted;
+    const startY = event.clientY;
+    handle.setPointerCapture(event.pointerId);
+
+    function moveDiagram(moveEvent: PointerEvent) {
+      setDiagramHeight(resolveNextDiagramHeight(fitted, startHeight + (moveEvent.clientY - startY)));
+    }
+    function releaseDiagramPointer(upEvent: PointerEvent) {
+      handle.removeEventListener('pointermove', moveDiagram);
+      handle.removeEventListener('pointerup', releaseDiagramPointer);
+      if (handle.hasPointerCapture(upEvent.pointerId)) {
+        handle.releasePointerCapture(upEvent.pointerId);
+      }
+    }
+    handle.addEventListener('pointermove', moveDiagram);
+    handle.addEventListener('pointerup', releaseDiagramPointer);
+  }
 
   return (
     <div className="graph-canvas-wrap">
@@ -1752,7 +1870,10 @@ export function GraphCanvas() {
           </header>
 
         <div className="map-graph-body">
-          <div className="graph-stage">
+          <div
+            className={`graph-stage${isDiagramGrown ? ' is-grown' : ''}`}
+            style={isDiagramGrown ? ({ '--diagram-height': `${diagramHeight}px` } as CSSProperties) : undefined}
+          >
             {isViewsMode ? (
               <GraphViewsPanel onApply={applySavedView} />
             ) : moduleGraphApp ? (
@@ -1822,7 +1943,6 @@ export function GraphCanvas() {
                         setSandboxToast(`Shared with ${username}.`);
                       } catch (error) {
                         setSandboxToast(error instanceof Error ? error.message : 'Unable to share.');
-                        throw error;
                       }
                     }}
                     onClose={() => sandboxes.closeDoc(doc.id)}
@@ -2196,7 +2316,7 @@ export function GraphCanvas() {
               }}
             />
             <ApplicationDetailsDrawer
-              isOpen={isDetailsDrawerOpen}
+              isOpen={isDetailsDrawerOpen && menuEditKind !== 'application'}
               application={selectedApplication}
               onClose={closeApplicationDetails}
               sandboxMode={isSandbox}
@@ -2212,7 +2332,7 @@ export function GraphCanvas() {
               onApplicationDeleted={onApplicationDeletedHandler}
             />
             <EdgeDetailsDrawer
-              isOpen={isEdgeDetailsDrawerOpen}
+              isOpen={isEdgeDetailsDrawerOpen && menuEditKind !== 'flow'}
               edge={selectedEdge}
               onClose={closeEdgeDetails}
               onOpenApplication={openApplicationDetails}
@@ -2231,7 +2351,6 @@ export function GraphCanvas() {
           filtersActive={filtersActive}
           activeTool={activeSideMenuTool}
           onActiveToolChange={setActiveSideMenuTool}
-          pendingChangeCount={pendingChangeCount}
           columnsOnly={displayMode === 'table' && tableView !== 'custom'}
           columnsDetail={
             <TableColumnsPicker
@@ -2260,6 +2379,15 @@ export function GraphCanvas() {
           }}
           toolDetail={toolDetail}
         />
+        {displayMode === 'graph' && !isViewsMode ? (
+          <button
+            type="button"
+            className="diagram-resize-handle"
+            aria-label="Resize diagram and menu together"
+            title="Drag to extend the diagram and the menu. Double-click to fit the screen."
+            onPointerDown={resizeDiagramFromPointer}
+          />
+        ) : null}
       </div>
     </div>
   );

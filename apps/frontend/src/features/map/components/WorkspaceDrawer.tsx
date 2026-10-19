@@ -1,6 +1,7 @@
 import {
   type FormEvent,
   type KeyboardEvent,
+  type ReactNode,
   useEffect,
   useMemo,
   useRef,
@@ -23,9 +24,9 @@ import {
   validateChangeMeta,
 } from './AttributeChangeReasonFields';
 
-type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-icons';
+type DrawerView = 'menu' | 'add-node-form' | 'add-edge-form' | 'add-icons' | 'edit-application' | 'edit-flow';
 
-type DrawerActionId = 'add-node' | 'add-edge' | 'add-icons' | 'add-text';
+type DrawerActionId = 'add-node' | 'add-edge' | 'add-icons' | 'add-text' | 'edit-application' | 'edit-flow';
 
 type WorkspaceDrawerProps = {
   isOpen: boolean;
@@ -45,6 +46,11 @@ type WorkspaceDrawerProps = {
   /** Open a toolkit form from outside (e.g. sandbox pane context menu). */
   requestedView?: Extract<DrawerView, 'add-node-form' | 'add-edge-form'> | null;
   onRequestedViewConsumed?: () => void;
+  applications?: ReadonlyArray<{ id: string; name?: string | null }>;
+  flows?: ReadonlyArray<{ id: string; label: string }>;
+  editPanel?: ReactNode;
+  onEditApplication?: (id: string) => void;
+  onEditFlow?: (id: string) => void;
 };
 
 type AddNodeFormState = {
@@ -77,7 +83,37 @@ type DrawerActionItem = {
 const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
   { id: 'add-node', label: 'Add App' },
   { id: 'add-edge', label: 'Add flow' },
+  { id: 'edit-application', label: 'Edit app' },
+  { id: 'edit-flow', label: 'Edit flow' },
 ];
+
+const DRAWER_COPY: Partial<Record<DrawerView, { title: string; description: string }>> = {
+  'add-node-form': {
+    title: 'Create Node',
+    description: 'Create an Application node (name, description). Business attributes are edited from the node details.',
+  },
+  'add-icons': {
+    title: 'Icons',
+    description: 'Click to place once. Double-click to place many.',
+  },
+  'edit-application': {
+    title: 'Edit app',
+    description: 'Pick one, then change its attributes here.',
+  },
+  'edit-flow': {
+    title: 'Edit flow',
+    description: 'Pick one, then change its attributes here.',
+  },
+};
+
+const EDGE_DRAWER_COPY = {
+  title: 'Create Edge',
+  description: 'Create a typed relationship between two nodes already visible in the graph.',
+};
+
+function readDrawerCopy(view: DrawerView): { title: string; description: string } {
+  return DRAWER_COPY[view] ?? EDGE_DRAWER_COPY;
+}
 
 const TOOLKIT_ACTIONS: DrawerActionItem[] = [
   { id: 'add-node', label: 'Nodes' },
@@ -93,12 +129,16 @@ function actionHandler(
     openAddEdgeForm: () => void;
     openAddIcons: () => void;
     startTextPlacement: () => void;
+    openEditApplication: () => void;
+    openEditFlow: () => void;
   }
 ): (() => void) | undefined {
   if (id === 'add-node') return handlers.openAddNodeForm;
   if (id === 'add-edge') return handlers.openAddEdgeForm;
   if (id === 'add-icons') return handlers.openAddIcons;
   if (id === 'add-text') return handlers.startTextPlacement;
+  if (id === 'edit-application') return handlers.openEditApplication;
+  if (id === 'edit-flow') return handlers.openEditFlow;
   return undefined;
 }
 
@@ -115,10 +155,16 @@ export function WorkspaceDrawer({
   onStartTextPlacement,
   requestedView = null,
   onRequestedViewConsumed,
+  applications = [],
+  flows = [],
+  editPanel = null,
+  onEditApplication,
+  onEditFlow,
 }: WorkspaceDrawerProps) {
   const [iconQuery, setIconQuery] = useState('');
   const iconClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [view, setView] = useState<DrawerView>('menu');
+  const [editChoice, setEditChoice] = useState('');
   const [nodeFormState, setNodeFormState] = useState<AddNodeFormState>(DEFAULT_FORM_STATE);
   const [edgeFormState, setEdgeFormState] = useState<AddEdgeFormState>(DEFAULT_EDGE_FORM_STATE);
   const [edgeChangeReason, setEdgeChangeReason] = useState<HumanChangeReason | ''>('');
@@ -186,6 +232,22 @@ export function WorkspaceDrawer({
     setView('add-edge-form');
     setLocalError(null);
     setFeedbackMessage(null);
+  }
+
+  function openEditApplication() {
+    setEditChoice('');
+    setView('edit-application');
+    setLocalError(null);
+    setFeedbackMessage(null);
+    onEditApplication?.('');
+  }
+
+  function openEditFlow() {
+    setEditChoice('');
+    setView('edit-flow');
+    setLocalError(null);
+    setFeedbackMessage(null);
+    onEditFlow?.('');
   }
 
   function openAddIcons() {
@@ -493,20 +555,8 @@ export function WorkspaceDrawer({
           >
             {view !== 'menu' ? (
               <div className="graph-drawer-title-block">
-                <h2 className="graph-drawer-title">
-                  {view === 'add-node-form'
-                    ? 'Create Node'
-                    : view === 'add-icons'
-                      ? 'Icons'
-                      : 'Create Edge'}
-                </h2>
-                <p className="graph-drawer-description">
-                  {view === 'add-node-form'
-                    ? 'Create an Application node (name, description). Business attributes are edited from the node details.'
-                    : view === 'add-icons'
-                      ? 'Click to place once. Double-click to place many.'
-                      : 'Create a typed relationship between two nodes already visible in the graph.'}
-                </p>
+                <h2 className="graph-drawer-title">{readDrawerCopy(view).title}</h2>
+                <p className="graph-drawer-description">{readDrawerCopy(view).description}</p>
               </div>
             ) : (
               <div className="graph-drawer-title-spacer" aria-hidden="true" />
@@ -551,6 +601,8 @@ export function WorkspaceDrawer({
                 openAddEdgeForm,
                 openAddIcons,
                 startTextPlacement,
+                openEditApplication,
+                openEditFlow,
               });
               return (
                 <button
@@ -568,6 +620,36 @@ export function WorkspaceDrawer({
             })}
           </div>
         </>
+      ) : view === 'edit-application' || view === 'edit-flow' ? (
+        <div className="graph-drawer-edit-picker">
+          <label className="graph-drawer-field">
+            <span>{view === 'edit-application' ? 'Application' : 'Flow'}</span>
+            <select
+              className="graph-drawer-input"
+              value={editChoice}
+              onChange={(event) => {
+                const id = event.target.value;
+                setEditChoice(id);
+                if (view === 'edit-application') onEditApplication?.(id);
+                else onEditFlow?.(id);
+              }}
+            >
+              <option value="">Choose…</option>
+              {view === 'edit-application'
+                ? applications.map((application) => (
+                    <option key={application.id} value={application.id}>
+                      {application.name?.trim() || application.id}
+                    </option>
+                  ))
+                : flows.map((flow) => (
+                    <option key={flow.id} value={flow.id}>
+                      {flow.label}
+                    </option>
+                  ))}
+            </select>
+          </label>
+          {editChoice ? editPanel : null}
+        </div>
       ) : view === 'add-icons' ? (
         <div className="graph-drawer-icon-palette">
           <input

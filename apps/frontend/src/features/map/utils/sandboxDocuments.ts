@@ -4,6 +4,7 @@ import type { AppNode } from '../hooks/useGraphData';
 import type { OrientedEdgeType } from '../components/OrientedEdge';
 import { createClientUuid } from './clientId';
 import { storedAttributeList } from './attributeValue';
+import { EMPTY_FILTER_VALUE } from './emptyFilterValue';
 
 export const MAX_OPEN_SANDBOXES = 4;
 export const SANDBOX_SAVED_STORAGE_KEY = 'flowra.sandbox.savedDocuments';
@@ -14,6 +15,10 @@ export type SandboxDocFilters = {
   applicationIds: string[];
   nodeAttributes: Record<string, string[]>;
   nodeRefs: Record<string, string[]>;
+  edgeAttributes?: Record<string, string[]>;
+  edgeIds?: string[];
+  matchNothing?: boolean;
+  blankedDimensions?: string[];
 };
 
 export const EMPTY_SANDBOX_FILTERS: SandboxDocFilters = {
@@ -25,6 +30,9 @@ export const EMPTY_SANDBOX_FILTERS: SandboxDocFilters = {
 export function sandboxFiltersActive(filters?: SandboxDocFilters | null): boolean {
   if (!filters) return false;
   return (
+    Boolean(filters.matchNothing) ||
+    (filters.edgeIds?.length ?? 0) > 0 ||
+    Object.keys(filters.edgeAttributes ?? {}).length > 0 ||
     filters.applicationIds.length > 0 ||
     Object.keys(filters.nodeAttributes).length > 0 ||
     Object.keys(filters.nodeRefs).length > 0
@@ -36,6 +44,7 @@ export function graphNodeMatchesSandboxFilters(
   node: GraphNodeDto,
   filters: SandboxDocFilters
 ): boolean {
+  if (filters.matchNothing) return false;
   if (
     filters.applicationIds.length > 0 &&
     node.type === 'Application' &&
@@ -43,17 +52,42 @@ export function graphNodeMatchesSandboxFilters(
   ) {
     return false;
   }
-  for (const [key, values] of Object.entries(filters.nodeAttributes)) {
+  if (!hasSelectedValues(node.properties, filters.nodeAttributes)) return false;
+  if (!hasSelectedValues(node.properties, filters.nodeRefs)) return false;
+  return true;
+}
+
+function isBlankValue(stored: string | undefined): boolean {
+  return stored == null || stored.trim() === '';
+}
+
+/** A selected "empty" value matches a missing or blank property. */
+export function isSandboxValueSelected(stored: string | undefined, selected: readonly string[]): boolean {
+  if (isBlankValue(stored)) return selected.includes(EMPTY_FILTER_VALUE);
+  return selected.includes(stored ?? '');
+}
+
+function hasSelectedValues(
+  properties: Record<string, unknown> | undefined,
+  selectedByKey: Record<string, string[]> | undefined,
+): boolean {
+  for (const [key, values] of Object.entries(selectedByKey ?? {})) {
     if (!values.length) continue;
-    const stored = storedAttributeList(node.properties?.[key]);
-    if (stored.length === 0 || !stored.some((item) => values.includes(item))) return false;
-  }
-  for (const [key, values] of Object.entries(filters.nodeRefs)) {
-    if (!values.length) continue;
-    const stored = storedAttributeList(node.properties?.[key]);
-    if (stored.length === 0 || !stored.some((item) => values.includes(item))) return false;
+    const stored = storedAttributeList(properties?.[key]);
+    if (stored.length === 0) {
+      if (!values.includes(EMPTY_FILTER_VALUE)) return false;
+    } else if (!stored.some((item) => values.includes(item))) {
+      return false;
+    }
   }
   return true;
+}
+
+export function isSandboxEdgeSelected(
+  edge: GraphEdgeDto,
+  filters: SandboxDocFilters,
+): boolean {
+  return hasSelectedValues(edge.properties, filters.edgeAttributes);
 }
 
 export function sandboxFilterVisibleIds(doc: {
@@ -606,6 +640,8 @@ export function cloneIntoSandboxDocument(
   };
 }
 
+const SAVED_COPY_NAME_SUFFIX = ' copy';
+
 /** Deep-clone an open sandbox into a new independent document. */
 export function cloneSandboxDocument(source: SandboxDocument, name: string): SandboxDocument {
   const copy = cloneJson(source);
@@ -616,6 +652,18 @@ export function cloneSandboxDocument(source: SandboxDocument, name: string): San
     dirty: true,
     hiddenNodeIds: copy.hiddenNodeIds ?? [],
     filters: copy.filters ?? { ...EMPTY_SANDBOX_FILTERS },
+  };
+}
+
+export function copySavedSandbox(source: SavedSandboxMeta): SavedSandboxMeta {
+  const copy = cloneSandboxDocument(normalizeSandboxDocument(source.document), `${source.name}${SAVED_COPY_NAME_SUFFIX}`);
+  copy.dirty = false;
+  return {
+    id: copy.id,
+    name: copy.name,
+    updatedAt: new Date().toISOString(),
+    document: copy,
+    folderId: source.folderId ?? null,
   };
 }
 

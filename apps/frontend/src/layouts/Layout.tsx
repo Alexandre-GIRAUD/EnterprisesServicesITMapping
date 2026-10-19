@@ -31,12 +31,15 @@ export function Layout() {
         <header className="layout-header">
           <div className="layout-header-inner">
             <div className="layout-header-brand-group">
-              <Link to="/map" className="layout-brand layout-brand-link">
+              <Link to="/about" className="layout-brand layout-brand-link">
                 <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
-                {user ? <h1 title={user.username}>{user.username}</h1> : null}
+                <h1>Flowra</h1>
               </Link>
               {user ? (
                 <span className="layout-header-user-meta">
+                  <span className="layout-header-user" title={user.username}>
+                    {user.username}
+                  </span>
                   {roleLabel ? (
                     <span className="layout-header-role" title={roleLabel}>
                       {roleLabel}

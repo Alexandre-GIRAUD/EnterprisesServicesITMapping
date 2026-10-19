@@ -43,6 +43,26 @@ public class DataModelRefFacetQuery {
         .toList();
   }
 
+  public boolean hasUnclassified(String fieldKey) {
+    if (!StringUtils.hasText(fieldKey)) {
+      return false;
+    }
+    return !neo4jClient
+        .query(
+            """
+            MATCH (a:Application)
+            WHERE NOT EXISTS {
+              MATCH (a)-[:CLASSIFIED_AS {fieldKey: $fieldKey}]->(:DataModelRef)
+            }
+            RETURN a LIMIT 1
+            """)
+        .bind(fieldKey)
+        .to("fieldKey")
+        .fetch()
+        .all()
+        .isEmpty();
+  }
+
   public record RefOption(String id, String name) {}
 
   private static String asString(Object value) {

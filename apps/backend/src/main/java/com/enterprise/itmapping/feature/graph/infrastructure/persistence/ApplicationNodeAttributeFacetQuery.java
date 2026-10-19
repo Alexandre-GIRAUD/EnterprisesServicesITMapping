@@ -31,6 +31,17 @@ public class ApplicationNodeAttributeFacetQuery {
         .toList();
   }
 
+  public boolean hasBlank(String validatedKey) {
+    String cypher =
+        """
+        MATCH (a:Application)
+        WHERE a.`%s` IS NULL OR trim(toString(a.`%s`)) = ''
+        RETURN a LIMIT 1
+        """
+            .formatted(validatedKey, validatedKey);
+    return !neo4jClient.query(cypher).fetch().all().isEmpty();
+  }
+
   private String asValue(Map<String, Object> row) {
     return Neo4jValueMapping.asString(row.get("value"));
   }

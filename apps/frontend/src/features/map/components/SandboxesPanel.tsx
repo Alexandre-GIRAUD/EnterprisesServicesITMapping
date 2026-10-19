@@ -6,17 +6,23 @@ import {
   type SavedSandboxMeta,
 } from '../utils/sandboxDocuments';
 import {
+  OPEN_SANDBOX_MENU,
+  SANDBOX_MENU_CLOSE,
   SANDBOX_MENU_DELETE,
+  SANDBOX_MENU_DUPLICATE,
   SANDBOX_MENU_MOVE,
   SANDBOX_MENU_NEW_FOLDER,
   SANDBOX_MENU_RENAME,
+  SANDBOX_MENU_SHARE,
   SANDBOX_ROOT_DESTINATION,
   deleteSandboxFolderTree,
+  isQuietDangerAction,
   listSandboxMenuEntries,
   listSandboxMoveDestinations,
   type SandboxFolder,
 } from '../utils/sandboxFolders';
 import { parentFolderId } from '../utils/viewFolderRules';
+import { MenuChoiceList, MenuToggleButton, useMenuOpenState } from './actionMenu';
 
 type OpenSandbox = { id: string; name: string; dirty: boolean };
 
@@ -28,6 +34,7 @@ type SandboxesPanelProps = {
   onLayoutModeChange: (mode: SandboxLayoutMode) => void;
   onNewSandbox: () => void;
   onSaveSandbox: (id: string) => void;
+  onDuplicateSandbox: (id: string) => void;
   onCloseSandbox: (id: string) => void;
   savedSandboxes: SavedSandboxMeta[];
   sandboxFolders: SandboxFolder[];
@@ -39,6 +46,8 @@ type SandboxesPanelProps = {
   onMoveSandboxFolder: (id: string, parentId: string | null) => void;
   onRenameSavedSandbox: (id: string, name: string) => void;
   onMoveSavedSandbox: (id: string, folderId: string | null) => void;
+  onRenameOpenSandbox: (id: string, name: string) => void;
+  onDuplicateSavedSandbox: (id: string) => void;
   onShareSandbox: (id: string, username: string) => Promise<void>;
 };
 
@@ -110,6 +119,7 @@ export function SandboxesPanel({
   onLayoutModeChange,
   onNewSandbox,
   onSaveSandbox,
+  onDuplicateSandbox,
   onCloseSandbox,
   savedSandboxes,
   sandboxFolders,
@@ -121,10 +131,15 @@ export function SandboxesPanel({
   onMoveSandboxFolder,
   onRenameSavedSandbox,
   onMoveSavedSandbox,
+  onRenameOpenSandbox,
+  onDuplicateSavedSandbox,
   onShareSandbox,
 }: SandboxesPanelProps) {
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [draftUsername, setDraftUsername] = useState('');
+  const [libraryMode, setLibraryMode] = useState<'new' | 'saved'>('new');
+  const [editingOpenId, setEditingOpenId] = useState<string | null>(null);
+  const [openDraftName, setOpenDraftName] = useState('');
   const openSandboxCount = openSandboxes.length;
   const layouts = sandboxLayoutsForCount(openSandboxCount);
   const activeLayout =
@@ -133,46 +148,92 @@ export function SandboxesPanel({
   async function shareSandbox(id: string) {
     const username = draftUsername.trim();
     if (!username) return;
-    try {
-      await onShareSandbox(id, username);
+    await onShareSandbox(id, username);
+    setDraftUsername('');
+    setSharingId(null);
+  }
+
+  function commitOpenRename(id: string) {
+    const name = openDraftName.trim();
+    if (name) onRenameOpenSandbox(id, name);
+    setEditingOpenId(null);
+  }
+
+  function runOpenAction(id: string, name: string, label: string) {
+    if (label === SANDBOX_MENU_DUPLICATE) onDuplicateSandbox(id);
+    if (label === SANDBOX_MENU_CLOSE) onCloseSandbox(id);
+    if (label === SANDBOX_MENU_RENAME) {
+      setOpenDraftName(name);
+      setEditingOpenId(id);
+    }
+    if (label === SANDBOX_MENU_SHARE) {
+      setSharingId(id);
       setDraftUsername('');
-      setSharingId(null);
-    } catch {
-      // The caller reports the failure.
     }
   }
 
   return (
     <div className="graph-drawer-sandbox-manage">
-      <div className="sandbox-manage-top">
+      <div className="sandbox-manage-meta">
         <p className="graph-drawer-search-state" role="status">
           {openSandboxCount} of {MAX_OPEN_SANDBOXES}
         </p>
+        {layouts.length > 0 ? (
+          <div className="sandbox-layout-picker" role="group" aria-label="Layout">
+            {layouts.map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={`sandbox-layout-picker__btn${activeLayout === mode ? ' is-active' : ''}`}
+                aria-label={LAYOUT_LABELS[mode]}
+                aria-pressed={activeLayout === mode}
+                title={LAYOUT_LABELS[mode]}
+                onClick={() => onLayoutModeChange(mode)}
+              >
+                <LayoutGlyph mode={mode} />
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div className="sandbox-library-switch" role="group" aria-label="Sandbox library">
         <button
           type="button"
-          className="sandbox-manage-new"
-          disabled={openSandboxCount >= MAX_OPEN_SANDBOXES}
-          onClick={onNewSandbox}
-        >
-          New
-        </button>
+          className={libraryMode === 'new' ? 'is-selected' : ''}
+          aria-pressed={libraryMode === 'new'}
+          disabled={libraryMode === 'new' && openSandboxCount >= MAX_OPEN_SANDBOXES}
+          onClick={() => {
+            if (libraryMode === 'saved') {
+              setLibraryMode('new');
+              return;
+            }
+            onNewSandbox();
+          }}
+        >New</button>
+        <button
+          type="button"
+          className={libraryMode === 'saved' ? 'is-selected' : ''}
+          aria-pressed={libraryMode === 'saved'}
+          onClick={() => setLibraryMode('saved')}
+        >Saved</button>
       </div>
-      {layouts.length > 0 ? (
-        <div className="sandbox-layout-picker" role="group" aria-label="Layout">
-          {layouts.map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              className={`sandbox-layout-picker__btn${activeLayout === mode ? ' is-active' : ''}`}
-              aria-label={LAYOUT_LABELS[mode]}
-              aria-pressed={activeLayout === mode}
-              title={LAYOUT_LABELS[mode]}
-              onClick={() => onLayoutModeChange(mode)}
-            >
-              <LayoutGlyph mode={mode} />
-            </button>
-          ))}
-        </div>
+
+      {libraryMode === 'saved' ? (
+        <SavedSandboxLibrary
+          isOpen
+          savedSandboxes={savedSandboxes}
+          folders={sandboxFolders}
+          onLoadSandbox={onLoadSandbox}
+          onDeleteSavedSandbox={onDeleteSavedSandbox}
+          onCreateFolder={onCreateSandboxFolder}
+          onRenameFolder={onRenameSandboxFolder}
+          onDeleteFolder={onDeleteSandboxFolder}
+          onMoveFolder={onMoveSandboxFolder}
+          onRenameSaved={onRenameSavedSandbox}
+          onMoveSaved={onMoveSavedSandbox}
+          onDuplicateSaved={onDuplicateSavedSandbox}
+          onShareSaved={onShareSandbox}
+        />
       ) : null}
 
       {openSandboxes.length === 0 ? (
@@ -182,33 +243,40 @@ export function SandboxesPanel({
           {openSandboxes.map((sandbox) => (
             <li key={sandbox.id}>
               <div className="sandbox-open-row">
-                <button
-                  type="button"
-                  className={`sandbox-manage-open${sandbox.id === activeSandboxId ? ' is-active' : ''}`}
-                  onClick={() => onFocusOpen(sandbox.id)}
-                >
-                  <span className="graph-drawer-saved-name">
-                    {sandbox.name}
-                    {sandbox.dirty ? ' •' : ''}
-                  </span>
-                </button>
+                {editingOpenId === sandbox.id ? (
+                  <RenameField
+                    name={sandbox.name}
+                    value={openDraftName}
+                    onChange={setOpenDraftName}
+                    onCommit={() => commitOpenRename(sandbox.id)}
+                    onCancel={() => setEditingOpenId(null)}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className={`sandbox-manage-open${sandbox.id === activeSandboxId ? ' is-active' : ''}`}
+                    title="Double-click to rename"
+                    onClick={() => onFocusOpen(sandbox.id)}
+                    onDoubleClick={(event) => {
+                      event.preventDefault();
+                      setOpenDraftName(sandbox.name);
+                      setEditingOpenId(sandbox.id);
+                    }}
+                  >
+                    <span className="graph-drawer-saved-name">
+                      {sandbox.name}
+                      {sandbox.dirty ? ' •' : ''}
+                    </span>
+                  </button>
+                )}
                 <button type="button" className="sandbox-manage-mini" onClick={() => onSaveSandbox(sandbox.id)}>
                   Save
                 </button>
-                <button
-                  type="button"
-                  className="sandbox-manage-mini"
-                  aria-expanded={sharingId === sandbox.id}
-                  onClick={() => {
-                    setSharingId((current) => (current === sandbox.id ? null : sandbox.id));
-                    setDraftUsername('');
-                  }}
-                >
-                  Share
-                </button>
-                <button type="button" className="sandbox-manage-mini sandbox-manage-mini--danger" onClick={() => onCloseSandbox(sandbox.id)}>
-                  Close
-                </button>
+                <RowActions
+                  label={`Actions for ${sandbox.name}`}
+                  entries={OPEN_SANDBOX_MENU}
+                  onPick={(entry) => runOpenAction(sandbox.id, sandbox.name, entry)}
+                />
               </div>
               {sharingId === sandbox.id ? (
                 <div className="sandbox-manage-load-row">
@@ -243,19 +311,6 @@ export function SandboxesPanel({
           ))}
         </ul>
       )}
-
-      <SavedSandboxLibrary
-        savedSandboxes={savedSandboxes}
-        folders={sandboxFolders}
-        onLoadSandbox={onLoadSandbox}
-        onDeleteSavedSandbox={onDeleteSavedSandbox}
-        onCreateFolder={onCreateSandboxFolder}
-        onRenameFolder={onRenameSandboxFolder}
-        onDeleteFolder={onDeleteSandboxFolder}
-        onMoveFolder={onMoveSandboxFolder}
-        onRenameSaved={onRenameSavedSandbox}
-        onMoveSaved={onMoveSavedSandbox}
-      />
     </div>
   );
 }
@@ -271,6 +326,7 @@ type SavedMenu = {
 type SavedTarget = { kind: 'sandbox' | 'folder'; id: string };
 
 function SavedSandboxLibrary({
+  isOpen,
   savedSandboxes,
   folders,
   onLoadSandbox,
@@ -281,7 +337,10 @@ function SavedSandboxLibrary({
   onMoveFolder,
   onRenameSaved,
   onMoveSaved,
+  onDuplicateSaved,
+  onShareSaved,
 }: {
+  isOpen: boolean;
   savedSandboxes: SavedSandboxMeta[];
   folders: SandboxFolder[];
   onLoadSandbox: (id: string) => void;
@@ -292,16 +351,18 @@ function SavedSandboxLibrary({
   onMoveFolder: (id: string, parentId: string | null) => void;
   onRenameSaved: (id: string, name: string) => void;
   onMoveSaved: (id: string, folderId: string | null) => void;
+  onDuplicateSaved: (id: string) => void;
+  onShareSaved: (id: string, username: string) => Promise<void>;
 }) {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const [isPointerInside, setIsPointerInside] = useState(false);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [menu, setMenu] = useState<SavedMenu | null>(null);
   const [editing, setEditing] = useState<SavedTarget | null>(null);
   const [draftName, setDraftName] = useState('');
   const [moving, setMoving] = useState<SavedTarget | null>(null);
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [draftUsername, setDraftUsername] = useState('');
   const openFolderId = folders.some((folder) => folder.id === currentFolderId) ? currentFolderId : null;
-  const isListOpen = isPointerInside || menu != null || editing != null || moving != null;
   const filed = savedSandboxes.map((sandbox) => ({
     id: sandbox.id,
     folderId: sandbox.folderId ?? null,
@@ -340,26 +401,32 @@ function SavedSandboxLibrary({
     if (openFolderId === folder.id) setCurrentFolderId(folder.parentId);
   }
 
+  async function shareSaved(id: string) {
+    const username = draftUsername.trim();
+    if (!username) return;
+    await onShareSaved(id, username);
+    setDraftUsername('');
+    setSharingId(null);
+  }
+
+  if (!isOpen) return null;
+
   return (
     <section
       ref={sectionRef}
-      className="sandbox-saved"
-      onMouseEnter={() => setIsPointerInside(true)}
-      onMouseLeave={() => setIsPointerInside(false)}
+      className="sandbox-saved is-open"
       onContextMenu={(event) => {
         const target = event.target as HTMLElement | null;
         if (target?.closest('.sandbox-saved-row, .sandbox-saved-bar')) return;
         openMenu(event, { target: 'empty', id: null, name: '' });
       }}
     >
-      <div className="sandbox-saved-bar">
-        <p className="sandbox-manage-section">Saved</p>
-        <button type="button" className="sandbox-saved-new" onClick={() => onCreateFolder(openFolderId)}>
-          New folder
-        </button>
-      </div>
-      {isListOpen ? (
-        <div className="sandbox-saved-reveal">
+      <div className="sandbox-saved-reveal">
+        <div className="sandbox-saved-bar">
+          <button type="button" className="sandbox-saved-new" onClick={() => onCreateFolder(openFolderId)}>
+            New folder
+          </button>
+        </div>
           {openFolderId ? (
             <button
               type="button"
@@ -402,9 +469,39 @@ function SavedSandboxLibrary({
                         onCancel={() => setEditing(null)}
                       />
                     ) : (
-                      <span className="graph-drawer-saved-name">{folder.name}</span>
+                      <span
+                        className="graph-drawer-saved-name"
+                        title="Double-click to rename"
+                        onDoubleClick={(event) => {
+                          event.stopPropagation();
+                          setDraftName(folder.name);
+                          setEditing({ kind: 'folder', id: folder.id });
+                        }}
+                      >
+                        {folder.name}
+                      </span>
                     )}
                   </div>
+                  <RowActions
+                    label={`Actions for ${folder.name}`}
+                    entries={listSandboxMenuEntries('folder')}
+                    onPick={(entry) =>
+                      runSavedMenu(entry, { x: 0, y: 0, target: 'folder', id: folder.id, name: folder.name }, {
+                        openFolderId,
+                        folders,
+                        onCreateFolder,
+                        onDeleteSavedSandbox,
+                        onDuplicateSaved,
+                        removeFolder,
+                        startRename: (item) => {
+                          setDraftName(item.name);
+                          setEditing(item);
+                        },
+                        startMove: setMoving,
+                        startShare: () => undefined,
+                      })
+                    }
+                  />
                   {moving?.kind === 'folder' && moving.id === folder.id ? (
                     <MoveField
                       kind="folder"
@@ -434,19 +531,74 @@ function SavedSandboxLibrary({
                         onCancel={() => setEditing(null)}
                       />
                     ) : (
-                      <span className="graph-drawer-saved-name">{sandbox.name}</span>
+                      <span
+                        className="graph-drawer-saved-name"
+                        title="Double-click to rename"
+                        onDoubleClick={(event) => {
+                          event.stopPropagation();
+                          setDraftName(sandbox.name);
+                          setEditing({ kind: 'sandbox', id: sandbox.id });
+                        }}
+                      >
+                        {sandbox.name}
+                      </span>
                     )}
                     <button type="button" className="sandbox-manage-mini" onClick={() => onLoadSandbox(sandbox.id)}>
                       Load
                     </button>
-                    <button
-                      type="button"
-                      className="sandbox-manage-mini sandbox-manage-mini--danger"
-                      onClick={() => onDeleteSavedSandbox(sandbox.id)}
-                    >
-                      Delete
-                    </button>
+                    <RowActions
+                      label={`Actions for ${sandbox.name}`}
+                      entries={listSandboxMenuEntries('sandbox')}
+                      onPick={(entry) =>
+                        runSavedMenu(entry, { x: 0, y: 0, target: 'sandbox', id: sandbox.id, name: sandbox.name }, {
+                          openFolderId,
+                          folders,
+                          onCreateFolder,
+                          onDeleteSavedSandbox,
+                          onDuplicateSaved,
+                          removeFolder,
+                          startRename: (item) => {
+                            setDraftName(item.name);
+                            setEditing(item);
+                          },
+                          startMove: setMoving,
+                          startShare: (id) => {
+                            setSharingId(id);
+                            setDraftUsername('');
+                          },
+                        })
+                      }
+                    />
                   </div>
+                  {sharingId === sandbox.id ? (
+                    <div className="sandbox-manage-load-row">
+                      <input
+                        className="graph-drawer-input"
+                        aria-label={`Username to receive ${sandbox.name}`}
+                        placeholder="Username"
+                        value={draftUsername}
+                        autoFocus
+                        onChange={(event) => setDraftUsername(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Escape') {
+                            event.preventDefault();
+                            setSharingId(null);
+                          }
+                          if (event.key !== 'Enter') return;
+                          event.preventDefault();
+                          void shareSaved(sandbox.id);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="sandbox-manage-mini"
+                        disabled={!draftUsername.trim()}
+                        onClick={() => void shareSaved(sandbox.id)}
+                      >
+                        Send
+                      </button>
+                    </div>
+                  ) : null}
                   {moving?.kind === 'sandbox' && moving.id === sandbox.id ? (
                     <MoveField
                       kind="sandbox"
@@ -464,7 +616,6 @@ function SavedSandboxLibrary({
             </ul>
           )}
         </div>
-      ) : null}
       {menu ? (
         <div className="sandbox-saved-menu" role="menu" style={{ left: menu.x, top: menu.y }}>
           {listSandboxMenuEntries(menu.target).map((label) => (
@@ -472,6 +623,7 @@ function SavedSandboxLibrary({
               key={label}
               type="button"
               role="menuitem"
+              className={isQuietDangerAction(label) ? 'quiet-danger' : undefined}
               onClick={() => {
                 const target = menu;
                 setMenu(null);
@@ -480,12 +632,17 @@ function SavedSandboxLibrary({
                   folders,
                   onCreateFolder,
                   onDeleteSavedSandbox,
+                  onDuplicateSaved,
                   removeFolder,
                   startRename: (item) => {
                     setDraftName(item.name);
                     setEditing(item);
                   },
                   startMove: setMoving,
+                  startShare: (id) => {
+                    setSharingId(id);
+                    setDraftUsername('');
+                  },
                 });
               }}
             >
@@ -506,9 +663,11 @@ function runSavedMenu(
     folders: SandboxFolder[];
     onCreateFolder: (parentId: string | null) => void;
     onDeleteSavedSandbox: (id: string) => void;
+    onDuplicateSaved: (id: string) => void;
     removeFolder: (folder: SandboxFolder) => void;
     startRename: (item: SavedTarget & { name: string }) => void;
     startMove: (item: SavedTarget) => void;
+    startShare: (id: string) => void;
   },
 ) {
   if (label === SANDBOX_MENU_NEW_FOLDER) {
@@ -520,6 +679,8 @@ function runSavedMenu(
   const item = { kind: menu.target === 'folder' ? 'folder' as const : 'sandbox' as const, id: menu.id };
   if (label === SANDBOX_MENU_RENAME) actions.startRename({ ...item, name: menu.name });
   if (label === SANDBOX_MENU_MOVE) actions.startMove(item);
+  if (label === SANDBOX_MENU_DUPLICATE && menu.target === 'sandbox') actions.onDuplicateSaved(menu.id);
+  if (label === SANDBOX_MENU_SHARE && menu.target === 'sandbox') actions.startShare(menu.id);
   if (label === SANDBOX_MENU_DELETE && menu.target === 'sandbox') actions.onDeleteSavedSandbox(menu.id);
   if (label === SANDBOX_MENU_DELETE && menu.target === 'folder') {
     const folder = actions.folders.find((entry) => entry.id === menu.id);
@@ -602,5 +763,40 @@ function BackArrow() {
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
       <path d="M10 3.5 5.5 8 10 12.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+function RowActions({
+  label,
+  entries,
+  onPick,
+}: {
+  label: string;
+  entries: readonly string[];
+  onPick: (entry: string) => void;
+}) {
+  const { isOpen, setIsOpen, rootRef } = useMenuOpenState(true);
+  return (
+    <div className="graph-views-actions" ref={rootRef}>
+      <MenuToggleButton
+        label={label}
+        isOpen={isOpen}
+        onToggle={(event) => {
+          event.stopPropagation();
+          setIsOpen((current) => !current);
+        }}
+      />
+      {isOpen ? (
+        <MenuChoiceList
+          labels={entries}
+          isDanger={isQuietDangerAction}
+          onPick={(entry, event) => {
+            event.stopPropagation();
+            setIsOpen(false);
+            onPick(entry);
+          }}
+        />
+      ) : null}
+    </div>
   );
 }

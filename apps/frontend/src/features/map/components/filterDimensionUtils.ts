@@ -15,7 +15,7 @@ export function nodeAttributeKeyFromView(view: FilterView): string | null {
 export type DimensionMode = 'none' | 'all' | 'some';
 
 export function dimensionMode(selected: string[], catalog: string[]): DimensionMode {
-  if (catalog.length === 0) return 'none';
+  if (catalog.length === 0) return 'all';
   if (selected.length === 0) return 'none';
   if (
     selected.length >= catalog.length &&
@@ -71,6 +71,22 @@ export function dimensionStatusLabel(
   return 'None selected';
 }
 
-export function hasInvalidDimensionSelection(modes: DimensionMode[]): boolean {
-  return modes.some((m) => m === 'none');
+/** One dimension with nothing checked blanks the graph (filters combine with AND). */
+export function isGraphBlankedBySelection(modes: DimensionMode[]): boolean {
+  return modes.some((mode) => mode === 'none');
+}
+
+/**
+ * Checking a flow checks its endpoint applications. Applications already checked
+ * stay checked. A selection with nothing checked becomes those endpoints.
+ */
+export function keepApplicationsForCheckedFlows(
+  selectedApplicationIds: string[],
+  applicationCatalog: string[],
+  endpointIds: string[],
+): string[] {
+  const endpoints = selectAllCatalog([...new Set(endpointIds)]);
+  if (endpoints.length === 0) return selectedApplicationIds;
+  if (dimensionMode(selectedApplicationIds, applicationCatalog) === 'none') return endpoints;
+  return selectAllCatalog([...new Set([...selectedApplicationIds, ...endpoints])]);
 }

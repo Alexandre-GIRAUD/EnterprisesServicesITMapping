@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type Ref } from 'react';
 import type { ApplicationResponse, GraphEdgeDto, GraphNodeDto, GraphNodeFilterDto } from '@/types/api';
 import { nodeFillColorForValue } from './edgeColorProperty';
+import { MenuChoiceList, MenuToggleButton, useMenuOpenState } from './actionMenu';
 import {
   EMPTY_CUSTOM_VALUE,
   axisRef,
@@ -21,9 +22,30 @@ import {
 } from '../utils/customTable';
 
 const EMPTY_SETUP: CustomTableSetup = { row: null, column: null, label: null, color: null };
+const TABLE_COPY_NAME_SUFFIX = ' copy';
+const TABLE_ACTION_RENAME = 'Rename';
+const TABLE_ACTION_DUPLICATE = 'Duplicate';
+const TABLE_ACTION_SHARE = 'Share';
+const TABLE_ACTION_DELETE = 'Delete';
 const MISSING_COLOR = '#94a3b8';
 const PLAIN_BADGE_COLOR = '#e2e8f0';
 const NEW_TABLE_SOURCE = '';
+export const SHARED_TABLES_LOAD_ERROR = 'Shared tables could not be loaded.';
+
+/** Same family of actions as views and sandboxes. Save stays outside the menu. */
+export function listCustomTableMenuLabels(isExisting: boolean): readonly string[] {
+  return isExisting
+    ? [TABLE_ACTION_RENAME, TABLE_ACTION_DUPLICATE, TABLE_ACTION_SHARE, TABLE_ACTION_DELETE]
+    : [TABLE_ACTION_RENAME, TABLE_ACTION_SHARE, TABLE_ACTION_DELETE];
+}
+
+export function renameCustomTable(table: SavedCustomTable, name: string): SavedCustomTable {
+  return { ...table, name };
+}
+
+export function copyCustomTable(table: SavedCustomTable, id: string): SavedCustomTable {
+  return { ...table, id, name: `${table.name}${TABLE_COPY_NAME_SUFFIX}` };
+}
 
 export type CreateTableExportState = {
   setup: CustomTableSetup;
@@ -71,6 +93,8 @@ export function CreateTablePanel({
   const [setup, setSetup] = useState<CustomTableSetup>(EMPTY_SETUP);
   const [savedTables, setSavedTables] = useState<SavedCustomTable[]>(loadSavedCustomTables);
   const [selectedId, setSelectedId] = useState(NEW_TABLE_SOURCE);
+  const [draftName, setDraftName] = useState('');
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [missingLabels, setMissingLabels] = useState<string[]>([]);
 
   const reconciled = useMemo(
@@ -101,6 +125,30 @@ export function CreateTablePanel({
     storeSavedCustomTables(savedTables);
   }, [savedTables]);
 
+  useEffect(() => {
+    let isCancelled = false;
+    void import('../api/customTableSharesApi')
+      .then(async (shares) => {
+        const items = await shares.listCustomTableShares();
+        if (isCancelled || items.length === 0) return;
+        setSavedTables((current) => [
+          ...current,
+          ...items.map((item) => ({
+            ...item.document,
+            id: newTableId(),
+            name: item.name || item.document.name,
+          })),
+        ]);
+        await Promise.all(items.map((item) => shares.deleteCustomTableShare(item.id)));
+      })
+      .catch(() => {
+        if (!isCancelled) setShareMessage(SHARED_TABLES_LOAD_ERROR);
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
   const choose = (slot: 'row' | 'column' | 'label' | 'color', optionId: string) => {
     const option = options.find((item) => item.id === optionId) ?? null;
     setMissingLabels([]);
@@ -121,18 +169,78 @@ export function CreateTablePanel({
     setSetup(applied.setup);
   };
 
+  const currentTable = savedTables.find((table) => table.id === selectedId) ?? null;
+
   const saveTable = () => {
     if (!selectedId) {
-      const name = window.prompt('Table name')?.trim() ?? '';
+      const name = draftName.trim() || window.prompt('Table name')?.trim() || '';
       if (!name) return;
       const id = newTableId();
       setSavedTables((current) => [...current, { id, name, ...axesOf(activeSetup) }]);
       setSelectedId(id);
+      setDraftName('');
       return;
     }
     setSavedTables((current) =>
       current.map((table) => (table.id === selectedId ? { ...table, ...axesOf(activeSetup) } : table)),
     );
+  };
+
+  const renameTable = () => {
+    const name = window.prompt('Table name', currentTable?.name || draftName)?.trim() ?? '';
+    if (!name) return;
+    if (!selectedId) {
+      setDraftName(name);
+      return;
+    }
+    setSavedTables((current) =>
+      current.map((table) => (table.id === selectedId ? renameCustomTable(table, name) : table)),
+    );
+  };
+
+  const duplicateTable = () => {
+    if (!currentTable) return;
+    const id = newTableId();
+    const copy = copyCustomTable({ ...currentTable, ...axesOf(activeSetup) }, id);
+    setSavedTables((current) => [...current, copy]);
+    setSelectedId(id);
+  };
+
+  const deleteTable = () => {
+    if (!selectedId) {
+      setSetup(EMPTY_SETUP);
+      setDraftName('');
+      setMissingLabels([]);
+      return;
+    }
+    setSavedTables((current) => current.filter((table) => table.id !== selectedId));
+    setSelectedId('');
+    setSetup(EMPTY_SETUP);
+  };
+
+  const shareTable = async () => {
+    const name = currentTable?.name || draftName.trim();
+    if (!name) {
+      setShareMessage('Rename the table before sharing.');
+      return;
+    }
+    const username = window.prompt('Username')?.trim() ?? '';
+    if (!username) return;
+    let document = currentTable;
+    if (!document) {
+      const id = newTableId();
+      document = { id, name, ...axesOf(activeSetup) };
+      setSavedTables((current) => [...current, document as SavedCustomTable]);
+      setSelectedId(id);
+      setDraftName('');
+    }
+    try {
+      const { shareCustomTable } = await import('../api/customTableSharesApi');
+      await shareCustomTable(username, name, { ...document, ...axesOf(activeSetup), name });
+      setShareMessage(`Shared with ${username}.`);
+    } catch (error) {
+      setShareMessage(error instanceof Error ? error.message : 'Unable to share.');
+    }
   };
 
   return (
@@ -161,7 +269,17 @@ export function CreateTablePanel({
         </div>
         <div className="pivot-actions">
           <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
+          <TableActions
+            labels={listCustomTableMenuLabels(Boolean(selectedId))}
+            onPick={(label) => {
+              if (label === TABLE_ACTION_RENAME) renameTable();
+              if (label === TABLE_ACTION_DUPLICATE) duplicateTable();
+              if (label === TABLE_ACTION_SHARE) void shareTable();
+              if (label === TABLE_ACTION_DELETE) deleteTable();
+            }}
+          />
         </div>
+        {shareMessage ? <p className="graph-table-message" role="status">{shareMessage}</p> : null}
       </form>
       {missingLabels.length > 0 ? (
         <p className="graph-table-message" role="status">
@@ -311,4 +429,33 @@ function axesOf(setup: CustomTableSetup) {
 
 function newTableId(): string {
   return `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function TableActions({
+  labels,
+  onPick,
+}: {
+  labels: readonly string[];
+  onPick: (label: string) => void;
+}) {
+  const { isOpen, setIsOpen, rootRef } = useMenuOpenState(false);
+  return (
+    <div className="graph-views-actions" ref={rootRef}>
+      <MenuToggleButton
+        label="Table actions"
+        isOpen={isOpen}
+        onToggle={() => setIsOpen((current) => !current)}
+      />
+      {isOpen ? (
+        <MenuChoiceList
+          labels={labels}
+          isDanger={(label) => label === TABLE_ACTION_DELETE}
+          onPick={(label) => {
+            setIsOpen(false);
+            onPick(label);
+          }}
+        />
+      ) : null}
+    </div>
+  );
 }

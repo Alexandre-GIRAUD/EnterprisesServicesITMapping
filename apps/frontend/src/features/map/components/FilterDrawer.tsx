@@ -1,11 +1,12 @@
 import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { CloseIcon } from './CloseIcon';
-import type { ApplicationResponse, GraphFilters, GraphNodeFilterDto } from '@/types/api';
+import type { ApplicationResponse, GraphEdgeDto, GraphFilters, GraphNodeFilterDto } from '@/types/api';
 import {
   type FilterView,
+  isGraphBlankedBySelection,
+  keepApplicationsForCheckedFlows,
   dimensionMode,
   dimensionStatusLabel,
-  hasInvalidDimensionSelection,
   nodeAttributeKeyFromView,
   nodeAttributeView,
   rootCheckboxState,
@@ -13,6 +14,7 @@ import {
   toApiFilterList,
   toggleSortedValue,
 } from './filterDimensionUtils';
+import { displayFilterValue, searchFilterHits, type FilterSearchHit } from './filterSearch';
 
 export type { GraphFilters };
 
@@ -27,6 +29,10 @@ type FilterDrawerProps = {
   initialNodeAttributes: Record<string, string[]>;
   initialNodeRefs?: Record<string, string[]>;
   initialEdgeAttributes?: Record<string, string[]>;
+  initialEdgeIds?: string[];
+  initialMatchNothing?: boolean;
+  initialBlankedDimensions?: string[];
+  edges?: GraphEdgeDto[];
   onApply: (filters: GraphFilters) => void;
   showPinView?: boolean;
   pinViewDisabled?: boolean;
@@ -58,7 +64,8 @@ function isEdgeDimension(dimension: GraphNodeFilterDto): boolean {
 
 function optionLabel(dimension: GraphNodeFilterDto, id: string): string {
   const fromOptions = dimension.options?.find((o) => o.id === id)?.name;
-  return fromOptions && fromOptions.trim() ? fromOptions : id;
+  const label = fromOptions && fromOptions.trim() ? fromOptions : id;
+  return displayFilterValue(id, label);
 }
 
 function initialForDimension(
@@ -98,6 +105,10 @@ export function FilterDrawer({
   initialNodeAttributes,
   initialNodeRefs = {},
   initialEdgeAttributes = {},
+  initialEdgeIds = [],
+  initialMatchNothing = false,
+  initialBlankedDimensions = [],
+  edges = [],
   onApply,
   showPinView = false,
   pinViewDisabled = false,
@@ -106,10 +117,10 @@ export function FilterDrawer({
   const [view, setView] = useState<FilterView>('root');
   const [selectedApplicationIds, setSelectedApplicationIds] = useState(initialApplicationIds);
   const [selectedNodeValues, setSelectedNodeValues] = useState<Record<string, string[]>>({});
-  const [detailError, setDetailError] = useState<string | null>(null);
-  const [applyError, setApplyError] = useState<string | null>(null);
   const [dimensionQuery, setDimensionQuery] = useState('');
   const [valueQuery, setValueQuery] = useState('');
+  const [selectedFlowIds, setSelectedFlowIds] = useState(initialEdgeIds);
+  const hasEditedFilters = useRef(false);
 
   const appCatalog = useMemo(
     () =>
@@ -135,23 +146,37 @@ export function FilterDrawer({
       ),
     [nodeFilters, selectedNodeValues, nodeCatalogs]
   );
-  const applyBlocked = hasInvalidDimensionSelection([appMode, ...nodeModes]);
+  const isGraphBlank = isGraphBlankedBySelection([appMode, ...nodeModes]);
 
   const detailSelectAllRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      hasEditedFilters.current = false;
+      return;
+    }
+    if (hasEditedFilters.current) return;
+    const blanked =
+      initialBlankedDimensions.length > 0
+        ? initialBlankedDimensions
+        : initialMatchNothing
+          ? ['applications']
+          : [];
     setView('root');
-    setDetailError(null);
-    setApplyError(null);
     setDimensionQuery('');
     setValueQuery('');
+    setSelectedFlowIds(initialEdgeIds);
     setSelectedApplicationIds(
-      initialApplicationIds.length > 0 ? initialApplicationIds : selectAllCatalog(appCatalog)
+      blanked.includes('applications')
+        ? []
+        : initialApplicationIds.length > 0
+          ? initialApplicationIds
+          : selectAllCatalog(appCatalog)
     );
     setSelectedNodeValues(
       Object.fromEntries(
         nodeFilters.map((dimension) => {
+          if (blanked.includes(dimension.key)) return [dimension.key, []];
           const initial = initialForDimension(
             dimension,
             initialNodeAttributes,
@@ -171,10 +196,36 @@ export function FilterDrawer({
     initialNodeAttributes,
     initialNodeRefs,
     initialEdgeAttributes,
+    initialEdgeIds,
+    initialBlankedDimensions,
+    initialMatchNothing,
     appCatalog,
     nodeFilters,
     nodeCatalogs,
   ]);
+
+  useEffect(() => {
+    if (!isOpen || !hasEditedFilters.current) return;
+    const blanked: string[] = [];
+    if (dimensionMode(selectedApplicationIds, appCatalog) === 'none') blanked.push('applications');
+    for (const dimension of nodeFilters) {
+      const mode = dimensionMode(
+        selectedNodeValues[dimension.key] ?? [],
+        nodeCatalogs[dimension.key] ?? []
+      );
+      if (mode === 'none') blanked.push(dimension.key);
+    }
+    const attributeFilters = collectAttributeFilters();
+    onApply({
+      applicationIds: toApiFilterList(selectedApplicationIds, appCatalog) ?? [],
+      ...attributeFilters,
+      edgeIds: selectedFlowIds,
+      matchNothing: blanked.length > 0,
+      blankedDimensions: blanked,
+    });
+    // collectAttributeFilters closes over the same selection state as this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedApplicationIds, selectedNodeValues, selectedFlowIds, isOpen]);
 
   const detailKey = nodeAttributeKeyFromView(view);
   const detailDimension = nodeFilters.find((dimension) => dimension.key === detailKey) ?? null;
@@ -196,13 +247,12 @@ export function FilterDrawer({
   }, [detailMode, view]);
 
   function openDetail(next: FilterView) {
-    setDetailError(null);
     setValueQuery('');
     setView(next);
   }
 
   function clearDetailDimension() {
-    setDetailError(null);
+    hasEditedFilters.current = true;
     if (view === 'applications') {
       setSelectedApplicationIds(selectAllCatalog(appCatalog));
       return;
@@ -216,15 +266,10 @@ export function FilterDrawer({
   }
 
   function confirmDetailDimension() {
-    if (detailMode === 'none') {
-      setDetailError('Select at least one, or tap Clear to include all.');
-      return;
-    }
-    setDetailError(null);
     setView('root');
   }
 
-  function filtersForApi(): Pick<GraphFilters, 'nodeAttributes' | 'nodeRefs' | 'edgeAttributes'> {
+  function collectAttributeFilters(): Pick<GraphFilters, 'nodeAttributes' | 'nodeRefs' | 'edgeAttributes'> {
     const nodeAttributes: Record<string, string[]> = {};
     const nodeRefs: Record<string, string[]> = {};
     const edgeAttributes: Record<string, string[]> = {};
@@ -247,24 +292,11 @@ export function FilterDrawer({
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (applyBlocked) {
-      setApplyError(
-        'One or more dimensions have no items selected. The graph would be empty. Open each dimension and pick at least one item, or use Clear to include all.'
-      );
-      return;
-    }
-    setApplyError(null);
-    const { nodeAttributes, nodeRefs, edgeAttributes } = filtersForApi();
-    onApply({
-      applicationIds: toApiFilterList(selectedApplicationIds, appCatalog) ?? [],
-      nodeAttributes,
-      nodeRefs,
-      edgeAttributes,
-    });
-    onClose();
   }
 
   function onReset() {
+    hasEditedFilters.current = true;
+    setSelectedFlowIds([]);
     setSelectedApplicationIds(selectAllCatalog(appCatalog));
     setSelectedNodeValues(
       Object.fromEntries(
@@ -275,9 +307,6 @@ export function FilterDrawer({
       )
     );
     setView('root');
-    setDetailError(null);
-    setApplyError(null);
-    onApply({ applicationIds: [], nodeAttributes: {}, nodeRefs: {}, edgeAttributes: {} });
   }
 
   function renderRootActions() {
@@ -285,14 +314,6 @@ export function FilterDrawer({
       <div className="graph-filter-compact-actions">
         <button type="button" className="graph-filter-compact-btn" onClick={onReset}>
           Clear
-        </button>
-        <button
-          type="submit"
-          className="graph-filter-compact-btn graph-filter-compact-btn--primary"
-          disabled={applyBlocked}
-          aria-disabled={applyBlocked}
-        >
-          Apply
         </button>
         {showPinView && onPinView ? (
           <button
@@ -346,11 +367,6 @@ export function FilterDrawer({
 
     return (
       <div className="graph-filter-detail-panel">
-        {detailError ? (
-          <p className="graph-filter-warning" role="alert">
-            {detailError}
-          </p>
-        ) : null}
         <div className="graph-filter-search">
           <input
             type="search"
@@ -368,9 +384,10 @@ export function FilterDrawer({
               ref={detailSelectAllRef}
               type="checkbox"
               checked={rootCheckboxState(appMode) === 'checked'}
-              onChange={() =>
-                setSelectedApplicationIds(applyRootToggle(appCatalog, selectedApplicationIds))
-              }
+              onChange={() => {
+                hasEditedFilters.current = true;
+                setSelectedApplicationIds(applyRootToggle(appCatalog, selectedApplicationIds));
+              }}
             />
             <span>Select all</span>
           </label>
@@ -385,7 +402,7 @@ export function FilterDrawer({
                   type="checkbox"
                   checked={selectedApplicationIds.includes(app.id)}
                   onChange={() => {
-                    setDetailError(null);
+                    hasEditedFilters.current = true;
                     setSelectedApplicationIds((prev) => toggleSortedValue(prev, app.id));
                   }}
                 />
@@ -410,11 +427,6 @@ export function FilterDrawer({
 
     return (
       <div className="graph-filter-detail-panel">
-        {detailError ? (
-          <p className="graph-filter-warning" role="alert">
-            {detailError}
-          </p>
-        ) : null}
         {catalog.length === 0 ? (
           <p className="graph-filter-hint">
             {isNodeRefDimension(dimension)
@@ -442,12 +454,13 @@ export function FilterDrawer({
                   ref={detailSelectAllRef}
                   type="checkbox"
                   checked={rootCheckboxState(mode) === 'checked'}
-                  onChange={() =>
+                  onChange={() => {
+                    hasEditedFilters.current = true;
                     setSelectedNodeValues((prev) => ({
                       ...prev,
                       [dimension.key]: applyRootToggle(catalog, selected),
-                    }))
-                  }
+                    }));
+                  }}
                 />
                 <span>Select all</span>
               </label>
@@ -462,7 +475,7 @@ export function FilterDrawer({
                       type="checkbox"
                       checked={selected.includes(value)}
                       onChange={() => {
-                        setDetailError(null);
+                        hasEditedFilters.current = true;
                         setSelectedNodeValues((prev) => ({
                           ...prev,
                           [dimension.key]: toggleSortedValue(prev[dimension.key] ?? [], value),
@@ -528,10 +541,70 @@ export function FilterDrawer({
   const isEmbedded = variant === 'embedded';
   const showHeader = !isEmbedded || view !== 'root';
 
-  const showApplicationsRow = matchesSearch('application applications', dimensionQuery);
-  const visibleNodeFilters = nodeFilters.filter((dimension) =>
-    matchesSearch(`${dimension.label} ${dimension.key}`, dimensionQuery)
+  const flowChoices = useMemo(
+    () =>
+      edges.map((edge) => {
+        const readApplicationName = (endpointId: string) =>
+          applications.find((application) => application.id === endpointId)?.name ?? endpointId;
+        const base = `${readApplicationName(edge.sourceId)} → ${readApplicationName(edge.targetId)}`;
+        const data = edge.data?.trim();
+        return { id: edge.id, label: data ? `${base} (${data})` : base };
+      }),
+    [edges, applications]
   );
+  const searchHits = useMemo(
+    () =>
+      searchFilterHits({
+        query: dimensionQuery,
+        dimensions: nodeFilters,
+        applications,
+        edges: flowChoices,
+        valueLabel: optionLabel,
+      }),
+    [dimensionQuery, nodeFilters, applications, flowChoices]
+  );
+
+  function chooseSearchHit(hit: FilterSearchHit) {
+    if (hit.kind === 'filter' && hit.filterView) {
+      setDimensionQuery('');
+      openDetail(hit.filterView);
+      return;
+    }
+    hasEditedFilters.current = true;
+    if (hit.kind === 'application' && hit.applicationId) {
+      setSelectedApplicationIds((previous) => toggleSortedValue(previous, hit.applicationId ?? ''));
+      return;
+    }
+    if (hit.kind === 'attribute' && hit.dimensionKey && hit.value != null) {
+      const key = hit.dimensionKey;
+      const value = hit.value;
+      setSelectedNodeValues((previous) => ({
+        ...previous,
+        [key]: toggleSortedValue(previous[key] ?? [], value),
+      }));
+      return;
+    }
+    if (hit.kind === 'edge' && hit.edgeId) checkFlow(hit.edgeId);
+  }
+
+  function checkFlow(edgeId: string) {
+    const next = toggleSortedValue(selectedFlowIds, edgeId);
+    setSelectedFlowIds(next);
+    if (!next.includes(edgeId)) return;
+    const endpointIds = edges
+      .filter((edge) => next.includes(edge.id))
+      .flatMap((edge) => [edge.sourceId, edge.targetId]);
+    setSelectedApplicationIds((current) => keepApplicationsForCheckedFlows(current, appCatalog, endpointIds));
+  }
+
+  function isSearchHitChecked(hit: FilterSearchHit): boolean {
+    if (hit.kind === 'application' && hit.applicationId) return selectedApplicationIds.includes(hit.applicationId);
+    if (hit.kind === 'attribute' && hit.dimensionKey && hit.value != null) {
+      return (selectedNodeValues[hit.dimensionKey] ?? []).includes(hit.value);
+    }
+    if (hit.kind === 'edge' && hit.edgeId) return selectedFlowIds.includes(hit.edgeId);
+    return false;
+  }
 
   return (
     <aside
@@ -547,7 +620,6 @@ export function FilterDrawer({
               type="button"
               className="graph-filter-back-btn"
               onClick={() => {
-                setDetailError(null);
                 setValueQuery('');
                 setView('root');
               }}
@@ -588,22 +660,47 @@ export function FilterDrawer({
                 onChange={(e) => setDimensionQuery(e.target.value)}
                 placeholder="Search filters…"
                 aria-label="Search filters"
+                aria-controls="graph-filter-search-hits"
+                aria-expanded={searchHits.length > 0}
                 onKeyDown={stopSearchSubmit}
               />
+              {dimensionQuery.trim() ? (
+                <ul id="graph-filter-search-hits" className="graph-filter-search-hits" role="listbox">
+                  {searchHits.length === 0 ? (
+                    <li className="graph-filter-hint">No match for “{dimensionQuery.trim()}”.</li>
+                  ) : (
+                    searchHits.map((hit) => (
+                      <li key={hit.key}>
+                        <button
+                          type="button"
+                          className="graph-filter-search-hit"
+                          role="option"
+                          aria-selected={hit.kind !== 'filter' && isSearchHitChecked(hit)}
+                          onClick={() => chooseSearchHit(hit)}
+                        >
+                          {hit.kind === 'filter' ? null : (
+                            <input type="checkbox" tabIndex={-1} readOnly checked={isSearchHitChecked(hit)} />
+                          )}
+                          <span className="graph-filter-search-hit-label">{hit.label}</span>
+                          <span className="graph-filter-search-hit-kind">{hit.kind}</span>
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              ) : null}
             </div>
 
-            {showApplicationsRow
-              ? renderRootRow({
-                  key: 'applications',
-                  view: 'applications',
-                  label: 'Application',
-                  plural: 'applications',
-                  selected: selectedApplicationIds,
-                  catalog: appCatalog,
-                })
-              : null}
+            {renderRootRow({
+              key: 'applications',
+              view: 'applications',
+              label: 'Application',
+              plural: 'applications',
+              selected: selectedApplicationIds,
+              catalog: appCatalog,
+            })}
 
-            {visibleNodeFilters.map((dimension) =>
+            {nodeFilters.map((dimension) =>
               renderRootRow({
                 key: dimension.key,
                 view: nodeAttributeView(dimension.key),
@@ -620,19 +717,11 @@ export function FilterDrawer({
                 &quot;Application (node)&quot;, &quot;Application (reference)&quot;, or
                 &quot;Connection (edge)&quot; to filter on them.
               </p>
-            ) : !showApplicationsRow && visibleNodeFilters.length === 0 ? (
-              <p className="graph-filter-hint graph-filter-search-empty" role="status">
-                No filter matches “{dimensionQuery.trim()}”.
-              </p>
             ) : null}
 
-            {applyError ? (
-              <p className="graph-filter-warning" role="alert">
-                {applyError}
-              </p>
-            ) : applyBlocked ? (
+            {isGraphBlank ? (
               <p className="graph-filter-warning graph-filter-warning--hint" role="status">
-                Fix dimensions marked &quot;None selected&quot; before applying.
+                Nothing is checked on a filter, so the graph is empty.
               </p>
             ) : null}
           </div>

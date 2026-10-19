@@ -32,6 +32,17 @@ public class DependsOnEdgeAttributeFacetQuery {
         .toList();
   }
 
+  public boolean hasBlank(String validatedKey) {
+    String cypher =
+        """
+        MATCH (:Application)-[r:DEPENDS_ON]->(:Application)
+        WHERE r.`%s` IS NULL OR trim(toString(r.`%s`)) = ''
+        RETURN r LIMIT 1
+        """
+            .formatted(validatedKey, validatedKey);
+    return !neo4jClient.query(cypher).fetch().all().isEmpty();
+  }
+
   private String asValue(Map<String, Object> row) {
     return Neo4jValueMapping.asString(row.get("value"));
   }

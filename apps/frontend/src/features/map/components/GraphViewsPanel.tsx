@@ -163,6 +163,7 @@ export function GraphViewsPanel({ onApply }: GraphViewsPanelProps) {
           key={label}
           type="button"
           role="menuitem"
+          className={label === VIEW_MENU_DELETE ? 'quiet-danger' : undefined}
           disabled={isNewFolderBlocked}
           onClick={() => {
             closeMenu();

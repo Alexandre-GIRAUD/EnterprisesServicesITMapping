@@ -11,6 +11,7 @@ import {
   EMPTY_SANDBOX_FILTERS,
   cloneIntoSandboxDocument,
   cloneSandboxDocument,
+  copySavedSandbox,
   createSandboxIconId,
   loadSavedSandboxes,
   normalizeSandboxDocument,
@@ -388,6 +389,17 @@ export function useSandboxes() {
     });
   }, [filedSandboxes, folders]);
 
+  const duplicateSaved = useCallback((id: string) => {
+    setSaved((list) => {
+      const source = list.find((item) => item.id === id);
+      if (!source) return list;
+      const copy = copySavedSandbox(source);
+      const next = [copy, ...list];
+      storeSavedSandboxes(next);
+      return next;
+    });
+  }, []);
+
   return {
     openDocs,
     activeId,
@@ -414,6 +426,7 @@ export function useSandboxes() {
     moveSandboxFolder,
     renameSavedSandbox,
     moveSavedSandbox,
+    duplicateSaved,
     addIcon,
     updateIconLabel,
     removeIcon,

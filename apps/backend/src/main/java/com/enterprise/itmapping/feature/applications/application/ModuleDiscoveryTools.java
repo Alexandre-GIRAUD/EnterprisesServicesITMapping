@@ -33,6 +33,7 @@ public class ModuleDiscoveryTools {
   private static final Logger log = LoggerFactory.getLogger(ModuleDiscoveryTools.class);
   private static final int MAX_LINE_LENGTH = 300;
   private static final int DEFAULT_TREE_DEPTH = 3;
+  private static final String REPOSITORY_ROOT_GLOB_PREFIX = "**/";
 
   private final Path repoRoot;
   private final int maxGrepHits;
@@ -238,10 +239,6 @@ public class ModuleDiscoveryTools {
     } catch (PatternSyntaxException e) {
       return List.of("Invalid regex: " + e.getMessage());
     }
-    PathMatcher matcher =
-        (glob != null && !glob.isBlank())
-            ? FileSystems.getDefault().getPathMatcher("glob:" + glob)
-            : null;
     List<String> hits = new ArrayList<>();
     try (Stream<Path> walk = Files.walk(repoRoot)) {
       walk.filter(Files::isRegularFile)
@@ -251,7 +248,7 @@ public class ModuleDiscoveryTools {
                 return !rel.isEmpty()
                     && !GithubTreePathFilter.shouldExcludePath(rel, Integer.MAX_VALUE);
               })
-          .filter(p -> matcher == null || matcher.matches(repoRoot.relativize(p)))
+          .filter(p -> isGlobMatch(repoRoot.relativize(p), glob))
           .forEach(
               p -> {
                 if (hits.size() >= limit) {
@@ -265,6 +262,23 @@ public class ModuleDiscoveryTools {
       // ignore unreadable files reached during walk
     }
     return hits;
+  }
+
+  static boolean isGlobMatch(Path relative, String glob) {
+    if (glob == null || glob.isBlank()) {
+      return true;
+    }
+    if (buildGlobMatcher(glob).matches(relative)) {
+      return true;
+    }
+    if (glob.startsWith(REPOSITORY_ROOT_GLOB_PREFIX)) {
+      return buildGlobMatcher(glob.substring(REPOSITORY_ROOT_GLOB_PREFIX.length())).matches(relative);
+    }
+    return false;
+  }
+
+  private static PathMatcher buildGlobMatcher(String glob) {
+    return FileSystems.getDefault().getPathMatcher("glob:" + glob);
   }
 
   private void grepFile(Path file, Pattern regex, List<String> hits, int limit) {
