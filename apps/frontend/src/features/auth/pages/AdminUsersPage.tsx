@@ -3,7 +3,13 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { createUserRequest, listUsersRequest, type UserSummaryDto } from '@/features/auth/api/authApi';
 
-export function AdminUsersPage() {
+export function AdminUsersPage({
+  heading = 'Users',
+  embedded = false,
+}: {
+  heading?: string;
+  embedded?: boolean;
+}) {
   const { isAdmin } = useAuth();
   const [users, setUsers] = useState<UserSummaryDto[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -62,13 +68,8 @@ export function AdminUsersPage() {
     }
   }
 
-  return (
-    <div className="admin-users-page">
-      <div className="admin-users-header">
-        <h1>Users</h1>
-        <p className="admin-users-lead">Create accounts (standard user role).</p>
-      </div>
-
+  const accountPanels = (
+    <>
       <section className="admin-users-panel">
         <h2>New user</h2>
         <form className="auth-form" onSubmit={onCreate}>
@@ -126,6 +127,25 @@ export function AdminUsersPage() {
           </ul>
         )}
       </section>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        <p className="admin-users-lead">Create accounts (standard user role).</p>
+        {accountPanels}
+      </>
+    );
+  }
+
+  return (
+    <div className="admin-users-page">
+      <div className="admin-users-header">
+        <h1>{heading}</h1>
+        <p className="admin-users-lead">Create accounts (standard user role).</p>
+      </div>
+      {accountPanels}
     </div>
   );
 }
