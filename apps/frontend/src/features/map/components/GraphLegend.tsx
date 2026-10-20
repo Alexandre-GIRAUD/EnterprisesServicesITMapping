@@ -538,7 +538,7 @@ export function GraphLegend({
               </select>
               <button
                 type="button"
-                className="graph-legend__btn"
+                className="graph-legend__btn graph-legend__btn--primary"
                 disabled={!selectedSetupId}
                 onClick={() => {
                   const setup = legendSetups.find((s) => s.id === selectedSetupId);
