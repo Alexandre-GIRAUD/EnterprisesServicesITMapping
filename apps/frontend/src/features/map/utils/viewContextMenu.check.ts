@@ -18,7 +18,9 @@ assert.equal(folderParentForNewFolder('view', 'view-1', 'parent'), 'parent');
 assert.equal(folderParentForNewFolder('empty', null, 'parent'), 'parent');
 assert.equal(folderParentForNewFolder('empty', null, null), null);
 
-assert.equal(savedViewActivation('view'), 'apply');
-assert.equal(savedViewActivation('folder'), 'enter');
+assert.equal(savedViewActivation('view', 'click'), 'select');
+assert.equal(savedViewActivation('view', 'double'), 'apply');
+assert.equal(savedViewActivation('folder', 'click'), 'enter');
+assert.equal(savedViewActivation('folder', 'double'), 'enter');
 
 console.log('viewContextMenu.check: ok');
