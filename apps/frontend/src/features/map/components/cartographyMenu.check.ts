@@ -28,6 +28,8 @@ assert.match(css, /\.graph-filter-compact-btn--pin:not\(:disabled\) \{[^}]*backg
 assert.match(css, /--action-button-width:\s*7\.25rem/);
 assert.match(css, /\.graph-filter-compact-actions > \.graph-filter-compact-btn \{[^}]*width: var\(--action-button-width\)/);
 assert.match(css, /\.pivot-btn \{[^}]*width: var\(--action-button-width\)/);
+assert.match(css, /\.map-graph-panel \.pivot-btn--primary \{[^}]*background: var\(--ss-accent\)/);
+assert.match(css, /\.map-graph-panel \.pivot-btn--primary:hover:not\(:disabled\) \{[^}]*background: var\(--ss-accent-dark\)/);
 assert.match(css, /\.pivot-btn--danger \{[^}]*color: #b91c1c/);
 assert.match(css, /\.graph-drawer-text-button\.is-danger \{[^}]*border: 1px solid #f87171/);
 assert.match(css, /\.graph-drawer-text-button\.is-danger \{[^}]*color: #b91c1c/);
