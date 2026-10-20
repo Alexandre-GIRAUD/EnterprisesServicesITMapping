@@ -6,7 +6,7 @@ const HELP_PANEL_WIDTH = 352;
 const HELP_PANEL_GAP = 8;
 const HELP_VIEWPORT_GUTTER = 12;
 
-function helpAnchor(buttonBounds: DOMRect): { top: number; left: number } {
+function placeHelpPanel(buttonBounds: DOMRect): { top: number; left: number } {
   const left = Math.min(buttonBounds.left, window.innerWidth - HELP_PANEL_WIDTH - HELP_VIEWPORT_GUTTER);
   return {
     top: buttonBounds.bottom + HELP_PANEL_GAP,
@@ -51,7 +51,7 @@ export function HelpMenu() {
       return;
     }
     const buttonBounds = rootRef.current?.getBoundingClientRect();
-    if (buttonBounds) setAnchor(helpAnchor(buttonBounds));
+    if (buttonBounds) setAnchor(placeHelpPanel(buttonBounds));
     setIsOpen(true);
   }
 
