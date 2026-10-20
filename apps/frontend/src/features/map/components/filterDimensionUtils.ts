@@ -38,9 +38,9 @@ export const FILTER_NONE_SELECTED = 'No filter selected';
 export function filterIdleCopy(
   hasDataModelFields: boolean,
   hasApplications: boolean,
-  hasActiveFilter: boolean,
+  hasNarrowedFilter: boolean,
 ): string | null {
-  if (hasActiveFilter) return null;
+  if (hasNarrowedFilter) return null;
   if (!hasDataModelFields && !hasApplications) return FILTER_DATA_MODEL_HINT;
   return FILTER_NONE_SELECTED;
 }

@@ -7,11 +7,11 @@ import { readFileSync } from 'node:fs';
 import { chatSuggestionDraft } from './mappingChatSuggestions.ts';
 
 assert.deepEqual(chatSuggestionDraft('Which applications manage payments?'), {
-  send: true,
+  shouldSend: true,
   draft: 'Which applications manage payments?',
 });
 assert.deepEqual(chatSuggestionDraft('Which applications are connected to…'), {
-  send: false,
+  shouldSend: false,
   draft: 'Which applications are connected to',
 });
 

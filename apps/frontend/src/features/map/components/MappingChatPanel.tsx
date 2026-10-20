@@ -161,7 +161,7 @@ export function MappingChatPanel({
 
   function askSuggestion(text: string) {
     const next = chatSuggestionDraft(text);
-    if (!next.send) {
+    if (!next.shouldSend) {
       setInput(next.draft);
       const field = inputRef.current;
       if (field) {
