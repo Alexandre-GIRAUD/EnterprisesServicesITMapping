@@ -3,8 +3,9 @@ import { findConnectedComponents } from './graphComponents';
 /** Same box as the application card. Kept here so this file stays free of the data hook. */
 const NODE_WIDTH = 160;
 const NODE_HEIGHT = 48;
-
+const FIT_PADDING = 0.15;
 const WIDE_ASPECT_SLACK = 1.2;
+const SLICE_STEP_RATIO = 1 / 6;
 
 /**
  * A short row cannot fill a tall pane without cropping a node.
@@ -28,10 +29,12 @@ export function nodesForHeightFit<T extends FitNode>(
   edges: readonly { source: string; target: string }[] = [],
 ): T[] {
   if (nodes.length <= 1) return [...nodes];
-  const viewAspect = viewport.width / Math.max(viewport.height, 1);
+  const innerWidth = viewport.width * (1 - 2 * FIT_PADDING);
   const all = boundsOf(nodes);
   const graphAspect = all.width / Math.max(all.height, 1);
-  if (graphAspect <= viewAspect * WIDE_ASPECT_SLACK) return [...nodes];
+  const viewAspect = viewport.width / Math.max(viewport.height, 1);
+  const fitsPane = all.width <= innerWidth || graphAspect <= viewAspect * WIDE_ASPECT_SLACK;
+  if (fitsPane) return [...nodes];
 
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const groups = findConnectedComponents(
@@ -50,14 +53,13 @@ export function nodesForHeightFit<T extends FitNode>(
   if (!best) return [...nodes];
 
   const box = boundsOf(best);
-  const focusWidth = Math.max(MIN_FOCUS_WIDTH, box.height * viewAspect);
-  if (box.width <= focusWidth) return best;
-  return densestSlice(best, box, focusWidth);
+  if (box.width <= innerWidth) return best;
+  return densestSlice(best, box, Math.max(MIN_FOCUS_WIDTH, innerWidth));
 }
 
 function densestSlice<T extends FitNode>(nodes: readonly T[], box: Bounds, focusWidth: number): T[] {
   const width = Math.min(box.width, focusWidth);
-  const step = Math.max(NODE_WIDTH / 2, width / 6);
+  const step = Math.max(NODE_WIDTH / 2, width * SLICE_STEP_RATIO);
   let best = nodes;
   let bestCount = -1;
   for (let x = box.x; x <= box.x + box.width - width + step; x += step) {

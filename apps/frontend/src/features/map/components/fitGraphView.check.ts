@@ -43,5 +43,16 @@ const slice = nodesForHeightFit(
 );
 assert.ok(slice.length < chain.length);
 assert.ok(slice.length >= 2);
+assert.deepEqual(
+  nodesForHeightFit(
+    [node('a', 0), node('b', 200), node('c', 400)],
+    pane,
+    [
+      { source: 'a', target: 'b' },
+      { source: 'b', target: 'c' },
+    ],
+  ).map((item) => item.id),
+  ['a', 'b', 'c'],
+);
 
 console.log('fitGraphView.check: ok');

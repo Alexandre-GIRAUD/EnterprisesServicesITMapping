@@ -3,7 +3,6 @@ import { CloseIcon } from './CloseIcon';
 import type { ApplicationResponse, GraphEdgeDto, GraphFilters, GraphNodeFilterDto } from '@/types/api';
 import {
   type FilterView,
-  isAnyDimensionFiltered,
   isGraphBlankedBySelection,
   filterIdleCopy,
   keepApplicationsForCheckedFlows,
@@ -149,11 +148,8 @@ export function FilterDrawer({
     [nodeFilters, selectedNodeValues, nodeCatalogs]
   );
   const isGraphBlank = isGraphBlankedBySelection([appMode, ...nodeModes]);
-  const idleCopy = filterIdleCopy(
-    nodeFilters.length > 0,
-    applications.length > 0,
-    isAnyDimensionFiltered([appMode, ...nodeModes]),
-  );
+  const hasNarrowedFilter = [appMode, ...nodeModes].some((mode) => mode !== 'all');
+  const idleCopy = filterIdleCopy(nodeFilters.length > 0, applications.length > 0, hasNarrowedFilter);
 
   const detailSelectAllRef = useRef<HTMLInputElement | null>(null);
 
