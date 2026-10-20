@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { AttributeValueControl } from './AttributeValueControl.tsx';
 import { SelfServiceBurger, SelfServiceSideMenu } from './SelfServiceSideMenu.tsx';
 import { DEFAULT_MENU_WIDTH } from './sideMenuWidth.ts';
 
@@ -28,6 +29,12 @@ assert.match(css, /--action-button-width:\s*7\.25rem/);
 assert.match(css, /\.graph-filter-compact-actions > \.graph-filter-compact-btn \{[^}]*width: var\(--action-button-width\)/);
 assert.match(css, /\.pivot-btn \{[^}]*width: var\(--action-button-width\)/);
 assert.match(css, /\.pivot-btn--danger \{[^}]*color: #b91c1c/);
+assert.match(css, /\.graph-drawer-text-button\.is-danger \{[^}]*border: 1px solid #f87171/);
+assert.match(css, /\.graph-drawer-text-button\.is-danger \{[^}]*color: #b91c1c/);
+assert.match(
+  css,
+  /\.data-model-remove-btn \{\s*border: 1px solid #f87171;\s*background: #ffffff;\s*color: #b91c1c;/,
+);
 assert.match(css, /\.graph-drawer-action-danger-solid \{[^}]*background: #ffffff/);
 assert.doesNotMatch(css, /linear-gradient\(180deg, #ef4444/);
 
@@ -81,5 +88,18 @@ assert.doesNotMatch(css, /\.self-service-burger-icon::before/);
 
 const viewsMenu = menu('views');
 assert.match(viewsMenu, /M18 6/);
+
+const listMarkup = renderToStaticMarkup(
+  createElement(AttributeValueControl, {
+    field: { key: 'tags', label: 'Tags', enforceEnum: false, required: false, multiple: true },
+    value: ['one'],
+    disabled: false,
+    onChange: () => undefined,
+  }),
+);
+assert.match(listMarkup, /class="graph-drawer-text-button is-danger"[^>]*>Remove</);
+assert.match(listMarkup, /class="graph-drawer-text-button"[^>]*>Add value</);
+const dataModelSource = readFileSync(new URL('../../datamodel/pages/DataModelPage.tsx', import.meta.url), 'utf8');
+assert.match(dataModelSource, /className="data-model-remove-btn"[\s\S]{0,120}Remove field/);
 
 console.log('cartographyMenu.check: ok');
