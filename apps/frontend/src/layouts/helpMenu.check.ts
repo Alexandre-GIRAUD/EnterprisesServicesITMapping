@@ -11,7 +11,8 @@ import { HELP_TOPICS } from './helpTopics.ts';
 
 const titles = HELP_TOPICS.map((topic) => topic.title);
 assert.deepEqual(titles, ['Cartography', 'Data Model', 'Sources', 'Changes', 'Settings']);
-assert.ok(HELP_TOPICS.every((topic) => topic.text.length > 40));
+const minimumTopicLength = 40;
+assert.ok(HELP_TOPICS.every((topic) => topic.text.length > minimumTopicLength));
 
 const html = renderToStaticMarkup(createElement(HelpMenu));
 assert.match(html, /aria-label="Help"/);

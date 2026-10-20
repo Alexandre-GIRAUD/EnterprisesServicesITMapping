@@ -1,4 +1,5 @@
 ﻿:root {
+  --action-button-width: 7.25rem;
   font-family: system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -3276,7 +3277,7 @@ body.is-diagram-grown .layout {
 
 .graph-filter-compact-actions > .graph-filter-compact-btn {
   flex: 0 0 auto;
-  width: 7.25rem;
+  width: var(--action-button-width);
   text-align: center;
 }
 
@@ -5996,7 +5997,7 @@ body.is-diagram-grown .layout {
 }
 
 .pivot-btn {
-  width: 7.25rem;
+  width: var(--action-button-width);
   padding: 0.35rem 0.4rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -6847,6 +6848,13 @@ body.is-diagram-grown .layout {
 .graph-drawer-text-button:disabled {
   cursor: default;
   opacity: 0.5;
+}
+
+.graph-drawer-text-button.is-danger {
+  border: 1px solid #f87171;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #b91c1c;
 }
 
 .graph-drawer-search-dropdown {
@@ -7854,10 +7862,10 @@ body.is-diagram-grown .layout {
 }
 
 .data-model-remove-btn {
-  border: 0;
-  background: transparent;
-  color: #dc2626;
-  padding-left: 0;
+  border: 1px solid #f87171;
+  background: #ffffff;
+  color: #b91c1c;
+  padding-left: 0.9rem;
 }
 
 .data-model-panel {

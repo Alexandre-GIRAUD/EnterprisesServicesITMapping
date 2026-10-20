@@ -6,19 +6,29 @@ const HELP_PANEL_WIDTH = 352;
 const HELP_PANEL_GAP = 8;
 const HELP_VIEWPORT_GUTTER = 12;
 
-export function HelpMenu() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
-  const rootRef = useRef<HTMLDivElement | null>(null);
+function helpAnchor(buttonBounds: DOMRect): { top: number; left: number } {
+  const left = Math.min(buttonBounds.left, window.innerWidth - HELP_PANEL_WIDTH - HELP_VIEWPORT_GUTTER);
+  return {
+    top: buttonBounds.bottom + HELP_PANEL_GAP,
+    left: Math.max(HELP_VIEWPORT_GUTTER, left),
+  };
+}
 
+function useDismissHelp(
+  isOpen: boolean,
+  rootRef: { current: HTMLElement | null },
+  close: () => void,
+) {
+  const closeRef = useRef(close);
+  closeRef.current = close;
   useEffect(() => {
     if (!isOpen) return;
     function closeOnOutsidePointer(event: MouseEvent) {
       if (rootRef.current?.contains(event.target as Node)) return;
-      setIsOpen(false);
+      closeRef.current();
     }
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsOpen(false);
+      if (event.key === 'Escape') closeRef.current();
     }
     document.addEventListener('mousedown', closeOnOutsidePointer);
     document.addEventListener('keydown', closeOnEscape);
@@ -26,18 +36,22 @@ export function HelpMenu() {
       document.removeEventListener('mousedown', closeOnOutsidePointer);
       document.removeEventListener('keydown', closeOnEscape);
     };
-  }, [isOpen]);
+  }, [isOpen, rootRef]);
+}
+
+export function HelpMenu() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useDismissHelp(isOpen, rootRef, () => setIsOpen(false));
 
   function toggle() {
     if (isOpen) {
       setIsOpen(false);
       return;
     }
-    const rect = rootRef.current?.getBoundingClientRect();
-    if (rect) {
-      const left = Math.min(rect.left, window.innerWidth - HELP_PANEL_WIDTH - HELP_VIEWPORT_GUTTER);
-      setAnchor({ top: rect.bottom + HELP_PANEL_GAP, left: Math.max(HELP_VIEWPORT_GUTTER, left) });
-    }
+    const buttonBounds = rootRef.current?.getBoundingClientRect();
+    if (buttonBounds) setAnchor(helpAnchor(buttonBounds));
     setIsOpen(true);
   }
 

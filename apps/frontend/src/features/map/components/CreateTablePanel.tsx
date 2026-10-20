@@ -268,21 +268,15 @@ export function CreateTablePanel({
         </div>
         <div className="pivot-actions">
           <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
-          {listCustomTableMenuLabels(Boolean(selectedId)).map((label) => (
-            <button
-              key={label}
-              type="button"
-              className={label === TABLE_ACTION_DELETE ? 'pivot-btn pivot-btn--danger' : 'pivot-btn'}
-              onClick={() => {
-                if (label === TABLE_ACTION_RENAME) renameTable();
-                if (label === TABLE_ACTION_DUPLICATE) duplicateTable();
-                if (label === TABLE_ACTION_SHARE) void shareTable();
-                if (label === TABLE_ACTION_DELETE) deleteTable();
-              }}
-            >
-              {label}
-            </button>
-          ))}
+          <CustomTableActionButtons
+            labels={listCustomTableMenuLabels(Boolean(selectedId))}
+            handlers={{
+              rename: renameTable,
+              duplicate: duplicateTable,
+              share: () => void shareTable(),
+              delete: deleteTable,
+            }}
+          />
         </div>
         {shareMessage ? <p className="graph-table-message" role="status">{shareMessage}</p> : null}
       </form>
@@ -434,4 +428,41 @@ function axesOf(setup: CustomTableSetup) {
 
 function newTableId(): string {
   return `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+type CustomTableHandlers = {
+  rename: () => void;
+  duplicate: () => void;
+  share: () => void;
+  delete: () => void;
+};
+
+function CustomTableActionButtons({
+  labels,
+  handlers,
+}: {
+  labels: readonly string[];
+  handlers: CustomTableHandlers;
+}) {
+  function run(label: string) {
+    if (label === TABLE_ACTION_RENAME) handlers.rename();
+    if (label === TABLE_ACTION_DUPLICATE) handlers.duplicate();
+    if (label === TABLE_ACTION_SHARE) handlers.share();
+    if (label === TABLE_ACTION_DELETE) handlers.delete();
+  }
+
+  return (
+    <>
+      {labels.map((label) => (
+        <button
+          key={label}
+          type="button"
+          className={label === TABLE_ACTION_DELETE ? 'pivot-btn pivot-btn--danger' : 'pivot-btn'}
+          onClick={() => run(label)}
+        >
+          {label}
+        </button>
+      ))}
+    </>
+  );
 }
