@@ -6,6 +6,7 @@ import { GraphSnapshotsProvider } from '@/features/map/context/GraphSnapshotsCon
 import type { MapLocationState } from '@/features/map/utils/mapNavigation';
 import { COLOR_THEME_STORAGE_KEY, storedColorTheme, toggledColorTheme, type ColorTheme } from './colorTheme';
 import { SettingsMenu } from './SettingsMenu';
+import { HelpMenu } from './HelpMenu';
 import { ThemeModeButton } from './ThemeModeButton';
 
 function navigationLinkClassName({ isActive }: { isActive: boolean }) {
@@ -31,7 +32,11 @@ export function Layout() {
         <header className="layout-header">
           <div className="layout-header-inner">
             <div className="layout-header-brand-group">
-              <Link to="/about" className="layout-brand layout-brand-link">
+              <Link
+                to="/map"
+                state={{ graphMode: 'normal' } satisfies MapLocationState}
+                className="layout-brand layout-brand-link"
+              >
                 <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
                 <h1>Flowra</h1>
               </Link>
@@ -46,6 +51,7 @@ export function Layout() {
                     </span>
                   ) : null}
                   <ThemeModeButton theme={theme} onToggle={() => setTheme((current) => toggledColorTheme(current))} />
+                  <HelpMenu />
                 </span>
               ) : null}
             </div>

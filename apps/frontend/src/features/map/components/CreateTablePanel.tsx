@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type Ref } from 'react';
 import type { ApplicationResponse, GraphEdgeDto, GraphNodeDto, GraphNodeFilterDto } from '@/types/api';
 import { nodeFillColorForValue } from './edgeColorProperty';
-import { MenuChoiceList, MenuToggleButton, useMenuOpenState } from './actionMenu';
 import {
   EMPTY_CUSTOM_VALUE,
   axisRef,
@@ -32,7 +31,7 @@ const PLAIN_BADGE_COLOR = '#e2e8f0';
 const NEW_TABLE_SOURCE = '';
 export const SHARED_TABLES_LOAD_ERROR = 'Shared tables could not be loaded.';
 
-/** Same family of actions as views and sandboxes. Save stays outside the menu. */
+/** Actions sit beside Save. Duplicate only exists once a table is saved. */
 export function listCustomTableMenuLabels(isExisting: boolean): readonly string[] {
   return isExisting
     ? [TABLE_ACTION_RENAME, TABLE_ACTION_DUPLICATE, TABLE_ACTION_SHARE, TABLE_ACTION_DELETE]
@@ -269,13 +268,13 @@ export function CreateTablePanel({
         </div>
         <div className="pivot-actions">
           <button type="button" className="pivot-btn pivot-btn--primary" onClick={saveTable}>Save</button>
-          <TableActions
+          <CustomTableActionButtons
             labels={listCustomTableMenuLabels(Boolean(selectedId))}
-            onPick={(label) => {
-              if (label === TABLE_ACTION_RENAME) renameTable();
-              if (label === TABLE_ACTION_DUPLICATE) duplicateTable();
-              if (label === TABLE_ACTION_SHARE) void shareTable();
-              if (label === TABLE_ACTION_DELETE) deleteTable();
+            handlers={{
+              rename: renameTable,
+              duplicate: duplicateTable,
+              share: () => void shareTable(),
+              delete: deleteTable,
             }}
           />
         </div>
@@ -431,31 +430,39 @@ function newTableId(): string {
   return `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function TableActions({
+type CustomTableHandlers = {
+  rename: () => void;
+  duplicate: () => void;
+  share: () => void;
+  delete: () => void;
+};
+
+function CustomTableActionButtons({
   labels,
-  onPick,
+  handlers,
 }: {
   labels: readonly string[];
-  onPick: (label: string) => void;
+  handlers: CustomTableHandlers;
 }) {
-  const { isOpen, setIsOpen, rootRef } = useMenuOpenState(false);
+  function run(label: string) {
+    if (label === TABLE_ACTION_RENAME) handlers.rename();
+    if (label === TABLE_ACTION_DUPLICATE) handlers.duplicate();
+    if (label === TABLE_ACTION_SHARE) handlers.share();
+    if (label === TABLE_ACTION_DELETE) handlers.delete();
+  }
+
   return (
-    <div className="graph-views-actions" ref={rootRef}>
-      <MenuToggleButton
-        label="Table actions"
-        isOpen={isOpen}
-        onToggle={() => setIsOpen((current) => !current)}
-      />
-      {isOpen ? (
-        <MenuChoiceList
-          labels={labels}
-          isDanger={(label) => label === TABLE_ACTION_DELETE}
-          onPick={(label) => {
-            setIsOpen(false);
-            onPick(label);
-          }}
-        />
-      ) : null}
-    </div>
+    <>
+      {labels.map((label) => (
+        <button
+          key={label}
+          type="button"
+          className={label === TABLE_ACTION_DELETE ? 'pivot-btn pivot-btn--danger' : 'pivot-btn'}
+          onClick={() => run(label)}
+        >
+          {label}
+        </button>
+      ))}
+    </>
   );
 }

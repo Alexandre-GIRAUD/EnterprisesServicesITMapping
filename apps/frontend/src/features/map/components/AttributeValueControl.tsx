@@ -108,7 +108,7 @@ export function AttributeValueControl({
           />
           <button
             type="button"
-            className="graph-drawer-text-button"
+            className="graph-drawer-text-button is-danger"
             disabled={disabled}
             onClick={() => onChange(rows.filter((_, itemIndex) => itemIndex !== index))}
           >

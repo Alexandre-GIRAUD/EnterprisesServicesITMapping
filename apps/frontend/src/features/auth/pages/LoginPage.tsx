@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import flowraLogo from '@/assets/flowra.svg.svg';
+import { FLOWRA_HEADLINE_LINES, FLOWRA_LEAD, FLOWRA_MODES } from '@/features/about/flowraIntro';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { loginRequest } from '@/features/auth/api/authApi';
 
@@ -36,11 +37,27 @@ export function LoginPage() {
 
   return (
     <div className="auth-page">
-      <div className="auth-page-stack">
-        <header className="auth-brand">
-          <img src={flowraLogo} alt="" className="auth-brand-logo" aria-hidden />
-          <h1 className="auth-brand-title">Flowra</h1>
-        </header>
+      <div className="auth-split">
+        <section className="auth-story">
+          <header className="auth-brand">
+            <img src={flowraLogo} alt="" className="auth-brand-logo" aria-hidden />
+            <h1 className="auth-brand-title">Flowra</h1>
+          </header>
+          <h2>
+            {FLOWRA_HEADLINE_LINES.map((line) => (
+              <span key={line} className="auth-story-line">{line}</span>
+            ))}
+          </h2>
+          <p className="auth-story-lead">{FLOWRA_LEAD}</p>
+          <ul className="auth-story-modes">
+            {FLOWRA_MODES.map((mode) => (
+              <li key={mode.title}>
+                <strong>{mode.title}</strong>
+                <p>{mode.text}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <div className="auth-card">
           <h2 className="auth-section-title">Sign in</h2>
