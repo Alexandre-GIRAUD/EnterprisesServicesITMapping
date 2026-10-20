@@ -55,7 +55,7 @@ export type InspectedView = {
   hiddenApplicationIds: string[];
 };
 
-function libraryStatusPane(panelToggle: ReactNode, message: string, isError: boolean) {
+function renderLibraryStatus(panelToggle: ReactNode, message: string, isError: boolean) {
   return (
     <div id="graph-views-pane" className="graph-views-pane" role="tabpanel" aria-labelledby="graph-mode-tab-views">
       <div className="graph-views-toolbar">
@@ -405,10 +405,10 @@ export function GraphViewsPanel({ onApply, onShownView, onCreateView, panelToggl
   }
 
   if (library.status === 'loading') {
-    return libraryStatusPane(panelToggle, 'Loading…', false);
+    return renderLibraryStatus(panelToggle, 'Loading…', false);
   }
   if (library.status === 'error') {
-    return libraryStatusPane(panelToggle, library.errorMessage ?? 'Unable to load views.', true);
+    return renderLibraryStatus(panelToggle, library.errorMessage ?? 'Unable to load views.', true);
   }
 
   const isSearching = query.trim().length > 0;
@@ -419,7 +419,7 @@ export function GraphViewsPanel({ onApply, onShownView, onCreateView, panelToggl
   const viewCards = isSearching
     ? listedRows.filter((row) => row.kind === 'view')
     : childViews.map((view) => viewCardRow(view, libraryFolders, authorName));
-  const nothingListed = folderCards.length === 0 && viewCards.length === 0;
+  const isListingEmpty = folderCards.length === 0 && viewCards.length === 0;
 
   return (
     <div
@@ -488,7 +488,7 @@ export function GraphViewsPanel({ onApply, onShownView, onCreateView, panelToggl
       ) : notice ? (
         <p className="graph-views-state" role="status">{notice}</p>
       ) : null}
-      {nothingListed ? (
+      {isListingEmpty ? (
         isSearching ? (
           <p className="graph-views-state">No views match.</p>
         ) : (
@@ -736,7 +736,7 @@ export function ViewInspectPanel({
       <p>{view.summary}</p>
       <p className="graph-view-detail__when">{view.whenLine}</p>
       <ViewFilterTags hints={view.hints} />
-      <HiddenApps key={view.id} ids={view.hiddenApplicationIds} names={applicationNames} />
+      <HiddenApplications key={view.id} applicationIds={view.hiddenApplicationIds} names={applicationNames} />
       <DetailActions
         onApply={() => onApply(view.id)}
         onRename={() => onRename(view.id)}
@@ -874,7 +874,8 @@ function FolderCard({
         ) : (
           <span className="graph-views-folder-copy">
             <span className="graph-views-item-name">{row.name}</span>
-            <span className="graph-views-item-meta">{itemCount}{showPath ? ` · ${row.pathLabel}` : ''}</span>
+            <span className="graph-views-item-summary">{itemCount}{showPath ? ` · ${row.pathLabel}` : ''}</span>
+            <span className="graph-views-item-meta">{viewWhenLine(row.updatedAt, row.author, Date.now())}</span>
           </span>
         )}
       </div>
@@ -1431,22 +1432,28 @@ function ViewFilterTags({ hints }: { hints: string[] }) {
   );
 }
 
-function HiddenApps({ ids, names }: { ids: string[]; names: Record<string, string> }) {
-  const [open, setOpen] = useState(false);
-  if (ids.length === 0) return null;
-  const label = `${ids.length} ${ids.length === 1 ? 'hidden app' : 'hidden apps'}`;
+function HiddenApplications({
+  applicationIds,
+  names,
+}: {
+  applicationIds: string[];
+  names: Record<string, string>;
+}) {
+  const [isListOpen, setListOpen] = useState(false);
+  if (applicationIds.length === 0) return null;
+  const label = `${applicationIds.length} ${applicationIds.length === 1 ? 'hidden app' : 'hidden apps'}`;
   return (
     <div className="graph-view-detail__hidden">
       <p>
         {label}{' '}
-        <button type="button" className="graph-view-detail__see" onClick={() => setOpen((current) => !current)}>
-          {open ? 'Hide' : 'See'}
+        <button type="button" className="graph-view-detail__see" onClick={() => setListOpen((current) => !current)}>
+          {isListOpen ? 'Hide' : 'See'}
         </button>
       </p>
-      {open ? (
+      {isListOpen ? (
         <ul className="graph-view-detail__hidden-list">
-          {ids.map((id) => (
-            <li key={id}>{names[id] ?? id}</li>
+          {applicationIds.map((applicationId) => (
+            <li key={applicationId}>{names[applicationId] ?? applicationId}</li>
           ))}
         </ul>
       ) : null}

@@ -5365,7 +5365,7 @@ body.is-diagram-grown .layout {
   background: transparent;
   padding: 0;
   font: inherit;
-  color: #334155;
+  color: #64748b;
   cursor: pointer;
 }
 
@@ -5615,11 +5615,6 @@ body.is-diagram-grown .layout {
   font-weight: 600;
   padding: 0.35rem 0.6rem;
   cursor: pointer;
-}
-
-.graph-view-detail__actions .quiet-danger {
-  color: #b91c1c;
-  border-color: #fecaca;
 }
 
 .graph-applied-view-banner {

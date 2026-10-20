@@ -16,6 +16,7 @@ assert.match(css, /\.graph-views-item-name \{[^}]*font-size: 15px/);
 assert.match(css, /\.graph-views-item-summary \{[^}]*color: #64748b/);
 assert.match(css, /\.graph-views-item-meta \{[^}]*font-size: 12px/);
 assert.match(css, /\.graph-views-crumb button:not\(\[aria-current='page'\]\):hover \{[^}]*text-decoration: underline/);
+assert.match(css, /\.graph-views-crumb button \{[^}]*color: #64748b/);
 assert.match(css, /\.graph-views-layout-switch \{/);
 assert.match(css, /\.graph-view-detail__apply \{[^}]*var\(--ss-views-accent/);
 assert.match(css, /\.is-danger-ghost \{[^}]*background: transparent/);
