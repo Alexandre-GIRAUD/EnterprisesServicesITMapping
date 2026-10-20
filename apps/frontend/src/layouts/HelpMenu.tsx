@@ -3,6 +3,8 @@ import { AboutContactForm } from '@/features/about/AboutContactForm';
 import { HELP_TOPICS } from './helpTopics';
 
 const HELP_PANEL_WIDTH = 352;
+const HELP_PANEL_GAP = 8;
+const HELP_VIEWPORT_GUTTER = 12;
 
 export function HelpMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -33,8 +35,8 @@ export function HelpMenu() {
     }
     const rect = rootRef.current?.getBoundingClientRect();
     if (rect) {
-      const left = Math.min(rect.left, window.innerWidth - HELP_PANEL_WIDTH - 12);
-      setAnchor({ top: rect.bottom + 8, left: Math.max(12, left) });
+      const left = Math.min(rect.left, window.innerWidth - HELP_PANEL_WIDTH - HELP_VIEWPORT_GUTTER);
+      setAnchor({ top: rect.bottom + HELP_PANEL_GAP, left: Math.max(HELP_VIEWPORT_GUTTER, left) });
     }
     setIsOpen(true);
   }
@@ -51,23 +53,27 @@ export function HelpMenu() {
       >
         <QuestionGlyph />
       </button>
-      {isOpen && anchor ? (
-        <div
-          id="layout-help-panel"
-          className="layout-help-panel"
-          role="dialog"
-          aria-label="Help"
-          style={{ top: anchor.top, left: anchor.left }}
-        >
-          {HELP_TOPICS.map((topic) => (
-            <section key={topic.title} className="layout-help-section">
-              <h3>{topic.title}</h3>
-              <p>{topic.text}</p>
-            </section>
-          ))}
-          <AboutContactForm />
-        </div>
-      ) : null}
+      {isOpen && anchor ? <HelpPanel top={anchor.top} left={anchor.left} /> : null}
+    </div>
+  );
+}
+
+function HelpPanel({ top, left }: { top: number; left: number }) {
+  return (
+    <div
+      id="layout-help-panel"
+      className="layout-help-panel"
+      role="dialog"
+      aria-label="Help"
+      style={{ top, left, width: HELP_PANEL_WIDTH }}
+    >
+      {HELP_TOPICS.map((topic) => (
+        <section key={topic.title} className="layout-help-section">
+          <h3>{topic.title}</h3>
+          <p>{topic.text}</p>
+        </section>
+      ))}
+      <AboutContactForm />
     </div>
   );
 }

@@ -343,7 +343,6 @@ body.is-diagram-grown .layout {
 .layout-help-panel {
   position: fixed;
   z-index: 40;
-  width: 22rem;
   max-height: min(70vh, 32rem);
   overflow: auto;
   padding: 1rem 1.05rem 1.15rem;
