@@ -6,6 +6,7 @@ import { GraphSnapshotsProvider } from '@/features/map/context/GraphSnapshotsCon
 import type { MapLocationState } from '@/features/map/utils/mapNavigation';
 import { COLOR_THEME_STORAGE_KEY, storedColorTheme, toggledColorTheme, type ColorTheme } from './colorTheme';
 import { SettingsMenu } from './SettingsMenu';
+import { HelpMenu } from './HelpMenu';
 import { ThemeModeButton } from './ThemeModeButton';
 
 function navigationLinkClassName({ isActive }: { isActive: boolean }) {
@@ -50,6 +51,7 @@ export function Layout() {
                     </span>
                   ) : null}
                   <ThemeModeButton theme={theme} onToggle={() => setTheme((current) => toggledColorTheme(current))} />
+                  <HelpMenu />
                 </span>
               ) : null}
             </div>

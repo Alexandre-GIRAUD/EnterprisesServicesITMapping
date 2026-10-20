@@ -306,6 +306,77 @@ body.is-diagram-grown .layout {
   outline-offset: 2px;
 }
 
+.layout-help {
+  position: relative;
+}
+
+.layout-help-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgb(148 163 184 / 45%);
+  background: transparent;
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.layout-help-toggle svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.layout-help-toggle:hover,
+.layout-help-toggle[aria-expanded='true'] {
+  background: rgb(148 163 184 / 18%);
+  color: #ffffff;
+}
+
+.layout-help-toggle:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.layout-help-panel {
+  position: fixed;
+  z-index: 40;
+  width: 22rem;
+  max-height: min(70vh, 32rem);
+  overflow: auto;
+  padding: 1rem 1.05rem 1.15rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 16px 40px rgb(15 23 42 / 18%);
+}
+
+.layout-help-section + .layout-help-section,
+.layout-help-panel .about-contact {
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgb(15 23 42 / 10%);
+}
+
+.layout-help-section h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.layout-help-section p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #334155;
+}
+
 .layout-header-btn {
   font: inherit;
   font-size: 0.85rem;
