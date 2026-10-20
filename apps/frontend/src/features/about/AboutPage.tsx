@@ -1,6 +1,6 @@
 import { FLOWRA_SITE_URL } from './aboutContact';
 import { AboutContactForm } from './AboutContactForm';
-import { FLOWRA_HEADLINE, FLOWRA_LEAD, FLOWRA_MODES } from './flowraIntro';
+import { FLOWRA_HEADLINE_LINES, FLOWRA_LEAD, FLOWRA_MODES } from './flowraIntro';
 
 function AboutModeList() {
   return (
@@ -19,7 +19,11 @@ export function AboutPage() {
   return (
     <main className="about-page">
       <p className="about-kicker">Flowra</p>
-      <h2>{FLOWRA_HEADLINE}</h2>
+      <h2>
+        {FLOWRA_HEADLINE_LINES[0]}
+        <br />
+        {FLOWRA_HEADLINE_LINES[1]}
+      </h2>
       <p className="about-lead">{FLOWRA_LEAD}</p>
       <AboutModeList />
       {FLOWRA_SITE_URL ? (

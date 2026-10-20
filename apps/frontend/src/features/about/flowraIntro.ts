@@ -1,4 +1,6 @@
-export const FLOWRA_HEADLINE = 'The system, drawn once.';
+export const FLOWRA_HEADLINE_LINES = ['Know your', 'information system'] as const;
+
+export const FLOWRA_HEADLINE = FLOWRA_HEADLINE_LINES.join(' ');
 
 export const FLOWRA_LEAD =
   'Flowra maps the applications in an information system and the flows between them.';

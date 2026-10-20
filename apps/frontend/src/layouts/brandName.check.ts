@@ -28,8 +28,9 @@ assert.doesNotMatch(about, />Flora</);
 assert.match(layout, /to="\/map"/);
 assert.match(login, /auth-split/);
 assert.match(login, /auth-story/);
-assert.match(login, /FLOWRA_HEADLINE/);
-assert.match(introSource, /The system, drawn once/);
+assert.match(login, /FLOWRA_HEADLINE_LINES/);
+assert.match(introSource, /Know your/);
+assert.match(introSource, /information system/);
 assert.match(css, /\.auth-split\s*\{[^}]*grid-template-columns/);
 assert.match(css, /\.layout-main \{[^}]*overflow: auto/);
 

@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import flowraLogo from '@/assets/flowra.svg.svg';
-import { FLOWRA_HEADLINE, FLOWRA_LEAD, FLOWRA_MODES } from '@/features/about/flowraIntro';
+import { FLOWRA_HEADLINE_LINES, FLOWRA_LEAD, FLOWRA_MODES } from '@/features/about/flowraIntro';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { loginRequest } from '@/features/auth/api/authApi';
 
@@ -43,7 +43,11 @@ export function LoginPage() {
             <img src={flowraLogo} alt="" className="auth-brand-logo" aria-hidden />
             <h1 className="auth-brand-title">Flowra</h1>
           </header>
-          <h2>{FLOWRA_HEADLINE}</h2>
+          <h2>
+            {FLOWRA_HEADLINE_LINES[0]}
+            <br />
+            {FLOWRA_HEADLINE_LINES[1]}
+          </h2>
           <p className="auth-story-lead">{FLOWRA_LEAD}</p>
           <ul className="auth-story-modes">
             {FLOWRA_MODES.map((mode) => (
