@@ -571,6 +571,27 @@ body.is-diagram-grown .layout {
   flex: 1 1 14rem;
 }
 
+.github-import-third-party-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.85rem;
+  width: min(100%, 36rem);
+}
+
+.github-import-third-party-form .github-import-search-label {
+  flex: none;
+  width: 100%;
+}
+
+.github-import-third-party-form .github-import-search-input {
+  width: 100%;
+}
+
+.github-import-third-party-form .github-import-primary {
+  align-self: flex-start;
+}
+
 .github-import-text-button {
   border: 0;
   background: transparent;

@@ -269,10 +269,7 @@ export function GitHubImportPage() {
       )}
 
       {sourceMode === 'third-party' ? (
-        <ThirdPartySources
-          applications={applications}
-          onChanged={async () => setApplications(await fetchApplications())}
-        />
+        <ThirdPartySources onChanged={async () => setApplications(await fetchApplications())} />
       ) : null}
 
       {sourceMode === 'repository' ? (
