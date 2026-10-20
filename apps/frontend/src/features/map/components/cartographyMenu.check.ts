@@ -11,12 +11,14 @@ import { DEFAULT_MENU_WIDTH } from './sideMenuWidth.ts';
 
 const css = readFileSync(new URL('../../../index.css', import.meta.url), 'utf8');
 
-assert.equal(DEFAULT_MENU_WIDTH, 360);
-assert.match(css, /\.map-graph-panel\.is-menu-open \.self-service-side-menu-shell \{[^}]*min\(360px/);
+assert.equal(DEFAULT_MENU_WIDTH, 420);
+assert.match(css, /\.map-graph-panel\.is-menu-open \.self-service-side-menu-shell \{[^}]*min\(420px/);
+assert.doesNotMatch(css, /min\(360px, 92vw\)/);
 assert.doesNotMatch(css, /\.is-expanded/);
 assert.match(css, /cubic-bezier\(0\.22, 1, 0\.36, 1\)/);
 assert.doesNotMatch(css, /7\.25rem/);
 assert.match(css, /\.self-service-view-list \{[^}]*flex-direction: row/);
+assert.match(css, /\.self-service-view-list \{[^}]*flex-wrap: nowrap/);
 assert.match(css, /\.self-service-view-item\.is-primary \{[^}]*text-decoration: underline/);
 assert.doesNotMatch(
   css,
