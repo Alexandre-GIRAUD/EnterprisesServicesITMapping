@@ -1415,6 +1415,12 @@ export function GraphCanvas() {
     if (isSandbox) mode.setSandboxDirty(true);
   }
 
+  const applicationNames = useMemo(() => {
+    const names: Record<string, string> = {};
+    for (const application of applications) names[application.id] = application.name;
+    return names;
+  }, [applications]);
+
   const activeViewTitle = useMemo(() => {
     if (moduleGraphApp) return `Modules — ${moduleGraphApp.label}`;
     if (isViewsMode) return 'My views';
@@ -1882,7 +1888,9 @@ export function GraphCanvas() {
               {showGraphDisplayToggle ? (
                 <GraphDisplayToggle displayMode={displayMode} onChange={setDisplayMode} />
               ) : null}
-              <SelfServiceBurger isOpen={isSideMenuOpen} onToggle={handleSideMenuToggle} />
+              {isViewsMode ? null : (
+                <SelfServiceBurger isOpen={isSideMenuOpen} onToggle={handleSideMenuToggle} />
+              )}
             </div>
           </header>
 
@@ -1899,6 +1907,11 @@ export function GraphCanvas() {
                   mode.switchToNormalMode();
                 }}
                 onShownView={showLibraryView}
+                onCreateView={() => {
+                  mode.switchToNormalMode();
+                  setIsSaveSnapshotOpen(true);
+                }}
+                panelToggle={<SelfServiceBurger isOpen={isSideMenuOpen} onToggle={handleSideMenuToggle} />}
                 actionsRef={viewActionsRef}
               />
             ) : moduleGraphApp ? (
@@ -2419,6 +2432,7 @@ export function GraphCanvas() {
             graphMode === 'views' ? (
               <ViewInspectPanel
                 view={shownView}
+                applicationNames={applicationNames}
                 onApply={(id) => viewActionsRef.current?.apply(id)}
                 onRename={(id) => viewActionsRef.current?.rename(id)}
                 onDuplicate={(id) => viewActionsRef.current?.duplicate(id)}
