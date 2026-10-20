@@ -7359,18 +7359,62 @@ body.is-diagram-grown .layout {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
+  padding: 2rem 1.5rem;
   background:
     radial-gradient(circle at top, rgb(59 130 246 / 8%), transparent 42%),
     linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
 }
 
-.auth-page-stack {
-  display: flex;
-  flex-direction: column;
+.auth-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 26rem);
   align-items: center;
-  gap: 1.5rem;
-  width: 100%;
+  gap: clamp(2rem, 5vw, 4.5rem);
+  width: min(68rem, 100%);
+}
+
+.auth-story h2 {
+  margin: 1.25rem 0 0;
+  max-width: 14ch;
+  font-size: clamp(2rem, 4vw, 3.1rem);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
+  color: #0f172a;
+}
+
+.auth-story-lead {
+  max-width: 34rem;
+  margin: 1rem 0 0;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: #334155;
+}
+
+.auth-story-modes {
+  display: grid;
+  gap: 0.85rem;
+  margin: 1.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.auth-story-modes li {
+  padding-top: 0.75rem;
+  border-top: 1px solid rgb(15 23 42 / 12%);
+}
+
+.auth-story-modes strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.95rem;
+}
+
+.auth-story-modes p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #475569;
 }
 
 /* Login brand: logo + h1 on .auth-page background (~30vw wide, min width for small screens) */
@@ -7380,11 +7424,10 @@ body.is-diagram-grown .layout {
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.65rem 1rem;
-  width: min(92vw, max(17rem, 50vw));
-  margin-inline: auto;
-  text-align: center;
+  width: 100%;
+  text-align: left;
 }
 
 .auth-brand-logo {
@@ -7398,7 +7441,7 @@ body.is-diagram-grown .layout {
   margin: 0;
   flex: 0 1 auto;
   min-width: 0;
-  font-size: clamp(1.85rem, 14cqw, 4.25rem);
+  font-size: clamp(1.85rem, 8cqw, 3.25rem);
   font-weight: 800;
   letter-spacing: 0.03em;
   line-height: 1.05;
@@ -7503,6 +7546,12 @@ body.is-diagram-grown .layout {
   margin: 1.25rem 0 0;
   font-size: 0.8rem;
   color: #64748b;
+}
+
+@media (max-width: 800px) {
+  .auth-split {
+    grid-template-columns: 1fr;
+  }
 }
 
 .auth-link {

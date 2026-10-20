@@ -16,6 +16,7 @@ function readSource(relativePath: string): string {
 const layout = readSource('Layout.tsx');
 const login = readSource('../features/auth/pages/LoginPage.tsx');
 const about = readSource('../features/about/AboutPage.tsx');
+const intro = readSource('../features/about/flowraIntro.ts');
 const css = readSource('../index.css');
 
 assert.match(layout, /<h1>Flowra<\/h1>/);
@@ -24,7 +25,12 @@ assert.match(login, /auth-brand-title">Flowra</);
 assert.doesNotMatch(login, />Flora</);
 assert.match(about, />Flowra</);
 assert.doesNotMatch(about, />Flora</);
-assert.match(layout, /to="\/about"/);
+assert.match(layout, /to="\/map"/);
+assert.match(login, /auth-split/);
+assert.match(login, /auth-story/);
+assert.match(login, /FLOWRA_HEADLINE/);
+assert.match(intro, /The system, drawn once/);
+assert.match(css, /\.auth-split\s*\{[^}]*grid-template-columns/);
 assert.match(css, /\.layout-main \{[^}]*overflow: auto/);
 
 console.log('brandName.check: ok');

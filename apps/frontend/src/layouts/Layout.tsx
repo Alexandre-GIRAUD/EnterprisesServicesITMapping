@@ -31,7 +31,11 @@ export function Layout() {
         <header className="layout-header">
           <div className="layout-header-inner">
             <div className="layout-header-brand-group">
-              <Link to="/about" className="layout-brand layout-brand-link">
+              <Link
+                to="/map"
+                state={{ graphMode: 'normal' } satisfies MapLocationState}
+                className="layout-brand layout-brand-link"
+              >
                 <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
                 <h1>Flowra</h1>
               </Link>
