@@ -748,14 +748,6 @@ body.is-diagram-grown .layout {
   outline-offset: 2px;
 }
 
-.github-import-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.85rem;
-  margin-bottom: 1rem;
-}
-
 .github-import-search-label {
   flex: 1 1 220px;
   display: flex;
@@ -817,34 +809,6 @@ body.is-diagram-grown .layout {
 .github-import-primary:focus-visible {
   outline: 2px solid #93c5fd;
   outline-offset: 3px;
-}
-
-.github-import-secondary {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #475569;
-  background: #ffffff;
-  cursor: pointer;
-}
-
-.github-import-secondary:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-}
-
-.github-import-secondary:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.github-import-hint {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #64748b;
-  line-height: 1.45;
 }
 
 /* ===== Pending changes (Cartography side menu) ===== */
