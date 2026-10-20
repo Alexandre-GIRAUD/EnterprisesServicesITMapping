@@ -160,6 +160,7 @@ export function GraphLegend({
 }: Props) {
   const legendRef = useRef<HTMLDivElement | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [setupName, setSetupName] = useState('');
   const [selectedSetupId, setSelectedSetupId] = useState('');
 
@@ -442,7 +443,22 @@ export function GraphLegend({
     observer.observe(root);
     fit();
     return () => observer.disconnect();
-  }, [isEditing, appsItems.length, flowsItems.length]);
+  }, [isEditing, isCollapsed, appsItems.length, flowsItems.length]);
+
+  if (isCollapsed) {
+    return (
+      <button
+        type="button"
+        className="graph-legend graph-legend--collapsed"
+        aria-expanded={false}
+        aria-label="Show legend"
+        title="Legend"
+        onClick={() => setIsCollapsed(false)}
+      >
+        <LegendMark />
+      </button>
+    );
+  }
 
   return (
     <div
@@ -453,17 +469,31 @@ export function GraphLegend({
     >
       <header className="graph-legend__header">
         <h2 className="graph-legend__heading">Legend</h2>
-        {canEdit ? (
+        <span className="graph-legend__header-actions">
+          {canEdit ? (
+            <button
+              type="button"
+              className="graph-legend__toggle"
+              aria-label={isEditing ? 'Done' : 'Edit'}
+              title={isEditing ? 'Done' : 'Edit'}
+              onClick={() => setIsEditing((v) => !v)}
+            >
+              {isEditing ? '✓' : 'Edit'}
+            </button>
+          ) : null}
           <button
             type="button"
-            className="graph-legend__toggle"
-            aria-label={isEditing ? 'Done' : 'Edit'}
-            title={isEditing ? 'Done' : 'Edit'}
-            onClick={() => setIsEditing((v) => !v)}
+            className="graph-legend__toggle graph-legend__collapse"
+            aria-label="Hide legend"
+            title="Hide legend"
+            onClick={() => {
+              setIsEditing(false);
+              setIsCollapsed(true);
+            }}
           >
-            {isEditing ? '✓' : 'Edit'}
+            –
           </button>
-        ) : null}
+        </span>
       </header>
 
       {isEditing && onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup && (
@@ -653,6 +683,14 @@ export function GraphLegend({
         </div>
       )}
     </div>
+  );
+}
+
+function LegendMark() {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d="M2 4.5h12M2 8h12M2 11.5h8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
   );
 }
 

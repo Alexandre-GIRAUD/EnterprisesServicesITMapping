@@ -7,6 +7,7 @@ import type { GraphNodeFilterDto } from '@/types/api';
 import {
   dimensionMode,
   isGraphBlankedBySelection,
+  filterIdleCopy,
   keepApplicationsForCheckedFlows,
 } from './filterDimensionUtils.ts';
 import { EMPTY_FILTER_VALUE, searchFilterHits } from './filterSearch.ts';
@@ -53,6 +54,13 @@ assert.equal(dimensionMode([], ['a', 'b']), 'none');
 assert.equal(dimensionMode(['a', 'b'], ['a', 'b']), 'all');
 assert.equal(isGraphBlankedBySelection(['all', 'none']), true);
 assert.equal(isGraphBlankedBySelection(['all', 'some']), false);
+assert.equal(
+  filterIdleCopy(false, false, false),
+  'Add Data Model fields with attributes for "Applications" (node) and "Connections" (edge).',
+);
+assert.equal(filterIdleCopy(false, true, false), 'No filter selected');
+assert.equal(filterIdleCopy(true, false, false), 'No filter selected');
+assert.equal(filterIdleCopy(true, true, true), null);
 
 assert.deepEqual(keepApplicationsForCheckedFlows(['a', 'b', 'c'], ['a', 'b', 'c'], ['b', 'c']), ['a', 'b', 'c']);
 assert.deepEqual(keepApplicationsForCheckedFlows(['a'], ['a', 'b', 'c'], ['b']), ['a', 'b']);

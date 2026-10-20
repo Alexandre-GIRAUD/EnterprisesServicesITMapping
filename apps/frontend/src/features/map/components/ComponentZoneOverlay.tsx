@@ -30,7 +30,9 @@ export function ComponentZoneOverlay({ nodes, edges }: ComponentZoneOverlayProps
             width: frame.width,
             height: frame.height,
           }}
-        />
+        >
+          <span className="component-zone-label">{frame.label}</span>
+        </div>
       ))}
     </ViewportPortal>
   );

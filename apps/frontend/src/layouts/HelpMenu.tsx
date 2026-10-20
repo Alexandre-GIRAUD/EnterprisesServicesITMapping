@@ -61,6 +61,7 @@ export function HelpMenu() {
         type="button"
         className="layout-help-toggle"
         aria-label="Help"
+        title="Help"
         aria-expanded={isOpen}
         aria-controls="layout-help-panel"
         onClick={toggle}
