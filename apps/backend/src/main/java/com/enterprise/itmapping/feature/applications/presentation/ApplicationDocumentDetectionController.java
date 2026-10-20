@@ -3,7 +3,10 @@ package com.enterprise.itmapping.feature.applications.presentation;
 import com.enterprise.itmapping.feature.applications.application.ApplicationConnectionSuggestionService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationDetectionDocumentService;
 import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
+import com.enterprise.itmapping.feature.applications.application.ThirdPartyImportService;
+import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.DetectionDocumentResponse;
+import com.enterprise.itmapping.feature.applications.presentation.dto.ImportThirdPartyRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SaveDetectionDocumentRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
@@ -30,14 +33,47 @@ public class ApplicationDocumentDetectionController {
   private final ApplicationDetectionDocumentService documentService;
   private final ModuleSuggestionService moduleSuggestionService;
   private final ApplicationConnectionSuggestionService connectionSuggestionService;
+  private final ThirdPartyImportService thirdPartyImportService;
 
   public ApplicationDocumentDetectionController(
       ApplicationDetectionDocumentService documentService,
       ModuleSuggestionService moduleSuggestionService,
-      ApplicationConnectionSuggestionService connectionSuggestionService) {
+      ApplicationConnectionSuggestionService connectionSuggestionService,
+      ThirdPartyImportService thirdPartyImportService) {
     this.documentService = documentService;
     this.moduleSuggestionService = moduleSuggestionService;
     this.connectionSuggestionService = connectionSuggestionService;
+    this.thirdPartyImportService = thirdPartyImportService;
+  }
+
+  @PostMapping(value = "/third-party", consumes = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<ApplicationResponse> importText(@RequestBody ImportThirdPartyRequest body) {
+    ImportThirdPartyRequest request = body != null ? body : new ImportThirdPartyRequest(null, null, null, null);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(
+            thirdPartyImportService.importText(
+                request.name(), request.description(), request.title(), request.body()));
+  }
+
+  @PostMapping(value = "/third-party", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<ApplicationResponse> importFile(
+      @RequestParam("name") String name,
+      @RequestParam(value = "description", required = false) String description,
+      @RequestParam(value = "title", required = false) String title,
+      @RequestPart("file") MultipartFile file) {
+    try {
+      return ResponseEntity.status(HttpStatus.CREATED)
+          .body(
+              thirdPartyImportService.importUpload(
+                  name,
+                  description,
+                  title,
+                  file.getOriginalFilename(),
+                  file.getContentType(),
+                  file.getBytes()));
+    } catch (IOException e) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unreadable file.");
+    }
   }
 
   @GetMapping("/{id}/detection-document")
