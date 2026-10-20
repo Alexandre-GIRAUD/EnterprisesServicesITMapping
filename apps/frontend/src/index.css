@@ -2077,6 +2077,18 @@ body.is-diagram-grown .layout {
   background: #ffffff;
 }
 
+.map-graph-panel .pivot-btn--primary {
+  border-color: var(--ss-accent);
+  background: var(--ss-accent);
+  color: #ffffff;
+}
+
+.map-graph-panel .pivot-btn--primary:hover:not(:disabled) {
+  border-color: var(--ss-accent-dark);
+  background: var(--ss-accent-dark);
+  color: #ffffff;
+}
+
 .map-graph-panel .graph-filter-status.is-active {
   color: var(--ss-accent);
 }
@@ -3291,18 +3303,17 @@ body.is-diagram-grown .layout {
 }
 
 .graph-filter-compact-actions > .graph-filter-compact-btn {
-  flex: 1 1 0;
-  width: 0;
-  min-width: 0;
+  flex: 0 0 auto;
+  width: 7.25rem;
   text-align: center;
 }
 
 .graph-filter-compact-btn {
   font: inherit;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 600;
   line-height: 1.2;
-  padding: 0.3rem 0.6rem;
+  padding: 0.35rem 0.4rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #ffffff;
@@ -6002,15 +6013,17 @@ body.is-diagram-grown .layout {
 }
 
 .pivot-btn {
-  width: auto;
-  padding: 0.4rem 0.75rem;
+  width: 7.25rem;
+  padding: 0.35rem 0.4rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #ffffff;
   color: #334155;
   font: inherit;
-  font-size: 14px;
+  font-size: 0.78rem;
   font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -6028,6 +6041,18 @@ body.is-diagram-grown .layout {
 .pivot-btn--primary:hover:not(:disabled) {
   background: #1d4ed8;
   border-color: #1d4ed8;
+}
+
+.pivot-btn--danger {
+  border-color: #f87171;
+  background: #ffffff;
+  color: #b91c1c;
+}
+
+.pivot-btn--danger:hover:not(:disabled) {
+  border-color: #ef4444;
+  background: #ffffff;
+  color: #991b1b;
 }
 
 .pivot-btn:focus:not(:focus-visible) {
