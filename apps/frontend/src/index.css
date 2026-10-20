@@ -525,15 +525,6 @@ body.is-diagram-grown .layout {
   margin-bottom: 1.25rem;
 }
 
-.github-import-eyebrow {
-  margin: 0 0 0.35rem;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #2563eb;
-}
-
 .github-import-title {
   margin: 0;
   font-size: 1.55rem;
@@ -7602,6 +7593,10 @@ body.is-diagram-grown .layout {
   margin: 0 0 0.35rem;
   font-size: 1.35rem;
   color: #0f172a;
+}
+
+.data-model-header .graph-display-toggle {
+  margin: 0.75rem 0 1rem;
 }
 
 .data-model-lead {

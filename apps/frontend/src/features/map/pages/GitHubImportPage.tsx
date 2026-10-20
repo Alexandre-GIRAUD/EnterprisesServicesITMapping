@@ -228,7 +228,6 @@ export function GitHubImportPage() {
     <div className="github-import-page">
       <header className="github-import-header">
         <div>
-          <p className="github-import-eyebrow">Integrations</p>
           <h1 className="github-import-title">Sources</h1>
           <p className="github-import-subtitle">
             {sourceMode === 'repository'

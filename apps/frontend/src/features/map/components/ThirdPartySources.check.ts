@@ -10,6 +10,7 @@ const drawer = readFileSync(new URL('./ApplicationDetailsDrawer.tsx', import.met
 const panel = readFileSync(new URL('./ThirdPartySources.tsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../../../index.css', import.meta.url), 'utf8');
 
+assert.doesNotMatch(sources, /github-import-eyebrow/);
 assert.match(sources, /Repository/);
 assert.match(sources, /Third party/);
 assert.match(sources, /Import selection/);
