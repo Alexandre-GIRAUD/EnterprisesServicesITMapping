@@ -74,7 +74,9 @@ assert.match(menu('views'), /self-service-view-item--views[^"]*is-primary/);
 
 const openBurger = renderToStaticMarkup(createElement(SelfServiceBurger, { isOpen: true, onToggle: () => undefined }));
 assert.match(openBurger, /self-service-burger-icon/);
+assert.match(openBurger, /<rect /);
 assert.doesNotMatch(openBurger, /M18 6/);
+assert.doesNotMatch(css, /\.self-service-burger-icon::before/);
 
 const viewsMenu = menu('views');
 assert.match(viewsMenu, /M18 6/);

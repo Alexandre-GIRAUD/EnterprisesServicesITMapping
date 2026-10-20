@@ -2355,36 +2355,9 @@ body.is-diagram-grown .layout {
 }
 
 .self-service-burger-icon {
-  position: relative;
-  width: 1rem;
-  height: 0.72rem;
-}
-
-.self-service-burger-icon::before,
-.self-service-burger-icon::after,
-.self-service-burger-icon {
   display: block;
-}
-
-.self-service-burger-icon::before,
-.self-service-burger-icon::after {
-  content: '';
-  position: absolute;
-  left: 0;
   width: 1rem;
-  height: 2px;
-  border-radius: 999px;
-  background: currentColor;
-  transition: transform 160ms ease, top 160ms ease, opacity 160ms ease;
-}
-
-.self-service-burger-icon::before {
-  top: 0;
-  box-shadow: 0 5px 0 currentColor;
-}
-
-.self-service-burger-icon::after {
-  top: 10px;
+  height: 1rem;
 }
 
 .self-service-side-menu-shell {
@@ -5342,8 +5315,19 @@ body.is-diagram-grown .layout {
 }
 
 .graph-views-list.is-grid .graph-views-item {
+  position: relative;
   flex-direction: column;
   align-items: stretch;
+}
+
+.graph-views-list.is-grid .graph-views-actions {
+  position: absolute;
+  top: 0.1rem;
+  right: 0.05rem;
+}
+
+.graph-views-list.is-grid .graph-views-actions-btn svg {
+  transform: rotate(90deg);
 }
 
 .graph-views-list.is-grid .graph-views-item-btn {

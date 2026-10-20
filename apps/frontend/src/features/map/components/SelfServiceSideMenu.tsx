@@ -162,6 +162,15 @@ function useResizableMenu(isOpen: boolean, defaultWidth: number) {
   };
 }
 
+function BurgerPanelIcon() {
+  return (
+    <svg className="self-service-burger-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M6 2.5v11" fill="none" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
 export function SelfServiceBurger({ isOpen, onToggle }: SelfServiceBurgerProps) {
   return (
     <button
@@ -172,7 +181,7 @@ export function SelfServiceBurger({ isOpen, onToggle }: SelfServiceBurgerProps) 
       aria-controls="self-service-side-menu"
       aria-label={isOpen ? 'Close menu' : 'Open menu'}
     >
-      <span className="self-service-burger-icon" aria-hidden="true" />
+      <BurgerPanelIcon />
     </button>
   );
 }
