@@ -26,7 +26,7 @@ type MappingChatPanelProps = {
   onGraphChanged?: () => void;
 };
 
-export const MAPPING_CHAT_SUGGESTIONS = [
+const MAPPING_CHAT_SUGGESTIONS = [
   'Which applications manage payments?',
   'Which applications are connected to…',
   'What does an application do?',
