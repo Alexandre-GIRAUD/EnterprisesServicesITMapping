@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import flowraLogo from '@/assets/flowra.svg.svg';
+import flowraLogo from '@/assets/flowra.svg';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { GraphSnapshotsProvider } from '@/features/map/context/GraphSnapshotsContext';
 import type { MapLocationState } from '@/features/map/utils/mapNavigation';

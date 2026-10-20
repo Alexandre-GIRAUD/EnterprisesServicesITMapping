@@ -393,9 +393,6 @@ body.is-diagram-grown .layout {
   width: 1.9rem;
   height: 1.9rem;
   object-fit: contain;
-  filter: brightness(0) saturate(100%) invert(96%) sepia(12%) saturate(590%) hue-rotate(173deg)
-    brightness(103%) contrast(94%);
-  opacity: 0.98;
 }
 
 .layout-main {
@@ -7397,20 +7394,20 @@ body.is-diagram-grown .layout {
   width: min(92vw, max(17rem, 50vw));
   margin-inline: auto;
   text-align: center;
+  --flowra-word-size: clamp(1.85rem, 14cqw, 4.25rem);
 }
 
 .auth-brand-logo {
-  width: clamp(2.5rem, 5.5vw, 3.75rem);
-  height: clamp(2.5rem, 5.5vw, 3.75rem);
+  height: calc(var(--flowra-word-size) * 1.9 / 1.25);
+  width: auto;
   flex-shrink: 0;
-  object-fit: contain;
 }
 
 .auth-brand-title {
   margin: 0;
   flex: 0 1 auto;
   min-width: 0;
-  font-size: clamp(1.85rem, 14cqw, 4.25rem);
+  font-size: var(--flowra-word-size);
   font-weight: 800;
   letter-spacing: 0.03em;
   line-height: 1.05;

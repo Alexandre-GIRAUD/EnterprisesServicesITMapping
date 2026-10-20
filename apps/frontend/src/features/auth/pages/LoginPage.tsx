@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import flowraLogo from '@/assets/flowra.svg.svg';
+import flowraLogo from '@/assets/flowra.svg';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { loginRequest } from '@/features/auth/api/authApi';
 
