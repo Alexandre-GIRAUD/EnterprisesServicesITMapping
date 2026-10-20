@@ -30,6 +30,8 @@ import {
   folderBreadcrumb,
   folderItemCount,
   searchLibrary,
+  truncateAuthorName,
+  viewInfoLines,
   viewSummaryLine,
   viewWhenLine,
   type LibraryFolder,
@@ -47,8 +49,8 @@ type GraphViewsPanelProps = {
 export type InspectedView = {
   id: string;
   name: string;
-  summary: string;
-  whenLine: string;
+  infoLines: readonly [string, string, string, string];
+  authorName: string;
   hints: string[];
 };
 
@@ -709,8 +711,7 @@ export function ViewInspectPanel({
   return (
     <div className="graph-view-detail">
       <h3>{view.name}</h3>
-      <p>{view.summary}</p>
-      <p className="graph-view-detail__when">{view.whenLine}</p>
+      <ViewFactList lines={view.infoLines} authorName={view.authorName} />
       {view.hints.length > 0 ? (
         <ul>
           {view.hints.map((hint) => (
@@ -721,7 +722,7 @@ export function ViewInspectPanel({
         <p className="graph-view-detail__when">No filters</p>
       )}
       <div className="graph-view-detail__actions">
-        <button type="button" onClick={() => onApply(view.id)}>Apply</button>
+        <button type="button" className="is-important" onClick={() => onApply(view.id)}>Apply</button>
         <button type="button" onClick={() => onRename(view.id)}>Rename</button>
         <button type="button" onClick={() => onDuplicate(view.id)}>Duplicate</button>
         <button type="button" className="quiet-danger" onClick={() => onDelete(view.id)}>Delete</button>
@@ -933,8 +934,10 @@ function ViewCard({
               {row.name}
             </span>
           )}
-          <span className="graph-views-item-summary">{viewSummaryLine(row.filterCount, row.hiddenApps)}</span>
-          <span className="graph-views-item-meta">{viewWhenLine(view.updatedAt, authorName, Date.now())}</span>
+          <ViewFactList
+            lines={viewInfoLines(row.filterCount, row.hiddenApps, view.updatedAt, authorName, Date.now())}
+            authorName={authorName}
+          />
           {showPath ? <span className="graph-views-item-meta">{row.pathLabel}</span> : null}
         </span>
       </div>
@@ -1057,7 +1060,7 @@ function LibraryTable({
             </td>
             <td>{row.kind === 'view' ? viewSummaryLine(row.filterCount, row.hiddenApps) : `${row.childCount} ${row.childCount === 1 ? 'item' : 'items'}`}</td>
             <td>{relativeDay(row.updatedAt)}</td>
-            <td>{row.author}</td>
+            <td className="graph-views-item-author" title={row.author}>{truncateAuthorName(row.author)}</td>
           </tr>
         ))}
       </tbody>
@@ -1265,8 +1268,14 @@ function inspectedFrom(view: GraphSnapshotDto, authorName: string): InspectedVie
   return {
     id: view.id,
     name: view.name,
-    summary: viewSummaryLine(activeFilterCount(view.filters), view.filters.hiddenApplicationIds?.length ?? 0),
-    whenLine: viewWhenLine(view.updatedAt, authorName, Date.now()),
+    infoLines: viewInfoLines(
+      activeFilterCount(view.filters),
+      view.filters.hiddenApplicationIds?.length ?? 0,
+      view.updatedAt,
+      authorName,
+      Date.now(),
+    ),
+    authorName,
     hints: filterHintLines(view.filters),
   };
 }
@@ -1316,6 +1325,28 @@ function readStoredViewLayout(): ViewLayout {
   } catch {
     return 'list';
   }
+}
+
+function ViewFactList({
+  lines,
+  authorName,
+}: {
+  lines: readonly [string, string, string, string];
+  authorName: string;
+}) {
+  return (
+    <ul className="graph-views-item-facts">
+      {lines.map((line, index) => (
+        <li
+          key={`${index}-${line}`}
+          className={index === lines.length - 1 ? 'graph-views-item-author' : undefined}
+          title={index === lines.length - 1 ? authorName : undefined}
+        >
+          {line}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function FolderMark({ large = false }: { large?: boolean }) {
