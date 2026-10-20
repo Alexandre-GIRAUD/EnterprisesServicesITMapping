@@ -9,6 +9,7 @@ import {
 } from '../api/applicationsApi';
 import { generateFunctionalDocumentation } from '../api/functionalDocumentationApi';
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
+import { ThirdPartySources } from '../components/ThirdPartySources';
 import { navigateToModuleGraph } from '../utils/mapNavigation';
 import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 
@@ -32,6 +33,7 @@ export function GitHubImportPage() {
   const [lastSuggestApplicationId, setLastSuggestApplicationId] = useState<string | null>(null);
   const [aiBusyRepoId, setAiBusyRepoId] = useState<number | null>(null);
   const [connBusyRepoId, setConnBusyRepoId] = useState<number | null>(null);
+  const [sourceMode, setSourceMode] = useState<'repository' | 'third-party'>('repository');
 
   const importedNames = useMemo(
     () => new Set(applications.map((a) => normalizeName(a.name ?? '')).filter(Boolean)),
@@ -54,17 +56,26 @@ export function GitHubImportPage() {
 
     async function load() {
       setStatus('loading');
+      let applicationError: string | null = null;
       try {
-        const [githubList, apps] = await Promise.all([fetchGitHubRepos(), fetchApplications()]);
+        const apps = await fetchApplications();
+        if (!cancelled) setApplications(apps);
+      } catch (e) {
+        applicationError = e instanceof Error ? e.message : 'Unable to load applications.';
+      }
+      try {
+        const githubList = await fetchGitHubRepos();
         if (cancelled) return;
         setRepos(githubList);
-        setApplications(apps);
         setStatus('ready');
-        if (oauthFlag !== 'denied' && oauthFlag !== 'failed') setErrorMessage(null);
+        if (applicationError) setErrorMessage(applicationError);
+        else if (oauthFlag !== 'denied' && oauthFlag !== 'failed') setErrorMessage(null);
       } catch (e) {
         if (cancelled) return;
         setStatus('error');
-        setErrorMessage(e instanceof Error ? e.message : 'Unable to load.');
+        setErrorMessage(
+          applicationError ?? (e instanceof Error ? e.message : 'Unable to load repositories.')
+        );
       }
     }
 
@@ -220,13 +231,52 @@ export function GitHubImportPage() {
           <p className="github-import-eyebrow">Integrations</p>
           <h1 className="github-import-title">Sources</h1>
           <p className="github-import-subtitle">
-            Import repositories from the GitHub account connected in Settings.
+            {sourceMode === 'repository'
+              ? 'Import repositories from the GitHub account connected in Settings.'
+              : 'Name a third-party application and give the document detection will read.'}
           </p>
         </div>
         <Link className="github-import-back" to="/map">
           Back to map
         </Link>
       </header>
+
+      <div className="github-import-toolbar" role="tablist" aria-label="Source kind">
+        <button
+          type="button"
+          className={sourceMode === 'repository' ? 'github-import-primary' : 'github-import-secondary'}
+          role="tab"
+          aria-selected={sourceMode === 'repository'}
+          onClick={() => setSourceMode('repository')}
+        >
+          Repository
+        </button>
+        <button
+          type="button"
+          className={sourceMode === 'third-party' ? 'github-import-primary' : 'github-import-secondary'}
+          role="tab"
+          aria-selected={sourceMode === 'third-party'}
+          onClick={() => setSourceMode('third-party')}
+        >
+          Third party
+        </button>
+      </div>
+
+      {errorMessage && (
+        <p className="github-import-state github-import-state-error" role="alert">
+          {errorMessage}
+        </p>
+      )}
+
+      {sourceMode === 'third-party' ? (
+        <ThirdPartySources
+          applications={applications}
+          onChanged={async () => setApplications(await fetchApplications())}
+        />
+      ) : null}
+
+      {sourceMode === 'repository' ? (
+        <>
 
       <div className="github-import-ai-live" aria-live="polite" aria-relevant="additions text">
         {aiBanner && (
@@ -281,11 +331,6 @@ export function GitHubImportPage() {
       {status === 'loading' && (
         <p className="github-import-state" role="status">
           Loading GitHub repositories…
-        </p>
-      )}
-      {errorMessage && (
-        <p className="github-import-state github-import-state-error" role="alert">
-          {errorMessage}
         </p>
       )}
 
@@ -433,6 +478,8 @@ export function GitHubImportPage() {
         to the application, the button changes to &quot;Modules already in place&quot; (no new AI
         suggestion).
       </p>
+        </>
+      ) : null}
     </div>
   );
 }

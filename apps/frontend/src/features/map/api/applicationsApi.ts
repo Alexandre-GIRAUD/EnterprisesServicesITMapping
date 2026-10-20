@@ -244,6 +244,47 @@ export async function saveDetectionDocumentFile(
   return res.json();
 }
 
+export async function importThirdPartyText(payload: {
+  name: string;
+  description?: string;
+  title?: string;
+  body: string;
+}): Promise<ApplicationResponse> {
+  const url = resolveApiUrl('/api/applications/third-party');
+  const res = await authenticatedFetch(url, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(await detectionError(res, 'Import third party'));
+  }
+  return res.json();
+}
+
+export async function importThirdPartyFile(
+  name: string,
+  description: string,
+  title: string,
+  file: File
+): Promise<ApplicationResponse> {
+  const url = resolveApiUrl('/api/applications/third-party');
+  const form = new FormData();
+  form.append('name', name);
+  if (description.trim()) form.append('description', description.trim());
+  if (title.trim()) form.append('title', title.trim());
+  form.append('file', file);
+  const res = await authenticatedFetch(url, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    body: form,
+  });
+  if (!res.ok) {
+    throw new Error(await detectionError(res, 'Import third party'));
+  }
+  return res.json();
+}
+
 export async function suggestModulesFromDocument(
   applicationId: string
 ): Promise<SuggestModulesFromGithubResponse> {
