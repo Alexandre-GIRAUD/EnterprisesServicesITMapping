@@ -3,11 +3,12 @@
  * JWT is stored in sessionStorage for the SPA session.
  */
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+// Self-checks load this module outside Vite, where import.meta.env is absent.
+export const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? '';
 
 /** Build full URL for API calls (Vite proxy `/api` or absolute backend origin). */
 export function resolveApiUrl(pathWithQuery: string): string {
-  const origin = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
+  const origin = (import.meta.env?.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
   return origin ? `${origin}${pathWithQuery}` : pathWithQuery;
 }
 
