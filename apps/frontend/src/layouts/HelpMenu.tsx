@@ -95,15 +95,14 @@ function HelpPanel({ top, left }: { top: number; left: number }) {
 function QuestionGlyph() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.4" />
       <path
-        d="M6.15 6.2a1.85 1.85 0 1 1 2.55 1.72c-.55.25-.75.55-.75 1"
+        d="M6.15 6.05a1.9 1.9 0 1 1 2.7 1.75c-.62.28-.9.62-.9 1.15"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.3"
+        strokeWidth="1.5"
         strokeLinecap="round"
       />
-      <circle cx="8" cy="11.35" r="0.7" fill="currentColor" />
+      <circle cx="8" cy="11.7" r="0.8" fill="currentColor" />
     </svg>
   );
 }
