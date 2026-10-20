@@ -12,7 +12,6 @@ import {
   type Node,
 } from '@xyflow/react';
 import type { StoredAttribute } from '@/types/api';
-import { ZOOM_THRESHOLDS } from './graphTheme';
 import { buildLiveRoutes, type Point, type Rect } from './elkLayout';
 import { buildOrthogonalPath } from './orthogonalPath';
 import { computeBridges } from './bridges';
@@ -578,8 +577,7 @@ export function OrientedEdge({
   const showLabel =
     !isIndirect &&
     !hideLabels &&
-    (Boolean(displayText) || canEditLabel) &&
-    zoom >= ZOOM_THRESHOLDS.secondaryDetail;
+    (Boolean(displayText) || canEditLabel);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(displayText);
   const [localHovered, setLocalHovered] = useState(false);

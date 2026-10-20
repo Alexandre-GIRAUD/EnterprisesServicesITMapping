@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { LEGEND_BASE_FONT_PX, legendColumnCount, nextLegendFontPx } from './legendFit';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 import {
   EDGE_TYPE_STYLES,
@@ -157,6 +158,7 @@ export function GraphLegend({
   sandboxIcons = [],
   onSandboxIconLabelChange,
 }: Props) {
+  const legendRef = useRef<HTMLDivElement | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [setupName, setSetupName] = useState('');
   const [selectedSetupId, setSelectedSetupId] = useState('');
@@ -419,8 +421,32 @@ export function GraphLegend({
   const showAppsBlock = showAppSelects || appsItems.length > 0;
   const showFlowsBlock = showFlowSelects || flowsItems.length > 0;
 
+  useEffect(() => {
+    const root = legendRef.current;
+    if (!root) return;
+    function fit() {
+      if (!root) return;
+      root.style.setProperty('--legend-columns', String(legendColumnCount(root.clientWidth)));
+      let size = LEGEND_BASE_FONT_PX;
+      root.style.fontSize = `${size}px`;
+      let guard = 0;
+      while (root.scrollHeight > root.clientHeight + 1 && guard < 12) {
+        const next = nextLegendFontPx(size, true);
+        if (next === size) break;
+        size = next;
+        root.style.fontSize = `${size}px`;
+        guard += 1;
+      }
+    }
+    const observer = new ResizeObserver(fit);
+    observer.observe(root);
+    fit();
+    return () => observer.disconnect();
+  }, [isEditing, appsItems.length, flowsItems.length]);
+
   return (
     <div
+      ref={legendRef}
       className={`graph-legend${isEditing ? ' is-editing' : ''}`}
       role="note"
       aria-label="Graph legend"
