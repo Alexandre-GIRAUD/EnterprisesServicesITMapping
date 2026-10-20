@@ -179,7 +179,8 @@ export function SelfServiceBurger({ isOpen, onToggle }: SelfServiceBurgerProps) 
       onClick={onToggle}
       aria-expanded={isOpen}
       aria-controls="self-service-side-menu"
-      aria-label={isOpen ? 'Close menu' : 'Open menu'}
+      aria-label={isOpen ? 'Close side panel' : 'Open side panel'}
+      title={isOpen ? 'Close side panel' : 'Open side panel'}
     >
       <BurgerPanelIcon />
     </button>
@@ -290,7 +291,11 @@ export function SelfServiceSideMenu({
             </div>
           </section>
 
-          {showGraphTools ? (
+          {graphMode === 'views' ? (
+            <div className="self-service-tool-detail" role="region" aria-label="View details">
+              {toolDetail}
+            </div>
+          ) : showGraphTools ? (
             <>
               {columnsOnly ? null : (
                 <>
