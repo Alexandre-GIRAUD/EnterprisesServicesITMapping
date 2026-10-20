@@ -33,7 +33,7 @@
 
 .about-page h2 {
   margin: 0;
-  max-width: 11em;
+  max-width: none;
   font-size: clamp(2.15rem, 5vw, 3.35rem);
   font-weight: 650;
   letter-spacing: -0.04em;
@@ -7704,12 +7704,18 @@ body.is-diagram-grown .layout {
 
 .auth-story h2 {
   margin: 1.25rem 0 0;
-  max-width: 11em;
+  max-width: none;
   font-size: clamp(2rem, 4vw, 3.1rem);
   font-weight: 650;
   letter-spacing: -0.04em;
   line-height: 0.98;
   color: #0f172a;
+}
+
+.auth-story-line,
+.about-page h2 .auth-story-line {
+  display: block;
+  white-space: nowrap;
 }
 
 .auth-story-lead {

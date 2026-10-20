@@ -44,9 +44,9 @@ export function LoginPage() {
             <h1 className="auth-brand-title">Flowra</h1>
           </header>
           <h2>
-            {FLOWRA_HEADLINE_LINES[0]}
-            <br />
-            {FLOWRA_HEADLINE_LINES[1]}
+            {FLOWRA_HEADLINE_LINES.map((line) => (
+              <span key={line} className="auth-story-line">{line}</span>
+            ))}
           </h2>
           <p className="auth-story-lead">{FLOWRA_LEAD}</p>
           <ul className="auth-story-modes">

@@ -20,9 +20,9 @@ export function AboutPage() {
     <main className="about-page">
       <p className="about-kicker">Flowra</p>
       <h2>
-        {FLOWRA_HEADLINE_LINES[0]}
-        <br />
-        {FLOWRA_HEADLINE_LINES[1]}
+        {FLOWRA_HEADLINE_LINES.map((line) => (
+          <span key={line} className="auth-story-line">{line}</span>
+        ))}
       </h2>
       <p className="about-lead">{FLOWRA_LEAD}</p>
       <AboutModeList />
