@@ -101,8 +101,8 @@ export function SelfServiceToolBar({
           role="tab"
           className={`self-service-tool-bar-btn${activeTool === 'chat' ? ' is-active' : ''}`}
           aria-selected={activeTool === 'chat'}
-          aria-label="Ask Flora"
-          title="Ask Flora"
+          aria-label="Ask anything"
+          title="Ask anything"
           onClick={() => onChange('chat')}
         >
           <ChatIcon />

@@ -30,6 +30,21 @@ export function isAnyDimensionFiltered(modes: DimensionMode[]): boolean {
   return modes.some((m) => m === 'some');
 }
 
+export const FILTER_DATA_MODEL_HINT =
+  'Add Data Model fields with attributes for "Applications" (node) and "Connections" (edge).';
+
+export const FILTER_NONE_SELECTED = 'No filter selected';
+
+export function filterIdleCopy(
+  hasDataModelFields: boolean,
+  hasApplications: boolean,
+  hasActiveFilter: boolean,
+): string | null {
+  if (hasActiveFilter) return null;
+  if (!hasDataModelFields && !hasApplications) return FILTER_DATA_MODEL_HINT;
+  return FILTER_NONE_SELECTED;
+}
+
 /** API params: only send when mode is `some`. */
 export function toApiFilterList(
   selected: string[],

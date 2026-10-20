@@ -57,7 +57,7 @@ const NARROW_MENU_QUERY = '(max-width: 640px)';
 
 const TOOL_DETAIL_TITLES: Record<SideMenuTool, string> = {
   changes: 'Pending changes',
-  chat: 'Ask Flora',
+  chat: 'Ask anything',
   filters: 'Filters',
   actions: 'Corrections',
   sandboxes: 'My sandboxes',
@@ -247,7 +247,35 @@ export function SelfServiceSideMenu({
         aria-label="Cartography navigation"
       >
         <header className="self-service-side-menu-header">
-          <p className="graph-drawer-eyebrow">Cartography</p>
+          <div
+            className="self-service-view-list"
+            role="tablist"
+            aria-label="Workspace views"
+          >
+            {VIEWS.map((view) => {
+              const isActive = graphMode === view.mode;
+              const isPrimary = primaryMode === view.mode;
+              return (
+                <button
+                  key={view.mode}
+                  type="button"
+                  role="tab"
+                  id={view.tabId}
+                  className={`self-service-view-item self-service-view-item--${view.accent}${isPrimary ? ' is-primary' : ''}`}
+                  aria-selected={isActive}
+                  aria-controls={view.mode === 'views' ? 'graph-views-pane' : 'graph-canvas-pane'}
+                  onClick={() => {
+                    if (!isActive) onModeChange(view.mode);
+                  }}
+                >
+                  <span className="self-service-view-item-label">{view.label}</span>
+                  {view.mode === 'sandbox' && sandboxDirty && isActive ? (
+                    <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
           <button
             type="button"
             className="graph-drawer-close"
@@ -259,38 +287,6 @@ export function SelfServiceSideMenu({
         </header>
 
         <div className="self-service-side-menu-body">
-          <section className="self-service-side-menu-section">
-            <div
-              className="self-service-view-list"
-              role="tablist"
-              aria-label="Workspace views"
-            >
-              {VIEWS.map((view) => {
-                const isActive = graphMode === view.mode;
-                const isPrimary = primaryMode === view.mode;
-                return (
-                  <button
-                    key={view.mode}
-                    type="button"
-                    role="tab"
-                    id={view.tabId}
-                    className={`self-service-view-item self-service-view-item--${view.accent}${isPrimary ? ' is-primary' : ''}`}
-                    aria-selected={isActive}
-                    aria-controls={view.mode === 'views' ? 'graph-views-pane' : 'graph-canvas-pane'}
-                    onClick={() => {
-                      if (!isActive) onModeChange(view.mode);
-                    }}
-                  >
-                    <span className="self-service-view-item-label">{view.label}</span>
-                    {view.mode === 'sandbox' && sandboxDirty && isActive ? (
-                      <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
           {graphMode === 'views' ? (
             <div className="self-service-tool-detail" role="region" aria-label="View details">
               {toolDetail}

@@ -24,7 +24,8 @@ assert.doesNotMatch(
   css,
   /\.self-service-view-item:hover,\s*\.self-service-view-item:focus-visible \{[^}]*background:/,
 );
-assert.match(css, /\.graph-filter-compact-btn--pin:not\(:disabled\) \{[^}]*background: #16a34a/);
+assert.match(css, /\.map-graph-panel \.graph-filter-compact-btn--pin:not\(:disabled\) \{[^}]*background: #ffffff/);
+assert.match(css, /\.map-graph-panel \.graph-filter-compact-btn--pin:not\(:disabled\) \{[^}]*color: #15803d/);
 assert.match(css, /--action-button-width:\s*7\.25rem/);
 assert.match(css, /\.graph-filter-compact-actions > \.graph-filter-compact-btn \{[^}]*width: var\(--action-button-width\)/);
 assert.match(css, /\.pivot-btn \{[^}]*width: var\(--action-button-width\)/);
@@ -70,7 +71,8 @@ for (const mode of ['normal', 'sandbox', 'views'] as const) {
   const html = menu(mode);
   assert.doesNotMatch(html, />Views</);
   assert.doesNotMatch(html, /is-expanded/);
-  assert.match(html, />Cartography</);
+  assert.doesNotMatch(html, />Cartography</);
+  assert.match(html, />Production</);
 }
 const productionMenu = menu('normal');
 assert.doesNotMatch(productionMenu, />Changes</);

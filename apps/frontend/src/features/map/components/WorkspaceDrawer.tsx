@@ -80,11 +80,29 @@ type DrawerActionItem = {
   label: string;
 };
 
-const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
-  { id: 'add-node', label: 'Add App' },
-  { id: 'add-edge', label: 'Add flow' },
-  { id: 'edit-application', label: 'Edit app' },
-  { id: 'edit-flow', label: 'Edit flow' },
+type CorrectionGroup = {
+  id: 'add' | 'edit';
+  label: string;
+  actions: DrawerActionItem[];
+};
+
+const CORRECTION_GROUPS: CorrectionGroup[] = [
+  {
+    id: 'add',
+    label: 'Add',
+    actions: [
+      { id: 'add-node', label: 'App' },
+      { id: 'add-edge', label: 'Flow' },
+    ],
+  },
+  {
+    id: 'edit',
+    label: 'Edit',
+    actions: [
+      { id: 'edit-application', label: 'App' },
+      { id: 'edit-flow', label: 'Flow' },
+    ],
+  },
 ];
 
 const DRAWER_COPY: Partial<Record<DrawerView, { title: string; description: string }>> = {
@@ -593,9 +611,9 @@ export function WorkspaceDrawer({
       )}
 
       {view === 'menu' ? (
-        <>
+        sandboxMode ? (
           <div className="graph-drawer-actions" role="list">
-            {(sandboxMode ? TOOLKIT_ACTIONS : CORRECTIONS_ACTIONS).map((action) => {
+            {TOOLKIT_ACTIONS.map((action) => {
               const onClick = actionHandler(action.id, {
                 openAddNodeForm,
                 openAddEdgeForm,
@@ -614,12 +632,46 @@ export function WorkspaceDrawer({
                   disabled={!onClick}
                 >
                   <span className="graph-drawer-action-title">{action.label}</span>
-                  {sandboxMode ? <span className="graph-drawer-action-meta">Open</span> : null}
+                  <span className="graph-drawer-action-meta">Open</span>
                 </button>
               );
             })}
           </div>
-        </>
+        ) : (
+          <div className="graph-correction-groups">
+            {CORRECTION_GROUPS.map((group) => (
+              <section key={group.id} className="graph-correction-group" aria-label={group.label}>
+                <h4 className="graph-correction-group-title">
+                  {group.id === 'add' ? <PlusMark /> : <PencilMark />}
+                  {group.label}
+                </h4>
+                <div className="graph-correction-pair">
+                  {group.actions.map((action) => {
+                    const onClick = actionHandler(action.id, {
+                      openAddNodeForm,
+                      openAddEdgeForm,
+                      openAddIcons,
+                      startTextPlacement,
+                      openEditApplication,
+                      openEditFlow,
+                    });
+                    return (
+                      <button
+                        key={action.id}
+                        type="button"
+                        className="graph-drawer-action graph-correction-action"
+                        onClick={onClick}
+                        disabled={!onClick}
+                      >
+                        <span className="graph-drawer-action-title">{action.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        )
       ) : view === 'edit-application' || view === 'edit-flow' ? (
         <div className="graph-drawer-edit-picker">
           <label className="graph-drawer-field">
@@ -882,5 +934,27 @@ export function WorkspaceDrawer({
         </form>
       )}
     </aside>
+  );
+}
+
+function PlusMark() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+      <path d="M8 2.5v11M2.5 8h11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PencilMark() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+      <path
+        d="M9.2 3.2 12.8 6.8 5.5 14.1 2 14.6 2.5 11.1 Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

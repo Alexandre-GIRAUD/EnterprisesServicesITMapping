@@ -3,6 +3,7 @@ import type { ChatAskResponseDto, ChatCitationDto, ChatHistoryMessageDto, GraphF
 import { askMappingChat } from '../api/mappingChatApi';
 import { appliedFiltersFromChat } from '../utils/chatAppliedFilters';
 import { navigateToModuleGraph } from '../utils/mapNavigation';
+import { chatSuggestionDraft } from './mappingChatSuggestions';
 import { useNavigate } from 'react-router-dom';
 
 type ChatTurn = {
@@ -25,7 +26,12 @@ type MappingChatPanelProps = {
   onGraphChanged?: () => void;
 };
 
-/** Lightweight markdown-ish rendering: paragraphs + bullets + bold **text**. */
+export const MAPPING_CHAT_SUGGESTIONS = [
+  'Which applications manage payments?',
+  'Which applications are connected to…',
+  'What does an application do?',
+] as const;
+
 function renderAnswer(text: string) {
   const blocks = text.split(/\n{2,}/);
   return blocks.map((block, i) => {
@@ -85,15 +91,17 @@ export function MappingChatPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns, busy]);
 
-  async function handleSend() {
-    const message = input.trim();
+  async function handleSend(raw?: string) {
+    const message = (raw ?? input).trim();
     if (!message || busy) return;
     setInput('');
+    if (inputRef.current) inputRef.current.style.height = '';
     setError(null);
     const history: ChatHistoryMessageDto[] = turns.map((t) => ({
       role: t.role,
@@ -151,17 +159,38 @@ export function MappingChatPanel({
     }
   }
 
-  return (
-    <section className="mapping-chat-panel" aria-label="Ask Flora">
-      <p className="mapping-chat-lead">
-        Ask a question about the Production graph or the functional documentation (for example
-        “Who is connected to …?”, “What does … do?”, “Which apps handle payments?”). You can also
-        ask to apply, change, or clear the map filters.
-      </p>
+  function askSuggestion(text: string) {
+    const next = chatSuggestionDraft(text);
+    if (!next.send) {
+      setInput(next.draft);
+      const field = inputRef.current;
+      if (field) {
+        field.focus();
+        field.style.height = 'auto';
+        field.style.height = `${field.scrollHeight}px`;
+      }
+      return;
+    }
+    void handleSend(next.draft);
+  }
 
+  return (
+    <section className="mapping-chat-panel" aria-label="Ask anything">
       <div className="mapping-chat-transcript">
         {turns.length === 0 ? (
-          <p className="mapping-chat-hint">No conversation yet.</p>
+          <ul className="mapping-chat-suggestions">
+            {MAPPING_CHAT_SUGGESTIONS.map((suggestion) => (
+              <li key={suggestion}>
+                <button
+                  type="button"
+                  className="mapping-chat-suggestion"
+                  onClick={() => askSuggestion(suggestion)}
+                >
+                  {suggestion}
+                </button>
+              </li>
+            ))}
+          </ul>
         ) : (
           turns.map((turn, i) => (
             <div
@@ -220,28 +249,45 @@ export function MappingChatPanel({
           void handleSend();
         }}
       >
-        <textarea
-          className="mapping-chat-input"
-          rows={3}
-          value={input}
-          disabled={busy}
-          placeholder="Your question…"
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              void handleSend();
-            }
-          }}
-        />
-        <button
-          type="submit"
-          className="graph-drawer-action graph-drawer-action-primary mapping-chat-send"
-          disabled={busy || !input.trim()}
-        >
-          <span className="graph-drawer-action-title">{busy ? '…' : 'Send'}</span>
-        </button>
+        <div className="mapping-chat-field">
+          <textarea
+            ref={inputRef}
+            className="mapping-chat-input"
+            rows={2}
+            value={input}
+            disabled={busy}
+            placeholder="Ask anything"
+            onChange={(e) => {
+              setInput(e.target.value);
+              const field = e.target;
+              field.style.height = 'auto';
+              field.style.height = `${field.scrollHeight}px`;
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void handleSend();
+              }
+            }}
+          />
+          <button
+            type="submit"
+            className="mapping-chat-send"
+            disabled={busy || !input.trim()}
+            aria-label="Send"
+          >
+            <SendMark />
+          </button>
+        </div>
       </form>
     </section>
+  );
+}
+
+function SendMark() {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

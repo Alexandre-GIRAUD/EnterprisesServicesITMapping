@@ -1,6 +1,5 @@
 import {
   Background,
-  Controls,
   Panel,
   ReactFlow,
   type Edge,
@@ -89,6 +88,7 @@ import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle'
 import { TableContentToggle, type TableContentMode, type TableViewMode } from './TableContentToggle';
 import { CreateTablePanel, type CreateTableExportState } from './CreateTablePanel';
 import { fitGraphView, ensureNodesVisible } from './fitGraphView';
+import { GraphFitControls } from './GraphFitControls';
 import { toJpeg, toPng } from 'html-to-image';
 import { downloadTableFile, tableToCsv, tableToExcelXml, type TableGrid } from '../utils/tableFile';
 import { dataUrlToBytes, downloadBytes, downloadDataUrl, jpegPixelSize, jpegToPdf } from '../utils/jpegPdf';
@@ -698,7 +698,10 @@ export function GraphCanvas() {
       setNodes(laid.nodes);
       setEdges(laid.edges);
       if (options?.fitView) {
-        window.setTimeout(() => fitGraphView(rfRef.current, { duration: 200 }), 40);
+        window.setTimeout(
+          () => fitGraphView(rfRef.current, { duration: 200, container: containerRef.current }),
+          40,
+        );
       } else if (options?.ensureVisibleNodeIds && options.ensureVisibleNodeIds.length > 0) {
         const ids = options.ensureVisibleNodeIds;
         const hints = laid.nodes.filter((n) => ids.includes(n.id));
@@ -1490,7 +1493,7 @@ export function GraphCanvas() {
   useEffect(() => {
     if (isViewsMode || displayMode !== 'graph') return;
     const timer = window.setTimeout(() => {
-      fitGraphView(rfRef.current, { duration: 220 });
+      fitGraphView(rfRef.current, { duration: 220, container: containerRef.current });
     }, 240);
     return () => window.clearTimeout(timer);
   }, [isSideMenuOpen, isViewsMode, displayMode]);
@@ -1504,7 +1507,7 @@ export function GraphCanvas() {
     const observer = new ResizeObserver(() => {
       window.clearTimeout(timeout);
       timeout = window.setTimeout(() => {
-        fitGraphView(rfRef.current, { duration: 150 });
+        fitGraphView(rfRef.current, { duration: 150, container: containerRef.current });
       }, 120);
     });
     observer.observe(el);
@@ -2185,7 +2188,11 @@ export function GraphCanvas() {
               >
                 <Background color="#e2e8f0" gap={GRID} />
                 <ComponentZoneOverlay nodes={displayNodes} edges={displayEdges} />
-                <Controls showInteractive={false} />
+                <GraphFitControls
+                  onFit={() =>
+                    fitGraphView(rfRef.current, { duration: 200, container: containerRef.current })
+                  }
+                />
                 <Panel position="top-left">
                   <GraphLegend
                     nodeTypes={['Application']}
