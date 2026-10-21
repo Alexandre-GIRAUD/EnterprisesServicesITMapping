@@ -9,6 +9,7 @@ import {
   buildSavePayload,
   countRows,
   createEmptyRow,
+  discardRowChanges,
   filterRows,
   isRowDirty,
   moveRow,
@@ -118,6 +119,13 @@ const afterSave = applySavedFields(
 assert.equal(isRowDirty(afterSave[1]), false);
 assert.equal(afterSave[1].draft.label, 'How often');
 assert.equal(isRowDirty(afterSave[0]), true);
+
+// Discarding restores the saved state and keeps the row identity.
+const discarded = discardRowChanges({ ...otherEdit, allowedValuesText: 'fx, rates' });
+assert.equal(discarded.id, assetClass.id);
+assert.equal(discarded.draft.label, 'Asset Class');
+assert.equal(discarded.allowedValuesText, 'fx');
+assert.equal(isRowDirty(discarded), false);
 
 // Drag-and-drop reorder moves a row onto another row's position.
 assert.deepEqual(

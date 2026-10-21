@@ -83,6 +83,10 @@ function rowFromSavedField(id: string, field: DataModelFieldDto): AttributeRow {
   };
 }
 
+export function discardRowChanges(row: AttributeRow): AttributeRow {
+  return row.saved ? rowFromSavedField(row.id, row.saved) : row;
+}
+
 export function rowsFromFields(fields: DataModelFieldDto[]): AttributeRow[] {
   return fields.map((field) => rowFromSavedField(createRowId(), field));
 }
