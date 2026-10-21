@@ -32,8 +32,10 @@ assert.deepEqual(
 );
 
 const page = readFileSync(new URL('./pages/DataModelPage.tsx', import.meta.url), 'utf8');
-assert.match(page, />App</);
+assert.match(page, />Application</);
 assert.match(page, />Flows</);
+assert.match(page, /Add attribute/);
+assert.match(page, /Prompt preview/);
 assert.doesNotMatch(page, /Define dynamic fields for connection flows/);
 assert.doesNotMatch(page, /Edge fields never appear there/);
 assert.doesNotMatch(page, /No automatic-detection fields/);
