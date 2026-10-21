@@ -33,7 +33,7 @@ export type AttributeFilters = {
   isControlledOnly: boolean;
 };
 
-export type SavePayload = { rowIds: string[]; fields: DataModelFieldDto[] };
+type SavePayload = { rowIds: string[]; fields: DataModelFieldDto[] };
 
 let nextRowNumber = 0;
 
@@ -46,7 +46,7 @@ export function normalizeDetection(detection?: DataModelDetection): DataModelDet
   return detection === 'MANUAL' ? 'MANUAL' : 'AUTOMATIC_DETECTION';
 }
 
-export function parseAllowedValues(text: string): string[] {
+function parseAllowedValues(text: string): string[] {
   return text
     .split(',')
     .map((value) => value.trim())
@@ -107,7 +107,7 @@ export function createEmptyRow(surface: DataModelSurface): AttributeRow {
 }
 
 /** The draft as it would be sent to the server. */
-export function draftField(row: AttributeRow): DataModelFieldDto {
+function draftField(row: AttributeRow): DataModelFieldDto {
   return normalizeField({ ...row.draft, allowedValues: parseAllowedValues(row.allowedValuesText) });
 }
 
