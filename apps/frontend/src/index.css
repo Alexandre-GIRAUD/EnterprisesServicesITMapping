@@ -509,7 +509,12 @@ body.is-diagram-grown .layout {
 }
 
 /* ===== GitHub import page ===== */
+.layout-main:has(.github-import-page) {
+  scrollbar-gutter: stable;
+}
+
 .github-import-page {
+  width: 100%;
   max-width: 1080px;
   margin: 0 auto;
 }
