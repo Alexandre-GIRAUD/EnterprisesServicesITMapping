@@ -1,5 +1,5 @@
 /**
- * The header, the sign-in mark, and the about page use the product name Flowra.
+ * The sidebar, the sign-in mark, and the about page use the product name Flowra.
  * Run: npx --yes tsx src/layouts/brandName.check.ts
  */
 import assert from 'node:assert/strict';

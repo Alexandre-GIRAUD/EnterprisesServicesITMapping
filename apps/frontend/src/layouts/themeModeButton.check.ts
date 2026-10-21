@@ -1,5 +1,5 @@
 /**
- * Runnable self-check for the header theme icon.
+ * Runnable self-check for the sidebar theme icon.
  * Run: npx --yes tsx src/layouts/themeModeButton.check.ts
  */
 import assert from 'node:assert/strict';
@@ -26,8 +26,8 @@ assert.match(light, /<circle /);
 
 const layout = readFileSync(new URL('./Layout.tsx', import.meta.url), 'utf8');
 const userCluster = layout.slice(
-  layout.indexOf('layout-header-user-meta'),
-  layout.indexOf('layout-header-actions'),
+  layout.indexOf('layout-sidebar-user-meta'),
+  layout.indexOf('layout-sidebar-signout'),
 );
 assert.match(userCluster, /ThemeModeButton/);
 assert.doesNotMatch(layout, />Dark mode</);

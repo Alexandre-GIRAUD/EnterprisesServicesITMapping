@@ -5,7 +5,7 @@ type ThemeModeButtonProps = {
   onToggle: () => void;
 };
 
-/** Round header control. The glyph shows the current theme. */
+/** Round sidebar control. The glyph shows the current theme. */
 export function ThemeModeButton({ theme, onToggle }: ThemeModeButtonProps) {
   const isDark = theme === 'dark';
   return (
