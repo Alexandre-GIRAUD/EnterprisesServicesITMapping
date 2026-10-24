@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AboutContactForm } from '@/features/about/AboutContactForm';
 import { HELP_TOPICS } from './helpTopics';
 
@@ -17,6 +18,7 @@ function placeHelpPanel(buttonBounds: DOMRect): { top: number; left: number } {
 function useDismissHelp(
   isOpen: boolean,
   rootRef: { current: HTMLElement | null },
+  panelRef: { current: HTMLElement | null },
   close: () => void,
 ) {
   const closeRef = useRef(close);
@@ -24,7 +26,8 @@ function useDismissHelp(
   useEffect(() => {
     if (!isOpen) return;
     function closeOnOutsidePointer(event: MouseEvent) {
-      if (rootRef.current?.contains(event.target as Node)) return;
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || panelRef.current?.contains(target)) return;
       closeRef.current();
     }
     function closeOnEscape(event: KeyboardEvent) {
@@ -36,14 +39,15 @@ function useDismissHelp(
       document.removeEventListener('mousedown', closeOnOutsidePointer);
       document.removeEventListener('keydown', closeOnEscape);
     };
-  }, [isOpen, rootRef]);
+  }, [isOpen, rootRef, panelRef]);
 }
 
 export function HelpMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  useDismissHelp(isOpen, rootRef, () => setIsOpen(false));
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  useDismissHelp(isOpen, rootRef, panelRef, () => setIsOpen(false));
 
   function toggle() {
     if (isOpen) {
@@ -68,18 +72,27 @@ export function HelpMenu() {
       >
         <QuestionGlyph />
       </button>
-      {isOpen && anchor ? <HelpPanel top={anchor.top} left={anchor.left} /> : null}
+      {isOpen && anchor ? <HelpPanel top={anchor.top} left={anchor.left} panelRef={panelRef} /> : null}
     </div>
   );
 }
 
-function HelpPanel({ top, left }: { top: number; left: number }) {
-  return (
+function HelpPanel({
+  top,
+  left,
+  panelRef,
+}: {
+  top: number;
+  left: number;
+  panelRef: { current: HTMLDivElement | null };
+}) {
+  return createPortal(
     <div
       id="layout-help-panel"
       className="layout-help-panel"
       role="dialog"
       aria-label="Help"
+      ref={panelRef}
       style={{ top, left, width: HELP_PANEL_WIDTH }}
     >
       {HELP_TOPICS.map((topic) => (
@@ -89,7 +102,8 @@ function HelpPanel({ top, left }: { top: number; left: number }) {
         </section>
       ))}
       <AboutContactForm />
-    </div>
+    </div>,
+    document.body,
   );
 }
 

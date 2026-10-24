@@ -29,5 +29,13 @@ const helpSource = readFileSync(new URL('./HelpMenu.tsx', import.meta.url), 'utf
 assert.match(helpSource, /AboutContactForm/);
 assert.match(helpSource, /const HELP_PANEL_WIDTH = 352/);
 assert.match(helpSource, /width: HELP_PANEL_WIDTH/);
+assert.match(helpSource, /createPortal\(/);
+assert.match(helpSource, /document\.body/);
+
+const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
+const panelRule = css.match(/\.layout-help-panel\s*\{[^}]*\}/);
+assert.ok(panelRule, 'help panel rule missing');
+const panelZIndex = Number(panelRule[0].match(/z-index:\s*(\d+)/)?.[1]);
+assert.ok(panelZIndex > 80, 'help panel must paint above the map overlays');
 
 console.log('helpMenu.check: ok');
