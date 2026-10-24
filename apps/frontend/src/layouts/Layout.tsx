@@ -6,6 +6,7 @@ import { GraphSnapshotsProvider } from '@/features/map/context/GraphSnapshotsCon
 import type { MapLocationState } from '@/features/map/utils/mapNavigation';
 import { COLOR_THEME_STORAGE_KEY, storedColorTheme, toggledColorTheme, type ColorTheme } from './colorTheme';
 import { NavigationIcon, type NavigationIconName } from './NavigationIcon';
+import { HelpMenu } from './HelpMenu';
 import { SettingsMenu } from './SettingsMenu';
 import { ThemeModeButton } from './ThemeModeButton';
 
@@ -45,10 +46,13 @@ export function Layout() {
     <GraphSnapshotsProvider>
       <div className="layout">
         <aside className="layout-sidebar">
-          <Link to="/about" className="layout-brand layout-brand-link">
-            <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
-            <h1>Flowra</h1>
-          </Link>
+          <div className="layout-brand-row">
+            <Link to="/about" className="layout-brand layout-brand-link">
+              <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
+              <h1>Flowra</h1>
+            </Link>
+            <HelpMenu />
+          </div>
           {user ? (
             <>
               <nav className="layout-sidebar-nav" aria-label="Main navigation">

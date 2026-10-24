@@ -281,7 +281,11 @@ export function SelfServiceSideMenu({
             </div>
           </section>
 
-          {showGraphTools ? (
+          {graphMode === 'views' ? (
+            <div className="self-service-tool-detail" role="region" aria-label="View details">
+              {toolDetail}
+            </div>
+          ) : showGraphTools ? (
             <>
               {columnsOnly ? null : (
                 <>
