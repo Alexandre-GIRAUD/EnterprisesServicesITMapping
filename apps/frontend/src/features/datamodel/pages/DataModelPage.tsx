@@ -7,6 +7,11 @@ import {
   putDataModelRequest,
 } from '@/features/datamodel/api/dataModelApi';
 import type { DataModelDetection, DataModelFieldDto, DataModelTarget } from '@/types/api';
+import {
+  isFlowField,
+  normalizeDataModelTarget,
+  type DataModelSurface,
+} from '../dataModelSurface';
 
 const KEY_PATTERN = /^[a-z][a-z0-9_]{1,63}$/;
 const RESERVED_KEYS = new Set([
@@ -41,9 +46,7 @@ function normalizeDetection(detection?: DataModelDetection): DataModelDetection 
 }
 
 function normalizeTarget(target?: DataModelTarget): DataModelTarget {
-  if (target === 'NODE') return 'NODE';
-  if (target === 'NODE_REF') return 'NODE_REF';
-  return 'EDGE';
+  return normalizeDataModelTarget(target);
 }
 
 function validateFields(fields: DataModelFieldDto[]): string | null {
@@ -83,18 +86,17 @@ export function DataModelPage() {
   const [saveBusy, setSaveBusy] = useState(false);
   const [promptPreview, setPromptPreview] = useState('');
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [surface, setSurface] = useState<DataModelSurface>('app');
 
   const reload = useCallback(async () => {
     const data = await getDataModelRequest();
     setFields(
-      data.fields.length > 0
-        ? data.fields.map((f) => ({
-            ...f,
-            detection: normalizeDetection(f.detection),
-            target: normalizeTarget(f.target),
-            multiple: Boolean(f.multiple),
-          }))
-        : [emptyField()]
+      data.fields.map((f) => ({
+        ...f,
+        detection: normalizeDetection(f.detection),
+        target: normalizeTarget(f.target),
+        multiple: Boolean(f.multiple),
+      }))
     );
     setUpdatedAt(data.updatedAt);
     const preview = await getDataModelPromptPreviewRequest();
@@ -126,11 +128,14 @@ export function DataModelPage() {
   }
 
   function removeField(index: number) {
-    setFields((prev) => (prev.length <= 1 ? [emptyField()] : prev.filter((_, i) => i !== index)));
+    setFields((prev) => prev.filter((_, i) => i !== index));
   }
 
   function addField() {
-    setFields((prev) => [...prev, emptyField()]);
+    setFields((prev) => [
+      ...prev,
+      { ...emptyField(), target: surface === 'flows' ? 'EDGE' : 'NODE' },
+    ]);
   }
 
   async function onSave(e: FormEvent) {
@@ -164,14 +169,12 @@ export function DataModelPage() {
     try {
       const saved = await putDataModelRequest({ fields: payload });
       setFields(
-        saved.fields.length > 0
-          ? saved.fields.map((f) => ({
-              ...f,
-              detection: normalizeDetection(f.detection),
-              target: normalizeTarget(f.target),
-              multiple: Boolean(f.multiple),
-            }))
-          : [emptyField()]
+        saved.fields.map((f) => ({
+          ...f,
+          detection: normalizeDetection(f.detection),
+          target: normalizeTarget(f.target),
+          multiple: Boolean(f.multiple),
+        }))
       );
       setUpdatedAt(saved.updatedAt);
       setPromptPreview(await getDataModelPromptPreviewRequest());
@@ -195,34 +198,40 @@ export function DataModelPage() {
   }
 
   const activeFieldCount = fields.filter((f) => f.key.trim()).length;
-  const automaticFieldCount = fields.filter(
-    (f) => f.key.trim() && normalizeDetection(f.detection) === 'AUTOMATIC_DETECTION'
-  ).length;
 
   return (
     <div className="data-model-page">
       <header className="data-model-header">
         <h1>Data Model</h1>
-        <p className="data-model-lead">
-          Define dynamic fields for connection flows (edges) and for the analyzed Application
-          (node). Automatic fields enrich the connection-discovery AI prompt and are persisted on
-          Neo4j <code>DEPENDS_ON</code> relationships or the <code>Application</code> node.
-        </p>
-        <p className="data-model-lead">
-          Application (node) fields also drive the map: they are the dimensions of the filter menu
-          (next to the Applications filter, which always stays available) and the editable
-          attributes of the application details drawer. Edge fields never appear there.
-        </p>
+        <div className="graph-display-toggle" role="tablist" aria-label="Data model surface">
+          <button
+            type="button"
+            role="tab"
+            className={`graph-display-toggle-btn${surface === 'app' ? ' is-active' : ''}`}
+            aria-selected={surface === 'app'}
+            onClick={() => setSurface('app')}
+          >
+            <span className="graph-display-toggle-label">App</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={`graph-display-toggle-btn${surface === 'flows' ? ' is-active' : ''}`}
+            aria-selected={surface === 'flows'}
+            onClick={() => setSurface('flows')}
+          >
+            <span className="graph-display-toggle-label">Flows</span>
+          </button>
+        </div>
         {updatedAt ? (
           <p className="data-model-meta">Last updated: {new Date(updatedAt).toLocaleString()}</p>
         ) : null}
       </header>
 
-      {activeFieldCount === 0 || automaticFieldCount === 0 ? (
+      {activeFieldCount === 0 ? (
         <div className="data-model-banner" role="status">
-          {activeFieldCount === 0
-            ? 'No fields configured — connection suggestion will discover technical topology only (peer, direction, connection_kind, channel).'
-            : 'No automatic-detection fields — connection suggestion will discover technical topology only. Manual fields are not searched by AI.'}
+          No fields configured — connection suggestion will discover technical topology only (peer,
+          direction, connection_kind, channel).
         </div>
       ) : null}
 
@@ -235,6 +244,8 @@ export function DataModelPage() {
       <form className="data-model-form" onSubmit={onSave}>
         <div className="data-model-fields">
           {fields.map((field, index) => {
+            const shown = surface === 'flows' ? isFlowField(field) : !isFlowField(field);
+            if (!shown) return null;
             const detection = normalizeDetection(field.detection);
             const target = normalizeTarget(field.target);
             return (
@@ -263,25 +274,26 @@ export function DataModelPage() {
                   </label>
                 </div>
 
-                <label className="data-model-label">
-                  Target
-                  <select
-                    className="data-model-input"
-                    value={target}
-                    onChange={(e) => {
-                      const next = e.target.value as DataModelTarget;
-                      updateField(index, {
-                        target: next,
-                        enforceEnum: next === 'NODE_REF' ? true : field.enforceEnum,
-                      });
-                    }}
-                    disabled={!isAdmin}
-                  >
-                    <option value="EDGE">Edge (connection)</option>
-                    <option value="NODE">Application (node)</option>
-                    <option value="NODE_REF">Application (reference)</option>
-                  </select>
-                </label>
+                {surface === 'app' ? (
+                  <label className="data-model-label">
+                    Target
+                    <select
+                      className="data-model-input"
+                      value={target === 'NODE_REF' ? 'NODE_REF' : 'NODE'}
+                      onChange={(e) => {
+                        const next = e.target.value as DataModelTarget;
+                        updateField(index, {
+                          target: next,
+                          enforceEnum: next === 'NODE_REF' ? true : field.enforceEnum,
+                        });
+                      }}
+                      disabled={!isAdmin}
+                    >
+                      <option value="NODE">Application (node)</option>
+                      <option value="NODE_REF">Application (reference)</option>
+                    </select>
+                  </label>
+                ) : null}
                 {target === 'NODE' ? (
                   <p className="data-model-field-hint" role="note">
                     Stored as a flat property on the Application node: applied during connection

@@ -393,9 +393,6 @@ body.is-diagram-grown .layout {
   width: 1.9rem;
   height: 1.9rem;
   object-fit: contain;
-  filter: brightness(0) saturate(100%) invert(96%) sepia(12%) saturate(590%) hue-rotate(173deg)
-    brightness(103%) contrast(94%);
-  opacity: 0.98;
 }
 
 .layout-main {
@@ -513,7 +510,7 @@ body.is-diagram-grown .layout {
 
 /* ===== GitHub import page ===== */
 .github-import-page {
-  max-width: 920px;
+  max-width: 1080px;
   margin: 0 auto;
 }
 
@@ -525,21 +522,12 @@ body.is-diagram-grown .layout {
   margin-bottom: 1.25rem;
 }
 
-.github-import-eyebrow {
-  margin: 0 0 0.35rem;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #2563eb;
-}
-
 .github-import-title {
   margin: 0;
-  font-size: 1.55rem;
-  font-weight: 800;
+  font-size: 1.85rem;
+  font-weight: 700;
   color: #0f172a;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 .github-import-subtitle {
@@ -571,6 +559,27 @@ body.is-diagram-grown .layout {
   flex: 1 1 14rem;
 }
 
+.github-import-third-party-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.github-import-third-party-form .github-import-search-label {
+  flex: none;
+  width: 100%;
+}
+
+.github-import-third-party-form .github-import-search-input {
+  width: 100%;
+}
+
+.github-import-third-party-form .github-import-primary {
+  align-self: flex-start;
+}
+
 .github-import-text-button {
   border: 0;
   background: transparent;
@@ -592,6 +601,126 @@ body.is-diagram-grown .layout {
   border-radius: 6px;
   background: rgb(15 23 42 / 6%);
   color: #0f172a;
+}
+
+.github-import-tabs {
+  display: inline-flex;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  margin-bottom: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.github-import-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 0;
+  border-radius: 9px;
+  padding: 0.48rem 0.9rem;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #64748b;
+  background: transparent;
+  cursor: pointer;
+}
+
+.github-import-tab.is-active {
+  background: #2563eb;
+  color: #fff;
+}
+
+.github-import-tab:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.github-import-panel {
+  min-width: 0;
+}
+
+.github-import-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+.github-import-search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.github-import-search-icon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.github-import-tools .github-import-search-input {
+  width: 100%;
+  padding-left: 2.35rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.github-import-filters {
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.68rem 0.85rem;
+}
+
+.github-import-counts {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 0.7rem;
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.github-import-card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.github-import-mark {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin-top: 0.05rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #0f172a;
+  flex-shrink: 0;
+}
+
+.github-import-card-owner {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.github-import-card.is-selected {
+  background: #f8fbff;
+  border-color: #dbeafe;
 }
 
 .github-import-back {
@@ -617,14 +746,6 @@ body.is-diagram-grown .layout {
 .github-import-back:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
-}
-
-.github-import-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.85rem;
-  margin-bottom: 1rem;
 }
 
 .github-import-search-label {
@@ -688,34 +809,6 @@ body.is-diagram-grown .layout {
 .github-import-primary:focus-visible {
   outline: 2px solid #93c5fd;
   outline-offset: 3px;
-}
-
-.github-import-secondary {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #475569;
-  background: #ffffff;
-  cursor: pointer;
-}
-
-.github-import-secondary:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-}
-
-.github-import-secondary:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.github-import-hint {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #64748b;
-  line-height: 1.45;
 }
 
 /* ===== Pending changes (Cartography side menu) ===== */
@@ -1375,25 +1468,30 @@ body.is-diagram-grown .layout {
   gap: 0.65rem;
 }
 
+.github-import-tools .github-import-primary {
+  flex-shrink: 0;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
 .github-import-card {
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e8eef6;
+  background: #fff;
   box-shadow: none;
 }
 
 .github-import-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.85rem;
-  padding: 0.95rem 1rem;
-  cursor: pointer;
+  padding: 0.95rem 1.1rem;
 }
 
 .github-import-checkbox {
-  margin-top: 0.2rem;
-  width: 1.1rem;
-  height: 1.1rem;
+  margin-top: 0.35rem;
+  width: 1.05rem;
+  height: 1.05rem;
   accent-color: #2563eb;
   flex-shrink: 0;
 }
@@ -1401,8 +1499,9 @@ body.is-diagram-grown .layout {
 .github-import-card-body {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.28rem;
   min-width: 0;
+  flex: 1;
 }
 
 .github-import-card-title {
@@ -1446,9 +1545,13 @@ body.is-diagram-grown .layout {
 }
 
 .github-import-badge-imported {
-  color: #a7f3d0;
-  background: rgb(6 78 59 / 88%);
-  border-color: rgb(16 185 129 / 45%);
+  color: #15803d;
+  background: #dcfce7;
+  border-color: transparent;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .github-import-ai-live {
@@ -1456,11 +1559,12 @@ body.is-diagram-grown .layout {
 }
 
 .github-import-card-ai {
-  margin-top: 0.55rem;
+  margin: 0 0 0 auto;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
   gap: 0.35rem;
-  align-items: center;
+  flex-shrink: 0;
 }
 
 .github-import-ai-btn {
@@ -1468,7 +1572,7 @@ body.is-diagram-grown .layout {
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
-  border-radius: 0.375rem;
+  border-radius: 999px;
   border: 1px solid #2563eb;
   background: #eff6ff;
   color: #1e3a8a;
@@ -7385,20 +7489,20 @@ body.is-diagram-grown .layout {
   width: min(92vw, max(17rem, 50vw));
   margin-inline: auto;
   text-align: center;
+  --flowra-word-size: clamp(1.85rem, 14cqw, 4.25rem);
 }
 
 .auth-brand-logo {
-  width: clamp(2.5rem, 5.5vw, 3.75rem);
-  height: clamp(2.5rem, 5.5vw, 3.75rem);
+  height: calc(var(--flowra-word-size) * 1.9 / 1.25);
+  width: auto;
   flex-shrink: 0;
-  object-fit: contain;
 }
 
 .auth-brand-title {
   margin: 0;
   flex: 0 1 auto;
   min-width: 0;
-  font-size: clamp(1.85rem, 14cqw, 4.25rem);
+  font-size: var(--flowra-word-size);
   font-weight: 800;
   letter-spacing: 0.03em;
   line-height: 1.05;
@@ -7581,6 +7685,10 @@ body.is-diagram-grown .layout {
   margin: 0 0 0.35rem;
   font-size: 1.35rem;
   color: #0f172a;
+}
+
+.data-model-header .graph-display-toggle {
+  margin: 0.75rem 0 1rem;
 }
 
 .data-model-lead {

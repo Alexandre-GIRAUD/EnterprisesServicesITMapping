@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="42" viewBox="0 0 528 504" role="img" aria-label="Flowra">
+  <defs>
+    <linearGradient id="flowra-light" x1="323" y1="89" x2="97" y2="351" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#428df7"/>
+      <stop offset="1" stop-color="#3b83f4"/>
+    </linearGradient>
+    <linearGradient id="flowra-violet" x1="290" y1="290" x2="430" y2="410" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6264f0"/>
+      <stop offset="1" stop-color="#504bda"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="323" y1="89" x2="97" y2="351" stroke="url(#flowra-light)" stroke-width="150"/>
+    <line x1="440" y1="157" x2="272" y2="348" stroke="#4158f4" stroke-width="149"/>
+    <polygon points="347,282 222,418 402,360" fill="url(#flowra-violet)" stroke="url(#flowra-violet)" stroke-width="134"/>
+  </g>
+</svg>

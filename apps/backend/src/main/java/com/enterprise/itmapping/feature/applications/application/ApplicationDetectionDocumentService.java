@@ -20,6 +20,9 @@ public class ApplicationDetectionDocumentService {
 
   public record StoredDocument(String title, String body, Instant updatedAt) {}
 
+  /** Text that passed the document rules and is ready to store. */
+  public record AcceptedDocument(String title, String body) {}
+
   private final ApplicationRepository applicationRepository;
   private final ApplicationDetectionDocumentRepository documentRepository;
   private final PdfTextExtractor pdfTextExtractor;
@@ -48,6 +51,21 @@ public class ApplicationDetectionDocumentService {
             () -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Add a document first."));
   }
 
+  public AcceptedDocument acceptText(String title, String body) {
+    return accept(resolveTitle(title, null), body);
+  }
+
+  public AcceptedDocument acceptUpload(
+      String title, String filename, String contentType, byte[] bytes) {
+    return accept(resolveTitle(title, filename), readUpload(filename, contentType, bytes));
+  }
+
+  @Transactional
+  public DetectionDocumentResponse attach(String applicationId, AcceptedDocument accepted) {
+    requireWritableApplication(applicationId);
+    return toResponse(store(applicationId, accepted.title(), accepted.body()));
+  }
+
   @Transactional
   public DetectionDocumentResponse saveText(String applicationId, String title, String body) {
     requireWritableApplication(applicationId);
@@ -68,7 +86,7 @@ public class ApplicationDetectionDocumentService {
         .map(row -> new StoredDocument(row.getTitle(), row.getBody(), row.getUpdatedAt()));
   }
 
-  private StoredDocument store(String applicationId, String title, String body) {
+  private AcceptedDocument accept(String title, String body) {
     if (body == null || body.trim().isEmpty()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Document is empty.");
     }
@@ -77,6 +95,11 @@ public class ApplicationDetectionDocumentService {
           HttpStatus.BAD_REQUEST,
           "Document exceeds " + DocumentExcerpt.MAX_CHARACTERS + " characters.");
     }
+    return new AcceptedDocument(title, body);
+  }
+
+  private StoredDocument store(String applicationId, String title, String body) {
+    accept(title, body);
     ApplicationDetectionDocumentEntity entity =
         documentRepository
             .findByApplicationId(applicationId)

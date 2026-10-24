@@ -9,11 +9,25 @@ import {
 } from '../api/applicationsApi';
 import { generateFunctionalDocumentation } from '../api/functionalDocumentationApi';
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
+import { ThirdPartySources } from '../components/ThirdPartySources';
 import { navigateToModuleGraph } from '../utils/mapNavigation';
 import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 
+const GITHUB_MARK_PATH =
+  'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z';
+
+type RepoListFilter = 'all' | 'private' | 'public' | 'imported' | 'not-imported';
+
 function normalizeName(s: string): string {
   return s.trim().toLowerCase();
+}
+
+function GitHubMark() {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d={GITHUB_MARK_PATH} />
+    </svg>
+  );
 }
 
 export function GitHubImportPage() {
@@ -32,6 +46,8 @@ export function GitHubImportPage() {
   const [lastSuggestApplicationId, setLastSuggestApplicationId] = useState<string | null>(null);
   const [aiBusyRepoId, setAiBusyRepoId] = useState<number | null>(null);
   const [connBusyRepoId, setConnBusyRepoId] = useState<number | null>(null);
+  const [sourceMode, setSourceMode] = useState<'repository' | 'third-party'>('repository');
+  const [listFilter, setListFilter] = useState<RepoListFilter>('all');
 
   const importedNames = useMemo(
     () => new Set(applications.map((a) => normalizeName(a.name ?? '')).filter(Boolean)),
@@ -54,17 +70,26 @@ export function GitHubImportPage() {
 
     async function load() {
       setStatus('loading');
+      let applicationError: string | null = null;
       try {
-        const [githubList, apps] = await Promise.all([fetchGitHubRepos(), fetchApplications()]);
+        const apps = await fetchApplications();
+        if (!cancelled) setApplications(apps);
+      } catch (e) {
+        applicationError = e instanceof Error ? e.message : 'Unable to load applications.';
+      }
+      try {
+        const githubList = await fetchGitHubRepos();
         if (cancelled) return;
         setRepos(githubList);
-        setApplications(apps);
         setStatus('ready');
-        if (oauthFlag !== 'denied' && oauthFlag !== 'failed') setErrorMessage(null);
+        if (applicationError) setErrorMessage(applicationError);
+        else if (oauthFlag !== 'denied' && oauthFlag !== 'failed') setErrorMessage(null);
       } catch (e) {
         if (cancelled) return;
         setStatus('error');
-        setErrorMessage(e instanceof Error ? e.message : 'Unable to load.');
+        setErrorMessage(
+          applicationError ?? (e instanceof Error ? e.message : 'Unable to load repositories.')
+        );
       }
     }
 
@@ -76,14 +101,23 @@ export function GitHubImportPage() {
 
   const filteredRepos = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return repos;
-    return repos.filter(
-      (r) =>
-        r.fullName.toLowerCase().includes(q) ||
-        r.name.toLowerCase().includes(q) ||
-        (r.description && r.description.toLowerCase().includes(q))
-    );
-  }, [repos, filter]);
+    const matched = q
+      ? repos.filter(
+          (r) =>
+            r.fullName.toLowerCase().includes(q) ||
+            r.name.toLowerCase().includes(q) ||
+            (r.description && r.description.toLowerCase().includes(q))
+        )
+      : repos;
+    return matched.filter((repo) => {
+      const imported = importedNames.has(normalizeName(repo.fullName));
+      if (listFilter === 'private') return repo.repoPrivate;
+      if (listFilter === 'public') return !repo.repoPrivate;
+      if (listFilter === 'imported') return imported;
+      if (listFilter === 'not-imported') return !imported;
+      return true;
+    });
+  }, [repos, filter, importedNames, listFilter]);
 
   function isImported(repo: GitHubRepoDto): boolean {
     return importedNames.has(normalizeName(repo.fullName));
@@ -201,7 +235,7 @@ export function GitHubImportPage() {
       setApplications(await fetchApplications());
       setAiBanner({
         tone: 'ok',
-        text: `${res.created.length} connexion(s) créée(s) (${outbound} sortante(s), ${inbound} entrante(s)). ${res.skipped.length} ignorée(s).`,
+        text: `${res.created.length} connection(s) created (${outbound} outbound, ${inbound} inbound). ${res.skipped.length} skipped.`,
       });
     } catch (e) {
       setAiBanner({
@@ -217,8 +251,7 @@ export function GitHubImportPage() {
     <div className="github-import-page">
       <header className="github-import-header">
         <div>
-          <p className="github-import-eyebrow">Integrations</p>
-          <h1 className="github-import-title">Sources</h1>
+          <h1 className="github-import-title">Import sources</h1>
           <p className="github-import-subtitle">
             Import repositories from the GitHub account connected in Settings.
           </p>
@@ -227,6 +260,49 @@ export function GitHubImportPage() {
           Back to map
         </Link>
       </header>
+
+      <div className="github-import-tabs" role="tablist" aria-label="Source kind">
+        <button
+          type="button"
+          className={`github-import-tab${sourceMode === 'repository' ? ' is-active' : ''}`}
+          role="tab"
+          aria-selected={sourceMode === 'repository'}
+          onClick={() => setSourceMode('repository')}
+        >
+          <GitHubMark />
+          Repository
+        </button>
+        <button
+          type="button"
+          className={`github-import-tab${sourceMode === 'third-party' ? ' is-active' : ''}`}
+          role="tab"
+          aria-selected={sourceMode === 'third-party'}
+          onClick={() => setSourceMode('third-party')}
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+            <path
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              d="M6.5 9.5l3-3M7 4.5H4.8A2.3 2.3 0 002.5 6.8v0A2.3 2.3 0 004.8 9.1H7M9 11.5h2.2A2.3 2.3 0 0013.5 9.2v0A2.3 2.3 0 0011.2 6.9H9"
+            />
+          </svg>
+          Third party
+        </button>
+      </div>
+
+      {errorMessage && (
+        <p className="github-import-state github-import-state-error" role="alert">
+          {errorMessage}
+        </p>
+      )}
+
+      <div className="github-import-panel">
+      {sourceMode === 'third-party' ? (
+        <ThirdPartySources onChanged={async () => setApplications(await fetchApplications())} />
+      ) : (
+        <>
 
       <div className="github-import-ai-live" aria-live="polite" aria-relevant="additions text">
         {aiBanner && (
@@ -255,19 +331,35 @@ export function GitHubImportPage() {
         )}
       </div>
 
-      <div className="github-import-toolbar">
-        <label className="github-import-search-label">
-          <span className="github-import-search-span">Filter</span>
+      <div className="github-import-tools">
+        <label className="github-import-search">
+          <svg className="github-import-search-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M10.2 10.2L13.5 13.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
           <input
             className="github-import-search-input"
             type="search"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="owner/repo, name, description…"
+            placeholder="Search a repository, an owner, a description…"
             autoComplete="off"
             disabled={status !== 'ready'}
+            aria-label="Search repositories"
           />
         </label>
+        <select
+          className="github-import-filters"
+          value={listFilter}
+          aria-label="Filters"
+          onChange={(event) => setListFilter(event.target.value as RepoListFilter)}
+        >
+          <option value="all">All</option>
+          <option value="private">Private</option>
+          <option value="public">Public</option>
+          <option value="imported">Already imported</option>
+          <option value="not-imported">Not imported</option>
+        </select>
         <button
           type="button"
           className="github-import-primary"
@@ -278,14 +370,14 @@ export function GitHubImportPage() {
         </button>
       </div>
 
+      <p className="github-import-counts">
+        <span>{filteredRepos.length} repositories</span>
+        <span>{selected.size} selected</span>
+      </p>
+
       {status === 'loading' && (
         <p className="github-import-state" role="status">
           Loading GitHub repositories…
-        </p>
-      )}
-      {errorMessage && (
-        <p className="github-import-state github-import-state-error" role="alert">
-          {errorMessage}
         </p>
       )}
 
@@ -328,95 +420,102 @@ export function GitHubImportPage() {
           const modulesLocked = Boolean(appRow?.hasModuleSubtree);
           const checked = imported || selected.has(repo.id);
           return (
-            <li key={repo.id} className="github-import-card">
-              <label className="github-import-row">
-                <input
-                  type="checkbox"
-                  className="github-import-checkbox"
-                  checked={checked}
-                  disabled={imported || isImporting}
-                  onChange={() => toggleSelect(repo.id, repo)}
-                  aria-describedby={`repo-desc-${repo.id}`}
-                />
-                <span className="github-import-card-body">
-                  <span className="github-import-card-title">
-                    <span className="github-import-card-name" title={repo.fullName}>
-                      {repo.fullName}
+            <li key={repo.id} className={`github-import-card${checked ? ' is-selected' : ''}`}>
+              <div className="github-import-row">
+                <div className="github-import-card-main">
+                  <input
+                    type="checkbox"
+                    className="github-import-checkbox"
+                    checked={checked}
+                    disabled={imported || isImporting}
+                    onChange={() => toggleSelect(repo.id, repo)}
+                    aria-label={repo.fullName}
+                    aria-describedby={`repo-desc-${repo.id}`}
+                  />
+                  <span className="github-import-mark">
+                    <GitHubMark />
+                  </span>
+                  <span className="github-import-card-body">
+                    <span className="github-import-card-title">
+                      <span className="github-import-card-name" title={repo.fullName}>
+                        {repo.fullName}
+                      </span>
+                      {repo.repoPrivate && (
+                        <span className="github-import-badge github-import-badge-private">
+                          Private
+                        </span>
+                      )}
+                      {imported && (
+                        <span className="github-import-badge github-import-badge-imported">
+                          Already imported
+                        </span>
+                      )}
                     </span>
-                    {repo.repoPrivate && (
-                      <span className="github-import-badge github-import-badge-private">
-                        Private
-                      </span>
-                    )}
-                    {imported && (
-                      <span className="github-import-badge github-import-badge-imported">
-                        Already imported
-                      </span>
-                    )}
+                    <span className="github-import-card-owner">{repo.fullName}</span>
+                    <span id={`repo-desc-${repo.id}`} className="github-import-card-desc">
+                      {repo.description?.trim() || 'No description on GitHub.'}
+                    </span>
+                    <a
+                      className="github-import-link"
+                      href={repo.htmlUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open on GitHub
+                    </a>
                   </span>
-                  <span id={`repo-desc-${repo.id}`} className="github-import-card-desc">
-                    {repo.description?.trim() || 'No description on GitHub.'}
-                  </span>
-                  <a
-                    className="github-import-link"
-                    href={repo.htmlUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open on GitHub
-                  </a>
-                  {imported &&
-                    isGitHubLinkedApplication({
-                      name: repo.fullName,
-                      description: repo.description?.trim() || `GitHub: ${repo.htmlUrl}`,
-                    }) && (
-                      <div className="github-import-card-ai">
-                        <button
-                          type="button"
-                          className="github-import-ai-btn"
-                          disabled={
-                            status !== 'ready' ||
-                            aiBusyRepoId !== null ||
-                            connBusyRepoId !== null ||
-                            isImporting ||
-                            !resolveApplicationId(repo) ||
-                            modulesLocked
-                          }
-                          title={
-                            modulesLocked
-                              ? 'Modules are already linked to this application. AI suggestion cannot be run again.'
-                              : undefined
-                          }
-                          aria-busy={aiBusyRepoId === repo.id}
-                          onClick={() => void handleSuggestModules(repo)}
-                        >
-                          {aiBusyRepoId === repo.id
-                            ? 'AI analysis…'
-                            : modulesLocked
-                              ? 'Modules already in place'
-                              : 'Suggest modules (AI)'}
-                        </button>
-                        <button
-                          type="button"
-                          className="github-import-ai-btn"
-                          disabled={
-                            status !== 'ready' ||
-                            aiBusyRepoId !== null ||
-                            connBusyRepoId !== null ||
-                            isImporting ||
-                            !resolveApplicationId(repo)
-                          }
-                          aria-busy={connBusyRepoId === repo.id}
-                          onClick={() => void handleSuggestConnections(repo)}
-                        >
-                          {connBusyRepoId === repo.id
-                            ? 'Analyse des connexions…'
-                            : 'Suggérer les connexions (IA)'}
-                        </button>
-                      </div>
-                    )}
-                </span>
-              </label>
+                </div>
+                {imported &&
+                  isGitHubLinkedApplication({
+                    name: repo.fullName,
+                    description: repo.description?.trim() || `GitHub: ${repo.htmlUrl}`,
+                  }) && (
+                    <div className="github-import-card-ai">
+                      <button
+                        type="button"
+                        className="github-import-ai-btn"
+                        disabled={
+                          status !== 'ready' ||
+                          aiBusyRepoId !== null ||
+                          connBusyRepoId !== null ||
+                          isImporting ||
+                          !resolveApplicationId(repo)
+                        }
+                        aria-busy={connBusyRepoId === repo.id}
+                        onClick={() => void handleSuggestConnections(repo)}
+                      >
+                        {connBusyRepoId === repo.id
+                          ? 'Suggesting connections…'
+                          : 'Suggest connections (AI)'}
+                      </button>
+                      <button
+                        type="button"
+                        className="github-import-ai-btn"
+                        disabled={
+                          status !== 'ready' ||
+                          aiBusyRepoId !== null ||
+                          connBusyRepoId !== null ||
+                          isImporting ||
+                          !resolveApplicationId(repo) ||
+                          modulesLocked
+                        }
+                        title={
+                          modulesLocked
+                            ? 'Modules are already linked to this application. AI suggestion cannot be run again.'
+                            : undefined
+                        }
+                        aria-busy={aiBusyRepoId === repo.id}
+                        onClick={() => void handleSuggestModules(repo)}
+                      >
+                        {aiBusyRepoId === repo.id
+                          ? 'Suggesting modules…'
+                          : modulesLocked
+                            ? 'Modules already in place'
+                            : 'Suggest modules (AI)'}
+                      </button>
+                    </div>
+                  )}
+              </div>
             </li>
           );
         })}
@@ -433,6 +532,9 @@ export function GitHubImportPage() {
         to the application, the button changes to &quot;Modules already in place&quot; (no new AI
         suggestion).
       </p>
+        </>
+      )}
+      </div>
     </div>
   );
 }
