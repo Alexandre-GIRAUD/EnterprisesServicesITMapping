@@ -14,6 +14,7 @@ export function ThemeModeButton({ theme, onToggle }: ThemeModeButtonProps) {
       className="layout-theme-toggle"
       aria-pressed={isDark}
       aria-label={isDark ? 'Dark mode' : 'Light mode'}
+      title={isDark ? 'Dark mode' : 'Light mode'}
       onClick={onToggle}
     >
       {isDark ? <MoonGlyph /> : <SunGlyph />}

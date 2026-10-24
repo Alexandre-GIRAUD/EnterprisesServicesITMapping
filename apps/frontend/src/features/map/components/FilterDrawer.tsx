@@ -4,6 +4,7 @@ import type { ApplicationResponse, GraphEdgeDto, GraphFilters, GraphNodeFilterDt
 import {
   type FilterView,
   isGraphBlankedBySelection,
+  filterIdleCopy,
   keepApplicationsForCheckedFlows,
   dimensionMode,
   dimensionStatusLabel,
@@ -147,6 +148,8 @@ export function FilterDrawer({
     [nodeFilters, selectedNodeValues, nodeCatalogs]
   );
   const isGraphBlank = isGraphBlankedBySelection([appMode, ...nodeModes]);
+  const hasNarrowedFilter = [appMode, ...nodeModes].some((mode) => mode !== 'all');
+  const idleCopy = filterIdleCopy(nodeFilters.length > 0, applications.length > 0, hasNarrowedFilter);
 
   const detailSelectAllRef = useRef<HTMLInputElement | null>(null);
 
@@ -648,10 +651,6 @@ export function FilterDrawer({
         {view === 'root' ? renderRootActions() : renderDetailViewActions()}
         {view === 'root' ? (
           <div className="graph-filter-root-list" role="group" aria-label="Filter types">
-            <p className="graph-filter-hint">
-              Narrow the graph. Each dimension combines with AND (all conditions must match).
-            </p>
-
             <div className="graph-filter-search">
               <input
                 type="search"
@@ -659,6 +658,7 @@ export function FilterDrawer({
                 value={dimensionQuery}
                 onChange={(e) => setDimensionQuery(e.target.value)}
                 placeholder="Search filters…"
+                title="Filters combine with AND."
                 aria-label="Search filters"
                 aria-controls="graph-filter-search-hits"
                 aria-expanded={searchHits.length > 0}
@@ -711,11 +711,9 @@ export function FilterDrawer({
               })
             )}
 
-            {nodeFilters.length === 0 ? (
+            {idleCopy ? (
               <p className="graph-filter-hint" role="status">
-                No filter dimensions configured. Add Data Model fields with target
-                &quot;Application (node)&quot;, &quot;Application (reference)&quot;, or
-                &quot;Connection (edge)&quot; to filter on them.
+                {idleCopy}
               </p>
             ) : null}
 

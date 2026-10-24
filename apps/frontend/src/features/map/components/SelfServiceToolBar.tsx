@@ -58,10 +58,14 @@ function ActionsIcon() {
 function SandboxesIcon() {
   return (
     <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
-      <rect x="2.5" y="2.5" width="6.5" height="6.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
-      <rect x="11" y="2.5" width="6.5" height="6.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
-      <rect x="2.5" y="11" width="6.5" height="6.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
-      <rect x="11" y="11" width="6.5" height="6.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="3" y="6.2" width="12.2" height="9" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <path
+        d="M6.2 6.2V4.8A1.4 1.4 0 0 1 7.6 3.4H16.4A1.4 1.4 0 0 1 17.8 4.8V12.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -97,8 +101,8 @@ export function SelfServiceToolBar({
           role="tab"
           className={`self-service-tool-bar-btn${activeTool === 'chat' ? ' is-active' : ''}`}
           aria-selected={activeTool === 'chat'}
-          aria-label="Ask Flora"
-          title="Ask Flora"
+          aria-label="Ask anything"
+          title="Ask anything"
           onClick={() => onChange('chat')}
         >
           <ChatIcon />

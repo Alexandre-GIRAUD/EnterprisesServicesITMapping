@@ -29,7 +29,11 @@ export function folderParentForNewFolder(
   return currentFolderId;
 }
 
-/** A saved view opens on a single click. A folder is entered. */
-export function savedViewActivation(kind: 'view' | 'folder'): 'apply' | 'enter' {
-  return kind === 'view' ? 'apply' : 'enter';
+/** A folder is entered. A view is selected on click and applied on double-click. */
+export function savedViewActivation(
+  kind: 'view' | 'folder',
+  gesture: 'click' | 'double' = 'click',
+): 'select' | 'apply' | 'enter' {
+  if (kind === 'folder') return 'enter';
+  return gesture === 'double' ? 'apply' : 'select';
 }
