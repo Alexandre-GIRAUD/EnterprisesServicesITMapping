@@ -20,5 +20,13 @@ assert.ok(pane, 'views pane rule missing');
 assert.match(pane[0], /background:\s*transparent/);
 assert.doesNotMatch(pane[0], /border:\s*1px/);
 assert.match(css, /\.graph-views-new:hover:not\(:disabled\)/);
+assert.match(css, /\.graph-views-item \{[^}]*display:\s*flex/);
+assert.match(css, /\.graph-views-item--folder \.graph-views-item-mark \{[^}]*#16a34a/);
+assert.doesNotMatch(css, /rotate\(90deg\)/);
+
+const views = readFileSync(new URL('../components/GraphViewsPanel.tsx', import.meta.url), 'utf8');
+const listGlyph = views.slice(views.indexOf('function ListGlyph'));
+assert.match(listGlyph, /<circle /);
+assert.doesNotMatch(listGlyph, /M3 4\.5h10/);
 
 console.log('viewLayout.check: ok');
