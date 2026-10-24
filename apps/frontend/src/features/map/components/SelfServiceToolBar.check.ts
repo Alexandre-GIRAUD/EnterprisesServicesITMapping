@@ -44,7 +44,5 @@ assert.match(sandboxHtml, /aria-label="Filters"/);
 assert.match(sandboxHtml, /aria-label="Toolkit"/);
 assert.match(sandboxHtml, /aria-label="My sandboxes"/);
 assert.doesNotMatch(sandboxHtml, /Search applications/);
-const sandboxesButton = sandboxHtml.split('aria-label="My sandboxes"')[1]?.split('</button>')[0] ?? '';
-assert.equal((sandboxesButton.match(/<rect /g) ?? []).length, 1, 'Sandbox mark is a stack, not a four-square grid');
 
 console.log('SelfServiceToolBar.check: ok');

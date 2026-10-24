@@ -247,15 +247,13 @@ export const ZONE_PADDING = 28;
 const FALLBACK_NODE_WIDTH = 160;
 const FALLBACK_NODE_HEIGHT = 48;
 
-export type ZoneFrame = { x: number; y: number; width: number; height: number; label: string };
+export type ZoneFrame = { x: number; y: number; width: number; height: number };
 
 type ZoneNode = {
   id: string;
   position: { x: number; y: number };
   width?: number | null;
   height?: number | null;
-  label?: string;
-  data?: { label?: string };
 };
 
 /** One padded frame per disconnected diagram. A single diagram returns none. */
@@ -291,35 +289,8 @@ export function componentZoneFrames(
       y: minY - padding,
       width: maxX - minX + padding * 2,
       height: maxY - minY + padding * 2,
-      label: zoneLabel(ids, nodeById, edges),
     };
   });
-}
-
-function zoneLabel(
-  ids: readonly string[],
-  nodeById: ReadonlyMap<string, ZoneNode>,
-  edges: readonly { source: string; target: string }[],
-): string {
-  const degree = new Map(ids.map((id) => [id, 0]));
-  const members = new Set(ids);
-  for (const edge of edges) {
-    if (!members.has(edge.source) || !members.has(edge.target) || edge.source === edge.target) continue;
-    degree.set(edge.source, (degree.get(edge.source) ?? 0) + 1);
-    degree.set(edge.target, (degree.get(edge.target) ?? 0) + 1);
-  }
-  const best = [...ids].sort((left, right) => {
-    const byDegree = (degree.get(right) ?? 0) - (degree.get(left) ?? 0);
-    if (byDegree !== 0) return byDegree;
-    return zoneNodeName(nodeById.get(left), left).localeCompare(zoneNodeName(nodeById.get(right), right));
-  })[0];
-  const name = zoneNodeName(nodeById.get(best), best ?? ids[0]);
-  return ids.length > 1 ? `${name} · ${ids.length}` : name;
-}
-
-function zoneNodeName(node: ZoneNode | undefined, id: string): string {
-  const named = node?.label?.trim() || node?.data?.label?.trim();
-  return named || id;
 }
 
 /** Apply a translation to every node position and route point in a component. */

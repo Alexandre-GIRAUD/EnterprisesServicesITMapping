@@ -1,5 +1,4 @@
 import { NODE_HEIGHT, NODE_WIDTH } from '../hooks/useGraphData';
-import { nodesForHeightFit } from './fitSelection';
 
 export const FIT_VIEW_PADDING = 0.15;
 
@@ -14,8 +13,6 @@ type NodeLike = {
   height?: number;
 };
 
-type FlowEdge = { source: string; target: string };
-
 type ViewportInstance = {
   fitView: (options?: {
     padding?: number;
@@ -26,18 +23,13 @@ type ViewportInstance = {
     nodes?: NodeLike[];
   }) => Promise<boolean> | void;
   getNodes: () => NodeLike[];
-  getEdges?: () => FlowEdge[];
   flowToScreenPosition: (position: { x: number; y: number }) => { x: number; y: number };
 };
-
-type FitInstance = Pick<ViewportInstance, 'fitView'> &
-  Partial<Pick<ViewportInstance, 'getNodes' | 'getEdges'>>;
 
 type FitOptions = {
   padding?: number;
   duration?: number;
   maxZoom?: number;
-  container?: HTMLElement | null;
 };
 
 type EnsureVisibleOptions = {
@@ -59,27 +51,15 @@ type EnsureVisibleOptions = {
  * bounds — required when multiple disconnected components are packed together.
  */
 export function fitGraphView(
-  instance: FitInstance | null | undefined,
+  instance: Pick<ViewportInstance, 'fitView'> | null | undefined,
   options: FitOptions = {}
 ): void {
   if (!instance) return;
-  const { padding = FIT_VIEW_PADDING, duration = 250, maxZoom = 2.5, container } = options;
+  const { padding = FIT_VIEW_PADDING, duration = 250, maxZoom = 1.5 } = options;
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      const rect = container?.getBoundingClientRect();
-      const nodes = instance.getNodes?.() ?? [];
-      const focus =
-        rect && rect.width > 0 && rect.height > 0 && nodes.length > 1
-          ? nodesForHeightFit(nodes, { width: rect.width, height: rect.height }, instance.getEdges?.() ?? [])
-          : undefined;
-      void instance.fitView({
-        nodes: focus,
-        padding,
-        duration,
-        maxZoom,
-        includeHiddenNodes: false,
-      });
+      void instance.fitView({ padding, duration, maxZoom, includeHiddenNodes: false });
     });
   });
 }

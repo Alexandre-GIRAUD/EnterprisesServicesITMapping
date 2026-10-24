@@ -47,11 +47,7 @@ export function Layout() {
       <div className="layout">
         <aside className="layout-sidebar">
           <div className="layout-brand-row">
-            <Link
-              to="/map"
-              state={{ graphMode: 'normal' } satisfies MapLocationState}
-              className="layout-brand layout-brand-link"
-            >
+            <Link to="/about" className="layout-brand layout-brand-link">
               <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
               <h1>Flowra</h1>
             </Link>

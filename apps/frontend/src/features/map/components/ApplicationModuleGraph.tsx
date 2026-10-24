@@ -1,5 +1,6 @@
 import {
   Background,
+  Controls,
   Panel,
   ReactFlow,
   useNodesState,
@@ -20,7 +21,6 @@ import { ModuleGraphNode, type ModuleNode } from './ModuleGraphNode';
 import { NODE_TYPE_STYLES, type NodeTypeKey } from './graphTheme';
 import { GraphLegend } from './GraphLegend';
 import { fitGraphView } from './fitGraphView';
-import { GraphFitControls } from './GraphFitControls';
 import {
   buildModuleNestedNodes,
   collectDescendants,
@@ -69,7 +69,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
 
   useEffect(() => {
     if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
-    fitGraphView(rfRef.current, { container: containerRef.current });
+    fitGraphView(rfRef.current);
   }, [status, nodes.length, layoutRevision]);
 
   useEffect(() => {
@@ -187,9 +187,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#e2e8f0" gap={GRID} />
-          <GraphFitControls
-            onFit={() => fitGraphView(rfRef.current, { duration: 200, container: containerRef.current })}
-          />
+          <Controls showInteractive={false} />
           {legendNodeTypes.length > 0 && (
             <Panel position="top-left">
               <GraphLegend nodeTypes={legendNodeTypes} />

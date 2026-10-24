@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { LEGEND_BASE_FONT_PX, legendColumnCount, nextLegendFontPx } from './legendFit';
+import { useEffect, useState, type ReactNode } from 'react';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 import {
   EDGE_TYPE_STYLES,
@@ -158,9 +157,7 @@ export function GraphLegend({
   sandboxIcons = [],
   onSandboxIconLabelChange,
 }: Props) {
-  const legendRef = useRef<HTMLDivElement | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(true);
   const [setupName, setSetupName] = useState('');
   const [selectedSetupId, setSelectedSetupId] = useState('');
 
@@ -422,78 +419,25 @@ export function GraphLegend({
   const showAppsBlock = showAppSelects || appsItems.length > 0;
   const showFlowsBlock = showFlowSelects || flowsItems.length > 0;
 
-  useEffect(() => {
-    const root = legendRef.current;
-    if (!root) return;
-    function fit() {
-      if (!root) return;
-      root.style.setProperty('--legend-columns', String(legendColumnCount(root.clientWidth)));
-      let size = LEGEND_BASE_FONT_PX;
-      root.style.fontSize = `${size}px`;
-      let guard = 0;
-      while (root.scrollHeight > root.clientHeight + 1 && guard < 12) {
-        const next = nextLegendFontPx(size, true);
-        if (next === size) break;
-        size = next;
-        root.style.fontSize = `${size}px`;
-        guard += 1;
-      }
-    }
-    const observer = new ResizeObserver(fit);
-    observer.observe(root);
-    fit();
-    return () => observer.disconnect();
-  }, [isEditing, isCollapsed, appsItems.length, flowsItems.length]);
-
-  if (isCollapsed) {
-    return (
-      <button
-        type="button"
-        className="graph-legend graph-legend--collapsed"
-        aria-expanded={false}
-        aria-label="Show legend"
-        title="Legend"
-        onClick={() => setIsCollapsed(false)}
-      >
-        <LegendMark />
-      </button>
-    );
-  }
-
   return (
     <div
-      ref={legendRef}
       className={`graph-legend${isEditing ? ' is-editing' : ''}`}
       role="note"
       aria-label="Graph legend"
     >
       <header className="graph-legend__header">
         <h2 className="graph-legend__heading">Legend</h2>
-        <span className="graph-legend__header-actions">
-          {canEdit ? (
-            <button
-              type="button"
-              className="graph-legend__toggle"
-              aria-label={isEditing ? 'Done' : 'Edit'}
-              title={isEditing ? 'Done' : 'Edit'}
-              onClick={() => setIsEditing((v) => !v)}
-            >
-              {isEditing ? '✓' : 'Edit'}
-            </button>
-          ) : null}
+        {canEdit ? (
           <button
             type="button"
-            className="graph-legend__toggle graph-legend__collapse"
-            aria-label="Hide legend"
-            title="Hide legend"
-            onClick={() => {
-              setIsEditing(false);
-              setIsCollapsed(true);
-            }}
+            className="graph-legend__toggle"
+            aria-label={isEditing ? 'Done' : 'Edit'}
+            title={isEditing ? 'Done' : 'Edit'}
+            onClick={() => setIsEditing((v) => !v)}
           >
-            –
+            {isEditing ? '✓' : 'Edit'}
           </button>
-        </span>
+        ) : null}
       </header>
 
       {isEditing && onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup && (
@@ -683,14 +627,6 @@ export function GraphLegend({
         </div>
       )}
     </div>
-  );
-}
-
-function LegendMark() {
-  return (
-    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-      <path d="M2 4.5h12M2 8h12M2 11.5h8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
   );
 }
 

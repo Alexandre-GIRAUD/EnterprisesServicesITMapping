@@ -149,7 +149,7 @@ export function edgeStyleForType(type: string): Pick<
       opacity: 0.9,
       ...(entry?.dashed ? { strokeDasharray: '6 4' } : {}),
     },
-    labelStyle: { fill: '#475569', fontSize: 12 },
+    labelStyle: { fill: '#475569', fontSize: 9 },
     labelBgStyle: { fill: 'transparent' },
     markerEnd: { type: MarkerType.ArrowClosed, color },
   };

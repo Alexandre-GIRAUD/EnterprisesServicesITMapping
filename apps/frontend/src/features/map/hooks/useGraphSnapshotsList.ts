@@ -8,7 +8,6 @@ import {
   shareGraphViewFolder,
 } from '../api/graphViewFoldersApi';
 import {
-  createGraphSnapshot,
   deleteGraphSnapshot,
   listGraphSnapshots,
   moveGraphSnapshot,
@@ -74,15 +73,6 @@ export function useGraphSnapshotsList() {
       throw e;
     }
   }, []);
-
-  const duplicateSnapshot = useCallback(
-    async (source: GraphSnapshotDto) => {
-      const created = await createGraphSnapshot(`Copy of ${source.name}`, source.filters);
-      if (source.folderId) await moveGraphSnapshot(created.id, source.folderId);
-      await refreshQuietly();
-    },
-    [refreshQuietly],
-  );
 
   const deleteSnapshot = useCallback(async (id: string) => {
     await deleteGraphSnapshot(id);
@@ -159,7 +149,6 @@ export function useGraphSnapshotsList() {
     setErrorMessage,
     loadSnapshots,
     renameSnapshot,
-    duplicateSnapshot,
     deleteSnapshot,
     moveSnapshot,
     createFolder,

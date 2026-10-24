@@ -461,7 +461,7 @@ export function useGraphData({
 
   useEffect(() => {
     if (status !== 'ready' || layoutRevision === 0) return;
-    fitGraphView(rfRef.current, { container: containerRef.current });
+    fitGraphView(rfRef.current);
   }, [status, layoutRevision, rfRef]);
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import {
   Background,
+  Controls,
   Panel,
   ReactFlow,
   type Edge,
@@ -88,12 +89,11 @@ import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle'
 import { TableContentToggle, type TableContentMode, type TableViewMode } from './TableContentToggle';
 import { CreateTablePanel, type CreateTableExportState } from './CreateTablePanel';
 import { fitGraphView, ensureNodesVisible } from './fitGraphView';
-import { GraphFitControls } from './GraphFitControls';
 import { toJpeg, toPng } from 'html-to-image';
 import { downloadTableFile, tableToCsv, tableToExcelXml, type TableGrid } from '../utils/tableFile';
 import { dataUrlToBytes, downloadBytes, downloadDataUrl, jpegPixelSize, jpegToPdf } from '../utils/jpegPdf';
 import { customTableExportFormats } from '../utils/customTable';
-import { GraphViewsPanel, ViewInspectPanel, type InspectedView, type ViewLibraryActions } from './GraphViewsPanel';
+import { GraphViewsPanel } from './GraphViewsPanel';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { MappingChatPanel } from './MappingChatPanel';
@@ -185,20 +185,6 @@ export function GraphCanvas() {
   const [pendingSandboxFilterHint, setPendingSandboxFilterHint] = useState(false);
   const [isSaveSnapshotOpen, setIsSaveSnapshotOpen] = useState(false);
   const [isSideMenuOpen, setIsSideMenuOpen] = useState(false);
-  const [appliedViewName, setAppliedViewName] = useState<string | null>(null);
-  const [shownView, setShownView] = useState<InspectedView | null>(null);
-  const pinnedViewRef = useRef<InspectedView | null>(null);
-  const hoveredViewRef = useRef<InspectedView | null>(null);
-  const viewActionsRef = useRef<ViewLibraryActions | null>(null);
-  const showLibraryView = useCallback((view: InspectedView | null, pin: boolean) => {
-    if (pin) {
-      pinnedViewRef.current = view;
-      if (view) setIsSideMenuOpen(true);
-    } else {
-      hoveredViewRef.current = view;
-    }
-    setShownView(hoveredViewRef.current ?? pinnedViewRef.current);
-  }, []);
   const [displayMode, setDisplayMode] = useState<GraphDisplayMode>('graph');
   const [tableContent, setTableContent] = useState<TableContentMode>('apps');
   const [tableView, setTableView] = useState<TableViewMode>('apps');
@@ -698,10 +684,7 @@ export function GraphCanvas() {
       setNodes(laid.nodes);
       setEdges(laid.edges);
       if (options?.fitView) {
-        window.setTimeout(
-          () => fitGraphView(rfRef.current, { duration: 200, container: containerRef.current }),
-          40,
-        );
+        window.setTimeout(() => fitGraphView(rfRef.current, { duration: 200 }), 40);
       } else if (options?.ensureVisibleNodeIds && options.ensureVisibleNodeIds.length > 0) {
         const ids = options.ensureVisibleNodeIds;
         const hints = laid.nodes.filter((n) => ids.includes(n.id));
@@ -1493,7 +1476,7 @@ export function GraphCanvas() {
   useEffect(() => {
     if (isViewsMode || displayMode !== 'graph') return;
     const timer = window.setTimeout(() => {
-      fitGraphView(rfRef.current, { duration: 220, container: containerRef.current });
+      fitGraphView(rfRef.current, { duration: 220 });
     }, 240);
     return () => window.clearTimeout(timer);
   }, [isSideMenuOpen, isViewsMode, displayMode]);
@@ -1507,7 +1490,7 @@ export function GraphCanvas() {
     const observer = new ResizeObserver(() => {
       window.clearTimeout(timeout);
       timeout = window.setTimeout(() => {
-        fitGraphView(rfRef.current, { duration: 150, container: containerRef.current });
+        fitGraphView(rfRef.current, { duration: 150 });
       }, 120);
     });
     observer.observe(el);
@@ -1892,15 +1875,7 @@ export function GraphCanvas() {
             style={isDiagramGrown ? ({ '--diagram-height': `${diagramHeight}px` } as CSSProperties) : undefined}
           >
             {isViewsMode ? (
-              <GraphViewsPanel
-                onApply={(filters, viewName) => {
-                  setAppliedViewName(viewName);
-                  applySavedView(filters);
-                  mode.switchToNormalMode();
-                }}
-                onShownView={showLibraryView}
-                actionsRef={viewActionsRef}
-              />
+              <GraphViewsPanel onApply={applySavedView} />
             ) : moduleGraphApp ? (
             <div className="graph-module-drilldown" role="tabpanel" aria-label="Application module graph">
               <div className="module-map-toolbar">
@@ -2143,15 +2118,6 @@ export function GraphCanvas() {
               aria-labelledby="graph-mode-tab-normal"
               aria-label="Application dependency graph"
             >
-              {appliedViewName ? (
-                <div className="graph-applied-view-banner" role="status">
-                  <span>View</span>
-                  <strong>{appliedViewName}</strong>
-                  <button type="button" aria-label="Dismiss view banner" onClick={() => setAppliedViewName(null)}>
-                    ×
-                  </button>
-                </div>
-              ) : null}
               <ReactFlow<AppNode, Edge>
                 nodes={displayNodes}
                 edges={displayEdges}
@@ -2188,11 +2154,7 @@ export function GraphCanvas() {
               >
                 <Background color="#e2e8f0" gap={GRID} />
                 <ComponentZoneOverlay nodes={displayNodes} edges={displayEdges} />
-                <GraphFitControls
-                  onFit={() =>
-                    fitGraphView(rfRef.current, { duration: 200, container: containerRef.current })
-                  }
-                />
+                <Controls showInteractive={false} />
                 <Panel position="top-left">
                   <GraphLegend
                     nodeTypes={['Application']}
@@ -2415,19 +2377,7 @@ export function GraphCanvas() {
             else if (nextMode === 'views') mode.switchToViewsMode();
             else mode.switchToNormalMode();
           }}
-          toolDetail={
-            graphMode === 'views' ? (
-              <ViewInspectPanel
-                view={shownView}
-                onApply={(id) => viewActionsRef.current?.apply(id)}
-                onRename={(id) => viewActionsRef.current?.rename(id)}
-                onDuplicate={(id) => viewActionsRef.current?.duplicate(id)}
-                onDelete={(id) => viewActionsRef.current?.remove(id)}
-              />
-            ) : (
-              toolDetail
-            )
-          }
+          toolDetail={toolDetail}
         />
         {displayMode === 'graph' && !isViewsMode ? (
           <button

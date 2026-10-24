@@ -1,5 +1,5 @@
 export const MIN_MENU_WIDTH = 240;
-export const DEFAULT_MENU_WIDTH = 420;
+export const DEFAULT_MENU_WIDTH = 360;
 export const MIN_GRAPH_WIDTH = 280;
 export const MENU_RESIZE_STEP = 16;
 

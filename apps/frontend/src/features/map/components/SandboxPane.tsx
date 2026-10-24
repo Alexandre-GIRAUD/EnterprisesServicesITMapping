@@ -1,5 +1,6 @@
 import {
   Background,
+  Controls,
   Panel,
   ReactFlow,
   ReactFlowProvider,
@@ -24,8 +25,6 @@ import {
 import { GRID } from '../hooks/useGraphData';
 import { AppGraphNode } from './AppGraphNode';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
-import { fitGraphView } from './fitGraphView';
-import { GraphFitControls } from './GraphFitControls';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { OrientedEdge } from './OrientedEdge';
 import { SandboxIconNode } from './SandboxIconNode';
@@ -176,9 +175,7 @@ function SandboxPaneInner({
   editingTextId,
   onTextEditStarted,
 }: Props) {
-  const flow = useReactFlow();
-  const { screenToFlowPosition } = flow;
-  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const { screenToFlowPosition } = useReactFlow();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(doc.name);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
@@ -590,7 +587,7 @@ function SandboxPaneInner({
           />
         </div>
       ) : null}
-      <div className="sandbox-pane__canvas" ref={canvasRef}>
+      <div className="sandbox-pane__canvas">
         <ReactFlow
           nodes={nodes}
           edges={displayEdges}
@@ -660,9 +657,7 @@ function SandboxPaneInner({
             })}
             edges={displayEdges}
           />
-          <GraphFitControls
-            onFit={() => fitGraphView(flow, { duration: 200, container: canvasRef.current })}
-          />
+          <Controls showInteractive={false} />
           {hiddenIds.length > 0 ? (
             <Panel position="top-right">
               <HiddenAppsPicker

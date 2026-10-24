@@ -13,21 +13,8 @@ assert.deepEqual(componentZoneFrames([left, right], [{ source: 'a', target: 'b' 
 
 const frames = componentZoneFrames([left, right], []);
 assert.equal(frames.length, 2);
-assert.deepEqual(frames[0], { x: -28, y: -18, width: 216, height: 104, label: 'a' });
-assert.deepEqual(frames[1], { x: 372, y: -18, width: 216, height: 104, label: 'b' });
-
-const labeled = componentZoneFrames(
-  [
-    { id: 'pay', label: 'Payments', position: { x: 0, y: 0 }, width: 160, height: 48 },
-    { id: 'led', label: 'Ledger', position: { x: 200, y: 0 }, width: 160, height: 48 },
-    { id: 'other', label: 'Other', position: { x: 900, y: 0 }, width: 160, height: 48 },
-  ],
-  [
-    { source: 'pay', target: 'led' },
-    { source: 'led', target: 'pay' },
-  ],
-);
-assert.equal(labeled.find((frame) => frame.label.startsWith('Ledger'))?.label, 'Ledger · 2');
+assert.deepEqual(frames[0], { x: -28, y: -18, width: 216, height: 104 });
+assert.deepEqual(frames[1], { x: 372, y: -18, width: 216, height: 104 });
 
 const box = { width: 200, height: 100 };
 assert.deepEqual(packComponentOffsets([box], 140, 2), [{ x: 0, y: 0 }]);
