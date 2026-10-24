@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import {
@@ -6,101 +6,79 @@ import {
   getDataModelRequest,
   putDataModelRequest,
 } from '@/features/datamodel/api/dataModelApi';
-import type { DataModelDetection, DataModelFieldDto, DataModelTarget } from '@/types/api';
 import {
-  isFlowField,
-  normalizeDataModelTarget,
-  type DataModelSurface,
-} from '../dataModelSurface';
+  DataModelAttributeRow,
+  type AttributeRowChange,
+} from '@/features/datamodel/components/DataModelAttributeRow';
+import { DataModelIcon } from '@/features/datamodel/components/DataModelIcons';
+import { DataModelToolbar } from '@/features/datamodel/components/DataModelToolbar';
+import {
+  applySavedFields,
+  buildSavePayload,
+  countRows,
+  createEmptyRow,
+  discardRowChanges,
+  filterRows,
+  isRowDirty,
+  moveRow,
+  rowsFromFields,
+  validateRow,
+  type AttributeFilters,
+  type AttributeRow,
+} from '../dataModelAttributes';
+import type { DataModelSurface } from '../dataModelSurface';
 
-const KEY_PATTERN = /^[a-z][a-z0-9_]{1,63}$/;
-const RESERVED_KEYS = new Set([
-  'id',
-  'name',
-  'description',
-  'year',
-  'connection_kind',
-  'channel',
-  'direction',
-  'confidence',
-  'discovered_from_application_id',
-]);
+const NO_FILTERS: AttributeFilters = {
+  query: '',
+  detection: 'ALL',
+  isRequiredOnly: false,
+  isControlledOnly: false,
+};
+const LIST_BUSY = 'list';
+const SURFACE_TABS: Array<{ surface: DataModelSurface; label: string }> = [
+  { surface: 'app', label: 'Application' },
+  { surface: 'flows', label: 'Flows' },
+];
 
-function emptyField(): DataModelFieldDto {
-  return {
-    key: '',
-    label: '',
-    description: '',
-    promptHint: '',
-    allowedValues: [],
-    enforceEnum: false,
-    required: false,
-    detection: 'AUTOMATIC_DETECTION',
-    target: 'EDGE',
-    multiple: false,
-  };
+type StatusMessage = { isError: boolean; text: string };
+
+function formatUpdatedAt(updatedAt: string): string {
+  const date = new Date(updatedAt);
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return `Updated on ${date.toLocaleDateString()} at ${time}`;
 }
 
-function normalizeDetection(detection?: DataModelDetection): DataModelDetection {
-  return detection === 'MANUAL' ? 'MANUAL' : 'AUTOMATIC_DETECTION';
-}
-
-function normalizeTarget(target?: DataModelTarget): DataModelTarget {
-  return normalizeDataModelTarget(target);
-}
-
-function validateFields(fields: DataModelFieldDto[]): string | null {
-  const seen = new Set<string>();
-  for (const field of fields) {
-    const key = field.key.trim().toLowerCase();
-    if (!KEY_PATTERN.test(key)) {
-      return `Invalid key: ${field.key || '(empty)'}`;
-    }
-    if (RESERVED_KEYS.has(key)) {
-      return `Reserved key: ${key}`;
-    }
-    if (seen.has(key)) {
-      return `Duplicate key: ${key}`;
-    }
-    seen.add(key);
-    if (!field.label.trim()) {
-      return `Label required for key: ${key}`;
-    }
-    const target = normalizeTarget(field.target);
-    if (target === 'NODE_REF' && (!field.allowedValues || field.allowedValues.length === 0)) {
-      return `Allowed values required for Application (reference) fields (${key})`;
-    }
-    if (field.enforceEnum && (!field.allowedValues || field.allowedValues.length === 0)) {
-      return `Allowed values required when enforce enum is on (${key})`;
-    }
-  }
-  return null;
+function useUnsavedChangesWarning(hasUnsavedChanges: boolean) {
+  useEffect(() => {
+    if (!hasUnsavedChanges) return undefined;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [hasUnsavedChanges]);
 }
 
 export function DataModelPage() {
   const { isAdmin } = useAuth();
-  const [fields, setFields] = useState<DataModelFieldDto[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [saveBusy, setSaveBusy] = useState(false);
-  const [promptPreview, setPromptPreview] = useState('');
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [rows, setRows] = useState<AttributeRow[]>([]);
   const [surface, setSurface] = useState<DataModelSurface>('app');
+  const [filters, setFilters] = useState<AttributeFilters>(NO_FILTERS);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState<string | null>(null);
+  const [status, setStatus] = useState<StatusMessage | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [promptPreview, setPromptPreview] = useState('');
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
+  const hasUnsavedChanges = rows.some(isRowDirty);
+  useUnsavedChangesWarning(hasUnsavedChanges);
 
   const reload = useCallback(async () => {
     const data = await getDataModelRequest();
-    setFields(
-      data.fields.map((f) => ({
-        ...f,
-        detection: normalizeDetection(f.detection),
-        target: normalizeTarget(f.target),
-        multiple: Boolean(f.multiple),
-      }))
-    );
+    setRows(rowsFromFields(data.fields));
     setUpdatedAt(data.updatedAt);
-    const preview = await getDataModelPromptPreviewRequest();
-    setPromptPreview(preview);
+    setPromptPreview(await getDataModelPromptPreviewRequest());
   }, []);
 
   useEffect(() => {
@@ -109,8 +87,8 @@ export function DataModelPage() {
       try {
         await reload();
         if (!cancelled) setLoadError(null);
-      } catch (e) {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Unable to load.');
+      } catch (error) {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Unable to load.');
       }
     })();
     return () => {
@@ -118,71 +96,86 @@ export function DataModelPage() {
     };
   }, [reload]);
 
-  const clientValidationError = useMemo(() => {
-    const meaningful = fields.filter((f) => f.key.trim() || f.label.trim());
-    return validateFields(meaningful);
-  }, [fields]);
-
-  function updateField(index: number, patch: Partial<DataModelFieldDto>) {
-    setFields((prev) => prev.map((f, i) => (i === index ? { ...f, ...patch } : f)));
+  async function persist(nextRows: AttributeRow[], options: { editedRowId?: string; successText: string }) {
+    const previousRows = rows;
+    const payload = buildSavePayload(nextRows, options.editedRowId);
+    setRows(nextRows);
+    setBusy(options.editedRowId ?? LIST_BUSY);
+    setStatus(null);
+    try {
+      const saved = await putDataModelRequest({ fields: payload.fields });
+      setRows((current) => applySavedFields(current, payload.rowIds, saved.fields, options.editedRowId));
+      setUpdatedAt(saved.updatedAt);
+      setStatus({ isError: false, text: options.successText });
+    } catch (error) {
+      if (!options.editedRowId) setRows(previousRows);
+      setStatus({ isError: true, text: error instanceof Error ? error.message : 'Unable to save.' });
+      return;
+    } finally {
+      setBusy(null);
+    }
+    getDataModelPromptPreviewRequest()
+      .then(setPromptPreview)
+      .catch(() => setStatus({ isError: true, text: 'Saved, but the prompt preview could not be refreshed.' }));
   }
 
-  function removeField(index: number) {
-    setFields((prev) => prev.filter((_, i) => i !== index));
+  function changeRow(rowId: string, change: AttributeRowChange) {
+    setRows((current) =>
+      current.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              draft: { ...row.draft, ...change.draft },
+              allowedValuesText: change.allowedValuesText ?? row.allowedValuesText,
+            }
+          : row
+      )
+    );
   }
 
-  function addField() {
-    setFields((prev) => [
-      ...prev,
-      { ...emptyField(), target: surface === 'flows' ? 'EDGE' : 'NODE' },
-    ]);
+  function toggleRow(rowId: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (!next.delete(rowId)) next.add(rowId);
+      return next;
+    });
   }
 
-  async function onSave(e: FormEvent) {
-    e.preventDefault();
-    setSaveError(null);
-    setSaveMessage(null);
+  function addRow() {
+    const row = createEmptyRow(surface);
+    setFilters(NO_FILTERS);
+    setRows((current) => [...current, row]);
+    setExpandedIds((current) => new Set(current).add(row.id));
+  }
 
-    const payload = fields
-      .filter((f) => f.key.trim() || f.label.trim())
-      .map((f) => ({
-        ...f,
-        key: f.key.trim().toLowerCase(),
-        label: f.label.trim(),
-        description: f.description?.trim() ?? '',
-        promptHint: f.promptHint?.trim() ?? '',
-        allowedValues: (f.allowedValues ?? []).map((v) => v.trim()).filter(Boolean),
-        detection: normalizeDetection(f.detection),
-        target: normalizeTarget(f.target),
-        multiple: Boolean(f.multiple),
-        enforceEnum:
-          normalizeTarget(f.target) === 'NODE_REF' ? true : Boolean(f.enforceEnum),
-      }));
+  function discardRow(rowId: string) {
+    setRows((current) => current.map((row) => (row.id === rowId ? discardRowChanges(row) : row)));
+  }
 
-    const validationError = validateFields(payload);
-    if (validationError) {
-      setSaveError(validationError);
+  function deleteRow(row: AttributeRow) {
+    if (!window.confirm(`Delete attribute "${row.draft.key || 'New attribute'}"?`)) return;
+    const nextRows = rows.filter((other) => other.id !== row.id);
+    if (!row.saved) {
+      setRows(nextRows);
       return;
     }
+    void persist(nextRows, { successText: 'Attribute deleted.' });
+  }
 
-    setSaveBusy(true);
+  function dropRow(targetId: string) {
+    setDropTargetId(null);
+    setDraggedId(null);
+    if (!draggedId || draggedId === targetId) return;
+    void persist(moveRow(rows, draggedId, targetId), { successText: 'Order saved.' });
+  }
+
+  async function refresh() {
+    if (hasUnsavedChanges && !window.confirm('Discard unsaved changes and reload the Data Model?')) return;
+    setStatus(null);
     try {
-      const saved = await putDataModelRequest({ fields: payload });
-      setFields(
-        saved.fields.map((f) => ({
-          ...f,
-          detection: normalizeDetection(f.detection),
-          target: normalizeTarget(f.target),
-          multiple: Boolean(f.multiple),
-        }))
-      );
-      setUpdatedAt(saved.updatedAt);
-      setPromptPreview(await getDataModelPromptPreviewRequest());
-      setSaveMessage('Data Model saved.');
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Unable to save.');
-    } finally {
-      setSaveBusy(false);
+      await reload();
+    } catch (error) {
+      setStatus({ isError: true, text: error instanceof Error ? error.message : 'Unable to load.' });
     }
   }
 
@@ -197,260 +190,106 @@ export function DataModelPage() {
     );
   }
 
-  const activeFieldCount = fields.filter((f) => f.key.trim()).length;
+  const surfaceRows = filterRows(rows, surface, NO_FILTERS);
+  const visibleRows = filterRows(rows, surface, filters);
 
   return (
     <div className="data-model-page">
       <header className="data-model-header">
-        <h1>Data Model</h1>
-        <div className="graph-display-toggle" role="tablist" aria-label="Data model surface">
-          <button
-            type="button"
-            role="tab"
-            className={`graph-display-toggle-btn${surface === 'app' ? ' is-active' : ''}`}
-            aria-selected={surface === 'app'}
-            onClick={() => setSurface('app')}
-          >
-            <span className="graph-display-toggle-label">App</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={`graph-display-toggle-btn${surface === 'flows' ? ' is-active' : ''}`}
-            aria-selected={surface === 'flows'}
-            onClick={() => setSurface('flows')}
-          >
-            <span className="graph-display-toggle-label">Flows</span>
-          </button>
+        <div>
+          <h1>Data Model</h1>
+          <p className="data-model-lead">
+            Define the attributes available on the nodes and connections of your graph.
+          </p>
         </div>
-        {updatedAt ? (
-          <p className="data-model-meta">Last updated: {new Date(updatedAt).toLocaleString()}</p>
+        {isAdmin ? (
+          <button type="button" className="data-model-primary-btn data-model-add-btn" onClick={addRow}>
+            <DataModelIcon name="plus" />
+            Add attribute
+          </button>
         ) : null}
       </header>
 
-      {activeFieldCount === 0 ? (
-        <div className="data-model-banner" role="status">
-          No fields configured — connection suggestion will discover technical topology only (peer,
-          direction, connection_kind, channel).
+      <div className="data-model-subheader">
+        <div className="graph-display-toggle" role="tablist" aria-label="Data model surface">
+          {SURFACE_TABS.map((tab) => (
+            <button
+              key={tab.surface}
+              type="button"
+              role="tab"
+              className={`graph-display-toggle-btn${surface === tab.surface ? ' is-active' : ''}`}
+              aria-selected={surface === tab.surface}
+              onClick={() => setSurface(tab.surface)}
+            >
+              <span className="graph-display-toggle-label">{tab.label}</span>
+            </button>
+          ))}
         </div>
-      ) : null}
+        <button type="button" className="data-model-icon-btn" onClick={refresh} aria-label="Reload the Data Model">
+          <DataModelIcon name="refresh" />
+        </button>
+        {updatedAt ? <span className="data-model-meta">{formatUpdatedAt(updatedAt)}</span> : null}
+      </div>
 
       {!isAdmin ? (
-        <p className="data-model-readonly">
-          Read-only view. Only administrators can edit the Data Model.
+        <p className="data-model-readonly">Read-only view. Only administrators can edit the Data Model.</p>
+      ) : null}
+
+      <DataModelToolbar counts={countRows(surfaceRows)} filters={filters} onFiltersChange={setFilters} />
+
+      {status ? (
+        <p className={status.isError ? 'data-model-error' : 'data-model-success'} role="status">
+          {status.text}
         </p>
       ) : null}
 
-      <form className="data-model-form" onSubmit={onSave}>
-        <div className="data-model-fields">
-          {fields.map((field, index) => {
-            const shown = surface === 'flows' ? isFlowField(field) : !isFlowField(field);
-            if (!shown) return null;
-            const detection = normalizeDetection(field.detection);
-            const target = normalizeTarget(field.target);
-            return (
-              <section key={index} className="data-model-field-card">
-                <div className="data-model-field-row">
-                  <label className="data-model-label">
-                    Key
-                    <input
-                      className="data-model-input"
-                      value={field.key}
-                      onChange={(e) => updateField(index, { key: e.target.value })}
-                      placeholder="product_line"
-                      disabled={!isAdmin}
-                      spellCheck={false}
-                    />
-                  </label>
-                  <label className="data-model-label">
-                    Label
-                    <input
-                      className="data-model-input"
-                      value={field.label}
-                      onChange={(e) => updateField(index, { label: e.target.value })}
-                      placeholder="Product line"
-                      disabled={!isAdmin}
-                    />
-                  </label>
-                </div>
-
-                {surface === 'app' ? (
-                  <label className="data-model-label">
-                    Target
-                    <select
-                      className="data-model-input"
-                      value={target === 'NODE_REF' ? 'NODE_REF' : 'NODE'}
-                      onChange={(e) => {
-                        const next = e.target.value as DataModelTarget;
-                        updateField(index, {
-                          target: next,
-                          enforceEnum: next === 'NODE_REF' ? true : field.enforceEnum,
-                        });
-                      }}
-                      disabled={!isAdmin}
-                    >
-                      <option value="NODE">Application (node)</option>
-                      <option value="NODE_REF">Application (reference)</option>
-                    </select>
-                  </label>
-                ) : null}
-                {target === 'NODE' ? (
-                  <p className="data-model-field-hint" role="note">
-                    Stored as a flat property on the Application node: applied during connection
-                    suggestion (AI), filterable on the map, and editable in the details drawer.
-                    Allowed values become the picker choices.
-                  </p>
-                ) : null}
-                {target === 'NODE_REF' ? (
-                  <p className="data-model-field-hint" role="note">
-                    Declared values become Neo4j catalogue nodes (:DataModelRef), filter options, and
-                    closed choices for AI / the details drawer. Links use CLASSIFIED_AS — values are
-                    created only here, never by AI or free text in the drawer.
-                  </p>
-                ) : null}
-
-                <label className="data-model-label">
-                  Detection
-                  <select
-                    className="data-model-input"
-                    value={detection}
-                    onChange={(e) =>
-                      updateField(index, {
-                        detection: e.target.value as DataModelDetection,
-                      })
-                    }
-                    disabled={!isAdmin}
-                  >
-                    <option value="AUTOMATIC_DETECTION">Automatic detection</option>
-                    <option value="MANUAL">Manual</option>
-                  </select>
-                </label>
-                {detection === 'MANUAL' ? (
-                  <p className="data-model-field-hint" role="note">
-                    Not searched by AI connection suggestion. Required is ignored for AI when
-                    Manual.
-                  </p>
-                ) : null}
-
-                <label className="data-model-label">
-                  Description
-                  <textarea
-                    className="data-model-textarea"
-                    value={field.description ?? ''}
-                    onChange={(e) => updateField(index, { description: e.target.value })}
-                    rows={2}
-                    disabled={!isAdmin}
-                  />
-                </label>
-
-                <label className="data-model-label">
-                  Detection hint (prompt)
-                  <textarea
-                    className="data-model-textarea"
-                    value={field.promptHint ?? ''}
-                    onChange={(e) => updateField(index, { promptHint: e.target.value })}
-                    rows={2}
-                    disabled={!isAdmin || detection === 'MANUAL'}
-                  />
-                </label>
-
-                <label className="data-model-label">
-                  Allowed values (comma-separated)
-                  <input
-                    className="data-model-input"
-                    value={(field.allowedValues ?? []).join(', ')}
-                    onChange={(e) =>
-                      updateField(index, {
-                        allowedValues: e.target.value
-                          .split(',')
-                          .map((v) => v.trim())
-                          .filter(Boolean),
-                      })
-                    }
-                    placeholder={target === 'NODE_REF' ? 'VALUE_A, VALUE_B' : 'VALUE_A, VALUE_B'}
-                    disabled={!isAdmin}
-                  />
-                </label>
-
-                <div className="data-model-checks">
-                  <label className="data-model-check">
-                    <input
-                      type="checkbox"
-                      checked={target === 'NODE_REF' ? true : field.enforceEnum}
-                      onChange={(e) => updateField(index, { enforceEnum: e.target.checked })}
-                      disabled={!isAdmin || target === 'NODE_REF'}
-                    />
-                    Enforce enum (strict)
-                    {target === 'NODE_REF' ? ' (always on for references)' : ''}
-                  </label>
-                  <label className="data-model-check">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(field.multiple)}
-                      onChange={(e) => updateField(index, { multiple: e.target.checked })}
-                      disabled={!isAdmin}
-                    />
-                    Allow multiple values
-                  </label>
-                  <label className="data-model-check">
-                    <input
-                      type="checkbox"
-                      checked={field.required}
-                      onChange={(e) => updateField(index, { required: e.target.checked })}
-                      disabled={!isAdmin || detection === 'MANUAL'}
-                    />
-                    Required
-                    {detection === 'MANUAL' ? ' (ignored when Manual)' : ''}
-                  </label>
-                </div>
-
-                {isAdmin ? (
-                  <button
-                    type="button"
-                    className="data-model-remove-btn"
-                    onClick={() => removeField(index)}
-                  >
-                    Remove field
-                  </button>
-                ) : null}
-              </section>
-            );
-          })}
-        </div>
-
-        {isAdmin ? (
-          <div className="data-model-actions">
-            <button type="button" className="data-model-secondary-btn" onClick={addField}>
-              Add field
-            </button>
-            <button
-              type="submit"
-              className="data-model-primary-btn"
-              disabled={saveBusy || Boolean(clientValidationError)}
-            >
-              {saveBusy ? 'Saving…' : 'Save Data Model'}
-            </button>
+      <div className="data-model-fields">
+        {surfaceRows.length === 0 ? (
+          <div className="data-model-banner" role="status">
+            No attributes yet. Connection suggestion discovers technical topology only (peer, direction,
+            connection_kind, channel).
           </div>
         ) : null}
-
-        {clientValidationError && isAdmin ? (
-          <p className="data-model-error">{clientValidationError}</p>
+        {surfaceRows.length > 0 && visibleRows.length === 0 ? (
+          <p className="data-model-empty">No attribute matches your search or filters.</p>
         ) : null}
-        {saveError ? <p className="data-model-error">{saveError}</p> : null}
-        {saveMessage ? <p className="data-model-success">{saveMessage}</p> : null}
-      </form>
+        {visibleRows.map((row) => (
+          <DataModelAttributeRow
+            key={row.id}
+            row={row}
+            rowError={validateRow(row, rows)}
+            surface={surface}
+            isExpanded={expandedIds.has(row.id)}
+            isAdmin={isAdmin}
+            isBusy={busy !== null}
+            isDropTarget={dropTargetId === row.id && draggedId !== row.id}
+            onToggle={() => toggleRow(row.id)}
+            onChange={(change) => changeRow(row.id, change)}
+            onSave={() => void persist(rows, { editedRowId: row.id, successText: 'Attribute saved.' })}
+            onDiscard={() => discardRow(row.id)}
+            onDelete={() => deleteRow(row)}
+            onDragStart={() => setDraggedId(row.id)}
+            onDragEnter={() => setDropTargetId(row.id)}
+            onDrop={() => dropRow(row.id)}
+          />
+        ))}
+        {isAdmin ? (
+          <button type="button" className="data-model-add-row" onClick={addRow}>
+            <DataModelIcon name="plus" />
+            Add attribute
+          </button>
+        ) : null}
+      </div>
 
-      <section className="data-model-panel">
-        <h2>Prompt preview</h2>
+      <details className="data-model-panel">
+        <summary>Prompt preview</summary>
         <p className="data-model-lead">
-          Section(s) injected into the connection-discovery user message when automatic fields are
-          configured (manual fields are excluded). Edge, Application (node), and Application
-          (reference) fields appear in separate sections.
+          Section(s) injected into the connection-discovery prompt for AI-detected attributes (manual
+          attributes are excluded). Edge, Application (node) and Application (reference) attributes appear in
+          separate sections.
         </p>
-        <pre className="data-model-preview">
-          {promptPreview.trim() || '(empty — topology-only mode)'}
-        </pre>
-      </section>
+        <pre className="data-model-preview">{promptPreview.trim() || '(empty — topology-only mode)'}</pre>
+      </details>
     </div>
   );
 }
