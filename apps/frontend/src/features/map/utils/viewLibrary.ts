@@ -81,29 +81,6 @@ export function hiddenAppCount(filters: ViewFilterSource): number {
   return filters.hiddenApplicationIds?.length ?? 0;
 }
 
-export const AUTHOR_NAME_MAX_LENGTH = 22;
-
-export function truncateAuthorName(name: string): string {
-  const trimmed = name.trim();
-  if (trimmed.length <= AUTHOR_NAME_MAX_LENGTH) return trimmed;
-  return `${trimmed.slice(0, AUTHOR_NAME_MAX_LENGTH - 1)}…`;
-}
-
-export function viewInfoLines(
-  filterCount: number,
-  hiddenApps: number,
-  updatedAt: string,
-  author: string,
-  nowMs: number,
-): readonly [string, string, string, string] {
-  return [
-    countPhrase(filterCount, 'filter', 'filters'),
-    countPhrase(hiddenApps, 'hidden app', 'hidden apps'),
-    relativeModifiedLabel(updatedAt, nowMs),
-    `by ${truncateAuthorName(author)}`,
-  ];
-}
-
 export function viewSummaryLine(filterCount: number, hiddenApps: number): string {
   return `${countPhrase(filterCount, 'filter', 'filters')} · ${countPhrase(hiddenApps, 'hidden app', 'hidden apps')}`;
 }

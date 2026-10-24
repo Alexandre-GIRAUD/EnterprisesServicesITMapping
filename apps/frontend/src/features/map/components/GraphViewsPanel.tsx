@@ -30,8 +30,6 @@ import {
   folderBreadcrumb,
   folderItemCount,
   searchLibrary,
-  truncateAuthorName,
-  viewInfoLines,
   viewSummaryLine,
   viewWhenLine,
   type LibraryFolder,
@@ -43,16 +41,36 @@ import {
 type GraphViewsPanelProps = {
   onApply: (filters: GraphSnapshotFilters, viewName: string) => void;
   onShownView: (view: InspectedView | null, pin: boolean) => void;
+  onCreateView: () => void;
+  panelToggle: ReactNode;
   actionsRef: MutableRefObject<ViewLibraryActions | null>;
 };
 
 export type InspectedView = {
   id: string;
   name: string;
-  infoLines: readonly [string, string, string, string];
-  authorName: string;
+  summary: string;
+  whenLine: string;
   hints: string[];
+  hiddenApplicationIds: string[];
 };
+
+function renderLibraryStatus(panelToggle: ReactNode, message: string, isError: boolean) {
+  return (
+    <div id="graph-views-pane" className="graph-views-pane" role="tabpanel" aria-labelledby="graph-mode-tab-views">
+      <div className="graph-views-toolbar">
+        <div className="graph-views-toolbar-end">{panelToggle}</div>
+      </div>
+      <p className={isError ? 'graph-views-state graph-views-state-error' : 'graph-views-state'} role={isError ? 'alert' : 'status'}>
+        {message}
+      </p>
+    </div>
+  );
+}
+
+const CARD_MARK_SIZE = 18;
+const EMPTY_MARK_SIZE = 32;
+const QUIET_MARK_SIZE = 22;
 
 export type ViewLibraryActions = {
   apply: (id: string) => void;
@@ -78,7 +96,7 @@ const SORT_COLUMNS: { key: LibrarySortKey; label: string }[] = [
   { key: 'author', label: 'Author' },
 ];
 
-export function GraphViewsPanel({ onApply, onShownView, actionsRef }: GraphViewsPanelProps) {
+export function GraphViewsPanel({ onApply, onShownView, onCreateView, panelToggle, actionsRef }: GraphViewsPanelProps) {
   const library = useGraphSnapshotsList();
   const { user } = useAuth();
   const authorName = user?.username ?? 'you';
@@ -387,19 +405,21 @@ export function GraphViewsPanel({ onApply, onShownView, actionsRef }: GraphViews
   }
 
   if (library.status === 'loading') {
-    return <p className="graph-views-state" role="status">Loading…</p>;
+    return renderLibraryStatus(panelToggle, 'Loading…', false);
   }
   if (library.status === 'error') {
-    return <p className="graph-views-state graph-views-state-error" role="alert">{library.errorMessage}</p>;
+    return renderLibraryStatus(panelToggle, library.errorMessage ?? 'Unable to load views.', true);
   }
 
   const isSearching = query.trim().length > 0;
+  const emptyTitle = currentFolderId ? 'This folder is empty.' : 'No saved views yet.';
   const folderCards = isSearching
     ? listedRows.filter((row) => row.kind === 'folder')
     : childFolders.map((folder) => folderCardRow(folder, libraryFolders, libraryViews, authorName));
   const viewCards = isSearching
     ? listedRows.filter((row) => row.kind === 'view')
     : childViews.map((view) => viewCardRow(view, libraryFolders, authorName));
+  const isListingEmpty = folderCards.length === 0 && viewCards.length === 0;
 
   return (
     <div
@@ -422,15 +442,7 @@ export function GraphViewsPanel({ onApply, onShownView, actionsRef }: GraphViews
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
-        <div className="graph-views-toolbar-actions">
-          <button
-            type="button"
-            className="graph-views-new"
-            disabled={!canCreateIn(folderNodes, currentFolderId)}
-            onClick={() => createFolderIn(currentFolderId)}
-          >
-            New folder
-          </button>
+        <div className="graph-views-layout-switch" role="group" aria-label="Layout">
           <button
             type="button"
             className="graph-views-layout"
@@ -452,35 +464,42 @@ export function GraphViewsPanel({ onApply, onShownView, actionsRef }: GraphViews
             <ListGlyph />
           </button>
         </div>
+        <button
+          type="button"
+          className="graph-views-new"
+          disabled={!canCreateIn(folderNodes, currentFolderId)}
+          onClick={() => createFolderIn(currentFolderId)}
+        >
+          <span aria-hidden="true">+</span>
+          New folder
+        </button>
+        {panelToggle}
       </div>
-      <nav className="graph-views-crumbs" aria-label="View folders">
-        {crumbs.map((crumb, index) => (
-          <span key={crumb.id ?? 'root'} className="graph-views-crumb">
-            {index > 0 ? <span aria-hidden="true">›</span> : null}
-            <button
-              type="button"
-              aria-current={crumb.id === currentFolderId ? 'page' : undefined}
-              onClick={() => {
-                setCurrentFolderId(crumb.id);
-                setQuery('');
-              }}
-            >
-              {crumb.label}
-            </button>
-          </span>
-        ))}
-      </nav>
+      <FolderCrumbs
+        crumbs={crumbs}
+        currentFolderId={currentFolderId}
+        onOpen={(folderId) => {
+          setCurrentFolderId(folderId);
+          setQuery('');
+        }}
+      />
       {library.errorMessage ? (
         <p className="graph-views-state graph-views-state-error" role="alert">{library.errorMessage}</p>
       ) : notice ? (
         <p className="graph-views-state" role="status">{notice}</p>
       ) : null}
-      {layout === 'grid' ? (
+      {isListingEmpty ? (
+        isSearching ? (
+          <p className="graph-views-state">No views match.</p>
+        ) : (
+          <ViewsEmptyState title={emptyTitle} onCreate={onCreateView} />
+        )
+      ) : layout === 'grid' ? (
         <div className="graph-views-sections">
           {folderCards.length > 0 ? (
             <section aria-label="Folders">
               <h3>Folders</h3>
-              <ul className="graph-views-folders">
+              <ul className="graph-views-cards">
                 {folderCards.map((row) => (
                   <FolderCard
                     key={row.id}
@@ -553,14 +572,10 @@ export function GraphViewsPanel({ onApply, onShownView, actionsRef }: GraphViews
               </ul>
             </section>
           ) : null}
+          {viewCards.length > 0 ? (
           <section aria-label="Views">
             <h3>Views</h3>
-            {viewCards.length === 0 ? (
-              <p className="graph-views-state">
-                {isSearching ? 'No views match.' : currentFolderId ? 'This folder is empty.' : 'No saved views yet. Pin a view from Production.'}
-              </p>
-            ) : (
-              <ul className="graph-views-list is-grid">
+              <ul className="graph-views-cards">
                 {viewCards.map((row) => {
                   const view = library.snapshots.find((entry) => entry.id === row.id);
                   if (!view) return null;
@@ -627,8 +642,8 @@ export function GraphViewsPanel({ onApply, onShownView, actionsRef }: GraphViews
                   );
                 })}
               </ul>
-            )}
           </section>
+          ) : null}
         </div>
       ) : (
         <LibraryTable
@@ -638,7 +653,7 @@ export function GraphViewsPanel({ onApply, onShownView, actionsRef }: GraphViews
           expandedIds={expandedIds}
           selectedViewId={selectedViewId}
           isSearching={isSearching}
-          emptyLabel={currentFolderId ? 'This folder is empty.' : 'No saved views yet. Pin a view from Production.'}
+          emptyLabel={emptyTitle}
           onSort={toggleSort}
           onToggle={toggleExpanded}
           onEnter={enterFolder}
@@ -694,39 +709,81 @@ export function GraphViewsPanel({ onApply, onShownView, actionsRef }: GraphViews
 
 export function ViewInspectPanel({
   view,
+  applicationNames,
   onApply,
   onRename,
   onDuplicate,
   onDelete,
 }: {
   view: InspectedView | null;
+  applicationNames: Record<string, string>;
   onApply: (id: string) => void;
   onRename: (id: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
   if (!view) {
-    return <p className="graph-views-state">Select a view to see its filters before you apply it.</p>;
+    return (
+      <div className="graph-views-empty graph-views-empty--quiet">
+        <InspectMark />
+        <p>Select a view to see its filters before you apply it.</p>
+      </div>
+    );
   }
   return (
     <div className="graph-view-detail">
       <h3>{view.name}</h3>
-      <ViewFactList lines={view.infoLines} authorName={view.authorName} />
-      {view.hints.length > 0 ? (
-        <ul>
-          {view.hints.map((hint) => (
-            <li key={hint}>{hint}</li>
-          ))}
-        </ul>
-      ) : (
-        <p className="graph-view-detail__when">No filters</p>
-      )}
-      <div className="graph-view-detail__actions">
-        <button type="button" className="is-important" onClick={() => onApply(view.id)}>Apply</button>
-        <button type="button" onClick={() => onRename(view.id)}>Rename</button>
-        <button type="button" onClick={() => onDuplicate(view.id)}>Duplicate</button>
-        <button type="button" className="quiet-danger" onClick={() => onDelete(view.id)}>Delete</button>
-      </div>
+      <p>{view.summary}</p>
+      <p className="graph-view-detail__when">{view.whenLine}</p>
+      <ViewFilterTags hints={view.hints} />
+      <HiddenApplications key={view.id} applicationIds={view.hiddenApplicationIds} names={applicationNames} />
+      <DetailActions
+        onApply={() => onApply(view.id)}
+        onRename={() => onRename(view.id)}
+        onDuplicate={() => onDuplicate(view.id)}
+        onDelete={() => onDelete(view.id)}
+      />
+    </div>
+  );
+}
+
+export function FolderCrumbs({
+  crumbs,
+  currentFolderId,
+  onOpen,
+}: {
+  crumbs: { id: string | null; label: string }[];
+  currentFolderId: string | null;
+  onOpen: (folderId: string | null) => void;
+}) {
+  if (currentFolderId == null) return null;
+  return (
+    <nav className="graph-views-crumbs" aria-label="View folders">
+      {crumbs.map((crumb, index) => (
+        <span key={crumb.id ?? 'root'} className="graph-views-crumb">
+          {index > 0 ? <span aria-hidden="true">›</span> : null}
+          <button
+            type="button"
+            aria-current={crumb.id === currentFolderId ? 'page' : undefined}
+            onClick={() => onOpen(crumb.id)}
+          >
+            {crumb.label}
+          </button>
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+export function ViewsEmptyState({ title, onCreate }: { title: string; onCreate: () => void }) {
+  return (
+    <div className="graph-views-empty">
+      <FolderMark size={EMPTY_MARK_SIZE} />
+      <p className="graph-views-empty__title">{title}</p>
+      <p className="graph-views-empty__help">Drop a view here, or create one from the graph.</p>
+      <button type="button" className="graph-views-create" onClick={onCreate}>
+        Create a view
+      </button>
     </div>
   );
 }
@@ -805,7 +862,7 @@ function FolderCard({
           onOpen();
         }}
       >
-        <FolderMark large />
+        <FolderMark size={CARD_MARK_SIZE} />
         {isEditing ? (
           <NameField
             label={`Rename ${row.name}`}
@@ -817,7 +874,8 @@ function FolderCard({
         ) : (
           <span className="graph-views-folder-copy">
             <span className="graph-views-item-name">{row.name}</span>
-            <span className="graph-views-item-meta">{itemCount}{showPath ? ` · ${row.pathLabel}` : ''}</span>
+            <span className="graph-views-item-summary">{itemCount}{showPath ? ` · ${row.pathLabel}` : ''}</span>
+            <span className="graph-views-item-meta">{viewWhenLine(row.updatedAt, row.author, Date.now())}</span>
           </span>
         )}
       </div>
@@ -913,6 +971,7 @@ function ViewCard({
         onMouseEnter={onPreview}
         onMouseLeave={onPreviewEnd}
       >
+        <ViewMark />
         <span className="graph-views-card-copy">
           {isEditing ? (
             <NameField
@@ -934,10 +993,8 @@ function ViewCard({
               {row.name}
             </span>
           )}
-          <ViewFactList
-            lines={viewInfoLines(row.filterCount, row.hiddenApps, view.updatedAt, authorName, Date.now())}
-            authorName={authorName}
-          />
+          <span className="graph-views-item-summary">{viewSummaryLine(row.filterCount, row.hiddenApps)}</span>
+          <span className="graph-views-item-meta">{viewWhenLine(view.updatedAt, authorName, Date.now())}</span>
           {showPath ? <span className="graph-views-item-meta">{row.pathLabel}</span> : null}
         </span>
       </div>
@@ -1060,7 +1117,7 @@ function LibraryTable({
             </td>
             <td>{row.kind === 'view' ? viewSummaryLine(row.filterCount, row.hiddenApps) : `${row.childCount} ${row.childCount === 1 ? 'item' : 'items'}`}</td>
             <td>{relativeDay(row.updatedAt)}</td>
-            <td className="graph-views-item-author" title={row.author}>{truncateAuthorName(row.author)}</td>
+            <td>{row.author}</td>
           </tr>
         ))}
       </tbody>
@@ -1268,15 +1325,10 @@ function inspectedFrom(view: GraphSnapshotDto, authorName: string): InspectedVie
   return {
     id: view.id,
     name: view.name,
-    infoLines: viewInfoLines(
-      activeFilterCount(view.filters),
-      view.filters.hiddenApplicationIds?.length ?? 0,
-      view.updatedAt,
-      authorName,
-      Date.now(),
-    ),
-    authorName,
+    summary: viewSummaryLine(activeFilterCount(view.filters), view.filters.hiddenApplicationIds?.length ?? 0),
+    whenLine: viewWhenLine(view.updatedAt, authorName, Date.now()),
     hints: filterHintLines(view.filters),
+    hiddenApplicationIds: view.filters.hiddenApplicationIds ?? [],
   };
 }
 
@@ -1327,30 +1379,7 @@ function readStoredViewLayout(): ViewLayout {
   }
 }
 
-function ViewFactList({
-  lines,
-  authorName,
-}: {
-  lines: readonly [string, string, string, string];
-  authorName: string;
-}) {
-  return (
-    <ul className="graph-views-item-facts">
-      {lines.map((line, index) => (
-        <li
-          key={`${index}-${line}`}
-          className={index === lines.length - 1 ? 'graph-views-item-author' : undefined}
-          title={index === lines.length - 1 ? authorName : undefined}
-        >
-          {line}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function FolderMark({ large = false }: { large?: boolean }) {
-  const size = large ? 28 : 16;
+function FolderMark({ size }: { size: number }) {
   return (
     <svg className="graph-views-item-mark" viewBox="0 0 20 20" width={size} height={size} aria-hidden="true" focusable="false">
       <path
@@ -1367,10 +1396,91 @@ function FolderMark({ large = false }: { large?: boolean }) {
 function KebabIcon() {
   return (
     <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
-      <circle cx="10" cy="4.5" r="1.3" fill="currentColor" />
+      <circle cx="4.5" cy="10" r="1.3" fill="currentColor" />
       <circle cx="10" cy="10" r="1.3" fill="currentColor" />
-      <circle cx="10" cy="15.5" r="1.3" fill="currentColor" />
+      <circle cx="15.5" cy="10" r="1.3" fill="currentColor" />
     </svg>
+  );
+}
+
+function ViewMark() {
+  return (
+    <svg className="graph-views-item-mark" viewBox="0 0 20 20" width={CARD_MARK_SIZE} height={CARD_MARK_SIZE} aria-hidden="true" focusable="false">
+      <rect x="3.5" y="3" width="13" height="14" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6.5 7.5h7M6.5 10.5h7M6.5 13.5h4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function InspectMark() {
+  return (
+    <svg className="graph-views-item-mark" viewBox="0 0 20 20" width={QUIET_MARK_SIZE} height={QUIET_MARK_SIZE} aria-hidden="true" focusable="false">
+      <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6 8h8M6 12h5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ViewFilterTags({ hints }: { hints: string[] }) {
+  if (hints.length === 0) return <p className="graph-view-detail__when">No filters</p>;
+  return (
+    <div className="graph-view-detail__tags">
+      {hints.map((hint) => (
+        <span key={hint} className="graph-view-detail__tag">{hint}</span>
+      ))}
+    </div>
+  );
+}
+
+function HiddenApplications({
+  applicationIds,
+  names,
+}: {
+  applicationIds: string[];
+  names: Record<string, string>;
+}) {
+  const [isListOpen, setListOpen] = useState(false);
+  if (applicationIds.length === 0) return null;
+  const label = `${applicationIds.length} ${applicationIds.length === 1 ? 'hidden app' : 'hidden apps'}`;
+  return (
+    <div className="graph-view-detail__hidden">
+      <p>
+        {label}{' '}
+        <button type="button" className="graph-view-detail__see" onClick={() => setListOpen((current) => !current)}>
+          {isListOpen ? 'Hide' : 'See'}
+        </button>
+      </p>
+      {isListOpen ? (
+        <ul className="graph-view-detail__hidden-list">
+          {applicationIds.map((applicationId) => (
+            <li key={applicationId}>{names[applicationId] ?? applicationId}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function DetailActions({
+  onApply,
+  onRename,
+  onDuplicate,
+  onDelete,
+}: {
+  onApply: () => void;
+  onRename: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="graph-view-detail__actions">
+      <div className="graph-view-detail__actions-row">
+        <button type="button" className="graph-view-detail__apply" onClick={onApply}>Apply</button>
+        <button type="button" onClick={onRename}>Rename</button>
+        <button type="button" onClick={onDuplicate}>Duplicate</button>
+      </div>
+      <button type="button" className="is-danger-ghost" onClick={onDelete}>Delete</button>
+    </div>
   );
 }
 

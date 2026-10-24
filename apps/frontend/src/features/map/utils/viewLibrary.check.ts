@@ -12,8 +12,6 @@ import {
   folderItemCount,
   relativeModifiedLabel,
   searchLibrary,
-  truncateAuthorName,
-  viewInfoLines,
   viewSummaryLine,
   viewWhenLine,
   type LibraryFolder,
@@ -56,16 +54,6 @@ assert.equal(folderItemCount(folders, views, 'year'), 1);
 assert.equal(activeFilterCount(views[0].filters), 3);
 assert.equal(viewSummaryLine(3, 12), '3 filters · 12 hidden apps');
 assert.equal(viewWhenLine(views[0].updatedAt, 'Alex', now), 'Modified 2d ago · by Alex');
-assert.deepEqual(viewInfoLines(3, 12, views[0].updatedAt, 'Alex', now), [
-  '3 filters',
-  '12 hidden apps',
-  'Modified 2d ago',
-  'by Alex',
-]);
-const longAuthor = 'Alexandria-Montgomery-James';
-assert.equal(truncateAuthorName('Alex'), 'Alex');
-assert.equal(truncateAuthorName(longAuthor), 'Alexandria-Montgomery…');
-assert.equal(viewInfoLines(1, 0, views[1].updatedAt, longAuthor, now)[3], 'by Alexandria-Montgomery…');
 assert.deepEqual(filterHintLines(views[0].filters), [
   'Techno = Java',
   'Env = prod',
