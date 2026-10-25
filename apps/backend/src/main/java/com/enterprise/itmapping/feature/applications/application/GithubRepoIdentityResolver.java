@@ -7,7 +7,7 @@ import org.springframework.util.StringUtils;
 
 /**
  * Derives {@code owner/repo} for GitHub-backed {@link com.enterprise.itmapping.domain.Application}
- * rows created by import (name = full name) or description {@code GitHub: https://...}.
+ * rows created by import (description contains {@code github.com/owner/repo}, or a legacy name).
  * ModuleSuggestionService appelle ce resolver avant d’appeler l’API GitHub (owner + repo pour récupérer l’arbre du dépôt). 
  * Sans owner/repo, le flux « suggestion de modules depuis GitHub » ne saurait pas quel dépôt interroger, 
  * tout en restant sans exposer de token au client
@@ -32,12 +32,7 @@ public final class GithubRepoIdentityResolver {
     if (!StringUtils.hasText(description)) {
       return Optional.empty();
     }
-    String d = description.trim();
-    if (d.regionMatches(true, 0, "GitHub:", 0, "GitHub:".length())) {
-      String url = d.substring("GitHub:".length()).trim();
-      return parseGitHubUrl(url);
-    }
-    return Optional.empty();
+    return parseGitHubUrl(description);
   }
 
   private static Optional<String> parseGitHubUrl(String url) {

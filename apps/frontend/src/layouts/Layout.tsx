@@ -51,7 +51,6 @@ export function Layout() {
               <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
               <h1>Flowra</h1>
             </Link>
-            <HelpMenu />
           </div>
           {user ? (
             <>
@@ -80,7 +79,10 @@ export function Layout() {
                       {roleLabel}
                     </span>
                   ) : null}
-                  <ThemeModeButton theme={theme} onToggle={() => setTheme((current) => toggledColorTheme(current))} />
+                  <span className="layout-sidebar-utilities">
+                    <HelpMenu />
+                    <ThemeModeButton theme={theme} onToggle={() => setTheme((current) => toggledColorTheme(current))} />
+                  </span>
                 </span>
                 <button
                   type="button"

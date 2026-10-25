@@ -778,7 +778,7 @@ export function ApplicationDetailsDrawer({
                     >
                       {sandboxMode
                         ? 'Remove this application from the sandbox graph? No database data will be changed.'
-                        : 'Delete this application? Modules linked via CONTAINS and attached edges will be permanently removed.'}
+                        : 'Delete this application? Modules and attached edges will be permanently removed.'}
                     </p>
                     <div className="graph-details-delete-confirm-actions">
                       <button

@@ -11,7 +11,11 @@ import { generateFunctionalDocumentation } from '../api/functionalDocumentationA
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
 import { ThirdPartySources } from '../components/ThirdPartySources';
 import { navigateToModuleGraph } from '../utils/mapNavigation';
-import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
+import {
+  applicationDescriptionForGitHubRepo,
+  applicationNameForGitHubRepo,
+  isGitHubLinkedApplication,
+} from '../utils/githubLinkedApplication';
 
 const GITHUB_MARK_PATH =
   'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z';
@@ -49,10 +53,9 @@ export function GitHubImportPage() {
   const [sourceMode, setSourceMode] = useState<'repository' | 'third-party'>('repository');
   const [listFilter, setListFilter] = useState<RepoListFilter>('all');
 
-  const importedNames = useMemo(
-    () => new Set(applications.map((a) => normalizeName(a.name ?? '')).filter(Boolean)),
-    [applications]
-  );
+  function isImported(repo: GitHubRepoDto): boolean {
+    return applicationForRepo(repo) != null;
+  }
 
   useEffect(() => {
     const flag = searchParams.get('github');
@@ -110,18 +113,14 @@ export function GitHubImportPage() {
         )
       : repos;
     return matched.filter((repo) => {
-      const imported = importedNames.has(normalizeName(repo.fullName));
+      const imported = isImported(repo);
       if (listFilter === 'private') return repo.repoPrivate;
       if (listFilter === 'public') return !repo.repoPrivate;
       if (listFilter === 'imported') return imported;
       if (listFilter === 'not-imported') return !imported;
       return true;
     });
-  }, [repos, filter, importedNames, listFilter]);
-
-  function isImported(repo: GitHubRepoDto): boolean {
-    return importedNames.has(normalizeName(repo.fullName));
-  }
+  }, [repos, filter, applications, listFilter]);
 
   function toggleSelect(id: number, repo: GitHubRepoDto) {
     if (isImported(repo)) return;
@@ -151,11 +150,11 @@ export function GitHubImportPage() {
       for (const repo of toCreate) {
         try {
           const created = await createApplication({
-            name: repo.fullName,
-            description: repo.description?.trim() || `GitHub: ${repo.htmlUrl}`,
+            name: applicationNameForGitHubRepo(repo.name),
+            description: applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
           });
           setApplications((prev) => [...prev, created]);
-          createdNames.push(normalizeName(repo.fullName));
+          createdNames.push(normalizeName(applicationNameForGitHubRepo(repo.name)));
           // Fire-and-forget: async functional doc generation (poll on module view).
           void generateFunctionalDocumentation(created.id).catch(() => {
             /* import succeeds even if doc generation fails to start */
@@ -178,8 +177,12 @@ export function GitHubImportPage() {
   }
 
   function applicationForRepo(repo: GitHubRepoDto): ApplicationResponse | undefined {
-    const key = normalizeName(repo.fullName);
-    return applications.find((a) => normalizeName(a.name ?? '') === key);
+    const shortName = normalizeName(applicationNameForGitHubRepo(repo.name));
+    const fullName = normalizeName(repo.fullName);
+    return applications.find((application) => {
+      const name = normalizeName(application.name ?? '');
+      return name === shortName || name === fullName;
+    });
   }
 
   function resolveApplicationId(repo: GitHubRepoDto): string | undefined {
@@ -190,7 +193,8 @@ export function GitHubImportPage() {
     const appId = resolveApplicationId(repo);
     setAiBanner(null);
     setLastSuggestApplicationId(null);
-    if (!appId || !isGitHubLinkedApplication({ name: repo.fullName })) {
+    const linkedApplication = applicationForRepo(repo);
+    if (!appId || !linkedApplication || !isGitHubLinkedApplication(linkedApplication)) {
       setAiBanner({
         tone: 'err',
         text: `Neo4j application not found for ${repo.fullName} or repository not detected as GitHub.`,
@@ -220,7 +224,8 @@ export function GitHubImportPage() {
     const appId = resolveApplicationId(repo);
     setAiBanner(null);
     setLastSuggestApplicationId(null);
-    if (!appId || !isGitHubLinkedApplication({ name: repo.fullName })) {
+    const linkedApplication = applicationForRepo(repo);
+    if (!appId || !linkedApplication || !isGitHubLinkedApplication(linkedApplication)) {
       setAiBanner({
         tone: 'err',
         text: `Neo4j application not found for ${repo.fullName} or repository not detected as GitHub.`,
@@ -467,8 +472,8 @@ export function GitHubImportPage() {
                 </div>
                 {imported &&
                   isGitHubLinkedApplication({
-                    name: repo.fullName,
-                    description: repo.description?.trim() || `GitHub: ${repo.htmlUrl}`,
+                    name: applicationNameForGitHubRepo(repo.name),
+                    description: applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
                   }) && (
                     <div className="github-import-card-ai">
                       <button
@@ -523,14 +528,11 @@ export function GitHubImportPage() {
 
       <p className="github-import-footnote" role="note">
         GitHub pagination: only the first page is loaded (max 100 most recently updated
-        repositories). Existing applications are detected by exact name (
-        <code className="github-import-code">full_name</code> on GitHub). The &quot;Suggest modules
-        (AI)&quot; button appears for already-imported rows when{' '}
-        <code className="github-import-code">name</code> looks like{' '}
-        <code className="github-import-code">owner/repo</code> or the description follows the import
-        schema <code className="github-import-code">GitHub: https://…</code>. Once modules are linked
-        to the application, the button changes to &quot;Modules already in place&quot; (no new AI
-        suggestion).
+        repositories). Existing applications are detected by the repository name, not{' '}
+        <code className="github-import-code">owner/repo</code>. The &quot;Suggest modules (AI)&quot;
+        button appears for already-imported rows when the description still contains the GitHub URL.
+        Once modules are linked to the application, the button changes to &quot;Modules already in
+        place&quot; (no new AI suggestion).
       </p>
         </>
       )}

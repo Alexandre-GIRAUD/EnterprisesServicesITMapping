@@ -291,7 +291,6 @@ body.is-diagram-grown .layout {
   flex-shrink: 0;
   width: 1.35rem;
   height: 1.35rem;
-  margin-left: auto;
   padding: 0;
   border-radius: 999px;
   border: 1px solid #cbd5e1;
@@ -364,6 +363,14 @@ body.is-diagram-grown .layout {
   gap: 0.35rem;
 }
 
+.layout-sidebar-utilities {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .layout-help {
   position: relative;
   flex-shrink: 0;
@@ -373,8 +380,8 @@ body.is-diagram-grown .layout {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 1.35rem;
+  height: 1.35rem;
   padding: 0;
   border-radius: 999px;
   border: 1px solid #cbd5e1;
@@ -384,8 +391,8 @@ body.is-diagram-grown .layout {
 }
 
 .layout-help-toggle svg {
-  width: 1rem;
-  height: 1rem;
+  width: 0.72rem;
+  height: 0.72rem;
 }
 
 .layout-help-toggle:hover,
@@ -6341,6 +6348,10 @@ body.is-diagram-grown .layout {
     padding 220ms ease,
     margin 220ms ease,
     border-color 220ms ease;
+}
+
+.graph-drawer--embedded .graph-drawer-header {
+  padding-left: 0.85rem;
 }
 
 .graph-drawer--embedded,

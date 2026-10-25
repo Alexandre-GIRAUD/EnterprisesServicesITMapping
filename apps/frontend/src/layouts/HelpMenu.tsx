@@ -7,12 +7,17 @@ const HELP_PANEL_WIDTH = 352;
 const HELP_PANEL_GAP = 8;
 const HELP_VIEWPORT_GUTTER = 12;
 
-function placeHelpPanel(buttonBounds: DOMRect): { top: number; left: number } {
-  const left = Math.min(buttonBounds.left, window.innerWidth - HELP_PANEL_WIDTH - HELP_VIEWPORT_GUTTER);
-  return {
-    top: buttonBounds.bottom + HELP_PANEL_GAP,
-    left: Math.max(HELP_VIEWPORT_GUTTER, left),
-  };
+function placeHelpPanel(buttonBounds: DOMRect): { top?: number; bottom?: number; left: number } {
+  const left = Math.max(
+    HELP_VIEWPORT_GUTTER,
+    Math.min(buttonBounds.left, window.innerWidth - HELP_PANEL_WIDTH - HELP_VIEWPORT_GUTTER),
+  );
+  const spaceBelow = window.innerHeight - buttonBounds.bottom;
+  const spaceAbove = buttonBounds.top;
+  if (spaceBelow < spaceAbove) {
+    return { bottom: window.innerHeight - buttonBounds.top + HELP_PANEL_GAP, left };
+  }
+  return { top: buttonBounds.bottom + HELP_PANEL_GAP, left };
 }
 
 function useDismissHelp(
@@ -44,7 +49,7 @@ function useDismissHelp(
 
 export function HelpMenu() {
   const [isOpen, setIsOpen] = useState(false);
-  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
+  const [anchor, setAnchor] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   useDismissHelp(isOpen, rootRef, panelRef, () => setIsOpen(false));
@@ -72,17 +77,21 @@ export function HelpMenu() {
       >
         <QuestionGlyph />
       </button>
-      {isOpen && anchor ? <HelpPanel top={anchor.top} left={anchor.left} panelRef={panelRef} /> : null}
+      {isOpen && anchor ? (
+        <HelpPanel top={anchor.top} bottom={anchor.bottom} left={anchor.left} panelRef={panelRef} />
+      ) : null}
     </div>
   );
 }
 
 function HelpPanel({
   top,
+  bottom,
   left,
   panelRef,
 }: {
-  top: number;
+  top?: number;
+  bottom?: number;
   left: number;
   panelRef: { current: HTMLDivElement | null };
 }) {
@@ -93,7 +102,7 @@ function HelpPanel({
       role="dialog"
       aria-label="Help"
       ref={panelRef}
-      style={{ top, left, width: HELP_PANEL_WIDTH }}
+      style={{ top, bottom, left, width: HELP_PANEL_WIDTH }}
     >
       {HELP_TOPICS.map((topic) => (
         <section key={topic.title} className="layout-help-section">

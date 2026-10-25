@@ -24,7 +24,7 @@ export function useCreateGraphEdge() {
         ...(input.changeMeta ? { changeMeta: input.changeMeta } : {}),
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unable to create the relationship');
+      setError(e instanceof Error ? e.message : 'Unable to create the flow.');
       return null;
     } finally {
       setIsSubmitting(false);
