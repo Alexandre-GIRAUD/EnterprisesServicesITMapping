@@ -16,6 +16,7 @@ import {
   buildSandboxEdgeResponse,
 } from '../utils/sandboxGraph';
 import { SANDBOX_ICON_PALETTE } from '../utils/sandboxDocuments';
+import { createdFlowMessage } from '../utils/flowCreationMessage';
 import { CloseIcon } from './CloseIcon';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 import {
@@ -81,15 +82,15 @@ type DrawerActionItem = {
 };
 
 const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
-  { id: 'add-node', label: 'Add App' },
-  { id: 'add-edge', label: 'Add flow' },
-  { id: 'edit-application', label: 'Edit app' },
-  { id: 'edit-flow', label: 'Edit flow' },
+  { id: 'add-node', label: 'Create App' },
+  { id: 'add-edge', label: 'Create Flow' },
+  { id: 'edit-application', label: 'Edit App' },
+  { id: 'edit-flow', label: 'Edit Flow' },
 ];
 
 const DRAWER_COPY: Partial<Record<DrawerView, { title: string; description: string }>> = {
   'add-node-form': {
-    title: 'Create Node',
+    title: 'Create App',
     description: 'Create an Application node (name, description). Business attributes are edited from the node details.',
   },
   'add-icons': {
@@ -97,17 +98,17 @@ const DRAWER_COPY: Partial<Record<DrawerView, { title: string; description: stri
     description: 'Click to place once. Double-click to place many.',
   },
   'edit-application': {
-    title: 'Edit app',
+    title: 'Edit App',
     description: 'Pick one, then change its attributes here.',
   },
   'edit-flow': {
-    title: 'Edit flow',
+    title: 'Edit Flow',
     description: 'Pick one, then change its attributes here.',
   },
 };
 
 const EDGE_DRAWER_COPY = {
-  title: 'Create Edge',
+  title: 'Create Flow',
   description: 'Create a typed relationship between two nodes already visible in the graph.',
 };
 
@@ -467,8 +468,8 @@ export function WorkspaceDrawer({
     setLocalError(null);
     setFeedbackMessage(
       sandboxMode
-        ? `Node "${created.name}" added (sandbox, not saved).`
-        : `Node "${created.name}" created successfully.`
+        ? `App "${created.name}" added (sandbox, not saved).`
+        : `App "${created.name}" created successfully.`
     );
     onNodeCreated?.(created);
     setView('menu');
@@ -478,6 +479,8 @@ export function WorkspaceDrawer({
     event.preventDefault();
     const sourceId = selectedSourceApp?.id;
     const targetId = selectedTargetApp?.id;
+    const sourceName = selectedSourceApp?.name?.trim() || 'the first application';
+    const targetName = selectedTargetApp?.name?.trim() || 'the second application';
     const type = sandboxMode ? 'DEPENDS_ON' : edgeFormState.type.trim();
 
     if (!sourceId || !targetId || (!sandboxMode && !type)) {
@@ -489,7 +492,7 @@ export function WorkspaceDrawer({
       return;
     }
     if (sourceId === targetId) {
-      setLocalError('sourceId and targetId must be different.');
+      setLocalError('Choose two different applications.');
       return;
     }
 
@@ -530,11 +533,7 @@ export function WorkspaceDrawer({
     setIsSourceSuggestionsOpen(false);
     setIsTargetSuggestionsOpen(false);
     setLocalError(null);
-    setFeedbackMessage(
-      sandboxMode
-        ? `Edge "${created.type}" added (sandbox, not saved).`
-        : `Edge "${created.type}" created between "${created.sourceId}" and "${created.targetId}".`
-    );
+    setFeedbackMessage(createdFlowMessage(sourceName, targetName, sandboxMode));
     setView('menu');
   }
 
@@ -549,7 +548,9 @@ export function WorkspaceDrawer({
     >
       {showMenuHeader ? (
         <header className="graph-drawer-header">
-          <p className="graph-drawer-eyebrow">{sandboxMode ? 'Toolkit' : 'Corrections'}</p>
+          {!isEmbedded ? (
+            <p className="graph-drawer-eyebrow">{sandboxMode ? 'Toolkit' : 'Corrections'}</p>
+          ) : null}
           <div
             className={`graph-drawer-title-row${view === 'add-icons' ? ' graph-drawer-title-row--icons' : ''}`}
           >
@@ -712,7 +713,7 @@ export function WorkspaceDrawer({
               disabled={isSubmitting}
             >
               <span className="graph-drawer-action-title">
-                {isSubmitting ? 'Creating…' : 'Create Node'}
+                {isSubmitting ? 'Creating…' : 'Create App'}
               </span>
             </button>
             <button type="button" className="graph-drawer-action" onClick={cancelForm}>
@@ -872,7 +873,7 @@ export function WorkspaceDrawer({
               disabled={isSubmitting}
             >
               <span className="graph-drawer-action-title">
-                {isSubmitting ? 'Creating…' : 'Create Edge'}
+                {isSubmitting ? 'Creating…' : 'Create Flow'}
               </span>
             </button>
             <button type="button" className="graph-drawer-action" onClick={cancelForm}>

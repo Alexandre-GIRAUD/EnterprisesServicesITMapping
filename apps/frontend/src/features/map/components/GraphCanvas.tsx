@@ -1237,7 +1237,7 @@ export function GraphCanvas() {
       const hasSource = doc.nodes.some((n) => n.id === created.sourceId);
       const hasTarget = doc.nodes.some((n) => n.id === created.targetId);
       if (!hasSource || !hasTarget) {
-        return 'Edge created but source/target missing from the displayed graph.';
+        return 'The flow was created, but it is not on this graph.';
       }
       const typeById = new Map(doc.nodes.map((n) => [n.id, n.data.nodeType]));
       const createdEdge: GraphEdgeDto = {
@@ -1336,7 +1336,7 @@ export function GraphCanvas() {
     const hasSource = nodes.some((n) => n.id === created.sourceId);
     const hasTarget = nodes.some((n) => n.id === created.targetId);
     if (!hasSource || !hasTarget) {
-      return 'Edge created but source/target missing from the displayed graph.';
+      return 'The flow was created, but it is not on this graph.';
     }
 
     const typeById = new Map(nodes.map((n) => [n.id, n.data.nodeType]));
@@ -2265,7 +2265,7 @@ export function GraphCanvas() {
                       openToolkitForm('add-node-form');
                     }}
                   >
-                    Add app
+                    Create App
                   </button>
                   <button
                     type="button"
@@ -2276,7 +2276,7 @@ export function GraphCanvas() {
                       openToolkitForm('add-edge-form');
                     }}
                   >
-                    Add flow
+                    Create Flow
                   </button>
                 </div>
               ) : null}

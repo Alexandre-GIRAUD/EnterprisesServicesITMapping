@@ -17,6 +17,7 @@ import type {
   StoredAttribute,
 } from '@/types/api';
 import { authenticatedFetch, resolveApiUrl } from '@/config/api';
+import { flowCreationErrorMessage } from '../utils/flowCreationMessage';
 
 function graphUrl(search: string): string {
   return resolveApiUrl(`/api/graph${search}`);
@@ -110,14 +111,7 @@ export async function createGraphEdge(
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
-    if (res.status === 404 || res.status === 405) {
-      throw new Error(
-        'Create edge API is not available yet. Backend relationship creation endpoint is missing.'
-      );
-    }
-    throw new Error(
-      `Create edge API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
-    );
+    throw new Error(flowCreationErrorMessage(detail));
   }
 
   return res.json();
