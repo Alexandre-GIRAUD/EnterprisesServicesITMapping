@@ -158,6 +158,19 @@ class ModuleSuggestionServiceTest {
   }
 
   @Test
+  void replaceExistingRescansWhenModulesAreAlreadyPresent() {
+    when(moduleSubtreeQuery.hasAnyModuleViaContains(APP_ID)).thenReturn(true);
+    when(agent.discover(any(), anyString(), anyString()))
+        .thenReturn(new DiscoveryResult(payload(), List.of("pom.xml"), List.of("pom.xml")));
+
+    SuggestModulesFromGithubResponse response =
+        service.suggestFromGithub(APP_ID, new SuggestModulesFromGithubRequest(null, true));
+
+    assertThat(response.created()).isNotEmpty();
+    verify(agent).discover(any(), anyString(), anyString());
+  }
+
+  @Test
   void documentRunSkipsAModuleWhoseQuoteIsMissing() {
     when(applicationRepository.findProjectionById(APP_ID)).thenReturn(Optional.of(named("Billing")));
     when(documentService.require(APP_ID))

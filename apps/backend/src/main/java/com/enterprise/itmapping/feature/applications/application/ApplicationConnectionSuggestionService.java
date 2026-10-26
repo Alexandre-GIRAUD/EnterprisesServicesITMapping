@@ -148,21 +148,27 @@ public class ApplicationConnectionSuggestionService {
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Application introuvable: " + applicationId));
 
-    String fullName =
-        GithubRepoIdentityResolver.resolveFullName(
-                appRow.getName(),
-                appRow.getDescription(),
-                request != null ? request.fullName() : null)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Depot GitHub introuvable pour cette application: renseignez name=owner/repo, "
-                            + "description GitHub: https://..., ou fullName dans le corps."));
-
-    String[] parts = parseOwnerRepo(fullName);
-    String owner = parts[0];
-    String repo = parts[1];
+    List<String> fullNames =
+        GithubRepoIdentityResolver.resolveAllFullNames(appRow.getName(), appRow.getDescription());
+    if (fullNames.isEmpty()
+        && request != null
+        && request.fullName() != null
+        && !request.fullName().isBlank()) {
+      fullNames =
+          List.of(
+              GithubRepoIdentityResolver.resolveFullName(
+                      appRow.getName(), appRow.getDescription(), request.fullName())
+                  .orElseThrow(
+                      () ->
+                          new ResponseStatusException(
+                              HttpStatus.BAD_REQUEST, "fullName doit etre owner/repo.")));
+    }
+    if (fullNames.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Depot GitHub introuvable pour cette application: renseignez name=owner/repo, "
+              + "description GitHub: https://..., ou fullName dans le corps.");
+    }
 
     Catalog catalog = loadCatalog(applicationId);
     if (catalog.entries().isEmpty()) {
@@ -187,27 +193,43 @@ public class ApplicationConnectionSuggestionService {
     }
 
     log.info(
-        "Connection suggestion start applicationId={} repo={}/{} catalogSize={} dataModelFields={} dataModelEdgeAutomatic={} dataModelNodeAutomatic={} nodeRefKeys={}",
+        "Connection suggestion start applicationId={} repos={} catalogSize={}",
         applicationId,
-        owner,
-        repo,
-        catalog.entries().size(),
-        dataModelConfig.fields().size(),
-        dataModelConfig.automaticEdgeFields().size(),
-        dataModelConfig.automaticNodeFields().size(),
-        dataModelConfig.automaticNodeRefFields().stream().map(DataModelField::key).toList());
+        fullNames,
+        catalog.entries().size());
 
-    Path workspace = cloneService.clone(owner, repo, properties.cloneTimeoutSeconds());
-    try {
-      DiscoveryResult discovery =
+    Path workspace;
+    DiscoveryResult discovery;
+    if (fullNames.size() == 1) {
+      String[] parts = parseOwnerRepo(fullNames.get(0));
+      workspace = cloneService.clone(parts[0], parts[1], properties.cloneTimeoutSeconds());
+      discovery =
           connectionDiscoveryAgent.discover(
               workspace,
-              owner,
-              repo,
+              parts[0],
+              parts[1],
               sourceName,
               catalog.promptText(properties.maxCatalogAppsInPrompt()),
               dataModelPromptSection);
-      return persist(applicationId, owner + "/" + repo, catalog, discovery, dataModelConfig, null);
+    } else {
+      workspace = cloneService.cloneAll(fullNames, properties.cloneTimeoutSeconds());
+      discovery =
+          connectionDiscoveryAgent.discoverAll(
+              workspace,
+              fullNames,
+              sourceName,
+              catalog.promptText(properties.maxCatalogAppsInPrompt()),
+              dataModelPromptSection);
+    }
+    try {
+      return persist(
+          applicationId,
+          String.join(", ", fullNames),
+          catalog,
+          discovery,
+          dataModelConfig,
+          null,
+          fullNames);
     } finally {
       cloneService.deleteQuietly(workspace);
     }
@@ -239,7 +261,13 @@ public class ApplicationConnectionSuggestionService {
             catalog.promptText(properties.maxCatalogAppsInPrompt()),
             dataModelPromptSection);
     return persist(
-        applicationId, document.title(), catalog, discovery, dataModelConfig, document.body());
+        applicationId,
+        document.title(),
+        catalog,
+        discovery,
+        dataModelConfig,
+        document.body(),
+        List.of());
   }
 
   private ApplicationGraphNodeProjection requireApplication(String applicationId) {
@@ -264,7 +292,8 @@ public class ApplicationConnectionSuggestionService {
       Catalog catalog,
       DiscoveryResult discovery,
       DataModelConfig dataModelConfig,
-      String documentBody) {
+      String documentBody,
+      List<String> ownRepositories) {
 
     List<CreatedConnectionItem> created = new ArrayList<>();
     List<SkippedItem> skipped = new ArrayList<>();
@@ -277,6 +306,10 @@ public class ApplicationConnectionSuggestionService {
       String peerName = entry.getPeerApplicationName();
       if (!StringUtils.hasText(peerName)) {
         skipped.add(new SkippedItem("connection", "peer_manquant", String.valueOf(entry)));
+        continue;
+      }
+      if (GithubRepoIdentityResolver.namesOwnRepository(peerName, ownRepositories)) {
+        skipped.add(new SkippedItem("connection", "depot_interne", peerName));
         continue;
       }
 

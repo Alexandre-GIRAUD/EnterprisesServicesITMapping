@@ -392,8 +392,19 @@ export function resolveColorPropertyKey(storedKey: string, edges: GraphEdgeDto[]
   return options[0]?.key ?? RELATION_TYPE_COLOR_KEY;
 }
 
+function referenceValues(node: GraphNodeDto, propertyKey: string): string[] {
+  return (node.nodeRefs?.[propertyKey] ?? []).map((value) => value.trim()).filter(Boolean);
+}
+
 export function discoverNodePropertyKeys(nodes: GraphNodeDto[]): string[] {
-  return orderKeys([...presentKeysFromProps(nodes)]);
+  const keys = presentKeysFromProps(nodes);
+  for (const node of nodes) {
+    for (const key of Object.keys(node.nodeRefs ?? {})) {
+      if (INTERNAL_PROPERTY_KEYS.has(key)) continue;
+      if (referenceValues(node, key).length > 0) keys.add(key);
+    }
+  }
+  return orderKeys([...keys]);
 }
 
 export function nodePropertyOptions(nodes: GraphNodeDto[]): AttributeOption[] {
@@ -418,6 +429,9 @@ export function nodePropValue(node: GraphNodeDto, propertyKey: string): string |
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     return node.type?.trim() || null;
   }
+  const references = referenceValues(node, propertyKey);
+  if (references.length === 1) return references[0];
+  if (references.length > 1) return null;
   const text = storedAttributeText(node.properties?.[propertyKey]);
   return text || null;
 }
@@ -611,9 +625,16 @@ export function collectNodeLegendValues(
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     return [...new Set(nodes.map((n) => n.type).filter(Boolean))].sort();
   }
-  const values = nodes
-    .map((n) => nodePropValue(n, propertyKey))
-    .filter((v): v is string => Boolean(v?.trim()));
+  const values: string[] = [];
+  for (const node of nodes) {
+    const references = referenceValues(node, propertyKey);
+    if (references.length > 0) {
+      values.push(...references);
+      continue;
+    }
+    const text = nodePropValue(node, propertyKey);
+    if (text?.trim()) values.push(text);
+  }
   return [...new Set(values)].sort((a, b) => a.localeCompare(b));
 }
 

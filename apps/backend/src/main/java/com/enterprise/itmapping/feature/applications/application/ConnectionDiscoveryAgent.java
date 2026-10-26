@@ -100,6 +100,76 @@ public class ConnectionDiscoveryAgent {
     return new DiscoveryResult(payload, analyzedFiles, tools.getObservedFiles());
   }
 
+  /** One scan over every repository folder of a grouped application. */
+  public DiscoveryResult discoverAll(
+      Path workspace,
+      List<String> fullNames,
+      String sourceName,
+      String catalogText,
+      String dataModelPromptSection) {
+    if (!MultiRepoPrompt.isGrouped(fullNames)) {
+      String fullName = fullNames.get(0);
+      int slash = fullName.indexOf('/');
+      return discover(
+          workspace,
+          fullName.substring(0, slash),
+          fullName.substring(slash + 1),
+          sourceName,
+          catalogText,
+          dataModelPromptSection);
+    }
+    ModuleDiscoveryTools tools =
+        new ModuleDiscoveryTools(
+            workspace,
+            properties.maxGrepHits(),
+            properties.maxReadCharsPerFile(),
+            properties.maxTreeEntries());
+    int budget =
+        MultiRepoPrompt.budget(
+            properties.maxToolIterations(), fullNames.size(), MultiRepoPrompt.CONNECTION_CALL_CAP);
+    String userMessage =
+        buildUserMessage(fullNames.get(0).substring(0, fullNames.get(0).indexOf('/')),
+            fullNames.get(0).substring(fullNames.get(0).indexOf('/') + 1),
+            sourceName,
+            catalogText,
+            dataModelPromptSection);
+    userMessage =
+        MultiRepoPrompt.folderList(fullNames)
+            + "\n"
+            + userMessage
+            + "\nAim for at most "
+            + budget
+            + " tool calls in total across every repository folder.\n";
+    log.info("Connection discovery agent start repos={} app={}", fullNames, sourceName);
+    AiApplicationConnectionPayload payload;
+    try {
+      payload =
+          chatClient
+              .prompt()
+              .system(systemPrompt)
+              .user(userMessage)
+              .tools(tools)
+              .call()
+              .entity(AiApplicationConnectionPayload.class);
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_GATEWAY, "Échec de l'agent LLM: " + e.getMessage(), e);
+    }
+    if (payload == null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Réponse IA vide ou schéma illisible.");
+    }
+    List<String> analyzedFiles = tools.getAnalyzedFiles();
+    log.info(
+        "Connection discovery agent done repos={} connections={} analyzedFiles={}",
+        fullNames,
+        payload.getConnections().size(),
+        analyzedFiles.size());
+    return new DiscoveryResult(payload, analyzedFiles, tools.getObservedFiles());
+  }
+
   /**
    * Reads one stored document. There is no repository and no tool loop. {@code source_files} in the
    * answer must be verbatim excerpts of {@code documentBody}.

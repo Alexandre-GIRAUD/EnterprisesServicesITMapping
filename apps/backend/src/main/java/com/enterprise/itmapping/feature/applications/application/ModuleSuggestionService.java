@@ -8,7 +8,6 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestMod
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse.CreatedItem;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse.SkippedItem;
-import com.enterprise.itmapping.feature.integrations.github.GithubTreePathFilter;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService;
 import com.enterprise.itmapping.feature.integrations.llm.ModuleDiscoveryProperties;
 import java.nio.file.Path;
@@ -100,30 +99,59 @@ public class ModuleSuggestionService {
                         HttpStatus.NOT_FOUND, "Application introuvable: " + applicationId));
 
     if (moduleSubtreeQuery.hasAnyModuleViaContains(applicationId)) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "Les modules ont déjà été suggérés pour cette application.");
+      if (request == null || !Boolean.TRUE.equals(request.replaceExisting())) {
+        throw new ResponseStatusException(
+            HttpStatus.CONFLICT, "Les modules ont déjà été suggérés pour cette application.");
+      }
+      neo4jClient
+          .query(
+              """
+              MATCH (:Application {id: $id})-[:CONTAINS*1..50]->(m:Module)
+              WITH DISTINCT m
+              DETACH DELETE m
+              """)
+          .bind(applicationId)
+          .to("id")
+          .run();
     }
 
-    String fullName =
-        GithubRepoIdentityResolver.resolveFullName(
-                appRow.getName(), appRow.getDescription(), request != null ? request.fullName() : null)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Depot GitHub introuvable pour cette application: renseignez name=owner/repo, "
-                            + "description GitHub: https://..., ou fullName dans le corps."));
+    List<String> fullNames =
+        GithubRepoIdentityResolver.resolveAllFullNames(
+            appRow.getName(), appRow.getDescription());
+    if (fullNames.isEmpty()
+        && request != null
+        && request.fullName() != null
+        && !request.fullName().isBlank()) {
+      fullNames =
+          List.of(
+              GithubRepoIdentityResolver.resolveFullName(
+                      appRow.getName(), appRow.getDescription(), request.fullName())
+                  .orElseThrow(
+                      () ->
+                          new ResponseStatusException(
+                              HttpStatus.BAD_REQUEST, "fullName doit etre owner/repo.")));
+    }
+    if (fullNames.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Depot GitHub introuvable pour cette application: renseignez name=owner/repo, "
+              + "description GitHub: https://..., ou fullName dans le corps.");
+    }
 
-    String[] parts = parseOwnerRepo(fullName);
-    String owner = parts[0];
-    String repo = parts[1];
+    log.info("Module suggestion start applicationId={} repos={}", applicationId, fullNames);
 
-    log.info("Module suggestion start applicationId={} repo={}/{}", applicationId, owner, repo);
-
-    Path workspace = cloneService.clone(owner, repo, properties.cloneTimeoutSeconds());
+    Path workspace;
+    DiscoveryResult discovery;
+    if (fullNames.size() == 1) {
+      String[] parts = ownerAndRepo(fullNames.get(0));
+      workspace = cloneService.clone(parts[0], parts[1], properties.cloneTimeoutSeconds());
+      discovery = moduleDiscoveryAgent.discover(workspace, parts[0], parts[1]);
+    } else {
+      workspace = cloneService.cloneAll(fullNames, properties.cloneTimeoutSeconds());
+      discovery = moduleDiscoveryAgent.discoverAll(workspace, fullNames);
+    }
     try {
-      DiscoveryResult discovery = moduleDiscoveryAgent.discover(workspace, owner, repo);
-      return persist(applicationId, owner + "/" + repo, discovery, null);
+      return persist(applicationId, String.join(", ", fullNames), discovery, null);
     } finally {
       cloneService.deleteQuietly(workspace);
     }
@@ -177,8 +205,13 @@ public class ModuleSuggestionService {
         continue;
       }
       if (acceptedBySlug.containsKey(slug)) {
-        skipped.add(new SkippedItem("module", "doublon_slug_ia", slug));
-        continue;
+        String unique = uniqueModuleSlug(slug, mod.getSourceFiles(), acceptedBySlug.keySet());
+        if (unique == null) {
+          skipped.add(new SkippedItem("module", "doublon_slug_ia", slug));
+          continue;
+        }
+        mod.setId(unique);
+        slug = unique;
       }
       if (documentBody != null) {
         List<String> quotes = DocumentExcerpt.matching(documentBody, mod.getSourceFiles());
@@ -353,15 +386,48 @@ public class ModuleSuggestionService {
         .run();
   }
 
-  private static String[] parseOwnerRepo(String fullName) {
-    String f = GithubTreePathFilter.normalizePath(fullName);
-    int slash = f.indexOf('/');
-    if (slash <= 0 || slash == f.length() - 1) {
+  private static String[] ownerAndRepo(String fullName) {
+    int slash = fullName.indexOf('/');
+    if (slash <= 0 || slash == fullName.length() - 1) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fullName doit etre owner/repo.");
     }
-    String owner = f.substring(0, slash).trim();
-    String repo = f.substring(slash + 1).trim();
-    return new String[] {owner, repo};
+    return new String[] {fullName.substring(0, slash), fullName.substring(slash + 1)};
+  }
+
+  static String uniqueModuleSlug(String slug, List<String> sourceFiles, Set<String> used) {
+    if (!used.contains(slug)) {
+      return slug;
+    }
+    String folder = folderSegment(sourceFiles);
+    if (folder == null) {
+      return null;
+    }
+    String prefixed = folder + "-" + slug;
+    if (!isValidSlug(prefixed) || used.contains(prefixed)) {
+      return null;
+    }
+    return prefixed;
+  }
+
+  private static String folderSegment(List<String> sourceFiles) {
+    if (sourceFiles == null) {
+      return null;
+    }
+    for (String path : sourceFiles) {
+      if (path == null || path.isBlank()) {
+        continue;
+      }
+      String normalized = path.replace('\\', '/').trim();
+      int slash = normalized.indexOf('/');
+      if (slash <= 0) {
+        continue;
+      }
+      String folder = normalized.substring(0, slash).toLowerCase(Locale.ROOT);
+      if (isValidSlug(folder)) {
+        return folder;
+      }
+    }
+    return null;
   }
 
   private static boolean isValidSlug(String slug) {

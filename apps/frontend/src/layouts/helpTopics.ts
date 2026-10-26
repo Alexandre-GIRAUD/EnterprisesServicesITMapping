@@ -15,7 +15,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
   },
   {
     title: 'Sources',
-    text: 'Lists the GitHub repositories linked to this account and imports them into the map. Module and connection suggestions start from a repository here.',
+    text: 'Lists the GitHub repositories linked to this account and imports them into the map. Suggest modules and Scan connections and attributes start from a repository here.',
   },
   {
     title: 'Changes',

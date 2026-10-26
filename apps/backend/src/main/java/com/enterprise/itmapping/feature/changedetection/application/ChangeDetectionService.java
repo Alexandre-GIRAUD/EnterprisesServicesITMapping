@@ -247,7 +247,7 @@ public class ChangeDetectionService {
               run,
               ChangeDetectionItemKind.CONNECTION,
               0.55,
-              "Integration / flow signals detected in diff. Accept to re-run connection suggestion on this application.",
+              "Integration / flow signals detected in diff. Accept to re-run Scan connections and attributes on this application.",
               evidenceForBucket(analysis, DiffHeuristicAnalyzer.FLOW_SIGNAL),
               Map.of("action", "SUGGEST_CONNECTIONS", "repoFullName", run.getRepoFullName())));
     }

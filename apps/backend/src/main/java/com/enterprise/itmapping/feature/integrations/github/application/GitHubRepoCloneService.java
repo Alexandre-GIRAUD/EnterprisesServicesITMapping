@@ -6,7 +6,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,14 +42,66 @@ public class GitHubRepoCloneService {
   }
 
   public Path clone(String owner, String repo, int timeoutSeconds, String accessToken) {
-    Path workspace;
+    Path workspace = createWorkspace();
     try {
-      workspace = Files.createTempDirectory("module-discovery-");
+      cloneInto(workspace, owner, repo, timeoutSeconds, accessToken);
+      return workspace;
+    } catch (RuntimeException e) {
+      deleteQuietly(workspace);
+      throw e;
+    }
+  }
+
+  /**
+   * One repository is cloned at the workspace root. Several repositories each get a folder, so one
+   * scan can read the whole application.
+   */
+  public Path cloneAll(List<String> fullNames, int timeoutSeconds) {
+    return cloneAll(fullNames, timeoutSeconds, apiClient.token());
+  }
+
+  public Path cloneAll(List<String> fullNames, int timeoutSeconds, String accessToken) {
+    if (fullNames == null || fullNames.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Depot GitHub manquant.");
+    }
+    if (fullNames.size() == 1) {
+      String[] parts = ownerAndRepo(fullNames.get(0));
+      return clone(parts[0], parts[1], timeoutSeconds, accessToken);
+    }
+    Path workspace = createWorkspace();
+    Set<String> taken = new HashSet<>();
+    try {
+      for (String fullName : fullNames) {
+        String[] parts = ownerAndRepo(fullName);
+        Path destination = workspace.resolve(folderName(fullName, taken));
+        cloneInto(destination, parts[0], parts[1], timeoutSeconds, accessToken);
+      }
+      return workspace;
+    } catch (RuntimeException e) {
+      deleteQuietly(workspace);
+      throw e;
+    }
+  }
+
+  static String folderName(String fullName, Set<String> taken) {
+    int slash = fullName.lastIndexOf('/');
+    String repo = slash >= 0 ? fullName.substring(slash + 1) : fullName;
+    String folder = taken.contains(repo) ? fullName.replace('/', '-') : repo;
+    taken.add(folder);
+    return folder;
+  }
+
+  private Path createWorkspace() {
+    try {
+      return Files.createTempDirectory("module-discovery-");
     } catch (IOException e) {
       throw new ResponseStatusException(
           HttpStatus.INTERNAL_SERVER_ERROR, "Impossible de créer le workspace temporaire.", e);
     }
+  }
 
+  private void cloneInto(
+      Path destination, String owner, String repo, int timeoutSeconds, String accessToken) {
     String cloneUrl = buildCloneUrl(owner, repo, accessToken);
     List<String> command =
         new ArrayList<>(
@@ -59,13 +113,12 @@ public class GitHubRepoCloneService {
                 "--single-branch",
                 "--no-tags",
                 cloneUrl,
-                workspace.toString()));
+                destination.toString()));
 
     long startMs = System.currentTimeMillis();
     try {
       ProcessBuilder pb = new ProcessBuilder(command);
       pb.redirectErrorStream(true);
-      // Avoid interactive credential prompts blocking the process on private/invalid repos.
       pb.environment().put("GIT_TERMINAL_PROMPT", "0");
       Process process = pb.start();
 
@@ -73,14 +126,12 @@ public class GitHubRepoCloneService {
       boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
       if (!finished) {
         process.destroyForcibly();
-        deleteQuietly(workspace);
         throw new ResponseStatusException(
             HttpStatus.GATEWAY_TIMEOUT,
             "Clone du dépôt trop long (> " + timeoutSeconds + "s): " + owner + "/" + repo);
       }
       int exit = process.exitValue();
       if (exit != 0) {
-        deleteQuietly(workspace);
         log.warn("git clone failed repo={}/{} exit={} output={}", owner, repo, exit, output.trim());
         throw new ResponseStatusException(
             HttpStatus.BAD_GATEWAY,
@@ -91,20 +142,25 @@ public class GitHubRepoCloneService {
           owner,
           repo,
           System.currentTimeMillis() - startMs,
-          workspace);
-      return workspace;
+          destination);
     } catch (IOException e) {
-      deleteQuietly(workspace);
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY,
           "git introuvable ou clone impossible (git doit être installé sur le serveur).",
           e);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      deleteQuietly(workspace);
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY, "Clone interrompu pour " + owner + "/" + repo, e);
     }
+  }
+
+  private static String[] ownerAndRepo(String fullName) {
+    int slash = fullName.indexOf('/');
+    if (slash <= 0 || slash == fullName.length() - 1) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Depot GitHub invalide: " + fullName);
+    }
+    return new String[] {fullName.substring(0, slash), fullName.substring(slash + 1)};
   }
 
   /**

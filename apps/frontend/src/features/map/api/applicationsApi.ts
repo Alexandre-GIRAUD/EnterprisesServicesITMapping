@@ -312,7 +312,7 @@ export async function suggestConnectionsFromDocument(
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) {
-    throw new Error(await detectionError(res, 'AI connection suggestion'));
+    throw new Error(await detectionError(res, 'Scan connections and attributes'));
   }
   return res.json();
 }
