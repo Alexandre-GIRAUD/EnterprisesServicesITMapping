@@ -229,7 +229,6 @@ public class GraphEdgeLinkService {
     Map<String, String> attributes = new LinkedHashMap<>();
     for (Map.Entry<String, String> e : props.entrySet()) {
       if (SNAPSHOT_EXCLUDED_PROP_KEYS.contains(e.getKey())
-          || "data".equals(e.getKey())
           || "connection_kind".equals(e.getKey())
           || "channel".equals(e.getKey())
           || "direction".equals(e.getKey())

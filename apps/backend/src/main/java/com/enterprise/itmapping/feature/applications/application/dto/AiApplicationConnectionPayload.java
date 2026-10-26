@@ -194,21 +194,6 @@ public class AiApplicationConnectionPayload {
     @JsonProperty("direction")
     private String direction;
 
-    @JsonProperty("connection_kind")
-    private String connectionKind;
-
-    @JsonProperty("channel")
-    private String channel;
-
-    @JsonProperty("confidence")
-    private String confidence;
-
-    @JsonProperty("business_rationale_one_liner")
-    private String businessRationaleOneLiner;
-
-    @JsonProperty("evidence_hint")
-    private String evidenceHint;
-
     @JsonProperty("source_files")
     private List<String> sourceFiles = new ArrayList<>();
 
@@ -233,63 +218,12 @@ public class AiApplicationConnectionPayload {
       this.direction = direction;
     }
 
-    /** Normalized to uppercase (e.g. {@code API}, {@code KAFKA}). */
-    public String getConnectionKind() {
-      String s = connectionKind != null ? connectionKind.trim() : "";
-      return s.toUpperCase(Locale.ROOT);
-    }
-
-    public void setConnectionKind(String connectionKind) {
-      this.connectionKind = connectionKind;
-    }
-
-    public String getChannel() {
-      return channel != null ? channel.trim() : "";
-    }
-
-    public void setChannel(String channel) {
-      this.channel = channel;
-    }
-
-    public String getConfidence() {
-      String s = confidence != null ? confidence.trim() : "";
-      return s.toLowerCase(Locale.ROOT);
-    }
-
-    public void setConfidence(String confidence) {
-      this.confidence = confidence;
-    }
-
-    public String getBusinessRationaleOneLiner() {
-      return businessRationaleOneLiner != null ? businessRationaleOneLiner.trim() : "";
-    }
-
-    public void setBusinessRationaleOneLiner(String businessRationaleOneLiner) {
-      this.businessRationaleOneLiner = businessRationaleOneLiner;
-    }
-
-    public String getEvidenceHint() {
-      return evidenceHint != null ? evidenceHint.trim() : "";
-    }
-
-    public void setEvidenceHint(String evidenceHint) {
-      this.evidenceHint = evidenceHint;
-    }
-
     /**
-     * Paths cited for this connection. {@code source_files} wins. A single relative {@code
-     * evidence_hint} is kept when that list is empty.
+     * Paths cited for this connection. Only {@code source_files} is read. Transport fields
+     * ({@code connection_kind}, {@code channel}, {@code confidence}) are ignored.
      */
     public List<String> citedSourceFiles() {
-      List<String> cited = copyTrimmed(sourceFiles);
-      if (!cited.isEmpty()) {
-        return cited;
-      }
-      String hint = getEvidenceHint();
-      if (hint.isEmpty() || hint.indexOf(' ') >= 0 || hint.indexOf('\n') >= 0) {
-        return List.of();
-      }
-      return List.of(hint);
+      return copyTrimmed(sourceFiles);
     }
 
     public void setSourceFiles(List<String> sourceFiles) {
@@ -307,12 +241,7 @@ public class AiApplicationConnectionPayload {
 
     @Override
     public String toString() {
-      return getDirection()
-          + " "
-          + getConnectionKind()
-          + " -> "
-          + getPeerApplicationName()
-          + (getChannel().isEmpty() ? "" : " (" + getChannel() + ")");
+      return getDirection() + " -> " + getPeerApplicationName();
     }
   }
 }

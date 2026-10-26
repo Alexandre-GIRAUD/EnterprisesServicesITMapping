@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 /**
  * Persists application-to-application {@code DEPENDS_ON} edges discovered by the connection agent.
@@ -18,19 +17,19 @@ import org.springframework.util.StringUtils;
  * <p><strong>Orientation</strong> is decided by the caller: {@code sourceId}/{@code targetId} are
  * the actual Neo4j endpoints (already resolved from the analyzed-app perspective + direction).
  *
- * <p><strong>Idempotence</strong>: the dedup key is {@code (sourceId, targetId, connection_kind,
- * channel)}.
+ * <p><strong>Idempotence</strong>: two edges between the same applications are the same flow when their
+ * Data Model attribute values match. {@code connection_kind}, {@code channel}, and {@code
+ * confidence} are not written.
  *
  * <ul>
- *   <li>An identical edge (same endpoints, kind and channel) → {@link Outcome#DUPLICATE}.
- *   <li>An existing bare {@code DEPENDS_ON} between the same endpoints (no {@code connection_kind}
- *       and no {@code channel}) is enriched in place → {@link Outcome#MERGED}.
+ *   <li>An edge with the same endpoints and the same Data Model values → {@link Outcome#DUPLICATE}.
+ *   <li>An existing {@code DEPENDS_ON} that does not yet have those Data Model keys is enriched in
+ *       place → {@link Outcome#MERGED}.
  *   <li>Otherwise a new edge is created → {@link Outcome#CREATED}.
  * </ul>
  *
- * <p>Technical integration kind is stored as {@code r.connection_kind}. User-defined Data Model
- * attributes are stored as dynamic relationship properties {@code r.<field_key>}. This writer does
- * not set {@code r.data}.
+ * <p>User-defined Data Model attributes are stored as dynamic relationship properties
+ * {@code r.<field_key>}.
  */
 @Component
 public class ApplicationConnectionEdgeWriter {
@@ -54,11 +53,11 @@ public class ApplicationConnectionEdgeWriter {
   /**
    * Creates, merges or skips a {@code DEPENDS_ON} edge from {@code sourceId} to {@code targetId}.
    *
-   * @param connectionKind normalized integration kind (e.g. {@code API}, {@code KAFKA}); stored as
-   *     {@code r.connection_kind}.
-   * @param channel technical channel (topic/queue/path/base-url); may be empty.
+   * @param connectionKind ignored. Transport kind is not a Data Model field and is not stored.
+   * @param channel ignored. Transport channel is not a Data Model field and is not stored.
    * @param directionPerspective analyzed-app perspective ({@code outbound}/{@code inbound}); stored
    *     as {@code r.direction}.
+   * @param confidence ignored. Confidence is not a Data Model field and is not stored.
    * @param dataModelAttributes whitelisted dynamic properties from the active Data Model.
    * @param allowedDataModelKeys keys permitted on the relationship (from Data Model config).
    */
@@ -73,13 +72,10 @@ public class ApplicationConnectionEdgeWriter {
       Map<String, ?> dataModelAttributes,
       Set<String> allowedDataModelKeys) {
 
-    String normalizedKind = connectionKind != null ? connectionKind.trim() : "";
-    String normalizedChannel = channel != null ? channel.trim() : "";
     Map<String, Object> dynamicProps =
         AttributeValues.whitelisted(dataModelAttributes, allowedDataModelKeys);
 
-    Optional<String> duplicate =
-        findDuplicate(sourceId, targetId, normalizedKind, normalizedChannel);
+    Optional<String> duplicate = findDuplicate(sourceId, targetId, dynamicProps);
     if (duplicate.isPresent()) {
       return new WriteResult(Outcome.DUPLICATE, duplicate.get());
     }
@@ -88,19 +84,15 @@ public class ApplicationConnectionEdgeWriter {
         mergeIntoBareEdge(
             sourceId,
             targetId,
-            normalizedKind,
-            normalizedChannel,
             directionPerspective,
-            confidence,
             discoveredFromApplicationId,
             dynamicProps);
     if (merged.isPresent()) {
       log.debug(
-          "Connection edge merged source={} target={} connection_kind={} channel={}",
+          "Connection edge merged source={} target={} dataModelProps={}",
           sourceId,
           targetId,
-          normalizedKind,
-          normalizedChannel);
+          dynamicProps.keySet());
       return new WriteResult(Outcome.MERGED, merged.get());
     }
 
@@ -109,10 +101,7 @@ public class ApplicationConnectionEdgeWriter {
     params.put("s", sourceId);
     params.put("t", targetId);
     params.put("edgeId", edgeId);
-    params.put("kind", normalizedKind);
-    params.put("channel", normalizedChannel);
     params.put("dir", directionPerspective);
-    params.put("conf", confidence);
     params.put("from", discoveredFromApplicationId);
     params.put("dynamicProps", dynamicProps);
 
@@ -123,10 +112,7 @@ public class ApplicationConnectionEdgeWriter {
             MATCH (t:Application {id: $t})
             CREATE (s)-[r:DEPENDS_ON {
               id: $edgeId,
-              connection_kind: $kind,
-              channel: $channel,
               direction: $dir,
-              confidence: $conf,
               discovered_from_application_id: $from
             }]->(t)
             SET r += $dynamicProps
@@ -134,33 +120,36 @@ public class ApplicationConnectionEdgeWriter {
         .bindAll(params)
         .run();
     log.debug(
-        "Connection edge created id={} source={} target={} connection_kind={} channel={} dataModelProps={}",
+        "Connection edge created id={} source={} target={} dataModelProps={}",
         edgeId,
         sourceId,
         targetId,
-        normalizedKind,
-        normalizedChannel,
         dynamicProps.keySet());
     return new WriteResult(Outcome.CREATED, edgeId);
   }
 
   /**
-   * Bare {@code DEPENDS_ON} (no kind/channel) between endpoints — used before merge to snapshot
-   * Data Model props for audit.
+   * {@code DEPENDS_ON} between the endpoints whose Data Model keys are still unset. Used before a
+   * merge so the audit can snapshot the previous values.
    */
-  public Optional<String> findBareEdgeId(String sourceId, String targetId) {
+  public Optional<String> findBareEdgeId(
+      String sourceId, String targetId, Set<String> attributeKeys) {
     Map<String, Object> params = new HashMap<>();
     params.put("s", sourceId);
     params.put("t", targetId);
-    return neo4jClient
-        .query(
-            """
-            MATCH (s:Application {id: $s})-[r:DEPENDS_ON]->(t:Application {id: $t})
-            WHERE (r.connection_kind IS NULL OR r.connection_kind = '')
-              AND (r.channel IS NULL OR r.channel = '')
+    String cypher =
+        """
+        MATCH (s:Application {id: $s})-[r:DEPENDS_ON]->(t:Application {id: $t})
+        WHERE true
+        """
+            + unsetAttributeClause(attributeKeys)
+            + """
+
             RETURN coalesce(r.id, '') AS id
             LIMIT 1
-            """)
+            """;
+    return neo4jClient
+        .query(cypher)
         .bindAll(params)
         .fetch()
         .first()
@@ -168,56 +157,80 @@ public class ApplicationConnectionEdgeWriter {
   }
 
   private Optional<String> findDuplicate(
-      String sourceId, String targetId, String kind, String channel) {
+      String sourceId, String targetId, Map<String, Object> dynamicProps) {
     Map<String, Object> params = new HashMap<>();
     params.put("s", sourceId);
     params.put("t", targetId);
-    params.put("kind", kind);
-    params.put("channel", channel);
     return neo4jClient
         .query(
             """
             MATCH (s:Application {id: $s})-[r:DEPENDS_ON]->(t:Application {id: $t})
-            WHERE coalesce(r.connection_kind, '') = $kind
-              AND coalesce(r.channel, '') = $channel
-            RETURN coalesce(r.id, '') AS id
-            LIMIT 1
+            RETURN coalesce(r.id, '') AS id, properties(r) AS props
             """)
         .bindAll(params)
         .fetch()
-        .first()
-        .map(row -> stringOrGenerated(row.get("id")));
+        .all()
+        .stream()
+        .filter(row -> sameDataModelValues(row.get("props"), dynamicProps))
+        .map(row -> stringOrGenerated(row.get("id")))
+        .findFirst();
+  }
+
+  /** Two edges between the same applications stay distinct when a data-model value differs. */
+  private static boolean sameDataModelValues(Object storedProps, Map<String, Object> incoming) {
+    Map<String, Object> incomingValues = incoming != null ? incoming : Map.of();
+    Map<?, ?> stored = storedProps instanceof Map<?, ?> map ? map : Map.of();
+    if (incomingValues.isEmpty()) {
+      return !hasBusinessProperty(stored);
+    }
+    for (Map.Entry<String, Object> entry : incomingValues.entrySet()) {
+      if (!String.valueOf(entry.getValue()).equals(String.valueOf(stored.get(entry.getKey())))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean hasBusinessProperty(Map<?, ?> stored) {
+    for (Object key : stored.keySet()) {
+      String name = String.valueOf(key);
+      if (!"id".equals(name)
+          && !"connection_kind".equals(name)
+          && !"channel".equals(name)
+          && !"direction".equals(name)
+          && !"confidence".equals(name)
+          && !"discovered_from_application_id".equals(name)
+          && !"validFrom".equals(name)
+          && !"validTo".equals(name)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private Optional<String> mergeIntoBareEdge(
       String sourceId,
       String targetId,
-      String kind,
-      String channel,
       String directionPerspective,
-      String confidence,
       String discoveredFromApplicationId,
       Map<String, Object> dynamicProps) {
     Map<String, Object> params = new HashMap<>();
     params.put("s", sourceId);
     params.put("t", targetId);
-    params.put("kind", kind);
-    params.put("channel", channel);
     params.put("dir", directionPerspective);
-    params.put("conf", confidence);
     params.put("from", discoveredFromApplicationId);
     params.put("edgeId", UUID.randomUUID().toString());
 
     String mergeCypher =
         """
         MATCH (s:Application {id: $s})-[r:DEPENDS_ON]->(t:Application {id: $t})
-        WHERE (r.connection_kind IS NULL OR r.connection_kind = '')
-          AND (r.channel IS NULL OR r.channel = '')
+        WHERE true
+        """
+            + unsetAttributeClause(dynamicProps.keySet())
+            + """
+
         WITH r LIMIT 1
-        SET r.connection_kind = $kind,
-            r.channel = $channel,
-            r.direction = $dir,
-            r.confidence = $conf,
+        SET r.direction = $dir,
             r.discovered_from_application_id = $from,
             r.id = coalesce(r.id, $edgeId)
         """
@@ -230,6 +243,25 @@ public class ApplicationConnectionEdgeWriter {
         .fetch()
         .first()
         .map(row -> stringOrGenerated(row.get("id")));
+  }
+
+  /** Matches only edges that do not already store these Data Model keys. */
+  private static String unsetAttributeClause(Set<String> attributeKeys) {
+    if (attributeKeys == null || attributeKeys.isEmpty()) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder();
+    for (String key : attributeKeys) {
+      if (!isSafePropertyKey(key)) {
+        continue;
+      }
+      sb.append(" AND r.`").append(key).append("` IS NULL");
+    }
+    return sb.toString();
+  }
+
+  private static boolean isSafePropertyKey(String key) {
+    return key != null && key.matches("[a-z][a-z0-9_]{0,63}");
   }
 
   /** Enriches empty Data Model properties only (coalesce per key). */

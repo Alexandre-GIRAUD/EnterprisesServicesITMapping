@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.graph.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
 import com.enterprise.itmapping.feature.graph.application.AttributeMatch;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributeReader;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeProjection;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeRow;
 import java.util.ArrayList;
@@ -128,7 +129,8 @@ public class GraphLoader {
                     Neo4jValueMapping.asString(map.get("relType")),
                     Neo4jValueMapping.asString(map.get("data")),
                     Neo4jValueMapping.asString(map.get("relId")),
-                    AttributeValues.readProperties(map.get("props"), Set.of("validFrom", "validTo"))))
+                    AttributeValues.readProperties(
+                        map.get("props"), GraphEdgeAttributeReader.NON_BUSINESS_KEYS)))
         .toList();
   }
 

@@ -3,9 +3,7 @@ import { storedAttributeText } from '../utils/attributeValue';
 import {
   EDGE_TYPE_STYLES,
   edgeColorForProperty,
-  legendLabelForData,
   nodeColorForType,
-  sortDataTypesForLegend,
   type EdgeTypeKey,
 } from './graphTheme';
 
@@ -26,15 +24,9 @@ export const LEGEND_COLORS_STORAGE_KEY = 'flowra.graph.legendColors';
 export const LEGEND_SETUPS_STORAGE_KEY = 'flowra.graph.legendSetups';
 export const HIDE_EDGE_LABELS_STORAGE_KEY = 'flowra.graph.hideEdgeLabels';
 
-const KNOWN_PROPERTY_ORDER = ['data', 'connection_kind', 'asset_class', 'frequency', 'creation_date'] as const;
 const INTERNAL_PROPERTY_KEYS = new Set(['validFrom', 'validTo', 'id', 'name', 'description', 'year']);
 
 export const EDGE_COLOR_PROPERTY_LABELS: Record<string, string> = {
-  data: 'Exchanged data',
-  connection_kind: 'Integration kind',
-  asset_class: 'Asset class',
-  frequency: 'Frequency',
-  creation_date: 'Creation year',
   [RELATION_TYPE_COLOR_KEY]: 'Flow',
   [NODE_TYPE_COLOR_KEY]: 'App',
 };
@@ -332,12 +324,7 @@ export function edgeColorValue(edge: GraphEdgeDto, propertyKey: string): string 
   if (propertyKey === RELATION_TYPE_COLOR_KEY) {
     return edge.type?.trim() || null;
   }
-  const text = storedAttributeText(edge.properties?.[propertyKey]);
-  if (text) return text;
-  if (propertyKey === 'data' && edge.data?.trim()) {
-    return edge.data.trim();
-  }
-  return null;
+  return storedAttributeText(edge.properties?.[propertyKey]) || null;
 }
 
 export function edgeLabelText(edge: GraphEdgeDto, propertyKey: string): string {
@@ -359,19 +346,11 @@ function presentKeysFromProps(
 }
 
 function orderKeys(keys: string[]): string[] {
-  const known = KNOWN_PROPERTY_ORDER.filter((k) => keys.includes(k));
-  const rest = keys
-    .filter((k) => !KNOWN_PROPERTY_ORDER.includes(k as (typeof KNOWN_PROPERTY_ORDER)[number]))
-    .sort();
-  return [...known, ...rest];
+  return [...keys].sort();
 }
 
 export function discoverColorPropertyKeys(edges: GraphEdgeDto[]): string[] {
-  const keys = presentKeysFromProps(edges);
-  for (const edge of edges) {
-    if (edge.data?.trim()) keys.add('data');
-  }
-  return orderKeys([...keys]);
+  return orderKeys([...presentKeysFromProps(edges)]);
 }
 
 export function colorPropertyOptions(edges: GraphEdgeDto[]): AttributeOption[] {
@@ -605,9 +584,6 @@ export function collectLegendColorValues(
     .map((e) => edgeColorValue(e, propertyKey))
     .filter((v): v is string => Boolean(v?.trim()));
 
-  if (propertyKey === 'data' || propertyKey === 'connection_kind') {
-    return sortDataTypesForLegend(values);
-  }
   if (propertyKey === RELATION_TYPE_COLOR_KEY) {
     const order = Object.keys(EDGE_TYPE_STYLES) as EdgeTypeKey[];
     const present = new Set(values);
@@ -639,7 +615,6 @@ export function collectNodeLegendValues(
 }
 
 export function legendLabelForColorValue(propertyKey: string, value: string): string {
-  if (propertyKey === 'data' || propertyKey === 'connection_kind') return legendLabelForData(value);
   if (propertyKey === RELATION_TYPE_COLOR_KEY) {
     return (EDGE_TYPE_STYLES as Record<string, { legendLabel: string } | undefined>)[value]
       ?.legendLabel ?? value;

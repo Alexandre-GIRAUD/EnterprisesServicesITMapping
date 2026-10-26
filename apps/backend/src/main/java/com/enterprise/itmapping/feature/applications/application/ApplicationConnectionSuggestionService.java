@@ -64,19 +64,6 @@ public class ApplicationConnectionSuggestionService {
   private static final Logger log =
       LoggerFactory.getLogger(ApplicationConnectionSuggestionService.class);
 
-  private static final Set<String> ALLOWED_KINDS =
-      Set.of(
-          "API",
-          "MQ",
-          "KAFKA",
-          "NAS",
-          "DATABASE",
-          "GRPC",
-          "SOAP",
-          "SFTP",
-          "FILE_SHARE",
-          "OTHER");
-
   private static final Set<String> ALLOWED_DIRECTIONS = Set.of("outbound", "inbound");
 
   private final ApplicationRepository applicationRepository;
@@ -335,17 +322,7 @@ public class ApplicationConnectionSuggestionService {
         continue;
       }
 
-      String kind = entry.getConnectionKind();
-      if (!ALLOWED_KINDS.contains(kind)) {
-        skipped.add(new SkippedItem("connection", "kind_invalide", peerName + ": " + kind));
-        continue;
-      }
-
-      String confidence = entry.getConfidence();
-      if (properties.skipLowConfidence() && "low".equals(confidence)) {
-        skipped.add(new SkippedItem("connection", "confidence_trop_basse", peerName));
-        continue;
-      }
+      // Transport fields are not data-model attributes. They are not searched or stored.
 
       if (documentBody != null) {
         List<String> quotes = DocumentExcerpt.matching(documentBody, entry.citedSourceFiles());
@@ -397,7 +374,7 @@ public class ApplicationConnectionSuggestionService {
       Map<String, Object> attrsForWrite = validatedAttributes;
       Optional<String> bareEdgeId = Optional.empty();
       if (!validatedAttributes.isEmpty()) {
-        bareEdgeId = edgeWriter.findBareEdgeId(sourceId, targetId);
+        bareEdgeId = edgeWriter.findBareEdgeId(sourceId, targetId, validatedAttributes.keySet());
         beforeEdgeAttrs = bareEdgeId.map(edgeAttributeReader::read).orElse(Map.of());
         if (bareEdgeId.isPresent()) {
           attrsForWrite =
@@ -409,10 +386,10 @@ public class ApplicationConnectionSuggestionService {
           edgeWriter.createOrMerge(
               sourceId,
               targetId,
-              kind,
-              entry.getChannel(),
+              "",
+              "",
               direction,
-              confidence,
+              "",
               applicationId,
               attrsForWrite,
               allowedEdgeKeys);
@@ -421,7 +398,7 @@ public class ApplicationConnectionSuggestionService {
         case DUPLICATE ->
             skipped.add(
                 new SkippedItem(
-                    "connection", "doublon", peerName + " [" + kind + " " + entry.getChannel() + "]"));
+                    "connection", "doublon", peerName));
         case CREATED, MERGED -> {
           created.add(
               new CreatedConnectionItem(
@@ -430,8 +407,8 @@ public class ApplicationConnectionSuggestionService {
                   targetId,
                   peerName,
                   direction,
-                  kind,
-                  entry.getChannel()));
+                  "",
+                  ""));
           if ("outbound".equals(direction)) {
             outbound++;
           } else {
@@ -453,8 +430,8 @@ public class ApplicationConnectionSuggestionService {
                 targetId,
                 "DEPENDS_ON",
                 auditText(attrsForWrite),
-                kind,
-                entry.getChannel(),
+                "",
+                "",
                 null,
                 "CONNECTION_SUGGESTION");
             traceEvidence(

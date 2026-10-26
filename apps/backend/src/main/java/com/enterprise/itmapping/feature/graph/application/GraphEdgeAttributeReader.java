@@ -12,10 +12,9 @@ import org.springframework.util.StringUtils;
 public class GraphEdgeAttributeReader {
 
   /** System / structural keys never treated as Data Model EDGE attributes. */
-  static final Set<String> NON_BUSINESS_KEYS =
+  public static final Set<String> NON_BUSINESS_KEYS =
       Set.of(
           "id",
-          "data",
           "connection_kind",
           "channel",
           "direction",

@@ -129,7 +129,7 @@ class ApplicationConnectionSuggestionServiceTest {
     lenient()
         .when(dataModelAttributeResolver.allowedKeys(any(), eq(DataModelTarget.NODE)))
         .thenReturn(Set.of());
-    lenient().when(edgeWriter.findBareEdgeId(anyString(), anyString())).thenReturn(Optional.empty());
+    lenient().when(edgeWriter.findBareEdgeId(anyString(), anyString(), any())).thenReturn(Optional.empty());
     lenient().when(edgeAttributeReader.read(anyString())).thenReturn(Map.of());
     lenient()
         .when(overrideGuard.checkAiWrite(any(), anyString(), any(), anyString(), any(), anyString()))
@@ -160,10 +160,10 @@ class ApplicationConnectionSuggestionServiceTest {
         .createOrMerge(
             src.capture(),
             tgt.capture(),
-            eq("API"),
-            eq("https://b/api"),
+            eq(""),
+            eq(""),
             eq("outbound"),
-            eq("high"),
+            eq(""),
             eq(APP_ID),
             eq(Map.of()),
             eq(Set.of()));
@@ -197,10 +197,10 @@ class ApplicationConnectionSuggestionServiceTest {
         .createOrMerge(
             src.capture(),
             tgt.capture(),
-            eq("KAFKA"),
-            eq("topic.x"),
+            eq(""),
+            eq(""),
             eq("inbound"),
-            eq("high"),
+            eq(""),
             eq(APP_ID),
             eq(Map.of()),
             eq(Set.of()));
@@ -243,14 +243,36 @@ class ApplicationConnectionSuggestionServiceTest {
   }
 
   @Test
-  void invalidKindIsSkipped() {
+  void transportKindIsIgnoredAndEdgeIsStillCreated() {
     stubAgent(connection("Service B", "outbound", "TELEPATHY", "x"));
+    when(edgeWriter.createOrMerge(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            any(),
+            anySet()))
+        .thenReturn(new WriteResult(Outcome.CREATED, "edge-1"));
 
     SuggestConnectionsFromGithubResponse res =
         service.suggestFromGithub(APP_ID, new SuggestConnectionsFromGithubRequest(null));
 
-    assertThat(res.created()).isEmpty();
-    assertThat(res.skipped()).anyMatch(s -> s.reason().equals("kind_invalide"));
+    assertThat(res.created()).hasSize(1);
+    assertThat(res.skipped()).noneMatch(s -> s.reason().equals("kind_invalide"));
+    verify(edgeWriter)
+        .createOrMerge(
+            eq(APP_ID),
+            eq("id-b"),
+            eq(""),
+            eq(""),
+            eq("outbound"),
+            eq(""),
+            eq(APP_ID),
+            eq(Map.of()),
+            eq(Set.of()));
   }
 
   @Test
@@ -432,7 +454,7 @@ class ApplicationConnectionSuggestionServiceTest {
         .createOrMerge(
             anyString(),
             anyString(),
-            eq("API"),
+            eq(""),
             anyString(),
             anyString(),
             anyString(),
@@ -689,7 +711,7 @@ class ApplicationConnectionSuggestionServiceTest {
         .thenReturn(
             new DataModelAttributeResolver.ValidationResult(
                 true, Map.of("product_line", List.of("ALPHA")), null, null));
-    when(edgeWriter.findBareEdgeId(anyString(), anyString())).thenReturn(Optional.of("edge-existing"));
+    when(edgeWriter.findBareEdgeId(anyString(), anyString(), any())).thenReturn(Optional.of("edge-existing"));
     when(edgeAttributeReader.read("edge-existing")).thenReturn(Map.of("product_line", "ALPHA"));
 
     AiConnectionEntry duplicate = connection("Service B", "outbound", "API", "x");
@@ -928,9 +950,6 @@ class ApplicationConnectionSuggestionServiceTest {
     AiConnectionEntry e = new AiConnectionEntry();
     e.setPeerApplicationName(peer);
     e.setDirection(direction);
-    e.setConnectionKind(kind);
-    e.setChannel(channel);
-    e.setConfidence("high");
     return e;
   }
 

@@ -246,11 +246,13 @@ public class ConnectionDiscoveryAgent {
         catalogue below. Match peer_application_name EXACTLY to one catalogue name; never invent
         applications outside the catalogue.
 
+        Business attributes come only from the Active Data Model section below. Do not look for
+        connection_kind, channel, confidence, or any other field that is not listed there.
+
         Explore with your tools before concluding:
         - Start with readReadme() and listTree("") to understand the layout.
-        - grep for integration patterns (kafka, rabbit, amqp, RestTemplate, WebClient,
-          @FeignClient, @RestController, jdbc:, http(s)://, smb://, nfs, sftp) and for the
-          catalogue application names.
+        - grep for the catalogue application names and for each Data Model field key, label, and
+          allowed value.
         - readFile the most relevant configs/classes before concluding.
         Be efficient: aim for at most %d tool calls in total.
 
