@@ -512,7 +512,7 @@ export function nodeBorderColor(
   }
   const value = nodePropValue(node, propertyKey);
   if (!value) return nodeColorForType(node.type);
-  return overrideOr(colorMap, value, darkBorderForNode(propertyKey, value));
+  return overrideOr(colorMap, value, edgeColorForProperty(value, 'Application', propertyKey));
 }
 
 export function nodeFillColorForValue(
@@ -541,11 +541,7 @@ export function nodeBorderColorForValue(
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     return overrideOr(colorMap, value, nodeColorForType(value));
   }
-  return overrideOr(colorMap, value, darkBorderForNode(propertyKey, value));
-}
-
-function darkBorderForNode(propertyKey: string, value: string): string {
-  return edgeColorForProperty(value, 'Application', propertyKey);
+  return overrideOr(colorMap, value, edgeColorForProperty(value, 'Application', propertyKey));
 }
 
 /** Persist a color for a channel; mirror stroke↔label or fill→(derived border) when shared. */

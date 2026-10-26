@@ -235,7 +235,11 @@ export function GraphLegend({
           <span
             className="graph-legend__swatch graph-legend__swatch--node graph-legend__swatch--mini-app"
             style={{
-              backgroundColor: nodeFillColorForValue(NODE_TYPE_COLOR_KEY, key),
+              backgroundColor: nodeFillColorForValue(
+                NODE_TYPE_COLOR_KEY,
+                key,
+                legendColors.appFill,
+              ),
               borderColor: NODE_TYPE_STYLES[key].color,
             }}
             aria-hidden="true"

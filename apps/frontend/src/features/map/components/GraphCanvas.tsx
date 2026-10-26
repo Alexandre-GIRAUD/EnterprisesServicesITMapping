@@ -600,15 +600,17 @@ export function GraphCanvas() {
         current === 'changes' || current === 'chat' ? 'filters' : current,
       );
     } else if (state.graphMode === 'views') {
-      mode.setGraphMode('views');
-      mode.setSandboxDirty(false);
-      setWorkspacePanelOpen(false);
-      setFilterPanelOpen(false);
-      setIsDetailsDrawerOpen(false);
-      setIsEdgeDetailsDrawerOpen(false);
-      setSelectedEdge(null);
-      setDisplayMode('graph');
-      setModuleGraphApp(null);
+      if (!sandboxDirty || window.confirm('Leave sandbox? Local changes will be lost.')) {
+        mode.setGraphMode('views');
+        mode.setSandboxDirty(false);
+        setWorkspacePanelOpen(false);
+        setFilterPanelOpen(false);
+        setIsDetailsDrawerOpen(false);
+        setIsEdgeDetailsDrawerOpen(false);
+        setSelectedEdge(null);
+        setDisplayMode('graph');
+        setModuleGraphApp(null);
+      }
     }
 
     if (state.sideMenuTool && state.sideMenuTool !== 'changes') {

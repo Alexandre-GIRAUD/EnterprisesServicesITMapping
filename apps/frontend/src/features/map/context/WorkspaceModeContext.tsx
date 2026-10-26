@@ -23,12 +23,7 @@ export function WorkspaceModeProvider({ children }: { children: ReactNode }) {
 export function useWorkspaceMode(): WorkspaceModeState {
   const value = useContext(WorkspaceModeContext);
   if (!value) {
-    return {
-      mode: 'normal',
-      sandboxDirty: false,
-      setMode: () => undefined,
-      setSandboxDirty: () => undefined,
-    };
+    throw new Error('WorkspaceModeProvider is missing');
   }
   return value;
 }

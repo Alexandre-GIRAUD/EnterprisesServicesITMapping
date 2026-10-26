@@ -12,6 +12,7 @@ const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
 const layout = readFileSync(new URL('./Layout.tsx', import.meta.url), 'utf8');
 
 assert.match(layout, /WorkspaceModeNav/);
+assert.match(layout, /graphMode: next/);
 assert.match(css, /\.layout-sidebar \{[^}]*background: #d5dee8/);
 assert.match(css, /\.self-service-side-menu \{[^}]*background: #ffffff/);
 assert.match(css, /\.layout-mode-list \{[^}]*flex-direction: column/);
