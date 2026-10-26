@@ -35,6 +35,7 @@ import { fetchGraphNodeFilters } from '../api/graphApi';
 import { createGraphSnapshot } from '../api/graphSnapshotsApi';
 import { shareSavedSandbox } from '../api/sandboxSharesApi';
 import { useGraphSnapshotsRefresh } from '../context/GraphSnapshotsContext';
+import { useWorkspaceMode } from '../context/WorkspaceModeContext';
 import type { MapLocationState } from '../utils/mapNavigation';
 import {
   buildAppNode,
@@ -273,6 +274,12 @@ export function GraphCanvas() {
     reloadGraph,
   });
   const { graphMode, sandboxDirty, graphModeRef, isSandbox, isViewsMode } = mode;
+  const { setMode: publishWorkspaceMode, setSandboxDirty: publishSandboxDirty } = useWorkspaceMode();
+
+  useEffect(() => {
+    publishWorkspaceMode(graphMode);
+    publishSandboxDirty(sandboxDirty);
+  }, [graphMode, sandboxDirty, publishWorkspaceMode, publishSandboxDirty]);
 
   useEffect(() => {
     const isDiagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;
@@ -581,6 +588,9 @@ export function GraphCanvas() {
         setIsDetailsDrawerOpen(false);
         setIsEdgeDetailsDrawerOpen(false);
         setSelectedEdge(null);
+        setDisplayMode('graph');
+        setModuleGraphApp(null);
+        setActiveSideMenuTool((current) => (current === 'sandboxes' ? 'filters' : current));
         reloadGraph();
       }
     } else if (state.graphMode === 'sandbox') {
@@ -588,6 +598,11 @@ export function GraphCanvas() {
       mode.setSandboxDirty(false);
       setMessage('Sandbox — customize your graph, no changes saved.');
       setWorkspacePanelOpen(true);
+      setDisplayMode('graph');
+      setModuleGraphApp(null);
+      setActiveSideMenuTool((current) =>
+        current === 'changes' || current === 'chat' ? 'filters' : current,
+      );
     } else if (state.graphMode === 'views') {
       mode.setGraphMode('views');
       mode.setSandboxDirty(false);
@@ -596,6 +611,8 @@ export function GraphCanvas() {
       setIsDetailsDrawerOpen(false);
       setIsEdgeDetailsDrawerOpen(false);
       setSelectedEdge(null);
+      setDisplayMode('graph');
+      setModuleGraphApp(null);
     }
 
     if (state.sideMenuTool && state.sideMenuTool !== 'changes') {
@@ -2391,7 +2408,6 @@ export function GraphCanvas() {
           isOpen={isSideMenuOpen}
           onToggle={handleSideMenuToggle}
           graphMode={graphMode}
-          sandboxDirty={sandboxDirty}
           filtersActive={filtersActive}
           activeTool={activeSideMenuTool}
           onActiveToolChange={setActiveSideMenuTool}
@@ -2407,20 +2423,6 @@ export function GraphCanvas() {
               onMoveInDisplay={tableColumns.moveInDisplay}
             />
           }
-          onModeChange={(nextMode) => {
-            setDisplayMode('graph');
-            setModuleGraphApp(null);
-            setActiveSideMenuTool((current) => {
-              if (nextMode === 'sandbox' && (current === 'changes' || current === 'chat')) {
-                return 'filters';
-              }
-              if (nextMode === 'normal' && current === 'sandboxes') return 'filters';
-              return current;
-            });
-            if (nextMode === 'sandbox') mode.switchToSandboxMode();
-            else if (nextMode === 'views') mode.switchToViewsMode();
-            else mode.switchToNormalMode();
-          }}
           toolDetail={
             graphMode === 'views' ? (
               <ViewInspectPanel

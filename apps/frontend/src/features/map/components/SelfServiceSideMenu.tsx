@@ -9,7 +9,6 @@ import {
   clampMenuWidth,
   maxMenuWidth,
 } from './sideMenuWidth';
-import { primaryWorkspaceMode } from '../utils/workspaceViews';
 
 type SelfServiceBurgerProps = {
   isOpen: boolean;
@@ -20,37 +19,14 @@ type SelfServiceSideMenuProps = {
   isOpen: boolean;
   onToggle: () => void;
   graphMode: GraphMode;
-  sandboxDirty: boolean;
   filtersActive: boolean;
   activeTool: SideMenuTool;
   onActiveToolChange: (tool: SideMenuTool) => void;
-  onModeChange: (mode: GraphMode) => void;
   toolDetail: ReactNode;
   /** When true (table view), hide tool rail and show Columns panel only. */
   columnsOnly?: boolean;
   columnsDetail?: ReactNode;
 };
-
-const VIEWS: { mode: GraphMode; label: string; tabId: string; accent: string }[] = [
-  {
-    mode: 'normal',
-    label: 'Production',
-    tabId: 'graph-mode-tab-normal',
-    accent: 'explorer',
-  },
-  {
-    mode: 'sandbox',
-    label: 'Sandbox',
-    tabId: 'graph-mode-tab-sandbox',
-    accent: 'sandbox',
-  },
-  {
-    mode: 'views',
-    label: 'My views',
-    tabId: 'graph-mode-tab-views',
-    accent: 'views',
-  },
-];
 
 const MENU_WIDTH_STORAGE_KEY = 'flowra.sideMenu.width';
 const NARROW_MENU_QUERY = '(max-width: 640px)';
@@ -181,17 +157,14 @@ export function SelfServiceSideMenu({
   isOpen,
   onToggle,
   graphMode,
-  sandboxDirty,
   filtersActive,
   activeTool,
   onActiveToolChange,
-  onModeChange,
   toolDetail,
   columnsOnly = false,
   columnsDetail = null,
 }: SelfServiceSideMenuProps) {
   const showGraphTools = graphMode === 'normal' || graphMode === 'sandbox';
-  const primaryMode = primaryWorkspaceMode(graphMode);
   const defaultWidth = DEFAULT_MENU_WIDTH;
   const resize = useResizableMenu(isOpen, defaultWidth);
   const toolDetailTitle = columnsOnly
@@ -249,38 +222,6 @@ export function SelfServiceSideMenu({
         </header>
 
         <div className="self-service-side-menu-body">
-          <section className="self-service-side-menu-section">
-            <div
-              className="self-service-view-list"
-              role="tablist"
-              aria-label="Workspace views"
-            >
-              {VIEWS.map((view) => {
-                const isActive = graphMode === view.mode;
-                const isPrimary = primaryMode === view.mode;
-                return (
-                  <button
-                    key={view.mode}
-                    type="button"
-                    role="tab"
-                    id={view.tabId}
-                    className={`self-service-view-item self-service-view-item--${view.accent}${isPrimary ? ' is-primary' : ''}`}
-                    aria-selected={isActive}
-                    aria-controls={view.mode === 'views' ? 'graph-views-pane' : 'graph-canvas-pane'}
-                    onClick={() => {
-                      if (!isActive) onModeChange(view.mode);
-                    }}
-                  >
-                    <span className="self-service-view-item-label">{view.label}</span>
-                    {view.mode === 'sandbox' && sandboxDirty && isActive ? (
-                      <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
           {graphMode === 'views' ? (
             <div className="self-service-tool-detail" role="region" aria-label="View details">
               {toolDetail}
