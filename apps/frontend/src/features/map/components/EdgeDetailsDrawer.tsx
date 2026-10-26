@@ -3,7 +3,6 @@ import type { DataModelFieldDto, HumanChangeReason } from '@/types/api';
 import { getDataModelRequest } from '@/features/datamodel/api/dataModelApi';
 import { patchGraphEdgeAttributes, deleteGraphEdge } from '../api/graphApi';
 import type { SelectedEdgeDetails } from '../utils/selectedEdgeFromDto';
-import { legendLabelForData } from './graphTheme';
 import { CommentsSection } from '@/features/comments/components/CommentsSection';
 import {
   AttributeChangeReasonFields,
@@ -42,7 +41,7 @@ function dash(value: string | null | undefined): string {
 
 function titleForEdge(edge: SelectedEdgeDetails): string {
   const data = edge.data?.trim();
-  if (data) return legendLabelForData(data);
+  if (data) return data;
   return edge.type || 'Connection';
 }
 

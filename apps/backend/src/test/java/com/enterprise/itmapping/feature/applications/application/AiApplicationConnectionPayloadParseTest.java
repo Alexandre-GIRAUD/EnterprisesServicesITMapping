@@ -27,7 +27,7 @@ class AiApplicationConnectionPayloadParseTest {
               "channel": " https://orders.internal/api/v1 ",
               "confidence": "High",
               "business_rationale_one_liner": "Appels REST",
-              "evidence_hint": "src/client/OrdersFeignClient.java",
+              "source_files": ["src/client/OrdersFeignClient.java"],
               "edge_attributes": { "product_line": " ALPHA " },
               "unknown_field": "ignored"
             },
@@ -52,15 +52,11 @@ class AiApplicationConnectionPayloadParseTest {
     AiConnectionEntry first = payload.getConnections().get(0);
     assertThat(first.getPeerApplicationName()).isEqualTo("Service commandes");
     assertThat(first.getDirection()).isEqualTo("outbound");
-    assertThat(first.getConnectionKind()).isEqualTo("API");
-    assertThat(first.getChannel()).isEqualTo("https://orders.internal/api/v1");
-    assertThat(first.getConfidence()).isEqualTo("high");
     assertThat(first.getEdgeAttributes()).containsEntry("product_line", "ALPHA");
     assertThat(first.citedSourceFiles()).containsExactly("src/client/OrdersFeignClient.java");
 
     AiConnectionEntry second = payload.getConnections().get(1);
     assertThat(second.getDirection()).isEqualTo("inbound");
-    assertThat(second.getConnectionKind()).isEqualTo("KAFKA");
     assertThat(payload.getNodeAttributes()).isEmpty();
   }
 

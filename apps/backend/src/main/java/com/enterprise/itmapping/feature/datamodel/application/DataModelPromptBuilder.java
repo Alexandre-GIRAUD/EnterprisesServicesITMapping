@@ -53,7 +53,7 @@ public class DataModelPromptBuilder {
         - Use ONLY keys listed in this edge section (no extra keys).
         - Omit a key if no reliable evidence in the repository.
         - Never invent values outside allowed lists when STRICT applies.
-        - edge_attributes = what transits on the flow; connection_kind = how (API, KAFKA, ...).
+        - edge_attributes are the only business properties of the flow. Do not add transport fields.
         - Do not put application-node or node-ref fields into edge_attributes.
         - Search the codebase using field labels, detection hints, and allowed value literals when grepping.
         - Fields not listed here are out of scope for AI edge detection (manual / node / not requested).

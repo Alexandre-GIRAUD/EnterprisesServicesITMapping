@@ -32,28 +32,6 @@ export const NODE_TYPE_STYLES: Record<NodeTypeKey, NodeTypeStyle> = {
 const NEUTRAL_NODE_COLOR = '#52525b';
 const NEUTRAL_EDGE_COLOR = '#64748b';
 
-/** Colors keyed by Neo4j `r.data` on DEPENDS_ON links (seed-app-db.cypher). */
-export const DATA_TYPE_STYLES: Record<string, EdgeTypeStyle> = {
-  'referential data': { legendLabel: 'Referential data', color: '#2563eb' },
-  'cash flows': { legendLabel: 'Cash flows', color: '#059669' },
-  'clearing data': { legendLabel: 'Clearing data', color: '#d97706' },
-  PV: { legendLabel: 'PV', color: '#7c3aed' },
-  'trade economics': { legendLabel: 'Trade economics', color: '#db2777' },
-  // AI connection kinds (r.data set by the connection-discovery agent).
-  API: { legendLabel: 'API', color: '#2563eb' },
-  KAFKA: { legendLabel: 'Kafka', color: '#7c3aed' },
-  MQ: { legendLabel: 'Message queue', color: '#db2777' },
-  NAS: { legendLabel: 'NAS / file share', color: '#0891b2' },
-  FILE_SHARE: { legendLabel: 'File share', color: '#0891b2' },
-  DATABASE: { legendLabel: 'Database', color: '#059669' },
-  GRPC: { legendLabel: 'gRPC', color: '#d97706' },
-  SOAP: { legendLabel: 'SOAP', color: '#9333ea' },
-  SFTP: { legendLabel: 'SFTP', color: '#65a30d' },
-  OTHER: { legendLabel: 'Other integration', color: '#64748b' },
-};
-
-export const KNOWN_DATA_TYPE_KEYS = Object.keys(DATA_TYPE_STYLES);
-
 /** Border/identity color for a node relation type (neutral fallback). */
 export function nodeColorForType(type: string): string {
   return (NODE_TYPE_STYLES as Record<string, NodeTypeStyle | undefined>)[type]?.color
@@ -100,26 +78,7 @@ export function edgeColorForProperty(
   if (!key) {
     return edgeColorForType(relationType);
   }
-  if (propertyKey === 'data' && DATA_TYPE_STYLES[key]) {
-    return DATA_TYPE_STYLES[key].color;
-  }
-  if (propertyKey === 'connection_kind' && DATA_TYPE_STYLES[key]) {
-    return DATA_TYPE_STYLES[key].color;
-  }
   return hashColor(`${propertyKey}:${key}`);
-}
-
-/** Legend label for a data type key (falls back to the raw key). */
-export function legendLabelForData(dataKey: string): string {
-  return DATA_TYPE_STYLES[dataKey]?.legendLabel ?? dataKey;
-}
-
-/** Stable display order: known palette first, then any other values alphabetically. */
-export function sortDataTypesForLegend(types: Iterable<string>): string[] {
-  const present = new Set([...types].map((t) => t.trim()).filter(Boolean));
-  const known = KNOWN_DATA_TYPE_KEYS.filter((k) => present.has(k));
-  const unknown = [...present].filter((k) => !KNOWN_DATA_TYPE_KEYS.includes(k)).sort();
-  return [...known, ...unknown];
 }
 
 export function edgeDashedForRelation(relationType: string): boolean {

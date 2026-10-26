@@ -7,6 +7,7 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -37,8 +38,9 @@ class ApplicationConnectionEdgeWriterTest {
         Set.of("product_line"));
 
     String createCypher = captureCypherContaining(neo4jClient, "CREATE (s)-[r:DEPENDS_ON");
-    assertThat(createCypher).contains("connection_kind: $kind");
-    assertThat(createCypher).doesNotContain("data: $kind");
+    assertThat(createCypher).contains("direction: $dir");
+    assertThat(createCypher).doesNotContain("connection_kind");
+    assertThat(createCypher).doesNotContain("channel:");
     assertThat(createCypher).contains("SET r += $dynamicProps");
   }
 
@@ -51,13 +53,15 @@ class ApplicationConnectionEdgeWriterTest {
     writer.createOrMerge(
         "s1", "t1", "API", "", "outbound", "high", "app-1", Map.of(), Set.of());
 
-    String dedupCypher = captureCypherContaining(neo4jClient, "coalesce(r.connection_kind");
-    assertThat(dedupCypher).doesNotContain("r.data");
+    String dedupCypher = captureCypherContaining(neo4jClient, "properties(r) AS props");
+    assertThat(dedupCypher).contains("DEPENDS_ON");
   }
 
   private static void whenFetchEmpty(Neo4jClient neo4jClient) {
     org.mockito.Mockito.when(neo4jClient.query(anyString()).bindAll(anyMap()).fetch().first())
         .thenReturn(Optional.empty());
+    org.mockito.Mockito.when(neo4jClient.query(anyString()).bindAll(anyMap()).fetch().all())
+        .thenReturn(List.of());
   }
 
   private static String captureCypherContaining(Neo4jClient neo4jClient, String needle) {
