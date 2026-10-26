@@ -18,7 +18,7 @@ import {
 } from '../api/applicationsApi';
 import { fetchGraphNodeFilters } from '../api/graphApi';
 import { moduleGraphMapState } from '../utils/mapNavigation';
-import { isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
+import { gitHubFullNamesInText, isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 import { isSandboxId } from '../utils/sandboxGraph';
 import { CommentsSection } from '@/features/comments/components/CommentsSection';
 import {
@@ -615,6 +615,16 @@ export function ApplicationDetailsDrawer({
                   <h3 className="graph-details-section-title">Description</h3>
                   <p className="graph-details-text">{description}</p>
                 </section>
+                {gitHubFullNamesInText(details?.description).length > 0 ? (
+                  <section className="graph-details-section">
+                    <h3 className="graph-details-section-title">Repositories</h3>
+                    <ul className="graph-details-text">
+                      {gitHubFullNamesInText(details?.description).map((repo) => (
+                        <li key={repo}>{repo}</li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
 
                 <section className="graph-details-section">
                   <h3 className="graph-details-section-title">Attributes</h3>

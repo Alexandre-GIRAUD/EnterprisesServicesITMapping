@@ -24,8 +24,10 @@ public class LinkedApplicationResolver {
     String wanted = repoFullName.trim().toLowerCase(Locale.ROOT);
     for (ApplicationGraphNodeProjection row : applicationRepository.findAllForGraph()) {
       Optional<String> linked =
-          GithubRepoIdentityResolver.resolveFullName(row.getName(), row.getDescription(), null);
-      if (linked.isPresent() && linked.get().equalsIgnoreCase(wanted)) {
+          GithubRepoIdentityResolver.resolveAllFullNames(row.getName(), row.getDescription()).stream()
+              .filter(name -> name.equalsIgnoreCase(wanted))
+              .findFirst();
+      if (linked.isPresent()) {
         return Optional.of(row);
       }
       if (row.getName() != null && row.getName().trim().equalsIgnoreCase(wanted)) {

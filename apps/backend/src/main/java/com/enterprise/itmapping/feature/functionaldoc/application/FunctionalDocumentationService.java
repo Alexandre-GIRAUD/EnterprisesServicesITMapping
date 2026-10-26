@@ -86,14 +86,18 @@ public class FunctionalDocumentationService {
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Application not found: " + applicationId));
 
-    String fullName =
-        GithubRepoIdentityResolver.resolveFullName(app.getName(), app.getDescription(), null)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "GitHub repository not found for this application: set name=owner/repo or a"
-                            + " GitHub description URL."));
+    List<String> fullNames =
+        GithubRepoIdentityResolver.resolveAllFullNames(app.getName(), app.getDescription());
+    if (fullNames.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "GitHub repository not found for this application: set name=owner/repo or a"
+              + " GitHub description URL.");
+    }
+    String sourceRepos = String.join("\n", fullNames);
+    if (sourceRepos.length() > 255) {
+      sourceRepos = sourceRepos.substring(0, 255);
+    }
 
     ApplicationFunctionalDocEntity entity =
         docRepository.findByApplicationId(applicationId).orElseGet(ApplicationFunctionalDocEntity::new);
@@ -106,7 +110,7 @@ public class FunctionalDocumentationService {
     entity.setApplicationId(applicationId);
     entity.setStatus(FunctionalDocStatus.PENDING);
     entity.setLocale(properties.locale());
-    entity.setSourceRepo(fullName);
+    entity.setSourceRepo(sourceRepos);
     entity.setPayload(null);
     entity.setMarkdownCache(null);
     entity.setAnalyzedFiles(List.of());
@@ -147,26 +151,26 @@ public class FunctionalDocumentationService {
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Application not found: " + applicationId));
 
-    String fullName =
-        GithubRepoIdentityResolver.resolveFullName(app.getName(), app.getDescription(), null)
-            .orElseThrow(
-                () ->
-                    new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "GitHub repository not found for this application."));
+    List<String> fullNames =
+        GithubRepoIdentityResolver.resolveAllFullNames(app.getName(), app.getDescription());
+    if (fullNames.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "GitHub repository not found for this application.");
+    }
+    String sourceRepos = String.join("\n", fullNames);
+    if (sourceRepos.length() > 255) {
+      sourceRepos = sourceRepos.substring(0, 255);
+    }
 
-    String[] parts = parseOwnerRepo(fullName);
-    String owner = parts[0];
-    String repo = parts[1];
+    log.info("Functional documentation generate start applicationId={} repos={}", applicationId, fullNames);
 
-    log.info("Functional documentation generate start applicationId={} repo={}/{}", applicationId, owner, repo);
-
-    Path workspace = cloneService.clone(owner, repo, properties.cloneTimeoutSeconds(), accessToken);
+    Path workspace = cloneService.cloneAll(fullNames, properties.cloneTimeoutSeconds(), accessToken);
     try {
-      DiscoveryResult discovery = agent.discover(workspace, owner, repo);
+      DiscoveryResult discovery = agent.discoverAll(workspace, fullNames);
       entity.setStatus(FunctionalDocStatus.READY);
       entity.setLocale(properties.locale());
       entity.setPayload(discovery.payload());
-      entity.setSourceRepo(fullName);
+      entity.setSourceRepo(sourceRepos);
       entity.setAnalyzedFiles(discovery.analyzedFiles());
       entity.setErrorMessage(null);
       entity.setGeneratedAt(Instant.now());
@@ -246,22 +250,6 @@ public class FunctionalDocumentationService {
         List.of(),
         null,
         null);
-  }
-
-  private static String[] parseOwnerRepo(String fullName) {
-    String f = fullName.trim().replace('\\', '/');
-    int slash = f.indexOf('/');
-    if (slash <= 0 || slash == f.length() - 1 || f.indexOf('/', slash + 1) >= 0) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Invalid GitHub fullName: " + fullName);
-    }
-    String owner = f.substring(0, slash).trim();
-    String repo = f.substring(slash + 1).trim();
-    if (owner.isEmpty() || repo.isEmpty()) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "Invalid GitHub fullName: " + fullName);
-    }
-    return new String[] {owner, repo};
   }
 
   private static String truncate(String s, int max) {

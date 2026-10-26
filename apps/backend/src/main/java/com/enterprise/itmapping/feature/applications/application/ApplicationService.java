@@ -11,8 +11,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.data.neo4j.core.Neo4jClient;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class ApplicationService {
@@ -61,6 +63,20 @@ public class ApplicationService {
 
   @Transactional
   public ApplicationResponse create(ApplicationRequest request) {
+    List<String> incoming =
+        GithubRepoIdentityResolver.resolveAllFullNames(request.name(), request.description());
+    if (!incoming.isEmpty()) {
+      for (ApplicationGraphNodeProjection row : applicationRepository.findAllForGraph()) {
+        String overlap =
+            GithubRepoIdentityResolver.firstOverlap(
+                incoming,
+                GithubRepoIdentityResolver.resolveAllFullNames(row.getName(), row.getDescription()));
+        if (overlap != null) {
+          throw new ResponseStatusException(
+              HttpStatus.CONFLICT, "Repository already linked: " + overlap);
+        }
+      }
+    }
     Application entity = new Application();
     entity.setName(request.name());
     entity.setDescription(request.description());
@@ -81,6 +97,23 @@ public class ApplicationService {
   public Optional<ApplicationResponse> update(String id, ApplicationRequest request) {
     if (applicationRepository.findProjectionById(id).isEmpty()) {
       return Optional.empty();
+    }
+    List<String> incoming =
+        GithubRepoIdentityResolver.resolveAllFullNames(request.name(), request.description());
+    if (!incoming.isEmpty()) {
+      for (ApplicationGraphNodeProjection row : applicationRepository.findAllForGraph()) {
+        if (id.equals(row.getId())) {
+          continue;
+        }
+        String overlap =
+            GithubRepoIdentityResolver.firstOverlap(
+                incoming,
+                GithubRepoIdentityResolver.resolveAllFullNames(row.getName(), row.getDescription()));
+        if (overlap != null) {
+          throw new ResponseStatusException(
+              HttpStatus.CONFLICT, "Repository already linked: " + overlap);
+        }
+      }
     }
     Map<String, Object> params = new HashMap<>();
     params.put("id", id);

@@ -25,6 +25,58 @@ export function applicationDescriptionForGitHubRepo(
   return `${blurb}\n${link}`;
 }
 
+/** Every owner/repo mentioned in an application description, in order. */
+export function gitHubFullNamesInText(text: string | null | undefined): string[] {
+  const found: string[] = [];
+  const pattern = /github\.com[/:]([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)/gi;
+  for (const match of (text ?? '').matchAll(pattern)) {
+    const repo = match[2].replace(/\.git$/i, '');
+    found.push(`${match[1]}/${repo}`);
+  }
+  return [...new Set(found)];
+}
+
+export function applicationDescriptionForGitHubRepos(
+  repos: ReadonlyArray<{ description?: string | null; htmlUrl: string }>,
+): string {
+  const blurbs = repos
+    .map((repo) => (repo.description ?? '').trim())
+    .filter((blurb) => blurb.length > 0);
+  const links = repos.map((repo) => `GitHub: ${repo.htmlUrl.trim()}`);
+  return [...blurbs, ...links].join('\n');
+}
+
+/** Keeps the current description and appends GitHub lines that are not already there. */
+export function descriptionWithAdditionalGitHubRepos(
+  existing: string | null | undefined,
+  repos: ReadonlyArray<{ description?: string | null; htmlUrl: string }>,
+): string {
+  const current = (existing ?? '').trim();
+  const currentLower = current.toLowerCase();
+  const additions = repos.flatMap((repo) => {
+    const lines: string[] = [];
+    const blurb = (repo.description ?? '').trim();
+    const link = `GitHub: ${repo.htmlUrl.trim()}`;
+    if (blurb && !currentLower.includes(blurb.toLowerCase())) lines.push(blurb);
+    if (!currentLower.includes(link.toLowerCase())) lines.push(link);
+    return lines;
+  });
+  if (additions.length === 0) return current;
+  if (!current) return additions.join('\n');
+  return `${current}\n${additions.join('\n')}`;
+}
+
+export function applicationMatchesGitHubRepo(
+  app: { name?: string | null; description?: string | null },
+  repo: { name: string; fullName: string },
+): boolean {
+  const name = (app.name ?? '').trim().toLowerCase();
+  const shortName = applicationNameForGitHubRepo(repo.name).trim().toLowerCase();
+  const fullName = repo.fullName.trim().toLowerCase();
+  if (name === shortName || name === fullName) return true;
+  return gitHubFullNamesInText(app.description).some((linked) => linked.toLowerCase() === fullName);
+}
+
 export function isGitHubLinkedApplication(app: {
   name?: string | null;
   description?: string | null;

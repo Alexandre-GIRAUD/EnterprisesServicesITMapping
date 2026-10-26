@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.functionaldoc.application;
 
 import com.enterprise.itmapping.feature.applications.application.ModuleDiscoveryTools;
+import com.enterprise.itmapping.feature.applications.application.MultiRepoPrompt;
 import com.enterprise.itmapping.feature.functionaldoc.application.dto.AiFunctionalDocPayload;
 import com.enterprise.itmapping.feature.integrations.llm.FunctionalDocumentationProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -120,6 +121,61 @@ public class FunctionalDocumentationAgent {
           truncate(toJson(payload), FINAL_PAYLOAD_LOG_MAX_CHARS));
     }
     return new DiscoveryResult(payload, analyzedFiles);
+  }
+
+  /** One scan over every repository folder of a grouped application. */
+  public DiscoveryResult discoverAll(Path workspace, List<String> fullNames) {
+    if (!MultiRepoPrompt.isGrouped(fullNames)) {
+      String fullName = fullNames.get(0);
+      int slash = fullName.indexOf('/');
+      return discover(workspace, fullName.substring(0, slash), fullName.substring(slash + 1));
+    }
+    ModuleDiscoveryTools tools =
+        new ModuleDiscoveryTools(
+            workspace,
+            properties.maxGrepHits(),
+            properties.maxReadCharsPerFile(),
+            properties.maxTreeEntries());
+    int budget =
+        MultiRepoPrompt.budget(
+            properties.maxToolIterations(),
+            fullNames.size(),
+            MultiRepoPrompt.DOCUMENTATION_CALL_CAP);
+    String userMessage =
+        """
+        %s
+        Explore every folder before concluding:
+        - Start with listTree("") and readFile the README inside each folder.
+        - Use grep/readFile on product docs, domain/feature folders and user-facing entry points in every folder.
+        Write one functional document for the whole application, not one per folder.
+        Be efficient: aim for at most %d tool calls in total.
+
+        Then return the final JSON describing the functional documentation,
+        following the required schema exactly. Write in English.
+        """
+            .formatted(MultiRepoPrompt.folderList(fullNames), budget);
+    log.info("Functional documentation agent start repos={}", fullNames);
+    AiFunctionalDocPayload payload;
+    try {
+      payload =
+          chatClient
+              .prompt()
+              .system(systemPrompt)
+              .user(userMessage)
+              .tools(tools)
+              .call()
+              .entity(AiFunctionalDocPayload.class);
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_GATEWAY, "Functional documentation agent failed: " + e.getMessage(), e);
+    }
+    if (payload == null || payload.getSummary().isBlank()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Empty or unreadable functional documentation response.");
+    }
+    return new DiscoveryResult(payload, tools.getAnalyzedFiles());
   }
 
   private String toJson(AiFunctionalDocPayload payload) {

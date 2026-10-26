@@ -227,6 +227,7 @@ export type ChatAskResponseDto = {
 /** {@code POST /api/applications/{id}/modules/suggest-from-github} */
 export interface SuggestModulesFromGithubRequest {
   fullName?: string | null;
+  replaceExisting?: boolean | null;
 }
 
 export interface SuggestModulesCreatedItem {

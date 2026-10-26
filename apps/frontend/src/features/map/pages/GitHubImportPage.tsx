@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { ApplicationResponse, GitHubRepoDto } from '@/types/api';
 import {
@@ -6,6 +6,7 @@ import {
   fetchApplications,
   suggestConnectionsFromGithub,
   suggestModulesFromGithub,
+  updateApplicationById,
 } from '../api/applicationsApi';
 import { generateFunctionalDocumentation } from '../api/functionalDocumentationApi';
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
@@ -13,14 +14,15 @@ import { ThirdPartySources } from '../components/ThirdPartySources';
 import { navigateToModuleGraph } from '../utils/mapNavigation';
 import {
   applicationDescriptionForGitHubRepo,
+  applicationDescriptionForGitHubRepos,
+  applicationMatchesGitHubRepo,
   applicationNameForGitHubRepo,
+  descriptionWithAdditionalGitHubRepos,
   isGitHubLinkedApplication,
 } from '../utils/githubLinkedApplication';
 
 const GITHUB_MARK_PATH =
   'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z';
-
-type RepoListFilter = 'all' | 'private' | 'public' | 'imported' | 'not-imported';
 
 function normalizeName(s: string): string {
   return s.trim().toLowerCase();
@@ -51,7 +53,9 @@ export function GitHubImportPage() {
   const [aiBusyRepoId, setAiBusyRepoId] = useState<number | null>(null);
   const [connBusyRepoId, setConnBusyRepoId] = useState<number | null>(null);
   const [sourceMode, setSourceMode] = useState<'repository' | 'third-party'>('repository');
-  const [listFilter, setListFilter] = useState<RepoListFilter>('all');
+  const [targetApplicationId, setTargetApplicationId] = useState('');
+  const [groupName, setGroupName] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   function isImported(repo: GitHubRepoDto): boolean {
     return applicationForRepo(repo) != null;
@@ -112,15 +116,13 @@ export function GitHubImportPage() {
             (r.description && r.description.toLowerCase().includes(q))
         )
       : repos;
-    return matched.filter((repo) => {
-      const imported = isImported(repo);
-      if (listFilter === 'private') return repo.repoPrivate;
-      if (listFilter === 'public') return !repo.repoPrivate;
-      if (listFilter === 'imported') return imported;
-      if (listFilter === 'not-imported') return !imported;
-      return true;
-    });
-  }, [repos, filter, applications, listFilter]);
+    return matched;
+  }, [repos, filter]);
+
+  const importedApplications = useMemo(
+    () => [...applications].sort((left, right) => (left.name ?? '').localeCompare(right.name ?? '')),
+    [applications],
+  );
 
   function toggleSelect(id: number, repo: GitHubRepoDto) {
     if (isImported(repo)) return;
@@ -132,7 +134,16 @@ export function GitHubImportPage() {
     });
   }
 
-  async function handleImportSelection() {
+  useEffect(() => {
+    if (groupName === null) return;
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setGroupName(null);
+    }
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [groupName]);
+
+  async function handleImportSelection(confirmedName?: string) {
     setSuccessMessage(null);
     setAiBanner(null);
     setImportErrors([]);
@@ -144,31 +155,74 @@ export function GitHubImportPage() {
 
     const errors: string[] = [];
     const createdNames: string[] = [];
+    const target = importedApplications.find((application) => application.id === targetApplicationId);
+
+    if (!target && toCreate.length > 1 && confirmedName === undefined) {
+      setNameError(null);
+      setGroupName('');
+      return;
+    }
 
     try {
       setIsImporting(true);
-      for (const repo of toCreate) {
+      if (target) {
+        try {
+          const updated = await updateApplicationById(target.id, {
+            name: target.name,
+            description: descriptionWithAdditionalGitHubRepos(target.description, toCreate),
+          });
+          setApplications((prev) => prev.map((application) => (application.id === updated.id ? updated : application)));
+          createdNames.push(normalizeName(target.name));
+          await rescanApplication(updated.id, errors);
+          setSuccessMessage(
+            errors.length === 0
+              ? `Added ${toCreate.length} repository(ies) to ${target.name}. The scan is running again on every linked repository.`
+              : `Added ${toCreate.length} repository(ies) to ${target.name}.`
+          );
+        } catch (e) {
+          errors.push(`${target.name}: ${e instanceof Error ? e.message : 'failed'}`);
+        }
+      } else if (toCreate.length > 1) {
+        const name = confirmedName?.trim() ?? '';
         try {
           const created = await createApplication({
-            name: applicationNameForGitHubRepo(repo.name),
-            description: applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
+            name,
+            description: applicationDescriptionForGitHubRepos(toCreate),
           });
           setApplications((prev) => [...prev, created]);
-          createdNames.push(normalizeName(applicationNameForGitHubRepo(repo.name)));
-          // Fire-and-forget: async functional doc generation (poll on module view).
+          createdNames.push(normalizeName(name));
           void generateFunctionalDocumentation(created.id).catch(() => {
             /* import succeeds even if doc generation fails to start */
           });
         } catch (e) {
-          errors.push(`${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`);
+          errors.push(`${name}: ${e instanceof Error ? e.message : 'failed'}`);
+        }
+      } else {
+        for (const repo of toCreate) {
+          try {
+            const created = await createApplication({
+              name: applicationNameForGitHubRepo(repo.name),
+              description: applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
+            });
+            setApplications((prev) => [...prev, created]);
+            createdNames.push(normalizeName(applicationNameForGitHubRepo(repo.name)));
+            void generateFunctionalDocumentation(created.id).catch(() => {
+              /* import succeeds even if doc generation fails to start */
+            });
+          } catch (e) {
+            errors.push(`${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`);
+          }
         }
       }
 
       if (createdNames.length > 0) {
         setSelected(new Set());
-        setSuccessMessage(
-          `${createdNames.length} application(s) created. Open the map to see the updated graph.`
-        );
+        setGroupName(null);
+        if (!target) {
+          setSuccessMessage(
+            `${createdNames.length} application(s) created. Open the map to see the updated graph.`
+          );
+        }
       }
       setImportErrors(errors);
     } finally {
@@ -176,13 +230,26 @@ export function GitHubImportPage() {
     }
   }
 
+  async function rescanApplication(applicationId: string, errors: string[]) {
+    try {
+      await generateFunctionalDocumentation(applicationId);
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : 'Functional documentation failed to start.');
+    }
+    try {
+      await suggestModulesFromGithub(applicationId, { replaceExisting: true });
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : 'Module scan failed.');
+    }
+    try {
+      await suggestConnectionsFromGithub(applicationId);
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : 'Scan connections and attributes failed.');
+    }
+  }
+
   function applicationForRepo(repo: GitHubRepoDto): ApplicationResponse | undefined {
-    const shortName = normalizeName(applicationNameForGitHubRepo(repo.name));
-    const fullName = normalizeName(repo.fullName);
-    return applications.find((application) => {
-      const name = normalizeName(application.name ?? '');
-      return name === shortName || name === fullName;
-    });
+    return applications.find((application) => applicationMatchesGitHubRepo(application, repo));
   }
 
   function resolveApplicationId(repo: GitHubRepoDto): string | undefined {
@@ -355,15 +422,20 @@ export function GitHubImportPage() {
         </label>
         <select
           className="github-import-filters"
-          value={listFilter}
-          aria-label="Filters"
-          onChange={(event) => setListFilter(event.target.value as RepoListFilter)}
+          value={targetApplicationId}
+          aria-label="Application"
+          disabled={isImporting || status !== 'ready'}
+          onChange={(event) => {
+            setTargetApplicationId(event.target.value);
+            setGroupName(null);
+          }}
         >
-          <option value="all">All</option>
-          <option value="private">Private</option>
-          <option value="public">Public</option>
-          <option value="imported">Already imported</option>
-          <option value="not-imported">Not imported</option>
+          <option value="">Create New</option>
+          {importedApplications.map((application) => (
+            <option key={application.id} value={application.id}>
+              {application.name}
+            </option>
+          ))}
         </select>
         <button
           type="button"
@@ -379,6 +451,65 @@ export function GitHubImportPage() {
         <span>{filteredRepos.length} repositories</span>
         <span>{selected.size} selected</span>
       </p>
+      {groupName !== null && targetApplicationId === '' ? (
+        <div
+          className="save-snapshot-dialog-backdrop"
+          role="presentation"
+          onClick={() => setGroupName(null)}
+        >
+          <form
+            className="save-snapshot-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="github-import-name-title"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event: FormEvent) => {
+              event.preventDefault();
+              const name = groupName.trim();
+              if (!name) {
+                setNameError('Name the application that owns these repositories.');
+                return;
+              }
+              setGroupName(null);
+              setNameError(null);
+              void handleImportSelection(name);
+            }}
+          >
+            <h2 id="github-import-name-title" className="save-snapshot-dialog-title">
+              Application name
+            </h2>
+            <p className="save-snapshot-dialog-hint">
+              Name the application that owns these repositories.
+            </p>
+            <label className="save-snapshot-dialog-label" htmlFor="github-import-name">
+              Name
+            </label>
+            <input
+              id="github-import-name"
+              className="save-snapshot-dialog-input"
+              value={groupName}
+              onChange={(event) => setGroupName(event.target.value)}
+              placeholder="Application name"
+              aria-label="Application name"
+              disabled={isImporting}
+              autoFocus
+            />
+            {nameError ? <p className="save-snapshot-dialog-error">{nameError}</p> : null}
+            <div className="save-snapshot-dialog-actions">
+              <button
+                type="button"
+                className="save-snapshot-dialog-btn save-snapshot-dialog-btn--secondary"
+                onClick={() => setGroupName(null)}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="save-snapshot-dialog-btn save-snapshot-dialog-btn--primary">
+                Import
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
 
       {status === 'loading' && (
         <p className="github-import-state" role="status">

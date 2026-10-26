@@ -99,6 +99,66 @@ public class ModuleDiscoveryAgent {
     return new DiscoveryResult(payload, analyzedFiles, tools.getObservedFiles());
   }
 
+  /** One scan over every repository folder of a grouped application. */
+  public DiscoveryResult discoverAll(Path workspace, List<String> fullNames) {
+    if (!MultiRepoPrompt.isGrouped(fullNames)) {
+      String fullName = fullNames.get(0);
+      int slash = fullName.indexOf('/');
+      return discover(workspace, fullName.substring(0, slash), fullName.substring(slash + 1));
+    }
+    ModuleDiscoveryTools tools =
+        new ModuleDiscoveryTools(
+            workspace,
+            properties.maxGrepHits(),
+            properties.maxReadCharsPerFile(),
+            properties.maxTreeEntries());
+    int budget =
+        MultiRepoPrompt.budget(
+            properties.maxToolIterations(), fullNames.size(), MultiRepoPrompt.MODULE_CALL_CAP);
+    String userMessage =
+        """
+        %s
+        Explore every folder before concluding:
+        - Start with listTree("") and then list each repository folder.
+        - readFile the README inside each folder.
+        - Use grep to locate manifests, entry points, domain packages and feature folders.
+        Module ids must be unique. When two folders would use the same id, prefix that id with the folder name.
+        Be efficient: aim for at most %d tool calls in total.
+
+        Then return the final JSON describing the business modules and their
+        structural_contains relationships, following the required schema exactly.
+        """
+            .formatted(MultiRepoPrompt.folderList(fullNames), budget);
+    log.info("Module discovery agent start repos={}", fullNames);
+    AiModuleSuggestionPayload payload;
+    try {
+      payload =
+          chatClient
+              .prompt()
+              .system(systemPrompt)
+              .user(userMessage)
+              .tools(tools)
+              .call()
+              .entity(AiModuleSuggestionPayload.class);
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_GATEWAY, "Échec de l'agent LLM: " + e.getMessage(), e);
+    }
+    if (payload == null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Réponse IA vide ou schéma illisible.");
+    }
+    List<String> analyzedFiles = tools.getAnalyzedFiles();
+    log.info(
+        "Module discovery agent done repos={} modules={} analyzedFiles={}",
+        fullNames,
+        payload.getModules().size(),
+        analyzedFiles.size());
+    return new DiscoveryResult(payload, analyzedFiles, tools.getObservedFiles());
+  }
+
   /**
    * Reads one stored document. There is no repository and no tool loop. {@code source_files} must be
    * verbatim excerpts of {@code documentBody}.
