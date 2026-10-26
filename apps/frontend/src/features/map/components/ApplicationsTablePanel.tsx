@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from 'react';
-import type { ApplicationResponse, GraphNodeDto, NodeRefSummary } from '@/types/api';
+import type { ApplicationResponse, GraphNodeDto } from '@/types/api';
 import { storedAttributeText } from '../utils/attributeValue';
 import { isSandboxId } from '../utils/sandboxGraph';
 import type { TableGrid } from '../utils/tableFile';
-import type { TableColumnDef } from '../utils/tableColumns';
+import { textForNodeRefColumn, type TableColumnDef } from '../utils/tableColumns';
 
 type ApplicationsTablePanelProps = {
   isOpen: boolean;
@@ -20,14 +20,6 @@ type ApplicationsTablePanelProps = {
 function dash(value: unknown): string {
   const t = typeof value === 'string' ? value.trim() : storedAttributeText(value);
   return t ? t : '—';
-}
-
-function formatNodeRefs(refs: NodeRefSummary[] | undefined): string {
-  if (!refs || refs.length === 0) return '';
-  return refs
-    .map((r) => r.name?.trim() || r.value?.trim() || r.id)
-    .filter(Boolean)
-    .join(', ');
 }
 
 export function ApplicationsTablePanel({
@@ -59,7 +51,8 @@ export function ApplicationsTablePanel({
           name: n.label || n.id,
           description: n.description ?? detail?.description,
           attributes: n.properties ?? detail?.nodeAttributes ?? {},
-          nodeRefs: detail?.nodeRefs ?? {},
+          graphRefs: n.nodeRefs ?? {},
+          catalogRefs: detail?.nodeRefs ?? {},
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
@@ -83,7 +76,7 @@ export function ApplicationsTablePanel({
       return '—';
     }
     if (column.filterKind === 'NODE_REF') {
-      return dash(formatNodeRefs(row.nodeRefs[column.key]));
+      return dash(textForNodeRefColumn(row.graphRefs[column.key], row.catalogRefs[column.key]));
     }
     return dash(row.attributes[column.key]);
   }

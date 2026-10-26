@@ -161,3 +161,16 @@ export function showColumn(
   if (!catalog.some((c) => c.id === columnId)) return displayIds;
   return [...displayIds, columnId];
 }
+
+/** Graph names win. The application list does not include catalogue references. */
+export function textForNodeRefColumn(
+  graphNames: readonly string[] | undefined,
+  catalogRefs: readonly { name?: string | null; value?: string | null; id?: string | null }[] | undefined,
+): string {
+  const fromGraph = (graphNames ?? []).map((name) => name.trim()).filter(Boolean);
+  if (fromGraph.length > 0) return fromGraph.join(', ');
+  return (catalogRefs ?? [])
+    .map((ref) => (ref.name ?? '').trim() || (ref.value ?? '').trim() || (ref.id ?? '').trim())
+    .filter(Boolean)
+    .join(', ');
+}

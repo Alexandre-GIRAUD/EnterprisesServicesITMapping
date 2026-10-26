@@ -10,6 +10,7 @@ import {
   moveColumnInDisplay,
   reconcileDisplayColumnIds,
   showColumn,
+  textForNodeRefColumn,
 } from './tableColumns.ts';
 import type { GraphNodeFilterDto } from '../../../types/api.ts';
 
@@ -67,5 +68,11 @@ display = showColumn(display, apps, 'structural:description');
 assert.equal(display.at(-1), 'structural:description');
 display = moveColumnInDisplay(display, 'attr:tier', 0);
 assert.equal(display[0], 'attr:tier');
+
+assert.equal(textForNodeRefColumn(['Payments', ' Risk '], undefined), 'Payments, Risk');
+assert.equal(
+  textForNodeRefColumn(undefined, [{ id: 'r1', name: 'Payments' }]),
+  'Payments',
+);
 
 console.log('tableColumns.check: ok');
