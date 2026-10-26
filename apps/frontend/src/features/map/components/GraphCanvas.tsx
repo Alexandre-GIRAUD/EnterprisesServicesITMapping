@@ -266,11 +266,7 @@ export function GraphCanvas() {
 
 
   const mode = useGraphMode({
-    setMessage,
     setIsDrawerOpen: setWorkspacePanelOpen,
-    setIsFilterDrawerOpen: setFilterPanelOpen,
-    setIsDetailsDrawerOpen,
-    setIsEdgeDetailsDrawerOpen,
     reloadGraph,
   });
   const { graphMode, sandboxDirty, graphModeRef, isSandbox, isViewsMode } = mode;

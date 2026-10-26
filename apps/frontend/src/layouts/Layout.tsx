@@ -18,7 +18,6 @@ type NavigationItem = {
   to: string;
   icon: NavigationIconName;
   isEnd?: boolean;
-  state?: MapLocationState;
 };
 
 const NAVIGATION_ITEMS: NavigationItem[] = [
@@ -79,7 +78,6 @@ function LayoutShell() {
                     <NavLink
                       to={item.to}
                       end={item.isEnd}
-                      state={item.state}
                       className={navigationLinkClassName}
                     >
                       <NavigationIcon name={item.icon} />
