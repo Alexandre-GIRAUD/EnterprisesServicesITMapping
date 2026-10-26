@@ -30,7 +30,49 @@ export const NODE_TYPE_STYLES: Record<NodeTypeKey, NodeTypeStyle> = {
 };
 
 const NEUTRAL_NODE_COLOR = '#52525b';
-const NEUTRAL_EDGE_COLOR = '#64748b';
+const NEUTRAL_EDGE_COLOR = '#334155';
+
+/** ponytail: 8 fixed slots, a 9th value reuses one. Add slots if legends regularly exceed 8. */
+export const PASTEL_NODE_PALETTE = [
+  '#f8b4b4',
+  '#7ed8cc',
+  '#c8b6f8',
+  '#e6ee7a',
+  '#9ec8f8',
+  '#b6e8a0',
+  '#f8c48a',
+  '#f6c6f4',
+] as const;
+
+/** Distinct darks, same slot order as the node pastels. */
+export const DARK_EDGE_PALETTE = [
+  '#991b1b',
+  '#0f766e',
+  '#6d28d9',
+  '#854d0e',
+  '#1e3a8a',
+  '#3f6212',
+  '#c2410c',
+  '#44403c',
+] as const;
+
+function colorSlot(text: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  hash ^= hash >>> 16;
+  return (hash >>> 0) % PASTEL_NODE_PALETTE.length;
+}
+
+export function pastelNodeColor(text: string): string {
+  return PASTEL_NODE_PALETTE[colorSlot(text)];
+}
+
+export function darkEdgeColor(text: string): string {
+  return DARK_EDGE_PALETTE[colorSlot(text)];
+}
 
 /** Border/identity color for a node relation type (neutral fallback). */
 export function nodeColorForType(type: string): string {
@@ -49,20 +91,12 @@ export const ZOOM_THRESHOLDS = {
 } as const;
 
 export const EDGE_TYPE_STYLES: Record<EdgeTypeKey, EdgeTypeStyle> = {
-  DEPENDS_ON: { legendLabel: 'Dependency', color: '#64748b' },
-  CONTAINS: { legendLabel: 'Composition', color: '#0284c7', dashed: true },
+  DEPENDS_ON: { legendLabel: 'Dependency', color: '#1e3a8a' },
+  CONTAINS: { legendLabel: 'Composition', color: '#c2410c', dashed: true },
 };
 
 function edgeStyleEntry(type: string): EdgeTypeStyle | undefined {
   return (EDGE_TYPE_STYLES as Record<string, EdgeTypeStyle | undefined>)[type];
-}
-
-function hashColor(text: string): string {
-  let h = 0;
-  for (let i = 0; i < text.length; i++) {
-    h = (Math.imul(31, h) + text.charCodeAt(i)) >>> 0;
-  }
-  return `hsl(${h % 360} 52% 42%)`;
 }
 
 /** Resolve stroke color from a property value, else relation type. */
@@ -78,7 +112,7 @@ export function edgeColorForProperty(
   if (!key) {
     return edgeColorForType(relationType);
   }
-  return hashColor(`${propertyKey}:${key}`);
+  return darkEdgeColor(`${propertyKey}:${key}`);
 }
 
 export function edgeDashedForRelation(relationType: string): boolean {
