@@ -245,7 +245,7 @@ export function GitHubImportPage() {
     } catch (e) {
       setAiBanner({
         tone: 'err',
-        text: e instanceof Error ? e.message : 'AI connection suggestion failed.',
+        text: e instanceof Error ? e.message : 'Scan connections and attributes failed.',
       });
     } finally {
       setConnBusyRepoId(null);
@@ -490,8 +490,8 @@ export function GitHubImportPage() {
                         onClick={() => void handleSuggestConnections(repo)}
                       >
                         {connBusyRepoId === repo.id
-                          ? 'Suggesting connections…'
-                          : 'Suggest connections (AI)'}
+                          ? 'Scanning connections and attributes…'
+                          : 'Scan connections and attributes'}
                       </button>
                       <button
                         type="button"

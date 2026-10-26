@@ -7,7 +7,7 @@ spring:
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
       chat:
         options:
-          model: ${SPRING_AI_MODEL:gpt-4o-mini}
+          model: ${SPRING_AI_MODEL:gpt-4o}
           temperature: 0.2
       embedding:
         options:

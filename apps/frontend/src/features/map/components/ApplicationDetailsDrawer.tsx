@@ -457,7 +457,7 @@ export function ApplicationDetailsDrawer({
       );
       setDetails(await fetchApplicationById(id));
     } catch (e) {
-      setConnErrorMessage(e instanceof Error ? e.message : 'AI connection suggestion failed.');
+      setConnErrorMessage(e instanceof Error ? e.message : 'Scan connections and attributes failed.');
     } finally {
       setConnBusy(false);
     }
@@ -908,7 +908,7 @@ export function ApplicationDetailsDrawer({
               onClick={() => void onSuggestConnectionsFromGithub()}
             >
               <span className="graph-drawer-action-title">
-                {connBusy ? 'Analyse des connexions…' : 'Suggérer les connexions (IA)'}
+                {connBusy ? 'Scanning connections and attributes…' : 'Scan connections and attributes'}
               </span>
             </button>
           )}

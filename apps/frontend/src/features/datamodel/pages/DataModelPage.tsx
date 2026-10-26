@@ -246,7 +246,7 @@ export function DataModelPage() {
       <div className="data-model-fields">
         {surfaceRows.length === 0 ? (
           <div className="data-model-banner" role="status">
-            No attributes yet. Connection suggestion discovers technical topology only (peer, direction,
+            No attributes yet. Scan connections and attributes discovers technical topology only (peer, direction,
             connection_kind, channel).
           </div>
         ) : null}
