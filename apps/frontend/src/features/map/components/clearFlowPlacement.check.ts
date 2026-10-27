@@ -215,33 +215,33 @@ const isAnyRouteHorizontal = [...sideBySide.routes.values()].some(
 );
 assert.equal(isAnyRouteHorizontal, true);
 
-const LARGE_MAP_APPLICATION_COUNT = 80;
 const RANDOM_MULTIPLIER = 1103515245;
 const RANDOM_INCREMENT = 12345;
 const RANDOM_MODULUS = 2147483648;
-const SPARSE_MAPS = [
-  { seed: 7, flowCount: 85 },
-  { seed: 3, flowCount: 80 },
-  { seed: 8, flowCount: 80 },
-  { seed: 12, flowCount: 80 },
+const SEEDED_MAPS = [
+  { seed: 7, applicationCount: 80, flowCount: 85 },
+  { seed: 3, applicationCount: 80, flowCount: 80 },
+  { seed: 8, applicationCount: 80, flowCount: 80 },
+  { seed: 12, applicationCount: 80, flowCount: 80 },
+  { seed: 5, applicationCount: 300, flowCount: 450 },
 ];
 
-function placeSeededMap(map: { seed: number; flowCount: number }) {
+function placeSeededMap(map: { seed: number; applicationCount: number; flowCount: number }) {
   let randomState = map.seed;
   const drawRandomIndex = (count: number) => {
     randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) % RANDOM_MODULUS;
     return Math.floor((randomState / RANDOM_MODULUS) * count);
   };
-  const ids = Array.from({ length: LARGE_MAP_APPLICATION_COUNT }, (_, index) => `n${index}`);
+  const ids = Array.from({ length: map.applicationCount }, (_, index) => `n${index}`);
   const flows = Array.from({ length: map.flowCount }, (_, index) => ({
     id: `e${index}`,
-    source: `n${drawRandomIndex(LARGE_MAP_APPLICATION_COUNT)}`,
-    target: `n${drawRandomIndex(LARGE_MAP_APPLICATION_COUNT)}`,
+    source: `n${drawRandomIndex(map.applicationCount)}`,
+    target: `n${drawRandomIndex(map.applicationCount)}`,
   })).filter((flow) => flow.source !== flow.target);
   return placeClearFlows(buildNodes(ids), flows);
 }
 
-for (const map of SPARSE_MAPS) {
+for (const map of SEEDED_MAPS) {
   const largeMap = placeSeededMap(map);
   for (const points of largeMap.routes.values()) {
     assert.equal(isOrthogonal(points), true);
