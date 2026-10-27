@@ -4482,8 +4482,6 @@ body.is-diagram-grown .layout {
 
 .sandbox-shared-legend .graph-legend {
   pointer-events: auto;
-  max-height: min(70vh, 28rem);
-  overflow: auto;
 }
 
 .sandbox-icon-node {
@@ -6098,13 +6096,31 @@ body.is-diagram-grown .layout {
   box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
   pointer-events: auto;
   user-select: none;
-  max-width: min(16.5rem, 42vw);
+  position: absolute;
+  box-sizing: border-box;
+  resize: both;
+  overflow: auto;
+  min-width: 8rem;
+  min-height: 5rem;
+  max-width: none;
+  max-height: none;
 }
 
-.graph-legend.is-editing {
-  max-width: min(18.5rem, 48vw);
-  max-height: min(78vh, 36rem);
-  overflow-y: auto;
+.graph-legend.is-concealed {
+  resize: none;
+  overflow: visible;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.35rem;
+  cursor: grab;
+}
+
+.graph-legend__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .graph-legend__header {
@@ -6112,6 +6128,12 @@ body.is-diagram-grown .layout {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+  cursor: grab;
+  touch-action: none;
+}
+
+.graph-legend__header:active {
+  cursor: grabbing;
 }
 
 .graph-legend__heading {
@@ -6346,6 +6368,12 @@ body.is-diagram-grown .layout {
   gap: 0.25rem;
 }
 
+.graph-legend[data-layout='row'] .graph-legend__list {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .graph-legend__item {
   display: flex;
   align-items: center;
@@ -6353,7 +6381,7 @@ body.is-diagram-grown .layout {
 }
 
 .graph-legend__label {
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--legend-font-scale, 1));
   color: #334155;
 }
 
