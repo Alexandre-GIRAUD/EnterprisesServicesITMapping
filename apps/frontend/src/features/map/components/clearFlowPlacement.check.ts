@@ -8,6 +8,11 @@ import { placeClearFlows, type FlowPoint } from './clearFlowPlacement.ts';
 const nodeSize = { width: 160, height: 48 };
 
 const POINT_MATCH_DISTANCE = 0.5;
+const MINIMUM_ROUTE_POINTS = 2;
+const MAXIMUM_BENDS = 1;
+const NO_BEND = 0;
+const NO_CROSSING = 0;
+const NO_HOP_POINTS = 0;
 
 function buildNodes(ids: string[]) {
   return ids.map((id) => ({ id, ...nodeSize }));
@@ -21,7 +26,7 @@ function isOrthogonal(points: FlowPoint[]): boolean {
     const isVertical = Math.abs(previous.x - current.x) < POINT_MATCH_DISTANCE;
     if (!isHorizontal && !isVertical) return false;
   }
-  return points.length >= 2;
+  return points.length >= MINIMUM_ROUTE_POINTS;
 }
 
 function countBends(points: FlowPoint[]): number {
@@ -109,11 +114,11 @@ function countCrossings(routes: Map<string, FlowPoint[]>): number {
 function assertClear(routes: Map<string, FlowPoint[]>, hops: Map<string, FlowPoint[]>) {
   for (const points of routes.values()) {
     assert.equal(isOrthogonal(points), true);
-    assert.ok(countBends(points) <= 1);
+    assert.ok(countBends(points) <= MAXIMUM_BENDS);
   }
   assert.equal(hasSharedStretch(routes), false);
-  assert.equal(countCrossings(routes), 0);
-  assert.equal([...hops.values()].every((points) => points.length === 0), true);
+  assert.equal(countCrossings(routes), NO_CROSSING);
+  assert.equal([...hops.values()].every((points) => points.length === NO_HOP_POINTS), true);
 }
 
 const chain = placeClearFlows(buildNodes(['a', 'b', 'c']), [
@@ -128,8 +133,8 @@ assert.ok(top && middle && bottom);
 assert.ok(middle.y >= top.y + nodeSize.height);
 assert.ok(bottom.y >= middle.y + nodeSize.height);
 assert.equal(Math.abs(top.x - middle.x) < POINT_MATCH_DISTANCE, true);
-assert.equal(countBends(chain.routes.get('ab') ?? []), 0);
-assert.equal(countBends(chain.routes.get('bc') ?? []), 0);
+assert.equal(countBends(chain.routes.get('ab') ?? []), NO_BEND);
+assert.equal(countBends(chain.routes.get('bc') ?? []), NO_BEND);
 
 const crossed = placeClearFlows(buildNodes(['a', 'b', 'c', 'd']), [
   { id: 'ad', source: 'a', target: 'd' },
@@ -166,11 +171,11 @@ const forced = placeClearFlows(
 );
 for (const points of forced.routes.values()) {
   assert.equal(isOrthogonal(points), true);
-  assert.ok(countBends(points) <= 1);
+  assert.ok(countBends(points) <= MAXIMUM_BENDS);
 }
 assert.equal(hasSharedStretch(forced.routes), false);
-assert.ok(countCrossings(forced.routes) > 0);
-assert.ok([...forced.hops.values()].some((points) => points.length > 0));
+assert.ok(countCrossings(forced.routes) > NO_CROSSING);
+assert.ok([...forced.hops.values()].some((points) => points.length > NO_HOP_POINTS));
 
 const bothWays = placeClearFlows(buildNodes(['a', 'b']), [
   { id: 'down', source: 'a', target: 'b' },
@@ -208,6 +213,17 @@ const rectangle = placeClearFlows(buildNodes(['a', 'b', 'c', 'd']), [
   { id: 'cb', source: 'c', target: 'b' },
 ]);
 assertClear(rectangle.routes, rectangle.hops);
+
+const sideBySide = placeClearFlows(buildNodes(['a', 'b', 'c']), [
+  { id: 'ab', source: 'a', target: 'b' },
+  { id: 'ac', source: 'a', target: 'c' },
+]);
+assertClear(sideBySide.routes, sideBySide.hops);
+for (const points of sideBySide.routes.values()) assert.equal(countBends(points), NO_BEND);
+const isAnyRouteHorizontal = [...sideBySide.routes.values()].some(
+  (points) => Math.abs(points[0].y - points[points.length - 1].y) < POINT_MATCH_DISTANCE,
+);
+assert.equal(isAnyRouteHorizontal, true);
 
 function hasSamePoint(left: FlowPoint, right: FlowPoint): boolean {
   return Math.abs(left.x - right.x) < POINT_MATCH_DISTANCE && Math.abs(left.y - right.y) < POINT_MATCH_DISTANCE;
