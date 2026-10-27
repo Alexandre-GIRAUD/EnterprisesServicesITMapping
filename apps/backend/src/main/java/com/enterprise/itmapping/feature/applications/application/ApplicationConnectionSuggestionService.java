@@ -2,6 +2,8 @@ package com.enterprise.itmapping.feature.applications.application;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery.CatalogRow;
 import com.enterprise.itmapping.feature.applications.application.ConnectionDiscoveryAgent.DiscoveryResult;
+import com.enterprise.itmapping.feature.applications.application.dto.AiApplicationConnectionPayload;
+import com.enterprise.itmapping.feature.changedetection.application.DetectedChangeDrafts.ProposedConnection;
 import com.enterprise.itmapping.feature.applications.application.dto.AiApplicationConnectionPayload.AiConnectionEntry;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationGraphNodeProjection;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
@@ -255,6 +257,116 @@ public class ApplicationConnectionSuggestionService {
         dataModelConfig,
         document.body(),
         List.of());
+  }
+
+  /**
+   * Reads a commit diff and returns catalogue connections it names. Nothing is written.
+   */
+  public List<ProposedConnection> proposeFromDiff(String applicationId, String diffText) {
+    if (!StringUtils.hasText(diffText)) {
+      return List.of();
+    }
+    ApplicationGraphNodeProjection appRow = requireApplication(applicationId);
+    Catalog catalog = loadCatalog(applicationId);
+    if (catalog.entries().isEmpty()) {
+      return List.of();
+    }
+    DataModelConfig dataModelConfig = dataModelService.loadConfig();
+    String dataModelPromptSection =
+        dataModelConfig.hasAutomaticFields()
+            ? dataModelPromptBuilder.buildPromptSection(dataModelConfig)
+            : "";
+    String sourceName = StringUtils.hasText(appRow.getName()) ? appRow.getName() : applicationId;
+    DiscoveryResult discovery =
+        connectionDiscoveryAgent.discoverFromDocument(
+            sourceName,
+            "commit diff",
+            diffText,
+            catalog.promptText(properties.maxCatalogAppsInPrompt()),
+            dataModelPromptSection);
+    List<ProposedConnection> proposed = new ArrayList<>();
+    for (AiConnectionEntry entry : discovery.payload().getConnections()) {
+      ProposedConnection connection = proposedConnection(applicationId, catalog, entry);
+      if (connection != null) {
+        proposed.add(connection);
+      }
+    }
+    return List.copyOf(proposed);
+  }
+
+  /** Drops a proposal that matches a stored flow, or that would only fill in an existing one. */
+  public List<ProposedConnection> onlyNewFlows(
+      String applicationId, List<ProposedConnection> proposed) {
+    if (proposed == null || proposed.isEmpty()) {
+      return List.of();
+    }
+    Catalog catalog = loadCatalog(applicationId);
+    Set<String> allowedEdgeKeys =
+        dataModelAttributeResolver.allowedKeys(
+            dataModelService.loadConfig(), DataModelTarget.EDGE);
+    List<ProposedConnection> fresh = new ArrayList<>();
+    for (ProposedConnection connection : proposed) {
+      String peerId = catalog.nameToId().get(normalizeName(connection.peerName()));
+      if (peerId == null) {
+        continue;
+      }
+      boolean outbound = "outbound".equalsIgnoreCase(connection.direction());
+      String sourceId = outbound ? applicationId : peerId;
+      String targetId = outbound ? peerId : applicationId;
+      if (edgeWriter.isNewFlow(sourceId, targetId, connection.edgeAttributes(), allowedEdgeKeys)) {
+        fresh.add(connection);
+      }
+    }
+    return List.copyOf(fresh);
+  }
+
+  /** Writes one connection already deduced from a diff. Does not clone or call the model again. */
+  public void applyProposedConnection(
+      String applicationId,
+      String peerName,
+      String direction,
+      Map<String, Object> edgeAttributes) {
+    AiConnectionEntry entry = new AiConnectionEntry();
+    entry.setPeerApplicationName(peerName);
+    entry.setDirection(direction);
+    entry.setEdgeAttributes(edgeAttributes != null ? edgeAttributes : Map.of());
+    AiApplicationConnectionPayload payload = new AiApplicationConnectionPayload();
+    payload.setConnections(List.of(entry));
+    DiscoveryResult discovery = new DiscoveryResult(payload, List.of(), List.of());
+    SuggestConnectionsFromGithubResponse response =
+        persist(
+            applicationId,
+            "change-detection",
+            loadCatalog(applicationId),
+            discovery,
+            dataModelService.loadConfig(),
+            null,
+            List.of());
+    if (response.created().isEmpty()) {
+      String reason =
+          response.skipped().isEmpty()
+              ? "not written"
+              : response.skipped().get(0).reason() + " " + response.skipped().get(0).detail();
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Connection was not written: " + reason);
+    }
+  }
+
+  private ProposedConnection proposedConnection(
+      String applicationId, Catalog catalog, AiConnectionEntry entry) {
+    String peerName = entry.getPeerApplicationName();
+    String direction = entry.getDirection();
+    if (!StringUtils.hasText(peerName) || !ALLOWED_DIRECTIONS.contains(direction)) {
+      return null;
+    }
+    String key = normalizeName(peerName);
+    if (catalog.ambiguousNames().contains(key)) {
+      return null;
+    }
+    String peerId = catalog.nameToId().get(key);
+    if (peerId == null || peerId.equals(applicationId)) {
+      return null;
+    }
+    return new ProposedConnection(peerName, direction, entry.getEdgeAttributes());
   }
 
   private ApplicationGraphNodeProjection requireApplication(String applicationId) {

@@ -31,9 +31,21 @@ export function resolveAppName(
   return nameById[id] ?? id.slice(0, 8);
 }
 
+function catalogueName(
+  peerName: string,
+  nameById: Map<string, string> | Record<string, string>
+): string {
+  const wanted = peerName.trim().toLowerCase();
+  const names = nameById instanceof Map ? nameById.values() : Object.values(nameById);
+  for (const name of names) {
+    if (name.trim().toLowerCase() === wanted) return name.trim();
+  }
+  return peerName.trim();
+}
+
 /**
- * Source / destination labels from payload when present.
- * CONNECTION/MODULE today are generic — destination may be missing.
+ * Source and destination of a detected connection.
+ * Outbound: this application → the catalogue peer. Inbound: the peer → this application.
  */
 export function resolveSourceDest(
   run: ChangeDetectionRunDto,
@@ -41,6 +53,16 @@ export function resolveSourceDest(
   nameById: Map<string, string> | Record<string, string>
 ): { source: string; dest: string | null; destMissing: boolean } {
   const payload = item.payload ?? {};
+  const peerName = payloadString(payload, 'peerApplicationName');
+  const direction = payloadString(payload, 'direction')?.toLowerCase();
+  const appName = resolveAppName(run.applicationId, nameById);
+  if (peerName && (direction === 'outbound' || direction === 'inbound')) {
+    const peer = catalogueName(peerName, nameById);
+    if (direction === 'inbound') {
+      return { source: peer, dest: appName, destMissing: false };
+    }
+    return { source: appName, dest: peer, destMissing: false };
+  }
   const sourceFromPayload = payloadString(
     payload,
     'sourceName',
@@ -59,8 +81,7 @@ export function resolveSourceDest(
     'to',
     'targetApplicationName'
   );
-  const source =
-    sourceFromPayload ?? resolveAppName(run.applicationId, nameById);
+  const source = sourceFromPayload ?? appName;
   if (destFromPayload) {
     return { source, dest: destFromPayload, destMissing: false };
   }
