@@ -222,6 +222,8 @@ const RANDOM_MODULUS = 2147483648;
 const SPARSE_MAPS = [
   { seed: 7, flowCount: 85 },
   { seed: 3, flowCount: 80 },
+  { seed: 8, flowCount: 80 },
+  { seed: 12, flowCount: 80 },
 ];
 
 function placeSeededMap(map: { seed: number; flowCount: number }) {
