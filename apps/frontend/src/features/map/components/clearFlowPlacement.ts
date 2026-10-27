@@ -53,7 +53,7 @@ export function placeApplicationGraph<N extends Node>(
   nodes: N[],
   edges: Edge[],
   nodeSize: { width: number; height: number },
-): { nodes: N[]; routes: Map<string, FlowPoint[]> } {
+): { nodes: N[]; routes: Map<string, FlowPoint[]>; hops: Map<string, FlowPoint[]> } {
   const placed = placeClearFlows(
     nodes.map((node) => ({ id: node.id, width: node.width ?? nodeSize.width, height: node.height ?? nodeSize.height })),
     edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target })),
@@ -61,6 +61,7 @@ export function placeApplicationGraph<N extends Node>(
   return {
     nodes: nodes.map((node) => ({ ...node, position: placed.positions.get(node.id) ?? node.position })),
     routes: placed.routes,
+    hops: placed.hops,
   };
 }
 

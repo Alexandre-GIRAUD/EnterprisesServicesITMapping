@@ -17,7 +17,6 @@ import {
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import { fetchGraph } from '../api/graphApi';
 import { placeApplicationGraph } from '../components/clearFlowPlacement';
-import { computeBridges } from '../components/bridges';
 import {
   collectLegendColorValues,
   collectNodeLegendValues,
@@ -529,13 +528,12 @@ export function useGraphData({
         const builtEdges = shownEdges.map((e) =>
           buildAppEdge(e, typeById, nextColor, nextLabel, colors, hideEdgeLabelsRef.current)
         );
-        const { nodes: laidOut, routes } = placeApplicationGraph(baseNodes, builtEdges, {
+        const { nodes: laidOut, routes, hops } = placeApplicationGraph(baseNodes, builtEdges, {
           width: NODE_WIDTH,
           height: NODE_HEIGHT,
         });
-        const jumps = computeBridges(routes);
         setNodes(laidOut);
-        setEdges(builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id))));
+        setEdges(builtEdges.map((edge) => attachRoute(edge, routes.get(edge.id), hops.get(edge.id))));
 
         if (!isCancelled) setLayoutRevision((v) => v + 1);
 

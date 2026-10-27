@@ -8,7 +8,6 @@ import {
   type NodeCodingKeys,
 } from '../hooks/useGraphData';
 import type { LegendColorMaps } from './edgeColorProperty';
-import { computeBridges } from './bridges';
 import { projectCollapsedGraph } from './collapseGraph';
 import { placeApplicationGraph } from './clearFlowPlacement';
 import { attachRoute, buildOrientedEdge } from './orientedEdgeBuilders';
@@ -241,13 +240,12 @@ export async function layoutCollapsedAppGraph(params: {
     return { nodes: positioned, edges: builtEdges };
   }
 
-  const { nodes: laidOut, routes } = placeApplicationGraph(baseNodes, builtEdges, {
+  const { nodes: laidOut, routes, hops } = placeApplicationGraph(baseNodes, builtEdges, {
     width: NODE_WIDTH,
     height: NODE_HEIGHT,
   });
-  const jumps = computeBridges(routes);
   return {
     nodes: laidOut,
-    edges: builtEdges.map((edge) => attachRoute(edge, routes.get(edge.id), jumps.get(edge.id))),
+    edges: builtEdges.map((edge) => attachRoute(edge, routes.get(edge.id), hops.get(edge.id))),
   };
 }
