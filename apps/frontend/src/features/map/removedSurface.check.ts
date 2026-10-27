@@ -12,7 +12,7 @@ function readSourceFile(relativePath: string): string {
 const applicationsApi = readSourceFile('./api/applicationsApi.ts');
 const conflictsApi = readSourceFile('./api/overrideConflictsApi.ts');
 const importPage = readSourceFile('./pages/GitHubImportPage.tsx');
-const changeUi = readSourceFile('./utils/changeDetectionUi.ts');
+const changeDetectionUi = readSourceFile('./utils/changeDetectionUi.ts');
 const apiTypes = readSourceFile('../../types/api.ts');
 const canvas = readSourceFile('./components/GraphCanvas.tsx');
 const aboutPage = readSourceFile('../about/AboutPage.tsx');
@@ -22,7 +22,7 @@ assert.equal(applicationsApi.includes('suggestModulesFromDocument'), false);
 assert.equal(applicationsApi.includes('suggestConnectionsFromDocument'), false);
 assert.equal(conflictsApi.includes('fetchOverrideConflictPendingCount'), false);
 assert.equal(importPage.includes("get('github')"), false);
-assert.equal(changeUi.includes('EDGE_ATTRIBUTE'), false);
+assert.equal(changeDetectionUi.includes('EDGE_ATTRIBUTE'), false);
 assert.equal(apiTypes.includes('EDGE_ATTRIBUTE'), false);
 assert.equal(canvas.includes('exportPivotElement'), false);
 assert.equal(canvas.includes("from 'html-to-image'"), false);
