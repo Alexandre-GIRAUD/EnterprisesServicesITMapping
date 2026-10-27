@@ -225,6 +225,30 @@ const isAnyRouteHorizontal = [...sideBySide.routes.values()].some(
 );
 assert.equal(isAnyRouteHorizontal, true);
 
+const LARGE_MAP_APPLICATION_COUNT = 80;
+const LARGE_MAP_FLOW_COUNT = 85;
+const LARGE_MAP_SEED = 7;
+const RANDOM_MULTIPLIER = 1103515245;
+const RANDOM_INCREMENT = 12345;
+const RANDOM_MODULUS = 2147483648;
+let randomState = LARGE_MAP_SEED;
+function drawRandomIndex(count: number): number {
+  randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) % RANDOM_MODULUS;
+  return Math.floor((randomState / RANDOM_MODULUS) * count);
+}
+const largeMapIds = Array.from({ length: LARGE_MAP_APPLICATION_COUNT }, (_, index) => `n${index}`);
+const largeMapFlows = Array.from({ length: LARGE_MAP_FLOW_COUNT }, (_, index) => ({
+  id: `e${index}`,
+  source: `n${drawRandomIndex(LARGE_MAP_APPLICATION_COUNT)}`,
+  target: `n${drawRandomIndex(LARGE_MAP_APPLICATION_COUNT)}`,
+})).filter((flow) => flow.source !== flow.target);
+const largeMap = placeClearFlows(buildNodes(largeMapIds), largeMapFlows);
+for (const points of largeMap.routes.values()) {
+  assert.equal(isOrthogonal(points), true);
+  assert.ok(countBends(points) <= MAXIMUM_BENDS);
+}
+assert.equal(hasSharedStretch(largeMap.routes), false);
+
 function hasSamePoint(left: FlowPoint, right: FlowPoint): boolean {
   return Math.abs(left.x - right.x) < POINT_MATCH_DISTANCE && Math.abs(left.y - right.y) < POINT_MATCH_DISTANCE;
 }
