@@ -5,6 +5,8 @@ const COLUMN_GAP = 96;
 /** Gap between rows. Each application gets its own row so an elbow misses the other cards. */
 const ROW_GAP = 80;
 const PORT_MARGIN = 8;
+const ORDER_SWEEPS = 4;
+const POINT_MATCH_DISTANCE = 0.5;
 
 export type FlowPoint = { x: number; y: number };
 
@@ -92,7 +94,7 @@ function orderWithinRank(
   };
   writeIndexes();
 
-  for (let sweep = 0; sweep < 4; sweep += 1) {
+  for (let sweep = 0; sweep < ORDER_SWEEPS; sweep += 1) {
     const ranks = [...groups.keys()].sort((left, right) => (sweep % 2 === 0 ? left - right : right - left));
     for (const key of ranks) {
       const list = groups.get(key) ?? [];
@@ -129,42 +131,67 @@ function columnFromPredecessors(
   edges: readonly FlowPlacementEdge[],
   row: Map<string, number>,
 ): Map<string, number> {
-  const incoming = new Map<string, string[]>();
-  for (const id of ids) incoming.set(id, []);
-  for (const edge of edges) incoming.get(edge.target)?.push(edge.source);
+  const incoming = incomingByTarget(ids, edges);
   const column = new Map<string, number>();
   const sorted = [...ids].sort((left, right) => (row.get(left) ?? 0) - (row.get(right) ?? 0));
   let nextColumn = 0;
-
   for (const id of sorted) {
-    const predecessors = [...(incoming.get(id) ?? [])].sort(
-      (left, right) => (row.get(left) ?? 0) - (row.get(right) ?? 0),
-    );
-    let chosen: number | undefined;
-    for (const predecessor of predecessors) {
-      const candidate = column.get(predecessor);
-      if (candidate === undefined) continue;
-      if (columnIsOpen(candidate, row.get(predecessor) ?? 0, row.get(id) ?? 0, column, row)) {
-        chosen = candidate;
-        break;
-      }
-    }
+    const chosen = openPredecessorColumn(id, { incoming, row, column });
     if (chosen === undefined) {
-      chosen = nextColumn;
+      column.set(id, nextColumn);
       nextColumn += 1;
+    } else {
+      column.set(id, chosen);
     }
-    column.set(id, chosen);
   }
   return column;
 }
 
-function columnIsOpen(
-  columnIndex: number,
-  fromRow: number,
-  toRow: number,
-  column: Map<string, number>,
-  row: Map<string, number>,
-): boolean {
+function incomingByTarget(
+  ids: readonly string[],
+  edges: readonly FlowPlacementEdge[],
+): Map<string, string[]> {
+  const incoming = new Map<string, string[]>();
+  for (const id of ids) incoming.set(id, []);
+  for (const edge of edges) incoming.get(edge.target)?.push(edge.source);
+  return incoming;
+}
+
+function openPredecessorColumn(
+  id: string,
+  placement: {
+    incoming: Map<string, string[]>;
+    row: Map<string, number>;
+    column: Map<string, number>;
+  },
+): number | undefined {
+  const { incoming, row, column } = placement;
+  const predecessors = [...(incoming.get(id) ?? [])].sort(
+    (left, right) => (row.get(left) ?? 0) - (row.get(right) ?? 0),
+  );
+  for (const predecessor of predecessors) {
+    const candidate = column.get(predecessor);
+    if (candidate === undefined) continue;
+    const isOpen = columnIsOpen({
+      columnIndex: candidate,
+      fromRow: row.get(predecessor) ?? 0,
+      toRow: row.get(id) ?? 0,
+      column,
+      row,
+    });
+    if (isOpen) return candidate;
+  }
+  return undefined;
+}
+
+function columnIsOpen(span: {
+  columnIndex: number;
+  fromRow: number;
+  toRow: number;
+  column: Map<string, number>;
+  row: Map<string, number>;
+}): boolean {
+  const { columnIndex, fromRow, toRow, column, row } = span;
   const low = Math.min(fromRow, toRow);
   const high = Math.max(fromRow, toRow);
   for (const [id, placedColumn] of column) {
@@ -208,7 +235,10 @@ function routesFor(
     if (!source || !target) continue;
     const points = isStraightPair(edge, grid)
       ? verticalRoute(source, target, shiftX.get(edge.id) ?? 0)
-      : elbowRoute(source, target, exitY.get(edge.id) ?? 0, entryX.get(edge.id) ?? 0);
+      : elbowRoute(source, target, {
+          yShift: exitY.get(edge.id) ?? 0,
+          xShift: entryX.get(edge.id) ?? 0,
+        });
     routes.set(edge.id, simplify(points));
   }
   return routes;
@@ -216,13 +246,13 @@ function routesFor(
 
 function isStraightPair(edge: FlowPlacementEdge, grid: Grid): boolean {
   if ((grid.column.get(edge.source) ?? 0) !== (grid.column.get(edge.target) ?? 0)) return false;
-  return columnIsOpen(
-    grid.column.get(edge.source) ?? 0,
-    grid.row.get(edge.source) ?? 0,
-    grid.row.get(edge.target) ?? 0,
-    grid.column,
-    grid.row,
-  );
+  return columnIsOpen({
+    columnIndex: grid.column.get(edge.source) ?? 0,
+    fromRow: grid.row.get(edge.source) ?? 0,
+    toRow: grid.row.get(edge.target) ?? 0,
+    column: grid.column,
+    row: grid.row,
+  });
 }
 
 function shiftsByGroup(
@@ -265,7 +295,12 @@ function verticalRoute(source: Rect, target: Rect, shift: number): FlowPoint[] {
   ];
 }
 
-function elbowRoute(source: Rect, target: Rect, yShift: number, xShift: number): FlowPoint[] {
+function elbowRoute(
+  source: Rect,
+  target: Rect,
+  shifts: { yShift: number; xShift: number },
+): FlowPoint[] {
+  const { yShift, xShift } = shifts;
   const sourceY = clamp(source.y + source.height / 2 + yShift, source.y + PORT_MARGIN, source.y + source.height - PORT_MARGIN);
   const targetX = clamp(target.x + target.width / 2 + xShift, target.x + PORT_MARGIN, target.x + target.width - PORT_MARGIN);
   const targetIsRight = target.x + target.width / 2 >= source.x + source.width / 2;
@@ -285,7 +320,10 @@ function simplify(points: FlowPoint[]): FlowPoint[] {
   const result: FlowPoint[] = [];
   for (const point of points) {
     const previous = result[result.length - 1];
-    if (previous && Math.abs(previous.x - point.x) < 0.5 && Math.abs(previous.y - point.y) < 0.5) continue;
+    const samePoint = previous
+      && Math.abs(previous.x - point.x) < POINT_MATCH_DISTANCE
+      && Math.abs(previous.y - point.y) < POINT_MATCH_DISTANCE;
+    if (samePoint) continue;
     result.push(point);
   }
   return result;
