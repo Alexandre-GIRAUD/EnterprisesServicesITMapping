@@ -249,6 +249,42 @@ for (const points of largeMap.routes.values()) {
 }
 assert.equal(hasSharedStretch(largeMap.routes), false);
 
+const ISOLATED_APPLICATION_COUNT = 16;
+const COMPACT_SLACK = 3;
+const COMPACT_SIDE_IN_CARDS = Math.sqrt(ISOLATED_APPLICATION_COUNT) * COMPACT_SLACK;
+const isolatedIds = Array.from({ length: ISOLATED_APPLICATION_COUNT }, (_, index) => `alone${index}`);
+const isolated = placeClearFlows(buildNodes(isolatedIds), []);
+assert.equal(hasOverlappingCards(isolated.positions), false);
+const isolatedExtent = measureExtent(isolated.positions);
+assert.ok(isolatedExtent.width <= COMPACT_SIDE_IN_CARDS * nodeSize.width);
+assert.ok(isolatedExtent.height <= COMPACT_SIDE_IN_CARDS * nodeSize.height);
+
+const islands = placeClearFlows(buildNodes(['a', 'b', 'c', 'd', 'e']), [
+  { id: 'ab', source: 'a', target: 'b' },
+  { id: 'cd', source: 'c', target: 'd' },
+]);
+assertClear(islands.routes, islands.hops);
+assert.equal(hasOverlappingCards(islands.positions), false);
+
+function hasOverlappingCards(positions: Map<string, FlowPoint>): boolean {
+  const cards = [...positions.values()];
+  return cards.some((left, leftIndex) => cards.slice(leftIndex + 1).some((right) => {
+    const isOverlappingX = Math.abs(left.x - right.x) < nodeSize.width;
+    const isOverlappingY = Math.abs(left.y - right.y) < nodeSize.height;
+    return isOverlappingX && isOverlappingY;
+  }));
+}
+
+function measureExtent(positions: Map<string, FlowPoint>): { width: number; height: number } {
+  const cards = [...positions.values()];
+  const xs = cards.map((card) => card.x);
+  const ys = cards.map((card) => card.y);
+  return {
+    width: Math.max(...xs) - Math.min(...xs) + nodeSize.width,
+    height: Math.max(...ys) - Math.min(...ys) + nodeSize.height,
+  };
+}
+
 function hasSamePoint(left: FlowPoint, right: FlowPoint): boolean {
   return Math.abs(left.x - right.x) < POINT_MATCH_DISTANCE && Math.abs(left.y - right.y) < POINT_MATCH_DISTANCE;
 }
