@@ -984,22 +984,55 @@ body.is-diagram-grown .layout {
 }
 
 .mapping-chat-paragraph {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.65rem;
 }
 
 .mapping-chat-paragraph:last-child {
   margin-bottom: 0;
 }
 
+.mapping-chat-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  margin: 0.28rem 0;
+}
+
+.mapping-chat-line--text {
+  margin-bottom: 0.55rem;
+}
+
+.mapping-chat-line--section {
+  margin-top: 0.95rem;
+  font-weight: 700;
+}
+
+.mapping-chat-line--d1 {
+  padding-left: 1rem;
+}
+
+.mapping-chat-line--d2 {
+  padding-left: 2rem;
+}
+
+.mapping-chat-line--d3 {
+  padding-left: 3rem;
+}
+
+.mapping-chat-gap {
+  height: 0.45rem;
+}
+
 .mapping-chat-heading {
-  margin: 0.35rem 0 0.25rem;
+  margin: 0.85rem 0 0.35rem;
   font-size: 0.8rem;
   font-weight: 700;
   color: #334155;
 }
 
 .mapping-chat-list {
-  margin: 0.2rem 0 0.35rem;
+  margin: 0.35rem 0 0.55rem;
   padding-left: 1.1rem;
 }
 
@@ -1013,8 +1046,8 @@ body.is-diagram-grown .layout {
 .mapping-chat-citations {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
-  margin-top: 0.45rem;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
 }
 
 .mapping-chat-citation {
