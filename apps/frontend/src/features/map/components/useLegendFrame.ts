@@ -196,8 +196,8 @@ function isSameSize(current: LegendSize, next: LegendSize): boolean {
 
 function beginLegendDrag(event: ReactPointerEvent<HTMLElement>, session: DragSession): void {
   if (event.button !== PRIMARY_POINTER_BUTTON) return;
-  const target = event.target;
-  if (!(target instanceof Element) || !isDragHandle(target, session.concealedRef.current)) return;
+  const target = pointerElement(event.target);
+  if (!target || !isDragHandle(target, session.concealedRef.current)) return;
   if (!target.closest(LEGEND_CONTROL_SELECTOR)) event.preventDefault();
 
   const startClientX = event.clientX;
@@ -219,6 +219,12 @@ function beginLegendDrag(event: ReactPointerEvent<HTMLElement>, session: DragSes
 
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
+}
+
+function pointerElement(target: EventTarget | null): Element | null {
+  if (target instanceof Element) return target;
+  if (target instanceof Node) return target.parentElement;
+  return null;
 }
 
 function isDragHandle(target: Element, isConcealed: boolean): boolean {
