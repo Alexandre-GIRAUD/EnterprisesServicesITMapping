@@ -4757,44 +4757,6 @@ body.is-diagram-grown .layout {
   background: var(--ss-accent-surface, #fffbeb);
 }
 
-.graph-mode-tab {
-  border: 1px solid #cbd5e1;
-  border-bottom: 0;
-  border-radius: 8px 8px 0 0;
-  padding: 0.42rem 0.85rem;
-  background: #e2e8f0;
-  color: #64748b;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition:
-    background-color 160ms ease,
-    color 160ms ease,
-    border-color 160ms ease;
-}
-
-.graph-mode-tab:hover:not(.is-active) {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.graph-mode-tab.is-active {
-  background: #f8fafc;
-  color: #0f172a;
-  font-weight: 700;
-  border-color: #e2e8f0;
-  margin-bottom: -1px;
-  padding-bottom: calc(0.42rem + 1px);
-  position: relative;
-  z-index: 1;
-}
-
-.graph-mode-tab:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
 .graph-mode-tab__draft {
   display: inline-block;
   margin-left: 0.35rem;
