@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
  * Configuration for server-side GitHub API access. {@code token} is the shared fallback. A signed-in
- * user who pastes a personal token uses that token instead.
+ * user with a GitHub connection uses their token instead.
  */
 @ConfigurationProperties(prefix = "app.integrations.github")
 public record GitHubIntegrationProperties(

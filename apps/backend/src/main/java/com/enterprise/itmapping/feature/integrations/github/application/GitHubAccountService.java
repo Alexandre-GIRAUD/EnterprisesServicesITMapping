@@ -10,9 +10,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Links one Flowra user to a GitHub account by a pasted token. The access token is encrypted with
- * the JWT secret: rotating {@code JWT_SECRET} makes stored connections unreadable, and the user
- * pastes the token again.
+ * Links one Flowra user to a GitHub connection. The access token is encrypted with the JWT secret:
+ * rotating {@code JWT_SECRET} makes stored connections unreadable, and the user connects again.
  */
 @Service
 public class GitHubAccountService {
@@ -27,7 +26,7 @@ public class GitHubAccountService {
     this.jwt = jwt;
   }
 
-  /** Stores a token the signed-in user pasted. The plaintext is not returned. */
+  /** Stores the token for this user's GitHub connection. The plaintext is not returned. */
   @Transactional
   public GitHubConnectionStatus saveToken(UserEntity user, String rawToken) {
     requireEncryptionKey();

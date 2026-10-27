@@ -1,4 +1,4 @@
 package com.enterprise.itmapping.feature.integrations.github.application;
 
-/** GitHub login and the access token the user pasted. */
+/** GitHub login and access token for one GitHub connection. */
 public record GitHubIdentity(String login, String accessToken) {}

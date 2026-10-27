@@ -9,7 +9,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Reads the GitHub login for a token the user pasted. The token is not logged. */
+/** Reads the GitHub login for a GitHub connection token. The token is not logged. */
 @Component
 public class GitHubTokenClient {
 

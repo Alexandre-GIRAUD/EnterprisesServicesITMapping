@@ -56,7 +56,7 @@ management:
       show-details: when-authorized
 
 app:
-  # GitHub: GITHUB_TOKEN is the shared fallback (webhooks, users who have not pasted a token).
+  # GitHub: GITHUB_TOKEN is the shared fallback (webhooks, users who have not connected).
   integrations:
     github:
       token: ${GITHUB_TOKEN:}
