@@ -1,6 +1,7 @@
 import type { Edge, Node } from '@xyflow/react';
 import { instance } from '@viz-js/viz';
-import { elkLayout, type ElkLayoutOptions, type ElkLayoutResult, type Point } from './elkLayout';
+import { type ElkLayoutOptions, type ElkLayoutResult, type Point } from './elkLayout';
+import { placeClearFlows } from './clearFlowPlacement';
 import {
   COMPONENT_GAP,
   findConnectedComponents,
@@ -112,16 +113,27 @@ function repackIslands<N extends Node>(
   return { nodes: mergedNodes, routes: mergedRoutes };
 }
 
-/** Graphviz first. ELK when Graphviz does not answer. */
+/** Clear orthogonal placement. Callers still fall back to dagre if this throws. */
 export async function placeApplicationGraph<N extends Node>(
   nodes: N[],
   edges: Edge[],
   options: ElkLayoutOptions = {},
 ): Promise<ElkLayoutResult<N>> {
-  try {
-    return await graphvizLayout(nodes, edges, options);
-  } catch {
-    // Graphviz can fail to load or refuse a graph. ELK is the next layout; dagre stays in the callers.
-    return elkLayout(nodes, edges, options);
-  }
+  const nodeWidth = options.nodeWidth ?? DEFAULT_NODE_WIDTH;
+  const nodeHeight = options.nodeHeight ?? DEFAULT_NODE_HEIGHT;
+  const placed = placeClearFlows(
+    nodes.map((node) => ({
+      id: node.id,
+      width: node.width ?? nodeWidth,
+      height: node.height ?? nodeHeight,
+    })),
+    edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target })),
+  );
+  return {
+    nodes: nodes.map((node) => ({
+      ...node,
+      position: placed.positions.get(node.id) ?? { x: 0, y: 0 },
+    })),
+    routes: placed.routes,
+  };
 }
