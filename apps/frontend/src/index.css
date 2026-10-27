@@ -3953,7 +3953,7 @@ body.is-diagram-grown .layout {
   background: rgb(255 255 255 / 92%);
   backdrop-filter: blur(4px);
   color: #475569;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.4;
   pointer-events: none;
   white-space: nowrap;
@@ -4778,11 +4778,6 @@ body.is-diagram-grown .layout {
   padding: 0.1rem 0.25rem;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
-}
-
-.oriented-edge-label.is-empty {
-  opacity: 0.55;
-  font-style: italic;
 }
 
 .oriented-edge-label.is-editable {

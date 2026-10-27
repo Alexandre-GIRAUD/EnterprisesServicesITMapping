@@ -12,7 +12,11 @@ import {
   type Node,
 } from '@xyflow/react';
 import type { StoredAttribute } from '@/types/api';
-import { ZOOM_THRESHOLDS } from './graphTheme';
+import {
+  APPLICATION_TITLE_FONT_SIZE_PX,
+  flowLabelMapTransform,
+  isFlowLabelVisible,
+} from './flowLabel';
 import { buildLiveRoutes, type Point, type Rect } from './elkLayout';
 import { buildOrthogonalPath } from './orthogonalPath';
 import { computeBridges } from './bridges';
@@ -575,11 +579,6 @@ export function OrientedEdge({
   const displayText =
     data?.displayLabel !== undefined ? data.displayLabel : String(label ?? '');
   const canEditLabel = Boolean(data?.onDisplayLabelChange) && !isIndirect;
-  const showLabel =
-    !isIndirect &&
-    !hideLabels &&
-    (Boolean(displayText) || canEditLabel) &&
-    zoom >= ZOOM_THRESHOLDS.secondaryDetail;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(displayText);
   const [localHovered, setLocalHovered] = useState(false);
@@ -617,6 +616,14 @@ export function OrientedEdge({
   }
 
   const hovered = Boolean(data?.hovered) || localHovered;
+  const showLabel = isFlowLabelVisible({
+    text: displayText,
+    zoom,
+    hideLabels,
+    isIndirect,
+    hovered,
+  });
+  const labelTransform = flowLabelMapTransform(labelX, labelY);
   const isActive = !isIndirect && (hovered || Boolean(selected));
   const zoomSafe = Math.max(zoom, 0.05);
   // Only the emphasis widths compensate the viewport zoom (RF applies it as a CSS
@@ -732,7 +739,8 @@ export function OrientedEdge({
             <input
               className="oriented-edge-label oriented-edge-label--input nodrag nopan"
               style={{
-                transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+                transform: labelTransform,
+                fontSize: APPLICATION_TITLE_FONT_SIZE_PX,
                 color: labelColor,
                 borderColor: `${labelColor}55`,
               }}
@@ -747,10 +755,11 @@ export function OrientedEdge({
           ) : (
             <div
               className={`oriented-edge-label nodrag nopan${canEditLabel ? ' is-editable' : ''}${
-                displayText ? '' : ' is-empty'
-              }${data?.onSelect ? ' is-selectable' : ''}`}
+                data?.onSelect ? ' is-selectable' : ''
+              }`}
               style={{
-                transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+                transform: labelTransform,
+                fontSize: APPLICATION_TITLE_FONT_SIZE_PX,
                 color: labelColor,
                 borderColor: `${labelColor}55`,
               }}
@@ -770,7 +779,7 @@ export function OrientedEdge({
                     : displayText
               }
             >
-              {displayText || (canEditLabel ? 'label' : '')}
+              {displayText}
             </div>
           )}
         </EdgeLabelRenderer>

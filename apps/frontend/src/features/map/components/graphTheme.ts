@@ -82,11 +82,11 @@ export function nodeColorForType(type: string): string {
 
 /**
  * Semantic-zoom thresholds (React Flow zoom factor).
- * Node titles stay drawn at every zoom and scale with the node.
- * Secondary text fades out below this value.
+ * Node titles and flow labels stay drawn at every zoom and scale with the map.
+ * Module descriptions fade out below this value.
  */
 export const ZOOM_THRESHOLDS = {
-  /** Below this, descriptions and edge labels fade out. */
+  /** Below this, module descriptions fade out. */
   secondaryDetail: 0.7,
 } as const;
 
