@@ -10,6 +10,8 @@ import { FolderCrumbs, ViewInspectPanel, ViewsEmptyState } from './GraphViewsPan
 
 const css = readFileSync(new URL('../../../index.css', import.meta.url), 'utf8');
 const panel = readFileSync(new URL('./GraphViewsPanel.tsx', import.meta.url), 'utf8');
+const chrome = readFileSync(new URL('./graphViewsChrome.tsx', import.meta.url), 'utf8');
+const librarySource = `${panel}\n${chrome}`;
 
 assert.match(css, /\.graph-views-cards \{[^}]*minmax\(min\(100%, 16\.5rem\), 17\.5rem\)/);
 assert.match(css, /\.graph-views-item-name \{[^}]*font-size: 15px/);
@@ -23,9 +25,9 @@ assert.match(css, /\.is-danger-ghost \{[^}]*background: transparent/);
 assert.doesNotMatch(css, /\.graph-views-actions-btn svg \{[^}]*rotate\(90deg\)/);
 assert.doesNotMatch(css, /\.graph-views-item--folder \.graph-views-item-mark \{[^}]*#2563eb/);
 assert.doesNotMatch(css, /\.graph-views-item-btn:hover \{[^}]*#93c5fd/);
-assert.match(panel, /cx="4.5" cy="10"/);
-assert.match(panel, /title="Grid"/);
-assert.match(panel, /title="List"/);
+assert.match(librarySource, /cx="4.5" cy="10"/);
+assert.match(librarySource, /title="Grid"/);
+assert.match(librarySource, /title="List"/);
 
 const rootCrumbs = renderToStaticMarkup(
   createElement(FolderCrumbs, {
