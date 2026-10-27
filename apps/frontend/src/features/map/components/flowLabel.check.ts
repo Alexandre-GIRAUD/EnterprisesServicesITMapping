@@ -11,6 +11,9 @@ import {
 
 const belowOldCutoff = 0.2;
 const aboveOldCutoff = 1.2;
+const labelX = 40;
+const labelY = 80;
+const applicationTitleFontSizePx = 12;
 
 assert.equal(
   isFlowLabelVisible({
@@ -34,9 +37,12 @@ assert.equal(
   true,
 );
 
-assert.equal(APPLICATION_TITLE_FONT_SIZE_PX, 12);
+assert.equal(APPLICATION_TITLE_FONT_SIZE_PX, applicationTitleFontSizePx);
 
-assert.equal(buildFlowLabelMapTransform(40, 80), 'translate(-50%, -50%) translate(40px, 80px)');
+assert.equal(
+  buildFlowLabelMapTransform(labelX, labelY),
+  `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+);
 
 assert.equal(
   isFlowLabelVisible({
