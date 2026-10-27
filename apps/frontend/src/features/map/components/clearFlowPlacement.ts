@@ -516,25 +516,29 @@ function assignExitShifts(
     if (!source) continue;
     const below = list.filter((edge) => isTargetBelow(source, cards.get(edge.target)));
     const above = list.filter((edge) => !isTargetBelow(source, cards.get(edge.target)));
-    writeExitOrder({ edges: below, source, cards, shifts, isBelow: true });
-    writeExitOrder({ edges: above, source, cards, shifts, isBelow: false });
+    const offsets = calculateLaneShifts(list.length, source.height);
+    writeExitOrder({ edges: above, offsets: offsets.slice(EMPTY_INDEX, above.length), source, cards, shifts, isBelow: false });
+    writeExitOrder({ edges: below, offsets: offsets.slice(above.length), source, cards, shifts, isBelow: true });
   }
   return shifts;
 }
 
-/** The nearest target gets the port closest to its side, so the elbows nest instead of crossing. */
+/**
+ * Flows going up share the upper ports and flows going down the lower ones, so no two
+ * leave from one point. The nearest target gets the outermost port, so the elbows nest.
+ */
 function writeExitOrder(order: {
   edges: readonly FlowPlacementEdge[];
+  offsets: readonly number[];
   source: Card;
   cards: Map<string, Card>;
   shifts: Map<string, number>;
   isBelow: boolean;
 }): void {
-  const { edges, source, cards, shifts, isBelow } = order;
+  const { edges, offsets, source, cards, shifts, isBelow } = order;
   const nearestFirst = [...edges].sort(
     (left, right) => measureHorizontalDistance(source, cards.get(left.target)) - measureHorizontalDistance(source, cards.get(right.target)),
   );
-  const offsets = calculateLaneShifts(nearestFirst.length, source.height);
   const lastIndex = offsets.length - CELL_STEP;
   nearestFirst.forEach((edge, index) => {
     const shift = isBelow ? offsets[lastIndex - index] : offsets[index];
