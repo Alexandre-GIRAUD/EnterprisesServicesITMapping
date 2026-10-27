@@ -1,7 +1,0 @@
----
-alwaysApply: true
----
-
-MATCH (m:Application)
-RETURN m
-ORDER BY m.name
