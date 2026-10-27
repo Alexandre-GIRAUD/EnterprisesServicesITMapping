@@ -612,14 +612,10 @@ body.is-diagram-grown .layout {
 }
 
 /* ===== GitHub import page ===== */
-.layout-main:has(.github-import-page) {
-  scrollbar-gutter: stable;
-}
-
 .github-import-page {
   width: 100%;
-  max-width: 1080px;
-  margin: 0 auto;
+  max-width: 1040px;
+  padding: 0 0 2rem;
 }
 
 .github-import-header {
@@ -1120,33 +1116,78 @@ body.is-diagram-grown .layout {
 
 .pending-changes-panel-hint {
   margin: 0;
-  font-size: 0.78rem;
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px solid #e8eef6;
+  background: #fff;
+  text-align: center;
+  font-size: 0.9rem;
   color: #64748b;
   line-height: 1.45;
 }
 
-.pending-changes-family-chips {
+.pending-changes-toolbar {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   flex-wrap: wrap;
-  gap: 0.35rem;
-  margin: 0 0 0.75rem;
+}
+
+.pending-changes-family-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
 }
 
 .pending-changes-family-chip {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #475569;
-  font-size: 0.72rem;
+  border: 0;
+  border-radius: 9px;
+  padding: 0.48rem 0.9rem;
+  font: inherit;
+  font-size: 0.88rem;
   font-weight: 600;
-  padding: 0.28rem 0.55rem;
-  border-radius: 999px;
+  color: #64748b;
+  background: transparent;
   cursor: pointer;
 }
 
 .pending-changes-family-chip--active {
-  border-color: #0f172a;
-  background: #0f172a;
+  background: #2563eb;
   color: #fff;
+}
+
+.pending-changes-family-chip:focus-visible,
+.pending-changes-refresh:focus-visible,
+.changes-list-map-link:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.pending-changes-refresh {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 0.5rem 0.95rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1e293b;
+  background: #fff;
+  cursor: pointer;
+}
+
+.pending-changes-refresh:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.pending-changes-refresh:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .pending-changes-section {
@@ -1158,8 +1199,8 @@ body.is-diagram-grown .layout {
 }
 
 .pending-changes-section-title {
-  margin: 0 0 0.4rem;
-  font-size: 0.72rem;
+  margin: 0.35rem 0 0.55rem;
+  font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1172,7 +1213,7 @@ body.is-diagram-grown .layout {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.65rem;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -1183,13 +1224,13 @@ body.is-diagram-grown .layout {
 .pending-changes-chip {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.85rem;
   width: 100%;
   box-sizing: border-box;
   text-align: left;
-  padding: 0.5rem 0.55rem;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  padding: 0.95rem 1.1rem;
+  border-radius: 16px;
+  border: 1px solid #e8eef6;
   background: #ffffff;
   color: #0f172a;
   cursor: pointer;
@@ -1197,8 +1238,8 @@ body.is-diagram-grown .layout {
 }
 
 .pending-changes-chip:hover {
-  border-color: #cbd5e1;
-  background: #f8fafc;
+  border-color: #dbeafe;
+  background: #f8fbff;
 }
 
 .pending-changes-chip:focus-visible {
@@ -1210,23 +1251,24 @@ body.is-diagram-grown .layout {
 .pending-changes-chip-body {
   display: flex;
   flex-direction: column;
-  gap: 0.12rem;
+  gap: 0.45rem;
   min-width: 0;
   flex: 1;
 }
 
 .pending-changes-chip-nodes {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #334155;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .pending-changes-chip-meta {
-  font-size: 0.68rem;
-  color: #94a3b8;
+  font-size: 0.8rem;
+  color: #64748b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1234,131 +1276,198 @@ body.is-diagram-grown .layout {
 
 .pending-changes-chip-chevron {
   flex-shrink: 0;
+  display: grid;
+  place-items: center;
   color: #94a3b8;
-  font-size: 1.1rem;
-  line-height: 1;
+}
+
+.change-flow {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.change-flow-node {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid #e8eef6;
+  background: #f8fafc;
+}
+
+.change-flow-mark {
+  flex-shrink: 0;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  border: 1px solid #dbeafe;
+  background:
+    radial-gradient(circle at center, #2563eb 0 3px, transparent 3.5px),
+    #eff6ff;
+}
+
+.change-flow-copy {
+  min-width: 0;
+}
+
+.change-flow-role {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.change-flow-name {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.change-flow-arrow {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .change-chip-kind {
   flex-shrink: 0;
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  padding: 0.18rem 0.42rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid #e2e8f0;
   border-radius: 999px;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: 0.74rem;
+  font-weight: 600;
   line-height: 1.2;
   background: #f1f5f9;
-  color: #475569;
+  color: #334155;
 }
 
 .change-chip-kind--connection {
+  border-color: #bfdbfe;
   background: #eff6ff;
   color: #1d4ed8;
 }
 
 .change-chip-kind--module {
+  border-color: #bbf7d0;
   background: #f0fdf4;
   color: #15803d;
 }
 
 .change-chip-kind--node-attr {
+  border-color: #fed7aa;
   background: #fff7ed;
   color: #c2410c;
 }
 
 .change-chip-kind--edge-attr {
+  border-color: #e9d5ff;
   background: #faf5ff;
   color: #7e22ce;
 }
 
 .change-chip-kind--override {
+  border-color: #fecaca;
   background: #fef2f2;
   color: #b91c1c;
 }
 
-.changes-list-page {
-  max-width: 42rem;
-  margin: 0 auto;
-  padding: 1.25rem 1rem 2rem;
-}
-
-.changes-list-header h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.45rem;
-  color: #0f172a;
-}
-
-.changes-list-lead {
-  margin: 0 0 0.55rem;
-  font-size: 0.9rem;
-  color: #64748b;
-}
-
-.changes-list-map-link {
-  display: inline-block;
-  margin-bottom: 1rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #2563eb;
-  text-decoration: none;
-}
-
-.changes-list-map-link:hover {
-  text-decoration: underline;
-}
-
-.changes-list-panel {
-  padding: 0.85rem 0.9rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  background: #ffffff;
+.changes-list-page,
+.change-detail-page {
+  max-width: 1040px;
+  padding: 0 0 2rem;
 }
 
 .change-detail-page {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 1.25rem 1rem 2.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
-.change-detail-back {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #64748b;
-  text-decoration: none;
-}
-
-.change-detail-back:hover {
-  color: #334155;
+.changes-list-header,
+.change-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .change-detail-header {
+  margin-bottom: 0;
+}
+
+.changes-list-header h1,
+.change-detail-heading {
+  margin: 0 0 0.35rem;
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+.change-detail-heading {
+  margin-top: 0.45rem;
+}
+
+.changes-list-lead,
+.change-detail-lead {
+  margin: 0;
+  max-width: 62ch;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.changes-list-map-link {
+  flex-shrink: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1e293b;
+  text-decoration: none;
+  background: #fff;
+}
+
+.changes-list-map-link:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.change-detail-nav {
   display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .change-detail-title-row {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  margin-top: 0.35rem;
-}
-
-.change-detail-heading {
-  margin: 0;
-  font-size: 1.35rem;
-  color: #0f172a;
-}
-
-.change-detail-lead {
-  margin: 0;
-  font-size: 0.9rem;
-  color: #64748b;
 }
 
 .change-detail-status {
@@ -1382,19 +1491,19 @@ body.is-diagram-grown .layout {
 }
 
 .change-detail-panel {
-  padding: 0.85rem 0.95rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  padding: 1rem 1.15rem;
+  border: 1px solid #e8eef6;
+  border-radius: 16px;
   background: #ffffff;
 }
 
 .change-detail-panel h2 {
-  margin: 0 0 0.45rem;
-  font-size: 0.78rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .change-detail-summary {
@@ -1424,11 +1533,6 @@ body.is-diagram-grown .layout {
   margin: 0;
   font-size: 0.88rem;
   color: #0f172a;
-}
-
-.change-detail-id {
-  color: #94a3b8;
-  font-size: 0.75rem;
 }
 
 .change-detail-evidence {
@@ -1466,23 +1570,35 @@ body.is-diagram-grown .layout {
 
 .change-detail-accept,
 .change-detail-reject {
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-weight: 600;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
   cursor: pointer;
-  padding: 0.48rem 0.85rem;
+  padding: 0.65rem 1.1rem;
 }
 
 .change-detail-accept {
   border: 1px solid #1d4ed8;
-  background: #2563eb;
-  color: #ffffff;
+  border-radius: 12px;
+  color: #f8fafc;
+  background: linear-gradient(180deg, rgb(37 99 235 / 95%), rgb(29 78 216 / 92%));
+  box-shadow: 0 14px 32px rgb(37 99 235 / 22%);
+}
+
+.change-detail-accept:hover:not(:disabled) {
+  box-shadow: 0 18px 40px rgb(37 99 235 / 28%);
 }
 
 .change-detail-reject {
   border: 1px solid #cbd5e1;
+  border-radius: 999px;
   background: #ffffff;
-  color: #334155;
+  color: #1e293b;
+}
+
+.change-detail-reject:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: #f8fafc;
 }
 
 .change-detail-accept:disabled,
@@ -8165,9 +8281,9 @@ body.is-diagram-grown .layout {
 
 .data-model-header h1 {
   margin: 0 0 0.35rem;
-  font-size: 2rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   color: #0f172a;
 }
 

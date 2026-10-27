@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import type { ChangeDetectionItemDto, ChangeDetectionRunDto } from '../../../types/api.ts';
-import { flattenPendingChips, resolveSourceDest } from './changeDetectionUi.ts';
+import { edgeAttributeRows, flattenPendingChips, resolveAppName, resolveSourceDest } from './changeDetectionUi.ts';
 
 const names = new Map<string, string>([
   ['app-datahub', 'DataHub'],
@@ -64,5 +64,26 @@ const inboundEnds = resolveSourceDest(inbound, inbound.items[0]!, names);
 assert.equal(inboundEnds.source, 'Booking');
 assert.equal(inboundEnds.dest, 'DataHub');
 assert.equal(flattenPendingChips([inbound], names)[0]?.nodesLabel, 'Booking → DataHub');
+
+assert.equal(
+  resolveAppName('e6a7b2e6-def7-426a-bda6-9f5bf5f4a7fe', names),
+  'Unknown application'
+);
+
+const withAttributes = run({
+  action: 'APPLY_CONNECTION',
+  direction: 'outbound',
+  peerApplicationName: 'analytics',
+  edgeAttributes: { frequency: 'Daily', data_domain: 'Prices' },
+});
+const rows = edgeAttributeRows(
+  withAttributes.items[0]!.payload,
+  new Map([['frequency', 'How often']])
+);
+assert.deepEqual(
+  rows.map((row) => `${row.label}=${row.value}`),
+  ['How often=Daily', 'Data domain=Prices']
+);
+assert.equal(edgeAttributeRows({ edgeAttributes: {} }).length, 0);
 
 console.log('changeDetectionUi.check: ok');

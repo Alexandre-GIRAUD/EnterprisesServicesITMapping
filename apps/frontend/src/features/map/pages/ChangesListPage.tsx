@@ -26,22 +26,22 @@ export function ChangesListPage() {
 
   return (
     <div className="changes-list-page">
-      <div className="changes-list-header">
-        <h1>Changes</h1>
-        <p className="changes-list-lead">
-          Review GitHub webhook suggestions and AI writes blocked by human field overrides.
-        </p>
+      <header className="changes-list-header">
+        <div>
+          <h1>Changes</h1>
+          <p className="changes-list-lead">
+            Review GitHub webhook suggestions and AI writes blocked by human field overrides.
+          </p>
+        </div>
         <Link
           to="/map"
           state={{ graphMode: 'normal', sideMenuTool: 'changes' } satisfies MapLocationState}
           className="changes-list-map-link"
         >
-          Open in cartography →
+          Open in cartography
         </Link>
-      </div>
-      <div className="changes-list-panel">
-        <PendingChangesPanel variant="page" applications={applications} />
-      </div>
+      </header>
+      <PendingChangesPanel variant="page" applications={applications} />
     </div>
   );
 }

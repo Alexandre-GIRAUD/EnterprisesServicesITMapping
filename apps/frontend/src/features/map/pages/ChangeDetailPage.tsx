@@ -1,26 +1,40 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import type { ApplicationResponse, ChangeDetectionItemDto, ChangeDetectionRunDto } from '@/types/api';
+import type { ApplicationResponse, ChangeDetectionItemDto, ChangeDetectionRunDto, DataModelFieldDto } from '@/types/api';
 import { fetchApplications } from '@/features/map/api/applicationsApi';
 import {
   acceptChangeDetectionItem,
   getChangeDetection,
   rejectChangeDetectionItem,
 } from '@/features/map/api/changeDetectionsApi';
+import { getDataModelRequest } from '@/features/datamodel/api/dataModelApi';
 import {
+  edgeAttributeRows,
   githubCommitUrl,
   kindChipClass,
+  kindLabel,
   resolveAppName,
   resolveSourceDest,
   shortSha,
 } from '@/features/map/utils/changeDetectionUi';
 import type { MapLocationState } from '@/features/map/utils/mapNavigation';
 
+function edgeLabelsFromFields(fields: DataModelFieldDto[]): Map<string, string> {
+  const labels = new Map<string, string>();
+  for (const field of fields) {
+    if (field.target && field.target !== 'EDGE') continue;
+    const label = field.label?.trim();
+    if (field.key.trim() && label) labels.set(field.key, label);
+  }
+  return labels;
+}
+
 export function ChangeDetailPage() {
   const { runId = '', itemId = '' } = useParams<{ runId: string; itemId: string }>();
   const navigate = useNavigate();
   const [run, setRun] = useState<ChangeDetectionRunDto | null>(null);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
+  const [edgeLabels, setEdgeLabels] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready'>('loading');
   const [busy, setBusy] = useState(false);
@@ -44,12 +58,16 @@ export function ChangeDetailPage() {
     try {
       setError(null);
       setStatus('loading');
-      const [nextRun, apps] = await Promise.all([
+      const [nextRun, apps, fields] = await Promise.all([
         getChangeDetection(runId),
         fetchApplications().catch(() => [] as ApplicationResponse[]),
+        getDataModelRequest()
+          .then((model) => model.fields)
+          .catch(() => [] as DataModelFieldDto[]),
       ]);
       setRun(nextRun);
       setApplications(apps);
+      setEdgeLabels(edgeLabelsFromFields(fields));
       setStatus('ready');
     } catch (e) {
       setStatus('ready');
@@ -114,8 +132,8 @@ export function ChangeDetailPage() {
   if (!run || !item || !sourceDest) {
     return (
       <div className="change-detail-page">
-        <Link to="/map" state={backToChangesState} className="change-detail-back">
-          ← Changes
+        <Link to="/admin/changes" className="changes-list-map-link">
+          All changes
         </Link>
         <p className="change-detail-error" role="alert">
           {error ?? 'Change not found.'}
@@ -126,23 +144,33 @@ export function ChangeDetailPage() {
 
   const appName = resolveAppName(run.applicationId, nameById);
   const isPending = item.status === 'PENDING';
+  const isConnection = item.kind === 'CONNECTION';
+  const attributes = isConnection ? edgeAttributeRows(item.payload, edgeLabels) : [];
   const commitHref = githubCommitUrl(run.repoFullName, run.commitSha);
+  const statusLabel = item.status.charAt(0) + item.status.slice(1).toLowerCase();
 
   return (
     <div className="change-detail-page">
-      <div className="change-detail-header">
-        <Link to="/map" state={backToChangesState} className="change-detail-back">
-          ← Changes
-        </Link>
-        <div className="change-detail-title-row">
-          <span className={kindChipClass(item.kind)}>{item.kind}</span>
-          <span className={`change-detail-status change-detail-status--${item.status.toLowerCase()}`}>
-            {item.status}
-          </span>
+      <header className="change-detail-header">
+        <div>
+          <div className="change-detail-title-row">
+            <span className={kindChipClass(item.kind)}>{kindLabel(item.kind)}</span>
+            <span className={`change-detail-status change-detail-status--${item.status.toLowerCase()}`}>
+              {statusLabel}
+            </span>
+          </div>
+          <h1 className="change-detail-heading">Review {kindLabel(item.kind).toLowerCase()}</h1>
+          <p className="change-detail-lead">{appName}</p>
         </div>
-        <h1 className="change-detail-heading">Review {item.kind}</h1>
-        <p className="change-detail-lead">{appName}</p>
-      </div>
+        <div className="change-detail-nav">
+          <Link to="/admin/changes" className="changes-list-map-link">
+            All changes
+          </Link>
+          <Link to="/map" state={backToChangesState} className="changes-list-map-link">
+            Cartography
+          </Link>
+        </div>
+      </header>
 
       {error ? (
         <p className="change-detail-error" role="alert">
@@ -151,32 +179,70 @@ export function ChangeDetailPage() {
       ) : null}
       {feedback ? <p className="change-detail-feedback">{feedback}</p> : null}
 
-      <section className="change-detail-panel">
-        <h2>Description</h2>
-        <p className="change-detail-summary">{item.summary}</p>
-      </section>
+      {isConnection ? null : (
+        <section className="change-detail-panel">
+          <h2>Description</h2>
+          <p className="change-detail-summary">{item.summary}</p>
+        </section>
+      )}
 
       <section className="change-detail-panel">
         <h2>Nodes</h2>
-        <dl className="change-detail-dl">
-          <div>
-            <dt>Source</dt>
-            <dd>
-              {sourceDest.source}
-              {run.applicationId ? (
-                <span className="change-detail-id"> · {run.applicationId}</span>
-              ) : null}
-            </dd>
+        {isConnection ? (
+          <div className="change-flow" aria-label={`${sourceDest.source} to ${sourceDest.dest ?? 'unspecified destination'}`}>
+            <div className="change-flow-node">
+              <span className="change-flow-mark" aria-hidden="true" />
+              <span className="change-flow-copy">
+                <span className="change-flow-role">Source</span>
+                <span className="change-flow-name" title={sourceDest.source}>
+                  {sourceDest.source}
+                </span>
+              </span>
+            </div>
+            <span className="change-flow-arrow" aria-hidden="true">
+              →
+            </span>
+            <div className="change-flow-node">
+              <span className="change-flow-mark" aria-hidden="true" />
+              <span className="change-flow-copy">
+                <span className="change-flow-role">Destination</span>
+                <span className="change-flow-name">
+                  {sourceDest.dest ?? 'Destination non précisée (suggestion générique)'}
+                </span>
+              </span>
+            </div>
           </div>
-          <div>
-            <dt>Destination</dt>
-            <dd>
-              {sourceDest.dest ??
-                'Destination non précisée (suggestion générique)'}
-            </dd>
-          </div>
-        </dl>
+        ) : (
+          <dl className="change-detail-dl">
+            <div>
+              <dt>Source</dt>
+              <dd>{sourceDest.source}</dd>
+            </div>
+            <div>
+              <dt>Destination</dt>
+              <dd>{sourceDest.dest ?? 'Destination non précisée (suggestion générique)'}</dd>
+            </div>
+          </dl>
+        )}
       </section>
+
+      {isConnection ? (
+        <section className="change-detail-panel">
+          <h2>Attributes</h2>
+          {attributes.length === 0 ? (
+            <p className="change-detail-hint">No attributes on this edge.</p>
+          ) : (
+            <dl className="change-detail-dl">
+              {attributes.map((row) => (
+                <div key={row.key}>
+                  <dt>{row.label}</dt>
+                  <dd>{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </section>
+      ) : null}
 
       <section className="change-detail-panel">
         <h2>Context</h2>
