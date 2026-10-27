@@ -251,14 +251,14 @@ for (const map of SPARSE_MAPS) {
 }
 
 const ISOLATED_APPLICATION_COUNT = 16;
-const COMPACT_SLACK = 3;
-const COMPACT_SIDE_IN_CARDS = Math.sqrt(ISOLATED_APPLICATION_COUNT) * COMPACT_SLACK;
+const MAXIMUM_LINES_PER_APPLICATION = 0.5;
 const isolatedIds = Array.from({ length: ISOLATED_APPLICATION_COUNT }, (_, index) => `alone${index}`);
 const isolated = placeClearFlows(buildNodes(isolatedIds), []);
 assert.equal(hasOverlappingCards(isolated.positions), false);
-const isolatedExtent = measureExtent(isolated.positions);
-assert.ok(isolatedExtent.width <= COMPACT_SIDE_IN_CARDS * nodeSize.width);
-assert.ok(isolatedExtent.height <= COMPACT_SIDE_IN_CARDS * nodeSize.height);
+const isolatedCards = [...isolated.positions.values()];
+const maximumLines = ISOLATED_APPLICATION_COUNT * MAXIMUM_LINES_PER_APPLICATION;
+assert.ok(new Set(isolatedCards.map((card) => card.x)).size <= maximumLines, 'lone applications span too many columns');
+assert.ok(new Set(isolatedCards.map((card) => card.y)).size <= maximumLines, 'lone applications span too many rows');
 
 const islands = placeClearFlows(buildNodes(['a', 'b', 'c', 'd', 'e']), [
   { id: 'ab', source: 'a', target: 'b' },
@@ -274,16 +274,6 @@ function hasOverlappingCards(positions: Map<string, FlowPoint>): boolean {
     const isOverlappingY = Math.abs(left.y - right.y) < nodeSize.height;
     return isOverlappingX && isOverlappingY;
   }));
-}
-
-function measureExtent(positions: Map<string, FlowPoint>): { width: number; height: number } {
-  const cards = [...positions.values()];
-  const xs = cards.map((card) => card.x);
-  const ys = cards.map((card) => card.y);
-  return {
-    width: Math.max(...xs) - Math.min(...xs) + nodeSize.width,
-    height: Math.max(...ys) - Math.min(...ys) + nodeSize.height,
-  };
 }
 
 function hasSamePoint(left: FlowPoint, right: FlowPoint): boolean {

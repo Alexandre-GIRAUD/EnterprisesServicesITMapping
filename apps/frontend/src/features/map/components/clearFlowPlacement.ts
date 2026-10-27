@@ -1,5 +1,6 @@
 import type { Edge, Node } from '@xyflow/react';
 import { computeBridges } from './bridges';
+import { COMPONENT_GAP, findConnectedComponents, packComponentOffsets } from './graphComponents';
 import {
   POINT_MATCH_DISTANCE,
   buildSpan,
@@ -35,7 +36,7 @@ const MINIMUM_SCORE_WORK = 1;
 const SEARCH_PASSES = 64;
 /** Rough operations spent scoring layouts. Keeps the search well under a second on a large map. */
 const SEARCH_WORK_BUDGET = 15_000_000;
-/** Width-to-height ratio the packed groups aim for, close to a desktop map pane. */
+/** Width-to-height ratio the packed groups aim for, close to a desktop map pane. Each group keeps its zone frame. */
 const PACKED_ASPECT_RATIO = 16 / 9;
 const ORIGIN = 0;
 
@@ -84,7 +85,14 @@ export function placeClearFlows(
   const groups = splitIntoLinkedGroups(nodes, edges).map((group) =>
     placeLinkedGroup({ ...group, workBudget: (SEARCH_WORK_BUDGET * group.nodes.length) / nodes.length }),
   );
-  const { positions, routes } = packGroups(groups);
+  const offsets = packComponentOffsets(groups, COMPONENT_GAP, PACKED_ASPECT_RATIO);
+  const positions = new Map<string, FlowPoint>();
+  const routes = new Map<string, FlowPoint[]>();
+  groups.forEach((group, index) => {
+    const moved = translateGroup(group, offsets[index] ?? { x: ORIGIN, y: ORIGIN });
+    for (const card of moved.cards) positions.set(card.id, { x: card.x, y: card.y });
+    for (const [id, points] of moved.routes) routes.set(id, points);
+  });
   return { positions, routes, hops: computeBridges(routes) };
 }
 
@@ -97,45 +105,17 @@ function splitIntoLinkedGroups(
   nodes: readonly FlowPlacementNode[],
   edges: readonly FlowPlacementEdge[],
 ): LinkedGroup[] {
-  const groupIndex = labelLinkedGroups(nodes, edges);
-  const groups: LinkedGroup[] = [];
-  for (const node of nodes) {
-    const index = groupIndex.get(node.id) ?? EMPTY_INDEX;
-    groups[index] ??= { nodes: [], edges: [] };
-    groups[index].nodes.push(node);
-  }
+  const groupIndex = new Map<string, number>();
+  const components = findConnectedComponents(nodes.map((node) => node.id), edges);
+  components.forEach((ids, index) => ids.forEach((id) => groupIndex.set(id, index)));
+  const groups: LinkedGroup[] = components.map(() => ({ nodes: [], edges: [] }));
+  for (const node of nodes) groups[groupIndex.get(node.id) ?? EMPTY_INDEX]?.nodes.push(node);
   for (const edge of edges) {
     const index = groupIndex.get(edge.source);
     const isInsideOneGroup = index !== undefined && groupIndex.get(edge.target) === index;
     if (isInsideOneGroup) groups[index]?.edges.push(edge);
   }
   return groups;
-}
-
-function labelLinkedGroups(
-  nodes: readonly FlowPlacementNode[],
-  edges: readonly FlowPlacementEdge[],
-): Map<string, number> {
-  const neighbors = new Map<string, string[]>(nodes.map((node) => [node.id, []]));
-  for (const edge of edges) {
-    neighbors.get(edge.source)?.push(edge.target);
-    neighbors.get(edge.target)?.push(edge.source);
-  }
-  const groupIndex = new Map<string, number>();
-  let groupCount = EMPTY_INDEX;
-  for (const node of nodes) {
-    if (groupIndex.has(node.id)) continue;
-    const index = groupCount;
-    groupCount += CELL_STEP;
-    const pending = [node.id];
-    groupIndex.set(node.id, index);
-    for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
-      const unvisited = (neighbors.get(id) ?? []).filter((neighbor) => !groupIndex.has(neighbor));
-      for (const neighbor of unvisited) groupIndex.set(neighbor, index);
-      pending.push(...unvisited);
-    }
-  }
-  return groupIndex;
 }
 
 function placeLinkedGroup(group: LinkedGroup & { workBudget: number }): PlacedGroup {
@@ -152,30 +132,6 @@ function placeLinkedGroup(group: LinkedGroup & { workBudget: number }): PlacedGr
     width: Math.max(...moved.cards.map((card) => card.x + card.width)),
     height: Math.max(...moved.cards.map((card) => card.y + card.height)),
   };
-}
-
-/** Shelf packing: tallest groups first, wrapping rows near PACKED_ASPECT_RATIO. */
-function packGroups(groups: readonly PlacedGroup[]): Omit<ClearFlowPlacement, 'hops'> {
-  const positions = new Map<string, FlowPoint>();
-  const routes = new Map<string, FlowPoint[]>();
-  const rowWidth = measurePackedRowWidth(groups);
-  const cursor = { x: ORIGIN, y: ORIGIN, shelfHeight: ORIGIN };
-  for (const group of [...groups].sort((upper, lower) => lower.height - upper.height)) {
-    const isRowFull = cursor.x > ORIGIN && cursor.x + group.width > rowWidth;
-    if (isRowFull) Object.assign(cursor, { x: ORIGIN, y: cursor.y + cursor.shelfHeight + ROW_GAP, shelfHeight: ORIGIN });
-    const moved = translateGroup(group, cursor);
-    for (const card of moved.cards) positions.set(card.id, { x: card.x, y: card.y });
-    for (const [id, points] of moved.routes) routes.set(id, points);
-    cursor.x += group.width + COLUMN_GAP;
-    cursor.shelfHeight = Math.max(cursor.shelfHeight, group.height);
-  }
-  return { positions, routes };
-}
-
-function measurePackedRowWidth(groups: readonly PlacedGroup[]): number {
-  const totalArea = groups.reduce((sum, group) => sum + (group.width + COLUMN_GAP) * (group.height + ROW_GAP), ORIGIN);
-  const widestGroup = Math.max(...groups.map((group) => group.width), ORIGIN);
-  return Math.max(widestGroup, Math.sqrt(totalArea * PACKED_ASPECT_RATIO));
 }
 
 function translateGroup(
