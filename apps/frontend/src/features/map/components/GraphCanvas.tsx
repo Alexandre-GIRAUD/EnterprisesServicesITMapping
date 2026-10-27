@@ -97,7 +97,6 @@ import { customTableExportFormats } from '../utils/customTable';
 import { GraphViewsPanel, ViewInspectPanel, type InspectedView, type ViewLibraryActions } from './GraphViewsPanel';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
-import { MappingChatPanel } from './MappingChatPanel';
 import { isDiagramFitGesture, resolveNextDiagramHeight } from './diagramFrame';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
@@ -595,9 +594,7 @@ export function GraphCanvas() {
       setWorkspacePanelOpen(true);
       setDisplayMode('graph');
       setModuleGraphApp(null);
-      setActiveSideMenuTool((current) =>
-        current === 'changes' || current === 'chat' ? 'filters' : current,
-      );
+      setActiveSideMenuTool((current) => (current === 'changes' ? 'filters' : current));
     } else if (state.graphMode === 'views') {
       if (!sandboxDirty || window.confirm('Leave sandbox? Local changes will be lost.')) {
         mode.setGraphMode('views');
@@ -1541,22 +1538,6 @@ export function GraphCanvas() {
     switch (activeSideMenuTool) {
       case 'changes':
         return null;
-      case 'chat':
-        if (!isExplorer) return null;
-        return (
-          <MappingChatPanel
-            currentFilters={currentGraphFilters}
-            onApplyFilters={applyGraphFilters}
-            onGraphChanged={reloadGraph}
-            onFocusApplication={(applicationId) => {
-              const application = applications.find((item) => item.id === applicationId);
-              openApplicationDetails(applicationId, application?.name ?? applicationId);
-            }}
-            onFocusEdge={(edgeId) => {
-              openEdgeByIdRef.current(edgeId);
-            }}
-          />
-        );
       case 'filters':
         return (
           <>

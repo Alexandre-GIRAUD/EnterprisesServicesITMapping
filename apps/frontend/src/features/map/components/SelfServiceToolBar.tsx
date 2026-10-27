@@ -1,6 +1,6 @@
 import type { GraphMode } from './GraphModeTabs';
 
-export type SideMenuTool = 'changes' | 'chat' | 'filters' | 'actions' | 'sandboxes';
+export type SideMenuTool = 'changes' | 'filters' | 'actions' | 'sandboxes';
 
 type SelfServiceToolBarProps = {
   graphMode: GraphMode;
@@ -66,20 +66,6 @@ function SandboxesIcon() {
   );
 }
 
-function ChatIcon() {
-  return (
-    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
-      <path
-        d="M4 4.5 H16 A1.5 1.5 0 0 1 17.5 6 V12 A1.5 1.5 0 0 1 16 13.5 H9 L5.5 16.5 V13.5 H4 A1.5 1.5 0 0 1 2.5 12 V6 A1.5 1.5 0 0 1 4 4.5 Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export function SelfServiceToolBar({
   graphMode,
   filtersActive,
@@ -91,19 +77,6 @@ export function SelfServiceToolBar({
 
   return (
     <div className="self-service-tool-bar" role="tablist" aria-label="View tools">
-      {isExplorer ? (
-        <button
-          type="button"
-          role="tab"
-          className={`self-service-tool-bar-btn${activeTool === 'chat' ? ' is-active' : ''}`}
-          aria-selected={activeTool === 'chat'}
-          aria-label="Ask Flora"
-          title="Ask Flora"
-          onClick={() => onChange('chat')}
-        >
-          <ChatIcon />
-        </button>
-      ) : null}
       <button
         type="button"
         role="tab"
