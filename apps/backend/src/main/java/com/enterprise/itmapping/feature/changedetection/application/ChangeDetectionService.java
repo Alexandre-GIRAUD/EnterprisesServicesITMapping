@@ -4,8 +4,9 @@ import com.enterprise.itmapping.feature.applications.application.ApplicationConn
 import com.enterprise.itmapping.feature.applications.application.ApplicationNodeAttributePatchService;
 import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationGraphNodeProjection;
-import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubRequest;
-import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubRequest;
+import com.enterprise.itmapping.feature.changedetection.application.DetectedChangeDrafts.Draft;
+import com.enterprise.itmapping.feature.changedetection.application.DetectedChangeDrafts.ProposedConnection;
+import com.enterprise.itmapping.feature.changedetection.application.DetectedChangeDrafts.ProposedModule;
 import com.enterprise.itmapping.feature.changedetection.domain.ChangeDetectionItemKind;
 import com.enterprise.itmapping.feature.changedetection.domain.ChangeDetectionItemStatus;
 import com.enterprise.itmapping.feature.changedetection.domain.ChangeDetectionRunStatus;
@@ -36,6 +37,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -43,6 +46,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class ChangeDetectionService {
 
   private static final Logger log = LoggerFactory.getLogger(ChangeDetectionService.class);
+  private static final int DIFF_PROMPT_CHAR_LIMIT = 12000;
 
   private final ChangeDetectionRunRepository runRepository;
   private final ChangeDetectionItemRepository itemRepository;
@@ -168,7 +172,15 @@ public class ChangeDetectionService {
           run.getApplicationId(),
           run.getStatus());
       if (run.getStatus() != ChangeDetectionRunStatus.UNMATCHED) {
-        self.processRunAsync(run.getId());
+        UUID runId = run.getId();
+        // The analysis thread cannot see this insert until the webhook transaction commits.
+        TransactionSynchronizationManager.registerSynchronization(
+            new TransactionSynchronization() {
+              @Override
+              public void afterCommit() {
+                self.processRunAsync(runId);
+              }
+            });
       }
     }
     return accepted;
@@ -213,6 +225,25 @@ public class ChangeDetectionService {
     DiffResult diff = commitDiffService.fetchCommitDiff(owner, repo, run.getCommitSha());
     DataModelConfig dm = dataModelService.loadConfig();
     DiffHeuristicAnalyzer.Analysis analysis = heuristicAnalyzer.analyze(diff.files(), dm);
+    String prompt = diffPrompt(diff);
+    List<ProposedConnection> connections = List.of();
+    List<ProposedModule> modules = List.of();
+    if (StringUtils.hasText(run.getApplicationId())) {
+      if (analysis.buckets().contains(DiffHeuristicAnalyzer.FLOW_SIGNAL)) {
+        connections =
+            connectionSuggestionService.onlyNewFlows(
+                run.getApplicationId(),
+                DetectedChangeDrafts.attachSingleEdgeHits(
+                    connectionSuggestionService.proposeFromDiff(run.getApplicationId(), prompt),
+                    edgeHits(analysis)));
+      }
+      if (analysis.buckets().contains(DiffHeuristicAnalyzer.MODULE_SIGNAL)) {
+        modules =
+            moduleSuggestionService.onlyNewModules(
+                run.getApplicationId(),
+                moduleSuggestionService.proposeFromDiff(run.getApplicationId(), prompt));
+      }
+    }
 
     run.setTruncated(diff.truncated());
     run.setBuckets(new ArrayList<>(analysis.buckets()));
@@ -227,7 +258,7 @@ public class ChangeDetectionService {
         analysis.buckets(),
         diff.truncated());
 
-    List<ChangeDetectionItemEntity> items = buildItems(run, analysis);
+    List<ChangeDetectionItemEntity> items = buildItems(run, analysis, connections, modules);
     if (items.isEmpty()) {
       run.setStatus(ChangeDetectionRunStatus.EMPTY);
       runRepository.save(run);
@@ -239,29 +270,35 @@ public class ChangeDetectionService {
   }
 
   private List<ChangeDetectionItemEntity> buildItems(
-      ChangeDetectionRunEntity run, DiffHeuristicAnalyzer.Analysis analysis) {
+      ChangeDetectionRunEntity run,
+      DiffHeuristicAnalyzer.Analysis analysis,
+      List<ProposedConnection> connections,
+      List<ProposedModule> modules) {
     List<ChangeDetectionItemEntity> items = new ArrayList<>();
-    if (analysis.buckets().contains(DiffHeuristicAnalyzer.FLOW_SIGNAL)) {
+    for (Draft draft : DetectedChangeDrafts.connections(connections)) {
       items.add(
           item(
               run,
-              ChangeDetectionItemKind.CONNECTION,
-              0.55,
-              "Integration / flow signals detected in diff. Accept to re-run Scan connections and attributes on this application.",
+              draft.kind(),
+              0.65,
+              draft.summary(),
               evidenceForBucket(analysis, DiffHeuristicAnalyzer.FLOW_SIGNAL),
-              Map.of("action", "SUGGEST_CONNECTIONS", "repoFullName", run.getRepoFullName())));
+              draft.payload()));
     }
-    if (analysis.buckets().contains(DiffHeuristicAnalyzer.MODULE_SIGNAL)) {
+    for (Draft draft : DetectedChangeDrafts.modules(modules)) {
       items.add(
           item(
               run,
-              ChangeDetectionItemKind.MODULE,
-              0.55,
-              "Module / package structure signals detected in diff. Accept to run module suggestion (fails if modules already exist).",
+              draft.kind(),
+              0.65,
+              draft.summary(),
               evidenceForBucket(analysis, DiffHeuristicAnalyzer.MODULE_SIGNAL),
-              Map.of("action", "SUGGEST_MODULES", "repoFullName", run.getRepoFullName())));
+              draft.payload()));
     }
     for (DiffHeuristicAnalyzer.AttributeHit hit : analysis.attributeHits()) {
+      if ("EDGE".equals(hit.target())) {
+        continue;
+      }
       Map<String, Object> payload = new LinkedHashMap<>();
       payload.put("action", "PATCH_ATTRIBUTE");
       payload.put("target", hit.target());
@@ -270,9 +307,7 @@ public class ChangeDetectionService {
       items.add(
           item(
               run,
-              "EDGE".equals(hit.target())
-                  ? ChangeDetectionItemKind.EDGE_ATTRIBUTE
-                  : ChangeDetectionItemKind.NODE_ATTRIBUTE,
+              ChangeDetectionItemKind.NODE_ATTRIBUTE,
               0.65,
               "Data Model "
                   + hit.target()
@@ -384,14 +419,9 @@ public class ChangeDetectionService {
   private void applyAccept(ChangeDetectionRunEntity run, ChangeDetectionItemEntity item) {
     String appId = run.getApplicationId();
     Map<String, Object> payload = item.getPayload() != null ? item.getPayload() : Map.of();
-    String repo = run.getRepoFullName();
     switch (item.getKind()) {
-      case CONNECTION ->
-          connectionSuggestionService.suggestFromGithub(
-              appId, new SuggestConnectionsFromGithubRequest(repo));
-      case MODULE ->
-          moduleSuggestionService.suggestFromGithub(
-              appId, new SuggestModulesFromGithubRequest(repo));
+      case CONNECTION -> applyConnection(appId, payload);
+      case MODULE -> applyModule(appId, payload);
       case NODE_ATTRIBUTE -> {
         String key = String.valueOf(payload.get("key"));
         String value = String.valueOf(payload.get("value"));
@@ -399,17 +429,66 @@ public class ChangeDetectionService {
           nodeAttributePatchService.patchDetectedValue(appId, key, value);
         }
       }
-      case EDGE_ATTRIBUTE -> {
-        // Edge attribute patches need a concrete DEPENDS_ON id; v1 records accept as
-        // acknowledgement that ops should re-run connection suggestion / manual edit.
-        log.info(
-            "EDGE_ATTRIBUTE accept acknowledged (no auto edge write) app={} key={} value={}",
-            appId,
-            payload.get("key"),
-            payload.get("value"));
-      }
+      case EDGE_ATTRIBUTE ->
+          throw new ResponseStatusException(
+              HttpStatus.CONFLICT, "This change does not name a connection.");
       default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown item kind.");
     }
+  }
+
+  private void applyConnection(String applicationId, Map<String, Object> payload) {
+    if (!"APPLY_CONNECTION".equals(String.valueOf(payload.get("action")))) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "This change does not name a connection.");
+    }
+    connectionSuggestionService.applyProposedConnection(
+        applicationId,
+        String.valueOf(payload.get("peerApplicationName")),
+        String.valueOf(payload.get("direction")),
+        mapValue(payload.get("edgeAttributes")));
+  }
+
+  private void applyModule(String applicationId, Map<String, Object> payload) {
+    if (!"APPLY_MODULE".equals(String.valueOf(payload.get("action")))) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "This change does not name a module.");
+    }
+    moduleSuggestionService.applyProposedModule(
+        applicationId, String.valueOf(payload.get("slug")), String.valueOf(payload.get("businessName")));
+  }
+
+  private static Map<String, Object> mapValue(Object raw) {
+    if (!(raw instanceof Map<?, ?> map)) {
+      return Map.of();
+    }
+    Map<String, Object> copy = new LinkedHashMap<>();
+    map.forEach((key, value) -> copy.put(String.valueOf(key), value));
+    return copy;
+  }
+
+  private static Map<String, String> edgeHits(DiffHeuristicAnalyzer.Analysis analysis) {
+    Map<String, String> hits = new LinkedHashMap<>();
+    for (DiffHeuristicAnalyzer.AttributeHit hit : analysis.attributeHits()) {
+      if ("EDGE".equals(hit.target()) && hit.key() != null && hit.value() != null) {
+        hits.putIfAbsent(hit.key(), hit.value());
+      }
+    }
+    return hits;
+  }
+
+  private static String diffPrompt(DiffResult diff) {
+    StringBuilder text = new StringBuilder();
+    for (var file : diff.files()) {
+      if (text.length() >= DIFF_PROMPT_CHAR_LIMIT) {
+        break;
+      }
+      text.append("### ").append(file.path() != null ? file.path() : "").append('\n');
+      if (file.patch() != null) {
+        text.append(file.patch()).append('\n');
+      }
+    }
+    if (text.length() <= DIFF_PROMPT_CHAR_LIMIT) {
+      return text.toString();
+    }
+    return text.substring(0, DIFF_PROMPT_CHAR_LIMIT);
   }
 
   private static ChangeDetectionRunDto toDto(

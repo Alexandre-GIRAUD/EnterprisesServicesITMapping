@@ -57,6 +57,43 @@ class ApplicationConnectionEdgeWriterTest {
     assertThat(dedupCypher).contains("DEPENDS_ON");
   }
 
+  @Test
+  void anEdgeWithTheSameDataModelValuesIsNotANewFlow() {
+    Neo4jClient neo4jClient = mock(Neo4jClient.class, RETURNS_DEEP_STUBS);
+    org.mockito.Mockito.when(neo4jClient.query(anyString()).bindAll(anyMap()).fetch().all())
+        .thenReturn(
+            List.of(
+                Map.of(
+                    "id",
+                    "edge-1",
+                    "props",
+                    Map.of("data", "PV", "frequency", "real-time"))));
+    ApplicationConnectionEdgeWriter writer = new ApplicationConnectionEdgeWriter(neo4jClient);
+
+    assertThat(
+            writer.isNewFlow(
+                "datahub",
+                "analytics",
+                Map.of("data", "PV", "frequency", "real-time"),
+                Set.of("data", "frequency")))
+        .isFalse();
+  }
+
+  @Test
+  void aDifferentDataModelValueIsANewFlow() {
+    Neo4jClient neo4jClient = mock(Neo4jClient.class, RETURNS_DEEP_STUBS);
+    org.mockito.Mockito.when(neo4jClient.query(anyString()).bindAll(anyMap()).fetch().all())
+        .thenReturn(List.of(Map.of("id", "edge-1", "props", Map.of("data", "PV"))));
+    org.mockito.Mockito.when(neo4jClient.query(anyString()).bindAll(anyMap()).fetch().first())
+        .thenReturn(Optional.empty());
+    ApplicationConnectionEdgeWriter writer = new ApplicationConnectionEdgeWriter(neo4jClient);
+
+    assertThat(
+            writer.isNewFlow(
+                "datahub", "analytics", Map.of("data", "price"), Set.of("data", "frequency")))
+        .isTrue();
+  }
+
   private static void whenFetchEmpty(Neo4jClient neo4jClient) {
     org.mockito.Mockito.when(neo4jClient.query(anyString()).bindAll(anyMap()).fetch().first())
         .thenReturn(Optional.empty());

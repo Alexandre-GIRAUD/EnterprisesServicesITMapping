@@ -1,6 +1,8 @@
 package com.enterprise.itmapping.feature.applications.application;
 
 import com.enterprise.itmapping.feature.applications.application.ModuleDiscoveryAgent.DiscoveryResult;
+import com.enterprise.itmapping.feature.changedetection.application.DetectedChangeDrafts;
+import com.enterprise.itmapping.feature.changedetection.application.DetectedChangeDrafts.ProposedModule;
 import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload.AiModuleEntry;
 import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload.AiRelationshipEntry;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
@@ -18,6 +20,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -354,6 +358,93 @@ public class ModuleSuggestionService {
 
     return new SuggestModulesFromGithubResponse(
         List.copyOf(created), List.copyOf(skipped), List.copyOf(discovery.analyzedFiles()));
+  }
+
+  /**
+   * Reads a commit diff and returns modules it names. Nothing is written.
+   */
+  public List<ProposedModule> proposeFromDiff(String applicationId, String diffText) {
+    if (!StringUtils.hasText(diffText)) {
+      return List.of();
+    }
+    var appRow =
+        applicationRepository
+            .findProjectionById(applicationId)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Application introuvable: " + applicationId));
+    String sourceName = StringUtils.hasText(appRow.getName()) ? appRow.getName() : applicationId;
+    DiscoveryResult discovery =
+        moduleDiscoveryAgent.discoverFromDocument(sourceName, "commit diff", diffText);
+    List<ProposedModule> proposed = new ArrayList<>();
+    for (AiModuleEntry module : discovery.payload().getModules()) {
+      if (!isValidSlug(module.getId()) || !StringUtils.hasText(module.getBusinessName())) {
+        continue;
+      }
+      proposed.add(new ProposedModule(module.getId(), module.getBusinessName().trim()));
+    }
+    return List.copyOf(proposed);
+  }
+
+  /** Drops modules already linked to this application. Another application's module stays. */
+  public List<ProposedModule> onlyNewModules(String applicationId, List<ProposedModule> proposed) {
+    if (proposed == null || proposed.isEmpty()) {
+      return List.of();
+    }
+    List<String> existingNames =
+        neo4jClient
+            .query(
+                """
+                MATCH (:Application {id: $id})-[:CONTAINS*1..50]->(m:Module)
+                RETURN m.name AS name
+                """)
+            .bind(applicationId)
+            .to("id")
+            .fetch()
+            .all()
+            .stream()
+            .map(row -> row.get("name"))
+            .filter(Objects::nonNull)
+            .map(String::valueOf)
+            .toList();
+    return DetectedChangeDrafts.withoutExistingModules(proposed, existingNames);
+  }
+
+  /** Creates one module already deduced from a diff. Does not clone or call the model again. */
+  public void applyProposedModule(String applicationId, String slug, String businessName) {
+    if (!isValidSlug(slug) || !StringUtils.hasText(businessName)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Module proposal is incomplete.");
+    }
+    String name = businessName.trim();
+    Optional<Map<String, Object>> existing =
+        neo4jClient
+            .query(
+                """
+                MATCH (:Application {id: $id})-[:CONTAINS*1..50]->(m:Module)
+                WHERE toLower(m.name) = toLower($name)
+                RETURN m.id AS id
+                LIMIT 1
+                """)
+            .bind(applicationId)
+            .to("id")
+            .bind(name)
+            .to("name")
+            .fetch()
+            .one();
+    if (existing.isPresent()) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Module already exists: " + name);
+    }
+    String neoId = UUID.randomUUID().toString();
+    Map<String, Object> params = new HashMap<>();
+    params.put("id", neoId);
+    params.put("name", name);
+    params.put("desc", "Module detected from a commit diff.");
+    neo4jClient
+        .query("CREATE (m:Module {id: $id, name: $name, description: $desc})")
+        .bindAll(params)
+        .run();
+    linkApplicationContains(applicationId, neoId);
   }
 
   private void linkApplicationContains(String applicationId, String moduleNeoId) {

@@ -129,6 +129,23 @@ public class ApplicationConnectionEdgeWriter {
   }
 
   /**
+   * A flow is new when no {@code DEPENDS_ON} between the endpoints already has these Data Model
+   * values, and none is waiting to be filled with them.
+   */
+  public boolean isNewFlow(
+      String sourceId,
+      String targetId,
+      Map<String, ?> dataModelAttributes,
+      Set<String> allowedDataModelKeys) {
+    Map<String, Object> dynamicProps =
+        AttributeValues.whitelisted(dataModelAttributes, allowedDataModelKeys);
+    if (findDuplicate(sourceId, targetId, dynamicProps).isPresent()) {
+      return false;
+    }
+    return findBareEdgeId(sourceId, targetId, dynamicProps.keySet()).isEmpty();
+  }
+
+  /**
    * {@code DEPENDS_ON} between the endpoints whose Data Model keys are still unset. Used before a
    * merge so the audit can snapshot the previous values.
    */
