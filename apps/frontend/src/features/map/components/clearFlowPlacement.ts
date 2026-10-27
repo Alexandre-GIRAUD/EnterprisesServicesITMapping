@@ -1,6 +1,12 @@
 import type { Edge, Node } from '@xyflow/react';
 import { computeBridges } from './bridges';
-import { isScoreBetter, isScorePerfect, scoreRoutes, type PlacementScore } from './clearFlowScore';
+import {
+  isScoreBetter,
+  isScorePerfect,
+  scoreCandidateRoute,
+  scoreRoutes,
+  type PlacementScore,
+} from './clearFlowScore';
 
 /** Gap between columns. Wide enough for one elbow to pass beside a card. */
 const COLUMN_GAP = 96;
@@ -19,7 +25,7 @@ const MINIMUM_SCORE_WORK = 1;
 /** Each accepted move lowers the score, so this only bounds a long run of tiny gains. */
 const SEARCH_PASSES = 64;
 /** Rough operations spent scoring layouts. Keeps the search well under a second on a large map. */
-const SEARCH_WORK_BUDGET = 50_000_000;
+const SEARCH_WORK_BUDGET = 15_000_000;
 
 export type FlowPoint = { x: number; y: number };
 
@@ -261,11 +267,14 @@ function buildFlowRoutes(
   const exitShift = assignExitShifts(edges, rects, grid);
   const entryShift = assignEntryShifts({ edges, rects, grid, straightShift });
   const routes = new Map<string, FlowPoint[]>();
-  for (const edge of edges) {
+  const straightFirst = [...edges].sort(
+    (left, right) => Number(!isStraightPair(left, grid)) - Number(!isStraightPair(right, grid)),
+  );
+  for (const edge of straightFirst) {
     const source = rects.get(edge.source);
     const target = rects.get(edge.target);
     if (!source || !target) continue;
-    routes.set(edge.id, simplify(chooseRoute({
+    const candidates = listRouteCandidates({
       edge,
       source,
       target,
@@ -275,12 +284,26 @@ function buildFlowRoutes(
       straightShift,
       exitShift,
       entryShift,
-    })));
+    }).map(simplify);
+    routes.set(edge.id, pickFreestRoute({ edge, candidates, drawnRoutes: routes, rects }));
   }
   return routes;
 }
 
-function chooseRoute(choice: {
+/** The first candidate wins ties, so the other L shape is taken only when it is freer. */
+function pickFreestRoute(pick: {
+  edge: FlowPlacementEdge;
+  candidates: FlowPoint[][];
+  drawnRoutes: Map<string, FlowPoint[]>;
+  rects: Map<string, Rect>;
+}): FlowPoint[] {
+  const { edge, candidates, drawnRoutes, rects } = pick;
+  const scored = candidates.map((points) => ({ points, score: scoreCandidateRoute({ edge, points, drawnRoutes, rects }) }));
+  const best = scored.reduce((current, next) => (isScoreBetter(next.score, current.score) ? next : current));
+  return best.points;
+}
+
+function listRouteCandidates(choice: {
   edge: FlowPlacementEdge;
   source: Rect;
   target: Rect;
@@ -290,18 +313,17 @@ function chooseRoute(choice: {
   straightShift: Map<string, number>;
   exitShift: Map<string, number>;
   entryShift: Map<string, number>;
-}): FlowPoint[] {
+}): FlowPoint[][] {
   const { edge, source, target, grid, edges, rects, straightShift, exitShift, entryShift } = choice;
   const laneShift = straightShift.get(edge.id) ?? SINGLE_LANE_SHIFT;
-  if (isVerticalStraight(edge, grid)) return buildVerticalRoute(source, target, laneShift);
-  if (isHorizontalStraight(edge, grid)) return buildHorizontalRoute(source, target, laneShift);
-  if (shouldEnterFromSide(edge, { edges, rects, grid, straightShift })) {
-    return buildSideEntryRoute(source, target, exitShift.get(edge.id) ?? SINGLE_LANE_SHIFT);
-  }
-  return buildElbowRoute(source, target, {
+  if (isVerticalStraight(edge, grid)) return [buildVerticalRoute(source, target, laneShift)];
+  if (isHorizontalStraight(edge, grid)) return [buildHorizontalRoute(source, target, laneShift)];
+  const sideEntry = buildSideEntryRoute(source, target, exitShift.get(edge.id) ?? SINGLE_LANE_SHIFT);
+  const elbow = buildElbowRoute(source, target, {
     yShift: exitShift.get(edge.id) ?? SINGLE_LANE_SHIFT,
     xShift: entryShift.get(edge.id) ?? SINGLE_LANE_SHIFT,
   });
+  return shouldEnterFromSide(edge, { edges, rects, grid, straightShift }) ? [sideEntry, elbow] : [elbow, sideEntry];
 }
 
 function assignStraightShifts(

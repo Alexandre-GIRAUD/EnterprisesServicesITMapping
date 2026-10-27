@@ -36,6 +36,23 @@ export function scoreRoutes(placement: {
   };
 }
 
+/** Scores one candidate route against the routes already drawn, before it is kept. */
+export function scoreCandidateRoute(candidate: {
+  edge: FlowPlacementEdge;
+  points: FlowPoint[];
+  drawnRoutes: Map<string, FlowPoint[]>;
+  rects: Map<string, CardRect>;
+}): PlacementScore {
+  const own = listSegments(new Map([[candidate.edge.id, candidate.points]]));
+  const drawn = listSegments(candidate.drawnRoutes);
+  return {
+    sharedStretches: countPairs(own, drawn, isStretchShared),
+    cuts: countCardCuts(own, { rects: candidate.rects, edges: [candidate.edge] }),
+    crossings: countPairs(own, drawn, isCrossingEitherWay),
+    bends: countBends(new Map([[candidate.edge.id, candidate.points]])),
+  };
+}
+
 export function isScoreBetter(next: PlacementScore, current: PlacementScore): boolean {
   for (const key of SCORE_PRIORITY) {
     if (next[key] !== current[key]) return next[key] < current[key];
@@ -110,6 +127,26 @@ function countCrossings(segments: readonly RouteSegment[]): number {
     }
   }
   return crossings;
+}
+
+function countPairs(
+  own: readonly RouteSegment[],
+  drawn: readonly RouteSegment[],
+  isMatch: (left: RouteSegment, right: RouteSegment) => boolean,
+): number {
+  let pairs = 0;
+  for (const segment of own) {
+    for (const other of drawn) {
+      if (other.id !== segment.id && isMatch(segment, other)) pairs += 1;
+    }
+  }
+  return pairs;
+}
+
+function isCrossingEitherWay(left: RouteSegment, right: RouteSegment): boolean {
+  if (isHorizontal(left) && isVertical(right)) return isCrossing(left, right);
+  if (isVertical(left) && isHorizontal(right)) return isCrossing(right, left);
+  return false;
 }
 
 function isCrossing(horizontal: RouteSegment, vertical: RouteSegment): boolean {
