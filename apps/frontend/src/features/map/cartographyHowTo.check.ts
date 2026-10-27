@@ -26,6 +26,7 @@ for (const sentence of howToSentences) {
   assert.equal(graphData.includes(sentence), false, sentence);
 }
 
+assert.match(graphData, /else \{\s*setMessage\(null\);\s*\}/);
 assert.match(graphData, /No applications match these filters\. Change criteria or reset\./);
 assert.match(graphData, /No nodes\. Start the backend with Neo4j to load demo data\./);
 assert.match(graphData, /Filters applied — sandbox draft reset\./);
