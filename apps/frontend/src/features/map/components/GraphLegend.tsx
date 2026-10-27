@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 import {
   EDGE_TYPE_STYLES,
@@ -20,6 +20,7 @@ import {
   type LegendColorMaps,
   type LegendSetup,
 } from './edgeColorProperty';
+import { useLegendFrame } from './useLegendFrame';
 
 type Props = {
   nodeTypes: NodeTypeKey[];
@@ -160,6 +161,8 @@ export function GraphLegend({
   const [isEditing, setIsEditing] = useState(false);
   const [setupName, setSetupName] = useState('');
   const [selectedSetupId, setSelectedSetupId] = useState('');
+  const frameRef = useRef<HTMLDivElement>(null);
+  const frame = useLegendFrame(frameRef);
 
   const showCoding =
     colorPropertyOptions.length > 0 &&
@@ -423,25 +426,63 @@ export function GraphLegend({
   const showAppsBlock = showAppSelects || appsItems.length > 0;
   const showFlowsBlock = showFlowSelects || flowsItems.length > 0;
 
+  if (frame.isConcealed) {
+    return (
+      <div
+        ref={frameRef}
+        className="graph-legend is-concealed"
+        role="note"
+        aria-label="Graph legend"
+        style={frame.style}
+        onPointerDown={frame.onPointerDown}
+      >
+        <button
+          type="button"
+          className="graph-legend__toggle graph-legend__show"
+          aria-label="Show legend"
+          title="Show legend"
+          onClick={frame.onToggleClick}
+        >
+          Legend
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`graph-legend${isEditing ? ' is-editing' : ''}`}
+      ref={frameRef}
+      className="graph-legend"
       role="note"
       aria-label="Graph legend"
+      data-layout={frame.direction}
+      style={frame.style}
+      onPointerDown={frame.onPointerDown}
     >
       <header className="graph-legend__header">
         <h2 className="graph-legend__heading">Legend</h2>
-        {canEdit ? (
+        <div className="graph-legend__header-actions">
           <button
             type="button"
             className="graph-legend__toggle"
-            aria-label={isEditing ? 'Done' : 'Edit'}
-            title={isEditing ? 'Done' : 'Edit'}
-            onClick={() => setIsEditing((v) => !v)}
+            aria-label="Hide legend"
+            title="Hide legend"
+            onClick={frame.onToggleClick}
           >
-            {isEditing ? '✓' : 'Edit'}
+            Hide
           </button>
-        ) : null}
+          {canEdit ? (
+            <button
+              type="button"
+              className="graph-legend__toggle"
+              aria-label={isEditing ? 'Done' : 'Edit'}
+              title={isEditing ? 'Done' : 'Edit'}
+              onClick={() => setIsEditing((v) => !v)}
+            >
+              {isEditing ? '✓' : 'Edit'}
+            </button>
+          ) : null}
+        </div>
       </header>
 
       {isEditing && onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup && (
