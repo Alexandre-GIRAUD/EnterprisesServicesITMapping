@@ -1,17 +1,25 @@
+import type { Edge, Node } from '@xyflow/react';
 import { computeBridges } from './bridges';
+import { isScoreBetter, isScorePerfect, scoreRoutes, type PlacementScore } from './clearFlowScore';
 
 /** Gap between columns. Wide enough for one elbow to pass beside a card. */
 const COLUMN_GAP = 96;
-/** Gap between rows. Each application gets its own row so an elbow misses the other cards. */
+/** Gap between rows. Each application starts on its own row so an elbow misses the other cards. */
 const ROW_GAP = 80;
 const PORT_MARGIN = 8;
 const ORDER_SWEEPS = 4;
+const SWEEP_DIRECTION_COUNT = 2;
 const POINT_MATCH_DISTANCE = 0.5;
 const CENTER_RATIO = 0.5;
 const SINGLE_LANE_SHIFT = 0;
 const EMPTY_INDEX = 0;
-const SEARCH_PASSES = 8;
+const CELL_STEP = 1;
 const MINIMUM_PORT_SPAN = 1;
+const MINIMUM_SCORE_WORK = 1;
+/** Each accepted move lowers the score, so this only bounds a long run of tiny gains. */
+const SEARCH_PASSES = 64;
+/** Rough operations spent scoring layouts. Keeps the search well under a second on a large map. */
+const SEARCH_WORK_BUDGET = 50_000_000;
 
 export type FlowPoint = { x: number; y: number };
 
@@ -29,12 +37,30 @@ type Rect = { id: string; x: number; y: number; width: number; height: number };
 
 type Grid = { row: Map<string, number>; column: Map<string, number> };
 
+type Span = { low: number; high: number };
+
+/** Place the application map: card positions plus one clear orthogonal route per flow. */
+export function placeApplicationGraph<N extends Node>(
+  nodes: N[],
+  edges: Edge[],
+  nodeSize: { width: number; height: number },
+): { nodes: N[]; routes: Map<string, FlowPoint[]> } {
+  const placed = placeClearFlows(
+    nodes.map((node) => ({ id: node.id, width: node.width ?? nodeSize.width, height: node.height ?? nodeSize.height })),
+    edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target })),
+  );
+  return {
+    nodes: nodes.map((node) => ({ ...node, position: placed.positions.get(node.id) ?? node.position })),
+    routes: placed.routes,
+  };
+}
+
 /**
  * Place applications so each flow is orthogonal, straight or one bend, and flows
  * do not share a stretch. A hop is recorded only where a crossing remains.
  *
- * ponytail: one row per application and one elbow per flow. A node with more
- * flows than fit on a side reuses ports; give that side a second bend channel then.
+ * ponytail: one elbow per flow. A node with more flows than fit on a side reuses
+ * ports; give that side a second bend channel then.
  */
 export function placeClearFlows(
   nodes: readonly FlowPlacementNode[],
@@ -70,8 +96,8 @@ function calculateRankFromSources(ids: readonly string[], edges: readonly FlowPl
     if (known !== undefined) return known;
     if (visiting.has(id)) return EMPTY_INDEX;
     visiting.add(id);
-    let best = 0;
-    for (const source of incoming.get(id) ?? []) best = Math.max(best, measureLongestDepth(source) + 1);
+    let best = EMPTY_INDEX;
+    for (const source of incoming.get(id) ?? []) best = Math.max(best, measureLongestDepth(source) + CELL_STEP);
     visiting.delete(id);
     rank.set(id, best);
     return best;
@@ -101,7 +127,8 @@ function orderWithinRank(
   writeIndexes();
 
   for (let sweep = 0; sweep < ORDER_SWEEPS; sweep += 1) {
-    const ranks = [...groups.keys()].sort((left, right) => (sweep % 2 === 0 ? left - right : right - left));
+    const isDownwardSweep = sweep % SWEEP_DIRECTION_COUNT === EMPTY_INDEX;
+    const ranks = [...groups.keys()].sort((left, right) => (isDownwardSweep ? left - right : right - left));
     for (const key of ranks) {
       const list = groups.get(key) ?? [];
       list.sort((left, right) => {
@@ -140,12 +167,12 @@ function assignColumnFromPredecessors(
   const incoming = groupIncomingByTarget(ids, edges);
   const column = new Map<string, number>();
   const sorted = [...ids].sort((left, right) => (row.get(left) ?? EMPTY_INDEX) - (row.get(right) ?? EMPTY_INDEX));
-  let nextColumn = 0;
+  let nextColumn = EMPTY_INDEX;
   for (const id of sorted) {
     const chosen = findOpenPredecessorColumn(id, { incoming, row, column });
     if (chosen === undefined) {
       column.set(id, nextColumn);
-      nextColumn += 1;
+      nextColumn += CELL_STEP;
     } else {
       column.set(id, chosen);
     }
@@ -178,32 +205,33 @@ function findOpenPredecessorColumn(
   for (const predecessor of predecessors) {
     const candidate = column.get(predecessor);
     if (candidate === undefined) continue;
-    const isOpen = isColumnOpen({
-      columnIndex: candidate,
-      fromRow: row.get(predecessor) ?? EMPTY_INDEX,
-      toRow: row.get(id) ?? EMPTY_INDEX,
-      column,
-      row,
+    const isOpen = isLineOpen({
+      lineIndex: candidate,
+      from: row.get(predecessor) ?? EMPTY_INDEX,
+      to: row.get(id) ?? EMPTY_INDEX,
+      line: column,
+      position: row,
     });
     if (isOpen) return candidate;
   }
   return undefined;
 }
 
-function isColumnOpen(span: {
-  columnIndex: number;
-  fromRow: number;
-  toRow: number;
-  column: Map<string, number>;
-  row: Map<string, number>;
+/** True when no card sits strictly between `from` and `to` on that grid column or row. */
+function isLineOpen(span: {
+  lineIndex: number;
+  from: number;
+  to: number;
+  line: Map<string, number>;
+  position: Map<string, number>;
 }): boolean {
-  const { columnIndex, fromRow, toRow, column, row } = span;
-  const low = Math.min(fromRow, toRow);
-  const high = Math.max(fromRow, toRow);
-  for (const [id, placedColumn] of column) {
-    if (placedColumn !== columnIndex) continue;
-    const placedRow = row.get(id) ?? EMPTY_INDEX;
-    if (placedRow > low && placedRow < high) return false;
+  const { lineIndex, from, to, line, position } = span;
+  const low = Math.min(from, to);
+  const high = Math.max(from, to);
+  for (const [id, placedLine] of line) {
+    if (placedLine !== lineIndex) continue;
+    const placedPosition = position.get(id) ?? EMPTY_INDEX;
+    if (placedPosition > low && placedPosition < high) return false;
   }
   return true;
 }
@@ -264,9 +292,9 @@ function chooseRoute(choice: {
   entryShift: Map<string, number>;
 }): FlowPoint[] {
   const { edge, source, target, grid, edges, rects, straightShift, exitShift, entryShift } = choice;
-  if (isStraightPair(edge, grid)) {
-    return buildVerticalRoute(source, target, straightShift.get(edge.id) ?? SINGLE_LANE_SHIFT);
-  }
+  const laneShift = straightShift.get(edge.id) ?? SINGLE_LANE_SHIFT;
+  if (isVerticalStraight(edge, grid)) return buildVerticalRoute(source, target, laneShift);
+  if (isHorizontalStraight(edge, grid)) return buildHorizontalRoute(source, target, laneShift);
   if (shouldEnterFromSide(edge, { edges, rects, grid, straightShift })) {
     return buildSideEntryRoute(source, target, exitShift.get(edge.id) ?? SINGLE_LANE_SHIFT);
   }
@@ -282,35 +310,55 @@ function assignStraightShifts(
   grid: Grid,
 ): Map<string, number> {
   const shifts = new Map<string, number>();
-  const byColumn = new Map<number, FlowPlacementEdge[]>();
-  for (const edge of edges) {
-    if (!isStraightPair(edge, grid)) continue;
-    const column = grid.column.get(edge.source) ?? EMPTY_INDEX;
-    const list = byColumn.get(column) ?? [];
-    list.push(edge);
-    byColumn.set(column, list);
-  }
-  for (const list of byColumn.values()) {
-    const lanes = packLanes(list, rects);
-    const width = readWidth(rects.get(list[0]?.source ?? ''));
-    const offsets = calculateLaneShifts(lanes.length, width);
-    lanes.forEach((members, index) => {
+  writeStraightLanes({
+    edges: edges.filter((edge) => isVerticalStraight(edge, grid)),
+    rects,
+    shifts,
+    isVertical: true,
+    lineOf: (edge) => String(grid.column.get(edge.source) ?? EMPTY_INDEX),
+  });
+  writeStraightLanes({
+    edges: edges.filter((edge) => isHorizontalStraight(edge, grid)),
+    rects,
+    shifts,
+    isVertical: false,
+    lineOf: (edge) => String(grid.row.get(edge.source) ?? EMPTY_INDEX),
+  });
+  return shifts;
+}
+
+function writeStraightLanes(lanes: {
+  edges: readonly FlowPlacementEdge[];
+  rects: Map<string, Rect>;
+  shifts: Map<string, number>;
+  isVertical: boolean;
+  lineOf: (edge: FlowPlacementEdge) => string;
+}): void {
+  const { edges, rects, shifts, isVertical, lineOf } = lanes;
+  const spanOf = (edge: FlowPlacementEdge) =>
+    isVertical ? readVerticalSpan(edge, rects) : readHorizontalSpan(edge, rects);
+  for (const list of groupEdges(edges, lineOf).values()) {
+    const packed = packLanes(list, spanOf);
+    const firstSource = list[EMPTY_INDEX] ? rects.get(list[EMPTY_INDEX].source) : undefined;
+    if (!firstSource) continue;
+    const offsets = calculateLaneShifts(packed.length, isVertical ? firstSource.width : firstSource.height);
+    packed.forEach((members, index) => {
       for (const edge of members) shifts.set(edge.id, offsets[index] ?? SINGLE_LANE_SHIFT);
     });
   }
-  return shifts;
 }
 
 function packLanes(
   edges: readonly FlowPlacementEdge[],
-  rects: Map<string, Rect>,
+  spanOf: (edge: FlowPlacementEdge) => Span | undefined,
 ): FlowPlacementEdge[][] {
   const lanes: FlowPlacementEdge[][] = [];
-  const ordered = [...edges].sort((left, right) => readSpanStart(left, rects) - readSpanStart(right, rects));
+  const readLow = (edge: FlowPlacementEdge) => spanOf(edge)?.low ?? EMPTY_INDEX;
+  const ordered = [...edges].sort((left, right) => readLow(left) - readLow(right));
   for (const edge of ordered) {
-    const openLane = lanes.findIndex((members) => members.every((other) => !hasOverlappingSpans(edge, other, rects)));
-    if (openLane < 0) lanes.push([edge]);
-    else lanes[openLane].push(edge);
+    const openLane = lanes.find((members) => members.every((other) => !isSpanOverlapping(spanOf(edge), spanOf(other))));
+    if (openLane) openLane.push(edge);
+    else lanes.push([edge]);
   }
   return lanes;
 }
@@ -327,26 +375,28 @@ function assignExitShifts(
     if (!source) continue;
     const below = list.filter((edge) => isTargetBelow(source, rects.get(edge.target)));
     const above = list.filter((edge) => !isTargetBelow(source, rects.get(edge.target)));
-    writeExitOrder({ edges: below, source, rects, shifts, direction: 'below' });
-    writeExitOrder({ edges: above, source, rects, shifts, direction: 'above' });
+    writeExitOrder({ edges: below, source, rects, shifts, isBelow: true });
+    writeExitOrder({ edges: above, source, rects, shifts, isBelow: false });
   }
   return shifts;
 }
 
+/** The nearest target gets the port closest to its side, so the elbows nest instead of crossing. */
 function writeExitOrder(order: {
   edges: readonly FlowPlacementEdge[];
   source: Rect;
   rects: Map<string, Rect>;
   shifts: Map<string, number>;
-  direction: 'below' | 'above';
+  isBelow: boolean;
 }): void {
-  const { edges, source, rects, shifts, direction } = order;
+  const { edges, source, rects, shifts, isBelow } = order;
   const nearestFirst = [...edges].sort(
     (left, right) => measureHorizontalDistance(source, rects.get(left.target)) - measureHorizontalDistance(source, rects.get(right.target)),
   );
   const offsets = calculateLaneShifts(nearestFirst.length, source.height);
+  const lastIndex = offsets.length - CELL_STEP;
   nearestFirst.forEach((edge, index) => {
-    const shift = direction === 'below' ? offsets[offsets.length - 1 - index] : offsets[index];
+    const shift = isBelow ? offsets[lastIndex - index] : offsets[index];
     shifts.set(edge.id, shift ?? SINGLE_LANE_SHIFT);
   });
 }
@@ -375,7 +425,7 @@ function assignEntryShifts(layout: {
 function shouldEnterFromSide(edge: FlowPlacementEdge, context: RouteContext): boolean {
   const targetColumn = context.grid.column.get(edge.target);
   const hasStraightArrival = context.edges.some((other) => {
-    if (other.id === edge.id || !isStraightPair(other, context.grid)) return false;
+    if (other.id === edge.id || !isVerticalStraight(other, context.grid)) return false;
     const isTouchingTarget = other.source === edge.target || other.target === edge.target;
     return isTouchingTarget && context.grid.column.get(other.source) === targetColumn;
   });
@@ -397,19 +447,15 @@ function isSourceLaneOpen(edge: FlowPlacementEdge, context: RouteContext): boole
   const laneX = readCenterX(source);
   const startY = source.y <= target.y ? source.y + source.height : source.y;
   const endY = target.y + target.height * CENTER_RATIO;
-  const low = Math.min(startY, endY);
-  const high = Math.max(startY, endY);
+  const laneSpan = toSpan(startY, endY);
   const sourceColumn = context.grid.column.get(edge.source);
   return context.edges.every((other) => {
-    if (!isStraightPair(other, context.grid) || context.grid.column.get(other.source) !== sourceColumn) return true;
+    if (!isVerticalStraight(other, context.grid) || context.grid.column.get(other.source) !== sourceColumn) return true;
     const otherSource = context.rects.get(other.source);
     if (!otherSource) return true;
     const otherX = readCenterX(otherSource) + (context.straightShift.get(other.id) ?? SINGLE_LANE_SHIFT);
     if (Math.abs(otherX - laneX) > POINT_MATCH_DISTANCE) return true;
-    const span = readVerticalSpan(other, context.rects);
-    if (!span) return true;
-    const overlap = Math.min(span.high, high) - Math.max(span.low, low);
-    return overlap <= POINT_MATCH_DISTANCE;
+    return !isSpanOverlapping(readVerticalSpan(other, context.rects), laneSpan);
   });
 }
 
@@ -428,14 +474,31 @@ function buildSideEntryRoute(source: Rect, target: Rect, yShift: number): FlowPo
     { x: isTargetRight ? target.x : target.x + target.width, y: targetY },
   ];
 }
+
 function isStraightPair(edge: FlowPlacementEdge, grid: Grid): boolean {
-  if ((grid.column.get(edge.source) ?? EMPTY_INDEX) !== (grid.column.get(edge.target) ?? EMPTY_INDEX)) return false;
-  return isColumnOpen({
-    columnIndex: grid.column.get(edge.source) ?? EMPTY_INDEX,
-    fromRow: grid.row.get(edge.source) ?? EMPTY_INDEX,
-    toRow: grid.row.get(edge.target) ?? EMPTY_INDEX,
-    column: grid.column,
-    row: grid.row,
+  return isVerticalStraight(edge, grid) || isHorizontalStraight(edge, grid);
+}
+
+function isVerticalStraight(edge: FlowPlacementEdge, grid: Grid): boolean {
+  return isStraightAlong(edge, { line: grid.column, position: grid.row });
+}
+
+function isHorizontalStraight(edge: FlowPlacementEdge, grid: Grid): boolean {
+  return isStraightAlong(edge, { line: grid.row, position: grid.column });
+}
+
+function isStraightAlong(
+  edge: FlowPlacementEdge,
+  axis: { line: Map<string, number>; position: Map<string, number> },
+): boolean {
+  const lineIndex = axis.line.get(edge.source) ?? EMPTY_INDEX;
+  if (lineIndex !== (axis.line.get(edge.target) ?? EMPTY_INDEX)) return false;
+  return isLineOpen({
+    lineIndex,
+    from: axis.position.get(edge.source) ?? EMPTY_INDEX,
+    to: axis.position.get(edge.target) ?? EMPTY_INDEX,
+    line: axis.line,
+    position: axis.position,
   });
 }
 
@@ -464,41 +527,37 @@ function groupEdges(
   return groups;
 }
 
-function readWidth(rect: Rect | undefined): number {
-  return rect?.width ?? MINIMUM_PORT_SPAN;
-}
-
 function readCenterX(rect: Rect): number {
   return rect.x + rect.width * CENTER_RATIO;
 }
 
-function readSpanStart(edge: FlowPlacementEdge, rects: Map<string, Rect>): number {
-  return readVerticalSpan(edge, rects)?.low ?? EMPTY_INDEX;
-}
-
-function readVerticalSpan(
-  edge: FlowPlacementEdge,
-  rects: Map<string, Rect>,
-): { low: number; high: number } | undefined {
+function readVerticalSpan(edge: FlowPlacementEdge, rects: Map<string, Rect>): Span | undefined {
   const source = rects.get(edge.source);
   const target = rects.get(edge.target);
   if (!source || !target) return undefined;
   const isSourceAbove = source.y <= target.y;
   const start = isSourceAbove ? source.y + source.height : source.y;
   const end = isSourceAbove ? target.y : target.y + target.height;
+  return toSpan(start, end);
+}
+
+function readHorizontalSpan(edge: FlowPlacementEdge, rects: Map<string, Rect>): Span | undefined {
+  const source = rects.get(edge.source);
+  const target = rects.get(edge.target);
+  if (!source || !target) return undefined;
+  const isSourceLeft = source.x <= target.x;
+  const start = isSourceLeft ? source.x + source.width : source.x;
+  const end = isSourceLeft ? target.x : target.x + target.width;
+  return toSpan(start, end);
+}
+
+function toSpan(start: number, end: number): Span {
   return { low: Math.min(start, end), high: Math.max(start, end) };
 }
 
-function hasOverlappingSpans(
-  left: FlowPlacementEdge,
-  right: FlowPlacementEdge,
-  rects: Map<string, Rect>,
-): boolean {
-  const leftSpan = readVerticalSpan(left, rects);
-  const rightSpan = readVerticalSpan(right, rects);
-  if (!leftSpan || !rightSpan) return false;
-  const overlap = Math.min(leftSpan.high, rightSpan.high) - Math.max(leftSpan.low, rightSpan.low);
-  return overlap > POINT_MATCH_DISTANCE;
+function isSpanOverlapping(left: Span | undefined, right: Span | undefined): boolean {
+  if (!left || !right) return false;
+  return Math.min(left.high, right.high) - Math.max(left.low, right.low) > POINT_MATCH_DISTANCE;
 }
 
 function isTargetBelow(source: Rect, target: Rect | undefined): boolean {
@@ -521,7 +580,7 @@ function collectReservedEntryPositions(entry: {
   const reserved = new Set<number>();
   for (const edge of edges) {
     const isTouchingTarget = edge.source === target.id || edge.target === target.id;
-    if (!isTouchingTarget || !isStraightPair(edge, grid)) continue;
+    if (!isTouchingTarget || !isVerticalStraight(edge, grid)) continue;
     const shift = straightShift.get(edge.id) ?? SINGLE_LANE_SHIFT;
     reserved.add(Math.round(readCenterX(target) + shift));
   }
@@ -534,6 +593,15 @@ function buildVerticalRoute(source: Rect, target: Rect, shift: number): FlowPoin
   return [
     { x, y: isSourceAbove ? source.y + source.height : source.y },
     { x, y: isSourceAbove ? target.y : target.y + target.height },
+  ];
+}
+
+function buildHorizontalRoute(source: Rect, target: Rect, shift: number): FlowPoint[] {
+  const y = source.y + source.height * CENTER_RATIO + shift;
+  const isSourceLeft = source.x <= target.x;
+  return [
+    { x: isSourceLeft ? source.x + source.width : source.x, y },
+    { x: isSourceLeft ? target.x : target.x + target.width, y },
   ];
 }
 
@@ -554,8 +622,8 @@ function buildElbowRoute(
   ];
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(Math.max(value, minimum), maximum);
 }
 
 function simplify(points: FlowPoint[]): FlowPoint[] {
@@ -571,248 +639,107 @@ function simplify(points: FlowPoint[]): FlowPoint[] {
   return result;
 }
 
+type Cell = { column: number; row: number };
+
+type PlacementSearch = {
+  nodes: readonly FlowPlacementNode[];
+  edges: readonly FlowPlacementEdge[];
+  grid: Grid;
+  remainingScores: number;
+};
+
 /**
- * ponytail: a handful of swaps and neighbor-cell moves. Stops when the map is
- * clear or no move helps. A graph that cannot be drawn in one bend still hops.
+ * ponytail: first-improvement local search over swaps and neighbor-cell moves,
+ * bounded by SEARCH_WORK_BUDGET. Finding the best drawing is NP-hard, so on a
+ * large or dense map an avoidable crossing can survive as a hop. Upgrade path:
+ * a real orthogonal planarization (topology-shape-metrics) pass.
  */
 function moveNodesUntilClear(
   nodes: readonly FlowPlacementNode[],
   edges: readonly FlowPlacementEdge[],
   grid: Grid,
 ): void {
+  const workPerScore = Math.max(edges.length * edges.length * nodes.length, MINIMUM_SCORE_WORK);
+  const search: PlacementSearch = { nodes, edges, grid, remainingScores: Math.floor(SEARCH_WORK_BUDGET / workPerScore) };
   for (let pass = 0; pass < SEARCH_PASSES; pass += 1) {
-    const current = scorePlacement(nodes, edges, grid);
-    if (current.crossings === 0 && current.cuts === 0 && !current.sharesStretch) return;
-    if (!applyClearerMove(nodes, edges, grid, current)) return;
+    const current = scoreGrid(search);
+    if (isScorePerfect(current)) return;
+    if (!applySwap(search, current) && !applyNeighborMove(search, current)) return;
   }
 }
 
-function applyClearerMove(
-  nodes: readonly FlowPlacementNode[],
-  edges: readonly FlowPlacementEdge[],
-  grid: Grid,
-  current: PlacementScore,
-): boolean {
-  if (applySwap(nodes, edges, grid, current)) return true;
-  return applyNeighborMove(nodes, edges, grid, current);
-}
-
-function applySwap(
-  nodes: readonly FlowPlacementNode[],
-  edges: readonly FlowPlacementEdge[],
-  grid: Grid,
-  current: PlacementScore,
-): boolean {
-  const ids = nodes.map((node) => node.id);
-  for (let left = 0; left < ids.length; left += 1) {
-    for (let right = left + 1; right < ids.length; right += 1) {
-      const leftId = ids[left];
-      const rightId = ids[right];
-      if (!leftId || !rightId) continue;
-      swapCells(grid, leftId, rightId);
-      if (acceptMove(nodes, edges, grid, current)) return true;
-      swapCells(grid, leftId, rightId);
+function applySwap(search: PlacementSearch, current: PlacementScore): boolean {
+  const ids = search.nodes.map((node) => node.id);
+  for (const [leftIndex, leftId] of ids.entries()) {
+    for (const rightId of ids.slice(leftIndex + CELL_STEP)) {
+      swapCells(search.grid, leftId, rightId);
+      if (isMoveBetter(search, current)) return true;
+      swapCells(search.grid, leftId, rightId);
     }
   }
   return false;
 }
 
-function applyNeighborMove(
-  nodes: readonly FlowPlacementNode[],
-  edges: readonly FlowPlacementEdge[],
-  grid: Grid,
-  current: PlacementScore,
-): boolean {
-  for (const node of nodes) {
-    for (const cell of neighborCells(node.id, edges, grid)) {
+function applyNeighborMove(search: PlacementSearch, current: PlacementScore): boolean {
+  const { grid } = search;
+  for (const node of search.nodes) {
+    const previous = readCell(grid, node.id);
+    for (const cell of listNeighborCells(node.id, search)) {
       if (isCellTaken(grid, cell, node.id)) continue;
-      const previous = { column: grid.column.get(node.id) ?? EMPTY_INDEX, row: grid.row.get(node.id) ?? EMPTY_INDEX };
-      grid.column.set(node.id, cell.column);
-      grid.row.set(node.id, cell.row);
-      if (acceptMove(nodes, edges, grid, current)) return true;
-      grid.column.set(node.id, previous.column);
-      grid.row.set(node.id, previous.row);
+      writeCell(grid, node.id, cell);
+      if (isMoveBetter(search, current)) return true;
+      writeCell(grid, node.id, previous);
     }
   }
   return false;
 }
 
-function neighborCells(
-  id: string,
-  edges: readonly FlowPlacementEdge[],
-  grid: Grid,
-): { column: number; row: number }[] {
-  const neighbors = edges
+function listNeighborCells(id: string, search: PlacementSearch): Cell[] {
+  const neighbors = search.edges
     .filter((edge) => edge.source === id || edge.target === id)
     .map((edge) => (edge.source === id ? edge.target : edge.source));
-  const cells: { column: number; row: number }[] = [];
-  for (const neighbor of neighbors) {
-    const column = grid.column.get(neighbor) ?? EMPTY_INDEX;
-    const row = grid.row.get(neighbor) ?? EMPTY_INDEX;
-    cells.push({ column: column + 1, row });
-    cells.push({ column: column - 1, row });
-    cells.push({ column, row: row + 1 });
-    cells.push({ column, row: row - 1 });
-  }
-  return cells;
+  return neighbors.flatMap((neighbor) => {
+    const { column, row } = readCell(search.grid, neighbor);
+    return [
+      { column: column + CELL_STEP, row },
+      { column: column - CELL_STEP, row },
+      { column, row: row + CELL_STEP },
+      { column, row: row - CELL_STEP },
+    ];
+  });
 }
 
-function acceptMove(
-  nodes: readonly FlowPlacementNode[],
-  edges: readonly FlowPlacementEdge[],
-  grid: Grid,
-  current: PlacementScore,
-): boolean {
-  const next = scorePlacement(nodes, edges, grid);
-  if (next.sharesStretch && !current.sharesStretch) return false;
-  if (next.cuts !== current.cuts) return next.cuts < current.cuts;
-  if (next.crossings !== current.crossings) return next.crossings < current.crossings;
-  return next.bends < current.bends;
+function isMoveBetter(search: PlacementSearch, current: PlacementScore): boolean {
+  if (search.remainingScores <= EMPTY_INDEX) return false;
+  search.remainingScores -= CELL_STEP;
+  return isScoreBetter(scoreGrid(search), current);
 }
 
-type PlacementScore = { crossings: number; sharesStretch: boolean; bends: number; cuts: number };
-
-function scorePlacement(
-  nodes: readonly FlowPlacementNode[],
-  edges: readonly FlowPlacementEdge[],
-  grid: Grid,
-): PlacementScore {
-  const rects = buildNodeRects(nodes, grid);
-  const routes = buildFlowRoutes(rects, edges, grid);
-  return {
-    crossings: countRouteCrossings(routes),
-    sharesStretch: haveSharedStretch(routes),
-    bends: countBends(routes),
-    cuts: countNodeCuts(routes, rects, edges),
-  };
+function scoreGrid(search: PlacementSearch): PlacementScore {
+  const rects = buildNodeRects(search.nodes, search.grid);
+  const routes = buildFlowRoutes(rects, search.edges, search.grid);
+  return scoreRoutes({ routes, rects, edges: search.edges });
 }
 
-function countNodeCuts(
-  routes: Map<string, FlowPoint[]>,
-  rects: Map<string, Rect>,
-  edges: readonly FlowPlacementEdge[],
-): number {
-  const edgeById = new Map(edges.map((edge) => [edge.id, edge]));
-  let cuts = 0;
-  for (const segment of listSegments(routes)) {
-    const edge = edgeById.get(segment.id);
-    for (const rect of rects.values()) {
-      if (rect.id === edge?.source || rect.id === edge?.target) continue;
-      if (segmentCutsRect(segment, rect)) cuts += 1;
-    }
-  }
-  return cuts;
+function readCell(grid: Grid, id: string): Cell {
+  return { column: grid.column.get(id) ?? EMPTY_INDEX, row: grid.row.get(id) ?? EMPTY_INDEX };
 }
 
-function segmentCutsRect(segment: RouteSegment, rect: Rect): boolean {
-  const isHorizontal = Math.abs(segment.y1 - segment.y2) < POINT_MATCH_DISTANCE;
-  if (isHorizontal) {
-    const y = segment.y1;
-    const isInsideVerticalSpan = y > rect.y + POINT_MATCH_DISTANCE && y < rect.y + rect.height - POINT_MATCH_DISTANCE;
-    return isInsideVerticalSpan && rangesOverlap(segment.x1, segment.x2, rect.x, rect.x + rect.width);
-  }
-  const x = segment.x1;
-  const isInsideHorizontalSpan = x > rect.x + POINT_MATCH_DISTANCE && x < rect.x + rect.width - POINT_MATCH_DISTANCE;
-  return isInsideHorizontalSpan && rangesOverlap(segment.y1, segment.y2, rect.y, rect.y + rect.height);
+function writeCell(grid: Grid, id: string, cell: Cell): void {
+  grid.column.set(id, cell.column);
+  grid.row.set(id, cell.row);
 }
 
-function countBends(routes: Map<string, FlowPoint[]>): number {
-  let bends = 0;
-  for (const points of routes.values()) {
-    for (let index = 1; index < points.length - 1; index += 1) {
-      const previous = points[index - 1];
-      const current = points[index];
-      const next = points[index + 1];
-      if (!previous || !current || !next) continue;
-      const isSameX = Math.abs(previous.x - current.x) < POINT_MATCH_DISTANCE && Math.abs(current.x - next.x) < POINT_MATCH_DISTANCE;
-      const isSameY = Math.abs(previous.y - current.y) < POINT_MATCH_DISTANCE && Math.abs(current.y - next.y) < POINT_MATCH_DISTANCE;
-      if (!isSameX && !isSameY) bends += 1;
-    }
-  }
-  return bends;
-}
-
-function haveSharedStretch(routes: Map<string, FlowPoint[]>): boolean {
-  const segments = listSegments(routes);
-  for (let left = 0; left < segments.length; left += 1) {
-    for (let right = left + 1; right < segments.length; right += 1) {
-      const leftSegment = segments[left];
-      const rightSegment = segments[right];
-      if (!leftSegment || !rightSegment || leftSegment.id === rightSegment.id) continue;
-      if (segmentsShareStretch(leftSegment, rightSegment)) return true;
-    }
-  }
-  return false;
-}
-
-function segmentsShareStretch(left: RouteSegment, right: RouteSegment): boolean {
-  const isHorizontalPair = Math.abs(left.y1 - left.y2) < POINT_MATCH_DISTANCE
-    && Math.abs(right.y1 - right.y2) < POINT_MATCH_DISTANCE
-    && Math.abs(left.y1 - right.y1) < POINT_MATCH_DISTANCE;
-  const isVerticalPair = Math.abs(left.x1 - left.x2) < POINT_MATCH_DISTANCE
-    && Math.abs(right.x1 - right.x2) < POINT_MATCH_DISTANCE
-    && Math.abs(left.x1 - right.x1) < POINT_MATCH_DISTANCE;
-  if (isHorizontalPair) return rangesOverlap(left.x1, left.x2, right.x1, right.x2);
-  if (isVerticalPair) return rangesOverlap(left.y1, left.y2, right.y1, right.y2);
-  return false;
-}
-
-function countRouteCrossings(routes: Map<string, FlowPoint[]>): number {
-  const segments = listSegments(routes);
-  let crossings = 0;
-  for (const horizontal of segments) {
-    if (Math.abs(horizontal.y1 - horizontal.y2) >= POINT_MATCH_DISTANCE) continue;
-    for (const vertical of segments) {
-      if (horizontal.id === vertical.id) continue;
-      if (Math.abs(vertical.x1 - vertical.x2) >= POINT_MATCH_DISTANCE) continue;
-      if (segmentsCross(horizontal, vertical)) crossings += 1;
-    }
-  }
-  return crossings;
-}
-
-function segmentsCross(horizontal: RouteSegment, vertical: RouteSegment): boolean {
-  const isInsideHorizontal = vertical.x1 > Math.min(horizontal.x1, horizontal.x2) + POINT_MATCH_DISTANCE
-    && vertical.x1 < Math.max(horizontal.x1, horizontal.x2) - POINT_MATCH_DISTANCE;
-  const isInsideVertical = horizontal.y1 > Math.min(vertical.y1, vertical.y2) + POINT_MATCH_DISTANCE
-    && horizontal.y1 < Math.max(vertical.y1, vertical.y2) - POINT_MATCH_DISTANCE;
-  return isInsideHorizontal && isInsideVertical;
-}
-
-function rangesOverlap(firstStart: number, firstEnd: number, secondStart: number, secondEnd: number): boolean {
-  const overlapStart = Math.max(Math.min(firstStart, firstEnd), Math.min(secondStart, secondEnd));
-  const overlapEnd = Math.min(Math.max(firstStart, firstEnd), Math.max(secondStart, secondEnd));
-  return overlapEnd - overlapStart > POINT_MATCH_DISTANCE;
-}
-
-type RouteSegment = { id: string; x1: number; y1: number; x2: number; y2: number };
-
-function listSegments(routes: Map<string, FlowPoint[]>): RouteSegment[] {
-  const segments: RouteSegment[] = [];
-  for (const [id, points] of routes) {
-    for (let index = 0; index < points.length - 1; index += 1) {
-      const start = points[index];
-      const end = points[index + 1];
-      if (!start || !end) continue;
-      segments.push({ id, x1: start.x, y1: start.y, x2: end.x, y2: end.y });
-    }
-  }
-  return segments;
-}
-
-function isCellTaken(grid: Grid, cell: { column: number; row: number }, exceptId: string): boolean {
+function isCellTaken(grid: Grid, cell: Cell, movingId: string): boolean {
   for (const [id, column] of grid.column) {
-    if (id === exceptId || column !== cell.column) continue;
+    if (id === movingId || column !== cell.column) continue;
     if ((grid.row.get(id) ?? EMPTY_INDEX) === cell.row) return true;
   }
   return false;
 }
 
 function swapCells(grid: Grid, leftId: string, rightId: string): void {
-  const leftColumn = grid.column.get(leftId) ?? EMPTY_INDEX;
-  const leftRow = grid.row.get(leftId) ?? EMPTY_INDEX;
-  grid.column.set(leftId, grid.column.get(rightId) ?? EMPTY_INDEX);
-  grid.row.set(leftId, grid.row.get(rightId) ?? EMPTY_INDEX);
-  grid.column.set(rightId, leftColumn);
-  grid.row.set(rightId, leftRow);
+  const leftCell = readCell(grid, leftId);
+  writeCell(grid, leftId, readCell(grid, rightId));
+  writeCell(grid, rightId, leftCell);
 }
