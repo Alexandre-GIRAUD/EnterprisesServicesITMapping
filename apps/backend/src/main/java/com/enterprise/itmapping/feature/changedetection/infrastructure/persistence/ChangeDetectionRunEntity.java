@@ -35,6 +35,9 @@ public class ChangeDetectionRunEntity {
   @Column(name = "commit_sha", nullable = false, length = 64)
   private String commitSha;
 
+  @Column(name = "base_sha", length = 64)
+  private String baseSha;
+
   @Column(name = "branch_ref", nullable = false, length = 255)
   private String branchRef;
 
@@ -110,6 +113,14 @@ public class ChangeDetectionRunEntity {
 
   public void setCommitSha(String commitSha) {
     this.commitSha = commitSha;
+  }
+
+  public String getBaseSha() {
+    return baseSha;
+  }
+
+  public void setBaseSha(String baseSha) {
+    this.baseSha = baseSha;
   }
 
   public String getBranchRef() {

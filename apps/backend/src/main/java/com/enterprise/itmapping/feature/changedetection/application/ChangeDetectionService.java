@@ -47,6 +47,7 @@ public class ChangeDetectionService {
 
   private static final Logger log = LoggerFactory.getLogger(ChangeDetectionService.class);
   private static final int DIFF_PROMPT_CHAR_LIMIT = 12000;
+  private static final String DELETED_BRANCH_SHA = "0000000000000000000000000000000000000000";
 
   private final ChangeDetectionRunRepository runRepository;
   private final ChangeDetectionItemRepository itemRepository;
@@ -89,8 +90,9 @@ public class ChangeDetectionService {
   }
 
   /**
-   * Parses a GitHub push webhook, creates idempotent runs for each commit SHA, returns accepted run
-   * ids. Processing continues asynchronously.
+   * Parses a GitHub push webhook and creates one idempotent run for the push tip. The previous tip
+   * is stored so analysis diffs {@code before...after} once: a merge commit already contains the
+   * commits listed beside it.
    */
   @Transactional
   public List<UUID> ingestPushWebhook(byte[] rawBody) {
@@ -116,74 +118,58 @@ public class ChangeDetectionService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "repository.full_name missing.");
     }
 
-    List<String> shas = new ArrayList<>();
-    if (root.has("commits") && root.get("commits").isArray()) {
-      for (JsonNode c : root.get("commits")) {
-        String id = text(c, "id");
-        if (StringUtils.hasText(id)) {
-          shas.add(id);
-        }
-      }
+    String tip = tipSha(root);
+    if (!isRealSha(tip)) {
+      log.info("GitHub push ignored (empty tip): repo={} ref={}", repoFullName, ref);
+      return List.of();
     }
-    String head = text(root.path("head_commit"), "id");
-    if (StringUtils.hasText(head) && !shas.contains(head)) {
-      shas.add(head);
-    }
-    if (shas.isEmpty()) {
-      String after = text(root, "after");
-      if (StringUtils.hasText(after) && !"0000000000000000000000000000000000000000".equals(after)) {
-        shas.add(after);
-      }
-    }
+    String base = baseSha(root, tip);
 
     Optional<ApplicationGraphNodeProjection> app =
         linkedApplicationResolver.findByRepoFullName(repoFullName);
-    List<UUID> accepted = new ArrayList<>();
-    for (String sha : shas) {
-      Optional<ChangeDetectionRunEntity> existing =
-          runRepository.findByRepoFullNameIgnoreCaseAndCommitSha(repoFullName, sha);
-      if (existing.isPresent()) {
-        ChangeDetectionRunEntity run = existing.get();
-        log.info(
-            "GitHub push idempotent hit: repo={} commit={} status={}",
-            repoFullName,
-            shortSha(sha),
-            run.getStatus());
-        accepted.add(run.getId());
-        continue;
-      }
-      ChangeDetectionRunEntity run = new ChangeDetectionRunEntity();
-      run.setProvider("GITHUB");
-      run.setRepoFullName(repoFullName);
-      run.setCommitSha(sha);
-      run.setBranchRef(ref);
-      if (app.isPresent()) {
-        run.setApplicationId(app.get().getId());
-        run.setStatus(ChangeDetectionRunStatus.RECEIVED);
-      } else {
-        run.setStatus(ChangeDetectionRunStatus.UNMATCHED);
-      }
-      run = runRepository.save(run);
-      accepted.add(run.getId());
+    Optional<ChangeDetectionRunEntity> existing =
+        runRepository.findByRepoFullNameIgnoreCaseAndCommitSha(repoFullName, tip);
+    if (existing.isPresent()) {
+      ChangeDetectionRunEntity run = existing.get();
       log.info(
-          "GitHub push: repo={} commit={} applicationId={} status={}",
+          "GitHub push idempotent hit: repo={} commit={} status={}",
           repoFullName,
-          shortSha(sha),
-          run.getApplicationId(),
+          shortSha(tip),
           run.getStatus());
-      if (run.getStatus() != ChangeDetectionRunStatus.UNMATCHED) {
-        UUID runId = run.getId();
-        // The analysis thread cannot see this insert until the webhook transaction commits.
-        TransactionSynchronizationManager.registerSynchronization(
-            new TransactionSynchronization() {
-              @Override
-              public void afterCommit() {
-                self.processRunAsync(runId);
-              }
-            });
-      }
+      return List.of(run.getId());
     }
-    return accepted;
+    ChangeDetectionRunEntity run = new ChangeDetectionRunEntity();
+    run.setProvider("GITHUB");
+    run.setRepoFullName(repoFullName);
+    run.setCommitSha(tip);
+    run.setBaseSha(base);
+    run.setBranchRef(ref);
+    if (app.isPresent()) {
+      run.setApplicationId(app.get().getId());
+      run.setStatus(ChangeDetectionRunStatus.RECEIVED);
+    } else {
+      run.setStatus(ChangeDetectionRunStatus.UNMATCHED);
+    }
+    run = runRepository.save(run);
+    log.info(
+        "GitHub push: repo={} base={} commit={} applicationId={} status={}",
+        repoFullName,
+        shortSha(base),
+        shortSha(tip),
+        run.getApplicationId(),
+        run.getStatus());
+    if (run.getStatus() != ChangeDetectionRunStatus.UNMATCHED) {
+      UUID runId = run.getId();
+      // The analysis thread cannot see this insert until the webhook transaction commits.
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              self.processRunAsync(runId);
+            }
+          });
+    }
+    return List.of(run.getId());
   }
 
   @Async
@@ -222,7 +208,10 @@ public class ChangeDetectionService {
     String[] parts = run.getRepoFullName().split("/", 2);
     String owner = parts[0];
     String repo = parts[1];
-    DiffResult diff = commitDiffService.fetchCommitDiff(owner, repo, run.getCommitSha());
+    DiffResult diff =
+        StringUtils.hasText(run.getBaseSha())
+            ? commitDiffService.fetchCompareDiff(owner, repo, run.getBaseSha(), run.getCommitSha())
+            : commitDiffService.fetchCommitDiff(owner, repo, run.getCommitSha());
     DataModelConfig dm = dataModelService.loadConfig();
     DiffHeuristicAnalyzer.Analysis analysis = heuristicAnalyzer.analyze(diff.files(), dm);
     String prompt = diffPrompt(diff);
@@ -521,6 +510,39 @@ public class ChangeDetectionService {
         Map.copyOf(item.getPayload()),
         item.getCreatedAt(),
         item.getUpdatedAt());
+  }
+
+  private static String tipSha(JsonNode root) {
+    String after = text(root, "after");
+    if (isRealSha(after)) {
+      return after;
+    }
+    return text(root.path("head_commit"), "id");
+  }
+
+  private static String baseSha(JsonNode root, String tip) {
+    String before = text(root, "before");
+    if (!isRealSha(before) || before.equalsIgnoreCase(tip)) {
+      return null;
+    }
+    return before;
+  }
+
+  private static boolean isRealSha(String sha) {
+    if (!StringUtils.hasText(sha) || DELETED_BRANCH_SHA.equals(sha)) {
+      return false;
+    }
+    for (int index = 0; index < sha.length(); index++) {
+      char character = sha.charAt(index);
+      boolean isHex =
+          (character >= '0' && character <= '9')
+              || (character >= 'a' && character <= 'f')
+              || (character >= 'A' && character <= 'F');
+      if (!isHex) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private static String text(JsonNode node, String field) {

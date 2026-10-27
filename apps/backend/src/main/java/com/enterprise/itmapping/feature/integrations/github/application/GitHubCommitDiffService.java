@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Fetches a commit's file list + patches from the GitHub Commits API. */
+/** Fetches a commit diff, or the net diff of a push, from the GitHub API. */
 @Service
 public class GitHubCommitDiffService {
 
@@ -32,6 +32,16 @@ public class GitHubCommitDiffService {
   }
 
   public DiffResult fetchCommitDiff(String owner, String repo, String sha) {
+    return fetchDiff(owner, repo, "/repos/{owner}/{repo}/commits/{ref}", sha);
+  }
+
+  public DiffResult fetchCompareDiff(String owner, String repo, String baseSha, String headSha) {
+    // ponytail: three-dot only. A force-push needs a two-dot diff; this API does not return one.
+    return fetchDiff(
+        owner, repo, "/repos/{owner}/{repo}/compare/{ref}", baseSha + "..." + headSha);
+  }
+
+  private DiffResult fetchDiff(String owner, String repo, String uri, String ref) {
     if (!apiClient.hasToken()) {
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE, "GITHUB_TOKEN is not configured.");
@@ -42,15 +52,15 @@ public class GitHubCommitDiffService {
           apiClient
               .buildClient()
               .get()
-              .uri("/repos/{owner}/{repo}/commits/{sha}", owner, repo, sha)
+              .uri(uri, owner, repo, ref)
               .retrieve()
               .body(JsonNode.class);
     } catch (RestClientResponseException e) {
       log.warn(
-          "GitHub commit fetch failed owner={} repo={} sha={} status={}",
+          "GitHub diff fetch failed owner={} repo={} ref={} status={}",
           owner,
           repo,
-          sha,
+          ref,
           e.getStatusCode().value());
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY, "Unable to fetch commit diff from GitHub.", e);
