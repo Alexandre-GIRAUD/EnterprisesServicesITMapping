@@ -22,9 +22,8 @@ class GitHubIntegrationPropertiesBindingTest {
               GitHubIntegrationProperties properties =
                   context.getBean(GitHubIntegrationProperties.class);
               assertThat(properties.token()).isEqualTo("server-token");
-              assertThat(properties.clientId()).isEmpty();
-              assertThat(properties.oauthRedirectUri())
-                  .isEqualTo("http://localhost:8081/api/integrations/github/callback");
+              assertThat(properties.apiBaseUrl()).isEqualTo("https://api.github.com");
+              assertThat(properties.webhookBranch()).isEqualTo("refs/heads/main");
             });
   }
 

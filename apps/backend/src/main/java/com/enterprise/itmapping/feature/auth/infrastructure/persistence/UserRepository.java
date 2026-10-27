@@ -9,8 +9,6 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
   Optional<UserEntity> findByUsernameIgnoreCase(String username);
 
-  Optional<UserEntity> findByGithubOauthState(String githubOauthState);
-
   boolean existsByUsernameIgnoreCase(String username);
 
   List<UserEntity> findAllByOrderByUsernameAsc();

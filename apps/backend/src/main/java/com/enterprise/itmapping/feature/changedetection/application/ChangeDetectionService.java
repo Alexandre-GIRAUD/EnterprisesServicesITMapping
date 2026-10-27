@@ -418,10 +418,6 @@ public class ChangeDetectionService {
           nodeAttributePatchService.patchDetectedValue(appId, key, value);
         }
       }
-      case EDGE_ATTRIBUTE ->
-          throw new ResponseStatusException(
-              HttpStatus.CONFLICT, "This change does not name a connection.");
-      default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown item kind.");
     }
   }
 

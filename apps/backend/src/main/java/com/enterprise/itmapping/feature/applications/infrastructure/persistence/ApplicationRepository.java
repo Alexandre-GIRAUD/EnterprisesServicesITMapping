@@ -24,12 +24,5 @@ public interface ApplicationRepository extends Neo4jRepository<Application, Stri
       RETURN a.id AS id, a.name AS name, a.description AS description
       LIMIT 1
       """)
-  java.util.Optional<ApplicationGraphNodeProjection> findByIdForGraph(@Param("id") String id);
-
-  @Query("""
-      MATCH (a:Application {id: $id})
-      RETURN a.id AS id, a.name AS name, a.description AS description
-      LIMIT 1
-      """)
   java.util.Optional<ApplicationGraphNodeProjection> findProjectionById(@Param("id") String id);
 }

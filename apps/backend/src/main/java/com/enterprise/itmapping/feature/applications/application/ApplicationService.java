@@ -58,7 +58,7 @@ public class ApplicationService {
 
   @Transactional(readOnly = true)
   public Optional<ApplicationResponse> findById(String id) {
-    return applicationRepository.findByIdForGraph(id).map(this::toDetailResponse);
+    return applicationRepository.findProjectionById(id).map(this::toDetailResponse);
   }
 
   @Transactional
@@ -127,7 +127,7 @@ public class ApplicationService {
             """)
         .bindAll(params)
         .run();
-    return applicationRepository.findByIdForGraph(id).map(this::toDetailResponse);
+    return applicationRepository.findProjectionById(id).map(this::toDetailResponse);
   }
 
   /**

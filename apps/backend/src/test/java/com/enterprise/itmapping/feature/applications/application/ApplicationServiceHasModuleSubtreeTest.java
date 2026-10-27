@@ -80,7 +80,7 @@ class ApplicationServiceHasModuleSubtreeTest {
 
   @Test
   void findByIdIncludesHasModuleSubtreeFromQuery() {
-    when(applicationRepository.findByIdForGraph(eq("app-1")))
+    when(applicationRepository.findProjectionById(eq("app-1")))
         .thenReturn(Optional.of(projection));
     when(moduleSubtreeQuery.hasAnyModuleViaContains("app-1")).thenReturn(true);
 
@@ -90,7 +90,7 @@ class ApplicationServiceHasModuleSubtreeTest {
 
   @Test
   void findByIdExposesNodeAttributes() {
-    when(applicationRepository.findByIdForGraph(eq("app-1")))
+    when(applicationRepository.findProjectionById(eq("app-1")))
         .thenReturn(Optional.of(projection));
     when(nodeAttributeReader.read("app-1")).thenReturn(Map.of("tier", (Object) "GOLD"));
 

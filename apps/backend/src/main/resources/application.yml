@@ -55,20 +55,14 @@ management:
     health:
       show-details: when-authorized
 
-# Demo: insert sample applications + dependencies when DB has no Application nodes
 app:
-  # GitHub: GITHUB_TOKEN is the shared fallback (webhooks, users who have not connected).
-  # GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are the OAuth App. Never send tokens to the frontend.
+  # GitHub: GITHUB_TOKEN is the shared fallback (webhooks, users who have not pasted a token).
   integrations:
     github:
       token: ${GITHUB_TOKEN:}
       api-base-url: https://api.github.com
       max-repos: 100
       webhook-secret: ${GITHUB_WEBHOOK_SECRET:}
-      client-id: ${GITHUB_CLIENT_ID:}
-      client-secret: ${GITHUB_CLIENT_SECRET:}
-      oauth-redirect-uri: ${GITHUB_OAUTH_REDIRECT_URI:http://localhost:8081/api/integrations/github/callback}
-      oauth-return-url: ${GITHUB_OAUTH_RETURN_URL:http://localhost:3000/map/import-github}
       webhook-branch: ${GITHUB_WEBHOOK_BRANCH:refs/heads/main}
       max-diff-files: ${GITHUB_MAX_DIFF_FILES:80}
       max-diff-kb: ${GITHUB_MAX_DIFF_KB:512}
@@ -121,11 +115,6 @@ app:
         min-chunk-chars: 40
         markdown-window-chars: 1200
         markdown-overlap-chars: 200
-  sample-data:
-    seed: ${SAMPLE_DATA_SEED:true} # set SAMPLE_DATA_SEED=false to disable
-    # Neo4j may not accept Bolt immediately (Docker order, cold start, APOC). Retry before giving up.
-    max-attempts: ${SAMPLE_DATA_MAX_ATTEMPTS:30}
-    retry-delay-ms: ${SAMPLE_DATA_RETRY_DELAY_MS:2000}
   # Max CONTAINS hops for GET /applications/{id}/module-graph (capped in code at 50).
   module-graph:
     max-depth: ${APP_MODULE_GRAPH_MAX_DEPTH:10}
