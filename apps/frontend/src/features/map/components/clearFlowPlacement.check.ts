@@ -61,34 +61,24 @@ function hasOverlappingRange(first: { start: number; end: number }, second: { st
   return overlapEnd - overlapStart > POINT_MATCH_DISTANCE;
 }
 
+type Segment = ReturnType<typeof buildSegments>[number];
+
 function hasSharedStretch(routes: Map<string, FlowPoint[]>): boolean {
   const all = [...routes.entries()].flatMap(([id, points]) =>
     buildSegments(points).map((segment) => ({ id, ...segment })),
   );
-  for (let leftIndex = 0; leftIndex < all.length; leftIndex += 1) {
-    for (let rightIndex = leftIndex + 1; rightIndex < all.length; rightIndex += 1) {
-      const leftSegment = all[leftIndex];
-      const rightSegment = all[rightIndex];
-      if (leftSegment.id === rightSegment.id) continue;
-      const isHorizontalPair = Math.abs(leftSegment.y1 - leftSegment.y2) < POINT_MATCH_DISTANCE
-        && Math.abs(rightSegment.y1 - rightSegment.y2) < POINT_MATCH_DISTANCE;
-      const isVerticalPair = Math.abs(leftSegment.x1 - leftSegment.x2) < POINT_MATCH_DISTANCE
-        && Math.abs(rightSegment.x1 - rightSegment.x2) < POINT_MATCH_DISTANCE;
-      if (isHorizontalPair && Math.abs(leftSegment.y1 - rightSegment.y1) < POINT_MATCH_DISTANCE && hasOverlappingRange(
-        { start: leftSegment.x1, end: leftSegment.x2 },
-        { start: rightSegment.x1, end: rightSegment.x2 },
-      )) {
-        return true;
-      }
-      if (isVerticalPair && Math.abs(leftSegment.x1 - rightSegment.x1) < POINT_MATCH_DISTANCE && hasOverlappingRange(
-        { start: leftSegment.y1, end: leftSegment.y2 },
-        { start: rightSegment.y1, end: rightSegment.y2 },
-      )) {
-        return true;
-      }
-    }
-  }
-  return false;
+  return all.some((left, leftIndex) =>
+    all.slice(leftIndex + 1).some((right) => left.id !== right.id && isSameStretch(left, right)),
+  );
+}
+
+function isSameStretch(left: Segment, right: Segment): boolean {
+  const isNear = (first: number, second: number) => Math.abs(first - second) < POINT_MATCH_DISTANCE;
+  const isSameRowOverlap = isNear(left.y1, left.y2) && isNear(right.y1, right.y2) && isNear(left.y1, right.y1)
+    && hasOverlappingRange({ start: left.x1, end: left.x2 }, { start: right.x1, end: right.x2 });
+  const isSameColumnOverlap = isNear(left.x1, left.x2) && isNear(right.x1, right.x2) && isNear(left.x1, right.x1)
+    && hasOverlappingRange({ start: left.y1, end: left.y2 }, { start: right.y1, end: right.y2 });
+  return isSameRowOverlap || isSameColumnOverlap;
 }
 
 function countCrossings(routes: Map<string, FlowPoint[]>): number {

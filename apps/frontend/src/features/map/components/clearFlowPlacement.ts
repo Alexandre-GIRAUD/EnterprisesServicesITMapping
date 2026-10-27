@@ -1,11 +1,16 @@
 import type { Edge, Node } from '@xyflow/react';
 import { computeBridges } from './bridges';
 import {
+  POINT_MATCH_DISTANCE,
+  buildSpan,
   isScoreBetter,
   isScorePerfect,
+  isSpanOverlapping,
   scoreCandidateRoute,
   scoreRoutes,
+  type Card,
   type PlacementScore,
+  type Span,
 } from './clearFlowScore';
 
 /** Gap between columns. Wide enough for one elbow to pass beside a card. */
@@ -15,9 +20,11 @@ const ROW_GAP = 80;
 const PORT_MARGIN = 8;
 const ORDER_SWEEPS = 4;
 const SWEEP_DIRECTION_COUNT = 2;
-const POINT_MATCH_DISTANCE = 0.5;
 const CENTER_RATIO = 0.5;
 const SINGLE_LANE_SHIFT = 0;
+const SINGLE_LANE_COUNT = 1;
+/** A port margin is kept on both ends of a card border. */
+const BORDER_SIDES = 2;
 const EMPTY_INDEX = 0;
 const CELL_STEP = 1;
 const MINIMUM_PORT_SPAN = 1;
@@ -42,11 +49,7 @@ export type ClearFlowPlacement = {
   hops: Map<string, FlowPoint[]>;
 };
 
-type Rect = { id: string; x: number; y: number; width: number; height: number };
-
 type Grid = { row: Map<string, number>; column: Map<string, number> };
-
-type Span = { low: number; high: number };
 
 /** Place the application map: card positions plus one clear orthogonal route per flow. */
 export function placeApplicationGraph<N extends Node>(
@@ -85,7 +88,7 @@ export function placeClearFlows(
 
 type LinkedGroup = { nodes: FlowPlacementNode[]; edges: FlowPlacementEdge[] };
 
-type PlacedGroup = { rects: Rect[]; routes: Map<string, FlowPoint[]>; width: number; height: number };
+type PlacedGroup = { cards: Card[]; routes: Map<string, FlowPoint[]>; width: number; height: number };
 
 /** Applications with no flow between them never interact, so each linked group is placed on its own. */
 function splitIntoLinkedGroups(
@@ -137,15 +140,15 @@ function placeLinkedGroup(group: LinkedGroup & { workBudget: number }): PlacedGr
   const { nodes, edges, workBudget } = group;
   const grid = buildPlacementGrid(nodes, edges);
   moveNodesUntilClear({ nodes, edges, grid, workBudget });
-  const rects = [...buildNodeRects(nodes, grid).values()];
-  const routes = buildFlowRoutes(new Map(rects.map((rect) => [rect.id, rect])), edges, grid);
-  const left = Math.min(...rects.map((rect) => rect.x));
-  const top = Math.min(...rects.map((rect) => rect.y));
-  const moved = translateGroup({ rects, routes }, { x: -left, y: -top });
+  const cards = [...buildNodeCards(nodes, grid).values()];
+  const routes = buildFlowRoutes(new Map(cards.map((card) => [card.id, card])), edges, grid);
+  const left = Math.min(...cards.map((card) => card.x));
+  const top = Math.min(...cards.map((card) => card.y));
+  const moved = translateGroup({ cards, routes }, { x: -left, y: -top });
   return {
     ...moved,
-    width: Math.max(...moved.rects.map((rect) => rect.x + rect.width)),
-    height: Math.max(...moved.rects.map((rect) => rect.y + rect.height)),
+    width: Math.max(...moved.cards.map((card) => card.x + card.width)),
+    height: Math.max(...moved.cards.map((card) => card.y + card.height)),
   };
 }
 
@@ -159,7 +162,7 @@ function packGroups(groups: readonly PlacedGroup[]): Omit<ClearFlowPlacement, 'h
     const isRowFull = cursor.x > ORIGIN && cursor.x + group.width > rowWidth;
     if (isRowFull) Object.assign(cursor, { x: ORIGIN, y: cursor.y + cursor.shelfHeight + ROW_GAP, shelfHeight: ORIGIN });
     const moved = translateGroup(group, cursor);
-    for (const rect of moved.rects) positions.set(rect.id, { x: rect.x, y: rect.y });
+    for (const card of moved.cards) positions.set(card.id, { x: card.x, y: card.y });
     for (const [id, points] of moved.routes) routes.set(id, points);
     cursor.x += group.width + COLUMN_GAP;
     cursor.shelfHeight = Math.max(cursor.shelfHeight, group.height);
@@ -174,12 +177,12 @@ function measurePackedRowWidth(groups: readonly PlacedGroup[]): number {
 }
 
 function translateGroup(
-  group: Pick<PlacedGroup, 'rects' | 'routes'>,
+  group: Pick<PlacedGroup, 'cards' | 'routes'>,
   offset: FlowPoint,
-): Pick<PlacedGroup, 'rects' | 'routes'> {
+): Pick<PlacedGroup, 'cards' | 'routes'> {
   const movePoint = (point: FlowPoint) => ({ x: point.x + offset.x, y: point.y + offset.y });
   return {
-    rects: group.rects.map((rect) => ({ ...rect, ...movePoint(rect) })),
+    cards: group.cards.map((card) => ({ ...card, ...movePoint(card) })),
     routes: new Map([...group.routes].map(([id, points]) => [id, points.map(movePoint)])),
   };
 }
@@ -221,6 +224,17 @@ function orderWithinRank(
   edges: readonly FlowPlacementEdge[],
   rank: Map<string, number>,
 ): Map<string, number> {
+  const groups = groupIdsByRank(ids, rank);
+  let indexOf = readIndexesWithinRank(groups);
+  for (let sweep = 0; sweep < ORDER_SWEEPS; sweep += 1) {
+    const isDownwardSweep = sweep % SWEEP_DIRECTION_COUNT === EMPTY_INDEX;
+    sortRanksByBarycenter({ groups, indexOf, edges, isDownwardSweep });
+    indexOf = readIndexesWithinRank(groups);
+  }
+  return indexOf;
+}
+
+function groupIdsByRank(ids: readonly string[], rank: Map<string, number>): Map<number, string[]> {
   const groups = new Map<number, string[]>();
   for (const id of ids) {
     const key = rank.get(id) ?? EMPTY_INDEX;
@@ -229,25 +243,27 @@ function orderWithinRank(
     groups.set(key, list);
   }
   for (const list of groups.values()) list.sort();
-  const indexOf = new Map<string, number>();
-  const writeIndexes = () => {
-    for (const list of groups.values()) list.forEach((id, index) => indexOf.set(id, index));
-  };
-  writeIndexes();
+  return groups;
+}
 
-  for (let sweep = 0; sweep < ORDER_SWEEPS; sweep += 1) {
-    const isDownwardSweep = sweep % SWEEP_DIRECTION_COUNT === EMPTY_INDEX;
-    const ranks = [...groups.keys()].sort((left, right) => (isDownwardSweep ? left - right : right - left));
-    for (const key of ranks) {
-      const list = groups.get(key) ?? [];
-      list.sort((left, right) => {
-        const scoreDelta = calculateBarycenter(left, indexOf, edges) - calculateBarycenter(right, indexOf, edges);
-        return scoreDelta || left.localeCompare(right);
-      });
-    }
-    writeIndexes();
-  }
+function readIndexesWithinRank(groups: Map<number, string[]>): Map<string, number> {
+  const indexOf = new Map<string, number>();
+  for (const list of groups.values()) list.forEach((id, index) => indexOf.set(id, index));
   return indexOf;
+}
+
+/** Indexes are read once per sweep, so every rank in a sweep sorts against the same order. */
+function sortRanksByBarycenter(sweep: {
+  groups: Map<number, string[]>;
+  indexOf: Map<string, number>;
+  edges: readonly FlowPlacementEdge[];
+  isDownwardSweep: boolean;
+}): void {
+  const { groups, indexOf, edges, isDownwardSweep } = sweep;
+  const ranks = [...groups.keys()].sort((left, right) => (isDownwardSweep ? left - right : right - left));
+  const compareByBarycenter = (left: string, right: string) =>
+    calculateBarycenter(left, indexOf, edges) - calculateBarycenter(right, indexOf, edges) || left.localeCompare(right);
+  for (const key of ranks) groups.get(key)?.sort(compareByBarycenter);
 }
 
 function calculateBarycenter(id: string, indexOf: Map<string, number>, edges: readonly FlowPlacementEdge[]): number {
@@ -345,12 +361,12 @@ function isLineOpen(span: {
   return true;
 }
 
-function buildNodeRects(nodes: readonly FlowPlacementNode[], grid: Grid): Map<string, Rect> {
-  const rects = new Map<string, Rect>();
+function buildNodeCards(nodes: readonly FlowPlacementNode[], grid: Grid): Map<string, Card> {
+  const cards = new Map<string, Card>();
   for (const node of nodes) {
     const column = grid.column.get(node.id) ?? EMPTY_INDEX;
     const row = grid.row.get(node.id) ?? EMPTY_INDEX;
-    rects.set(node.id, {
+    cards.set(node.id, {
       id: node.id,
       x: column * (node.width + COLUMN_GAP),
       y: row * (node.height + ROW_GAP),
@@ -358,24 +374,24 @@ function buildNodeRects(nodes: readonly FlowPlacementNode[], grid: Grid): Map<st
       height: node.height,
     });
   }
-  return rects;
+  return cards;
 }
 
 function buildFlowRoutes(
-  rects: Map<string, Rect>,
+  cards: Map<string, Card>,
   edges: readonly FlowPlacementEdge[],
   grid: Grid,
 ): Map<string, FlowPoint[]> {
-  const straightShift = assignStraightShifts(edges, rects, grid);
-  const exitShift = assignExitShifts(edges, rects, grid);
-  const entryShift = assignEntryShifts({ edges, rects, grid, straightShift });
+  const straightShift = assignStraightShifts(edges, cards, grid);
+  const exitShift = assignExitShifts(edges, cards, grid);
+  const entryShift = assignEntryShifts({ edges, cards, grid, straightShift });
   const routes = new Map<string, FlowPoint[]>();
   const straightFirst = [...edges].sort(
     (left, right) => Number(!isStraightPair(left, grid)) - Number(!isStraightPair(right, grid)),
   );
   for (const edge of straightFirst) {
-    const source = rects.get(edge.source);
-    const target = rects.get(edge.target);
+    const source = cards.get(edge.source);
+    const target = cards.get(edge.target);
     if (!source || !target) continue;
     const candidates = listRouteCandidates({
       edge,
@@ -383,12 +399,12 @@ function buildFlowRoutes(
       target,
       grid,
       edges,
-      rects,
+      cards,
       straightShift,
       exitShift,
       entryShift,
     }).map(simplify);
-    routes.set(edge.id, pickFreestRoute({ edge, candidates, drawnRoutes: routes, rects }));
+    routes.set(edge.id, pickFreestRoute({ edge, candidates, drawnRoutes: routes, cards }));
   }
   return routes;
 }
@@ -398,26 +414,26 @@ function pickFreestRoute(pick: {
   edge: FlowPlacementEdge;
   candidates: FlowPoint[][];
   drawnRoutes: Map<string, FlowPoint[]>;
-  rects: Map<string, Rect>;
+  cards: Map<string, Card>;
 }): FlowPoint[] {
-  const { edge, candidates, drawnRoutes, rects } = pick;
-  const scored = candidates.map((points) => ({ points, score: scoreCandidateRoute({ edge, points, drawnRoutes, rects }) }));
+  const { edge, candidates, drawnRoutes, cards } = pick;
+  const scored = candidates.map((points) => ({ points, score: scoreCandidateRoute({ edge, points, drawnRoutes, cards }) }));
   const best = scored.reduce((current, next) => (isScoreBetter(next.score, current.score) ? next : current));
   return best.points;
 }
 
 function listRouteCandidates(choice: {
   edge: FlowPlacementEdge;
-  source: Rect;
-  target: Rect;
+  source: Card;
+  target: Card;
   grid: Grid;
   edges: readonly FlowPlacementEdge[];
-  rects: Map<string, Rect>;
+  cards: Map<string, Card>;
   straightShift: Map<string, number>;
   exitShift: Map<string, number>;
   entryShift: Map<string, number>;
 }): FlowPoint[][] {
-  const { edge, source, target, grid, edges, rects, straightShift, exitShift, entryShift } = choice;
+  const { edge, source, target, grid, edges, cards, straightShift, exitShift, entryShift } = choice;
   const laneShift = straightShift.get(edge.id) ?? SINGLE_LANE_SHIFT;
   if (isVerticalStraight(edge, grid)) return [buildVerticalRoute(source, target, laneShift)];
   if (isHorizontalStraight(edge, grid)) return [buildHorizontalRoute(source, target, laneShift)];
@@ -426,45 +442,45 @@ function listRouteCandidates(choice: {
     yShift: exitShift.get(edge.id) ?? SINGLE_LANE_SHIFT,
     xShift: entryShift.get(edge.id) ?? SINGLE_LANE_SHIFT,
   });
-  return shouldEnterFromSide(edge, { edges, rects, grid, straightShift }) ? [sideEntry, elbow] : [elbow, sideEntry];
+  return shouldEnterFromSide(edge, { edges, cards, grid, straightShift }) ? [sideEntry, elbow] : [elbow, sideEntry];
 }
 
 function assignStraightShifts(
   edges: readonly FlowPlacementEdge[],
-  rects: Map<string, Rect>,
+  cards: Map<string, Card>,
   grid: Grid,
 ): Map<string, number> {
   const shifts = new Map<string, number>();
   writeStraightLanes({
     edges: edges.filter((edge) => isVerticalStraight(edge, grid)),
-    rects,
+    cards,
     shifts,
     isVertical: true,
-    lineOf: (edge) => String(grid.column.get(edge.source) ?? EMPTY_INDEX),
+    readLineKey: (edge) => String(grid.column.get(edge.source) ?? EMPTY_INDEX),
   });
   writeStraightLanes({
     edges: edges.filter((edge) => isHorizontalStraight(edge, grid)),
-    rects,
+    cards,
     shifts,
     isVertical: false,
-    lineOf: (edge) => String(grid.row.get(edge.source) ?? EMPTY_INDEX),
+    readLineKey: (edge) => String(grid.row.get(edge.source) ?? EMPTY_INDEX),
   });
   return shifts;
 }
 
 function writeStraightLanes(lanes: {
   edges: readonly FlowPlacementEdge[];
-  rects: Map<string, Rect>;
+  cards: Map<string, Card>;
   shifts: Map<string, number>;
   isVertical: boolean;
-  lineOf: (edge: FlowPlacementEdge) => string;
+  readLineKey: (edge: FlowPlacementEdge) => string;
 }): void {
-  const { edges, rects, shifts, isVertical, lineOf } = lanes;
-  const spanOf = (edge: FlowPlacementEdge) =>
-    isVertical ? readVerticalSpan(edge, rects) : readHorizontalSpan(edge, rects);
-  for (const list of groupEdges(edges, lineOf).values()) {
-    const packed = packLanes(list, spanOf);
-    const firstSource = list[EMPTY_INDEX] ? rects.get(list[EMPTY_INDEX].source) : undefined;
+  const { edges, cards, shifts, isVertical, readLineKey } = lanes;
+  const readSpan = (edge: FlowPlacementEdge) =>
+    isVertical ? readVerticalSpan(edge, cards) : readHorizontalSpan(edge, cards);
+  for (const list of groupEdges(edges, readLineKey).values()) {
+    const packed = packLanes(list, readSpan);
+    const firstSource = list[EMPTY_INDEX] ? cards.get(list[EMPTY_INDEX].source) : undefined;
     if (!firstSource) continue;
     const offsets = calculateLaneShifts(packed.length, isVertical ? firstSource.width : firstSource.height);
     packed.forEach((members, index) => {
@@ -475,13 +491,13 @@ function writeStraightLanes(lanes: {
 
 function packLanes(
   edges: readonly FlowPlacementEdge[],
-  spanOf: (edge: FlowPlacementEdge) => Span | undefined,
+  readSpan: (edge: FlowPlacementEdge) => Span | undefined,
 ): FlowPlacementEdge[][] {
   const lanes: FlowPlacementEdge[][] = [];
-  const readLow = (edge: FlowPlacementEdge) => spanOf(edge)?.low ?? EMPTY_INDEX;
+  const readLow = (edge: FlowPlacementEdge) => readSpan(edge)?.low ?? EMPTY_INDEX;
   const ordered = [...edges].sort((left, right) => readLow(left) - readLow(right));
   for (const edge of ordered) {
-    const openLane = lanes.find((members) => members.every((other) => !isSpanOverlapping(spanOf(edge), spanOf(other))));
+    const openLane = lanes.find((members) => members.every((other) => !isSpanOverlapping(readSpan(edge), readSpan(other))));
     if (openLane) openLane.push(edge);
     else lanes.push([edge]);
   }
@@ -490,18 +506,18 @@ function packLanes(
 
 function assignExitShifts(
   edges: readonly FlowPlacementEdge[],
-  rects: Map<string, Rect>,
+  cards: Map<string, Card>,
   grid: Grid,
 ): Map<string, number> {
   const shifts = new Map<string, number>();
   const bySource = groupEdges(edges.filter((edge) => !isStraightPair(edge, grid)), (edge) => edge.source);
   for (const [sourceId, list] of bySource) {
-    const source = rects.get(sourceId);
+    const source = cards.get(sourceId);
     if (!source) continue;
-    const below = list.filter((edge) => isTargetBelow(source, rects.get(edge.target)));
-    const above = list.filter((edge) => !isTargetBelow(source, rects.get(edge.target)));
-    writeExitOrder({ edges: below, source, rects, shifts, isBelow: true });
-    writeExitOrder({ edges: above, source, rects, shifts, isBelow: false });
+    const below = list.filter((edge) => isTargetBelow(source, cards.get(edge.target)));
+    const above = list.filter((edge) => !isTargetBelow(source, cards.get(edge.target)));
+    writeExitOrder({ edges: below, source, cards, shifts, isBelow: true });
+    writeExitOrder({ edges: above, source, cards, shifts, isBelow: false });
   }
   return shifts;
 }
@@ -509,14 +525,14 @@ function assignExitShifts(
 /** The nearest target gets the port closest to its side, so the elbows nest instead of crossing. */
 function writeExitOrder(order: {
   edges: readonly FlowPlacementEdge[];
-  source: Rect;
-  rects: Map<string, Rect>;
+  source: Card;
+  cards: Map<string, Card>;
   shifts: Map<string, number>;
   isBelow: boolean;
 }): void {
-  const { edges, source, rects, shifts, isBelow } = order;
+  const { edges, source, cards, shifts, isBelow } = order;
   const nearestFirst = [...edges].sort(
-    (left, right) => measureHorizontalDistance(source, rects.get(left.target)) - measureHorizontalDistance(source, rects.get(right.target)),
+    (left, right) => measureHorizontalDistance(source, cards.get(left.target)) - measureHorizontalDistance(source, cards.get(right.target)),
   );
   const offsets = calculateLaneShifts(nearestFirst.length, source.height);
   const lastIndex = offsets.length - CELL_STEP;
@@ -528,16 +544,16 @@ function writeExitOrder(order: {
 
 function assignEntryShifts(layout: {
   edges: readonly FlowPlacementEdge[];
-  rects: Map<string, Rect>;
+  cards: Map<string, Card>;
   grid: Grid;
   straightShift: Map<string, number>;
 }): Map<string, number> {
-  const { edges, rects, grid, straightShift } = layout;
+  const { edges, cards, grid, straightShift } = layout;
   const shifts = new Map<string, number>();
   const bent = edges.filter((edge) => !isStraightPair(edge, grid));
   const byTarget = groupEdges(bent, (edge) => edge.target);
   for (const [targetId, list] of byTarget) {
-    const target = rects.get(targetId);
+    const target = cards.get(targetId);
     if (!target) continue;
     const reserved = collectReservedEntryPositions({ target, edges, grid, straightShift });
     const offsets = calculateLaneShifts(list.length + reserved.size, target.width);
@@ -560,31 +576,33 @@ function shouldEnterFromSide(edge: FlowPlacementEdge, context: RouteContext): bo
 
 type RouteContext = {
   edges: readonly FlowPlacementEdge[];
-  rects: Map<string, Rect>;
+  cards: Map<string, Card>;
   grid: Grid;
   straightShift: Map<string, number>;
 };
 
 function isSourceLaneOpen(edge: FlowPlacementEdge, context: RouteContext): boolean {
-  const source = context.rects.get(edge.source);
-  const target = context.rects.get(edge.target);
+  const source = context.cards.get(edge.source);
+  const target = context.cards.get(edge.target);
   if (!source || !target) return false;
   const laneX = readCenterX(source);
   const startY = source.y <= target.y ? source.y + source.height : source.y;
   const endY = target.y + target.height * CENTER_RATIO;
-  const laneSpan = toSpan(startY, endY);
+  const laneSpan = buildSpan(startY, endY);
   const sourceColumn = context.grid.column.get(edge.source);
   return context.edges.every((other) => {
-    if (!isVerticalStraight(other, context.grid) || context.grid.column.get(other.source) !== sourceColumn) return true;
-    const otherSource = context.rects.get(other.source);
+    const isStraightInSourceColumn = isVerticalStraight(other, context.grid)
+      && context.grid.column.get(other.source) === sourceColumn;
+    if (!isStraightInSourceColumn) return true;
+    const otherSource = context.cards.get(other.source);
     if (!otherSource) return true;
     const otherX = readCenterX(otherSource) + (context.straightShift.get(other.id) ?? SINGLE_LANE_SHIFT);
     if (Math.abs(otherX - laneX) > POINT_MATCH_DISTANCE) return true;
-    return !isSpanOverlapping(readVerticalSpan(other, context.rects), laneSpan);
+    return !isSpanOverlapping(readVerticalSpan(other, context.cards), laneSpan);
   });
 }
 
-function buildSideEntryRoute(source: Rect, target: Rect, yShift: number): FlowPoint[] {
+function buildSideEntryRoute(source: Card, target: Card, yShift: number): FlowPoint[] {
   const isSourceAbove = source.y <= target.y;
   const isTargetRight = readCenterX(target) >= readCenterX(source);
   const sourceX = readCenterX(source);
@@ -627,24 +645,21 @@ function isStraightAlong(
   });
 }
 
+/** `count` lanes split the usable border into `count + 1` equal gaps, centered on the card. */
 function calculateLaneShifts(count: number, span: number): number[] {
-  if (count <= 1) return [SINGLE_LANE_SHIFT];
-  const usable = Math.max(span - PORT_MARGIN * 2, MINIMUM_PORT_SPAN);
-  const shifts: number[] = [];
-  for (let index = 0; index < count; index += 1) {
-    const ratio = (index + 1) / (count + 1);
-    shifts.push((ratio - CENTER_RATIO) * usable);
-  }
-  return shifts;
+  if (count <= SINGLE_LANE_COUNT) return [SINGLE_LANE_SHIFT];
+  const usable = Math.max(span - PORT_MARGIN * BORDER_SIDES, MINIMUM_PORT_SPAN);
+  const gapCount = count + CELL_STEP;
+  return Array.from({ length: count }, (_, index) => ((index + CELL_STEP) / gapCount - CENTER_RATIO) * usable);
 }
 
 function groupEdges(
   edges: readonly FlowPlacementEdge[],
-  groupOf: (edge: FlowPlacementEdge) => string,
+  readGroupKey: (edge: FlowPlacementEdge) => string,
 ): Map<string, FlowPlacementEdge[]> {
   const groups = new Map<string, FlowPlacementEdge[]>();
   for (const edge of edges) {
-    const key = groupOf(edge);
+    const key = readGroupKey(edge);
     const list = groups.get(key) ?? [];
     list.push(edge);
     groups.set(key, list);
@@ -652,51 +667,42 @@ function groupEdges(
   return groups;
 }
 
-function readCenterX(rect: Rect): number {
-  return rect.x + rect.width * CENTER_RATIO;
+function readCenterX(card: Card): number {
+  return card.x + card.width * CENTER_RATIO;
 }
 
-function readVerticalSpan(edge: FlowPlacementEdge, rects: Map<string, Rect>): Span | undefined {
-  const source = rects.get(edge.source);
-  const target = rects.get(edge.target);
+function readVerticalSpan(edge: FlowPlacementEdge, cards: Map<string, Card>): Span | undefined {
+  const source = cards.get(edge.source);
+  const target = cards.get(edge.target);
   if (!source || !target) return undefined;
   const isSourceAbove = source.y <= target.y;
   const start = isSourceAbove ? source.y + source.height : source.y;
   const end = isSourceAbove ? target.y : target.y + target.height;
-  return toSpan(start, end);
+  return buildSpan(start, end);
 }
 
-function readHorizontalSpan(edge: FlowPlacementEdge, rects: Map<string, Rect>): Span | undefined {
-  const source = rects.get(edge.source);
-  const target = rects.get(edge.target);
+function readHorizontalSpan(edge: FlowPlacementEdge, cards: Map<string, Card>): Span | undefined {
+  const source = cards.get(edge.source);
+  const target = cards.get(edge.target);
   if (!source || !target) return undefined;
   const isSourceLeft = source.x <= target.x;
   const start = isSourceLeft ? source.x + source.width : source.x;
   const end = isSourceLeft ? target.x : target.x + target.width;
-  return toSpan(start, end);
+  return buildSpan(start, end);
 }
 
-function toSpan(start: number, end: number): Span {
-  return { low: Math.min(start, end), high: Math.max(start, end) };
-}
-
-function isSpanOverlapping(left: Span | undefined, right: Span | undefined): boolean {
-  if (!left || !right) return false;
-  return Math.min(left.high, right.high) - Math.max(left.low, right.low) > POINT_MATCH_DISTANCE;
-}
-
-function isTargetBelow(source: Rect, target: Rect | undefined): boolean {
+function isTargetBelow(source: Card, target: Card | undefined): boolean {
   if (!target) return true;
   return target.y + target.height * CENTER_RATIO >= source.y + source.height * CENTER_RATIO;
 }
 
-function measureHorizontalDistance(source: Rect, target: Rect | undefined): number {
+function measureHorizontalDistance(source: Card, target: Card | undefined): number {
   if (!target) return EMPTY_INDEX;
   return Math.abs(readCenterX(target) - readCenterX(source));
 }
 
 function collectReservedEntryPositions(entry: {
-  target: Rect;
+  target: Card;
   edges: readonly FlowPlacementEdge[];
   grid: Grid;
   straightShift: Map<string, number>;
@@ -712,7 +718,7 @@ function collectReservedEntryPositions(entry: {
   return reserved;
 }
 
-function buildVerticalRoute(source: Rect, target: Rect, shift: number): FlowPoint[] {
+function buildVerticalRoute(source: Card, target: Card, shift: number): FlowPoint[] {
   const x = source.x + source.width * CENTER_RATIO + shift;
   const isSourceAbove = source.y <= target.y;
   return [
@@ -721,7 +727,7 @@ function buildVerticalRoute(source: Rect, target: Rect, shift: number): FlowPoin
   ];
 }
 
-function buildHorizontalRoute(source: Rect, target: Rect, shift: number): FlowPoint[] {
+function buildHorizontalRoute(source: Card, target: Card, shift: number): FlowPoint[] {
   const y = source.y + source.height * CENTER_RATIO + shift;
   const isSourceLeft = source.x <= target.x;
   return [
@@ -731,8 +737,8 @@ function buildHorizontalRoute(source: Rect, target: Rect, shift: number): FlowPo
 }
 
 function buildElbowRoute(
-  source: Rect,
-  target: Rect,
+  source: Card,
+  target: Card,
   shifts: { yShift: number; xShift: number },
 ): FlowPoint[] {
   const { yShift, xShift } = shifts;
@@ -838,9 +844,9 @@ function isMoveBetter(search: PlacementSearch, current: PlacementScore): boolean
 }
 
 function scoreGrid(search: PlacementSearch): PlacementScore {
-  const rects = buildNodeRects(search.nodes, search.grid);
-  const routes = buildFlowRoutes(rects, search.edges, search.grid);
-  return scoreRoutes({ routes, rects, edges: search.edges });
+  const cards = buildNodeCards(search.nodes, search.grid);
+  const routes = buildFlowRoutes(cards, search.edges, search.grid);
+  return scoreRoutes({ routes, cards, edges: search.edges });
 }
 
 function readCell(grid: Grid, id: string): Cell {
