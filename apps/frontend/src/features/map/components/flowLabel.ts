@@ -22,6 +22,6 @@ export function isFlowLabelVisible(input: FlowLabelVisibilityInput): boolean {
 }
 
 /** Map coordinates. The viewport scales this; the label does not cancel that scale. */
-export function flowLabelMapTransform(x: number, y: number): string {
+export function buildFlowLabelMapTransform(x: number, y: number): string {
   return `translate(${LABEL_ANCHOR_OFFSET}, ${LABEL_ANCHOR_OFFSET}) translate(${x}px, ${y}px)`;
 }

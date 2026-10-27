@@ -17,14 +17,14 @@ function isOrthogonal(points: FlowPoint[]): boolean {
   for (let index = 1; index < points.length; index += 1) {
     const previous = points[index - 1];
     const current = points[index];
-    const horizontal = Math.abs(previous.y - current.y) < POINT_MATCH_DISTANCE;
-    const vertical = Math.abs(previous.x - current.x) < POINT_MATCH_DISTANCE;
-    if (!horizontal && !vertical) return false;
+    const isHorizontal = Math.abs(previous.y - current.y) < POINT_MATCH_DISTANCE;
+    const isVertical = Math.abs(previous.x - current.x) < POINT_MATCH_DISTANCE;
+    if (!isHorizontal && !isVertical) return false;
   }
   return points.length >= 2;
 }
 
-function bendCount(points: FlowPoint[]): number {
+function countBends(points: FlowPoint[]): number {
   let bends = 0;
   for (let index = 1; index < points.length - 1; index += 1) {
     const previous = points[index - 1];
@@ -50,13 +50,13 @@ function buildSegments(points: FlowPoint[]) {
   return result;
 }
 
-function doRangesOverlap(first: { start: number; end: number }, second: { start: number; end: number }): boolean {
+function hasOverlappingRange(first: { start: number; end: number }, second: { start: number; end: number }): boolean {
   const overlapStart = Math.max(Math.min(first.start, first.end), Math.min(second.start, second.end));
   const overlapEnd = Math.min(Math.max(first.start, first.end), Math.max(second.start, second.end));
   return overlapEnd - overlapStart > POINT_MATCH_DISTANCE;
 }
 
-function doRoutesShareStretch(routes: Map<string, FlowPoint[]>): boolean {
+function hasSharedStretch(routes: Map<string, FlowPoint[]>): boolean {
   const all = [...routes.entries()].flatMap(([id, points]) =>
     buildSegments(points).map((segment) => ({ id, ...segment })),
   );
@@ -65,17 +65,17 @@ function doRoutesShareStretch(routes: Map<string, FlowPoint[]>): boolean {
       const leftSegment = all[leftIndex];
       const rightSegment = all[rightIndex];
       if (leftSegment.id === rightSegment.id) continue;
-      const areBothHorizontal = Math.abs(leftSegment.y1 - leftSegment.y2) < POINT_MATCH_DISTANCE
+      const isHorizontalPair = Math.abs(leftSegment.y1 - leftSegment.y2) < POINT_MATCH_DISTANCE
         && Math.abs(rightSegment.y1 - rightSegment.y2) < POINT_MATCH_DISTANCE;
-      const areBothVertical = Math.abs(leftSegment.x1 - leftSegment.x2) < POINT_MATCH_DISTANCE
+      const isVerticalPair = Math.abs(leftSegment.x1 - leftSegment.x2) < POINT_MATCH_DISTANCE
         && Math.abs(rightSegment.x1 - rightSegment.x2) < POINT_MATCH_DISTANCE;
-      if (areBothHorizontal && Math.abs(leftSegment.y1 - rightSegment.y1) < POINT_MATCH_DISTANCE && doRangesOverlap(
+      if (isHorizontalPair && Math.abs(leftSegment.y1 - rightSegment.y1) < POINT_MATCH_DISTANCE && hasOverlappingRange(
         { start: leftSegment.x1, end: leftSegment.x2 },
         { start: rightSegment.x1, end: rightSegment.x2 },
       )) {
         return true;
       }
-      if (areBothVertical && Math.abs(leftSegment.x1 - rightSegment.x1) < POINT_MATCH_DISTANCE && doRangesOverlap(
+      if (isVerticalPair && Math.abs(leftSegment.x1 - rightSegment.x1) < POINT_MATCH_DISTANCE && hasOverlappingRange(
         { start: leftSegment.y1, end: leftSegment.y2 },
         { start: rightSegment.y1, end: rightSegment.y2 },
       )) {
@@ -86,7 +86,7 @@ function doRoutesShareStretch(routes: Map<string, FlowPoint[]>): boolean {
   return false;
 }
 
-function crossingCount(routes: Map<string, FlowPoint[]>): number {
+function countCrossings(routes: Map<string, FlowPoint[]>): number {
   const all = [...routes.entries()].flatMap(([id, points]) =>
     buildSegments(points).map((segment) => ({ id, ...segment })),
   );
@@ -96,13 +96,11 @@ function crossingCount(routes: Map<string, FlowPoint[]>): number {
     for (const vertical of all) {
       if (horizontal.id === vertical.id) continue;
       if (Math.abs(vertical.x1 - vertical.x2) >= POINT_MATCH_DISTANCE) continue;
-      const x = vertical.x1;
-      const y = horizontal.y1;
-      const insideHorizontal = x > Math.min(horizontal.x1, horizontal.x2) + POINT_MATCH_DISTANCE
-        && x < Math.max(horizontal.x1, horizontal.x2) - POINT_MATCH_DISTANCE;
-      const insideVertical = y > Math.min(vertical.y1, vertical.y2) + POINT_MATCH_DISTANCE
-        && y < Math.max(vertical.y1, vertical.y2) - POINT_MATCH_DISTANCE;
-      if (insideHorizontal && insideVertical) count += 1;
+      const isInsideHorizontal = vertical.x1 > Math.min(horizontal.x1, horizontal.x2) + POINT_MATCH_DISTANCE
+        && vertical.x1 < Math.max(horizontal.x1, horizontal.x2) - POINT_MATCH_DISTANCE;
+      const isInsideVertical = horizontal.y1 > Math.min(vertical.y1, vertical.y2) + POINT_MATCH_DISTANCE
+        && horizontal.y1 < Math.max(vertical.y1, vertical.y2) - POINT_MATCH_DISTANCE;
+      if (isInsideHorizontal && isInsideVertical) count += 1;
     }
   }
   return count;
@@ -111,10 +109,10 @@ function crossingCount(routes: Map<string, FlowPoint[]>): number {
 function assertClear(routes: Map<string, FlowPoint[]>, hops: Map<string, FlowPoint[]>) {
   for (const points of routes.values()) {
     assert.equal(isOrthogonal(points), true);
-    assert.ok(bendCount(points) <= 1);
+    assert.ok(countBends(points) <= 1);
   }
-  assert.equal(doRoutesShareStretch(routes), false);
-  assert.equal(crossingCount(routes), 0);
+  assert.equal(hasSharedStretch(routes), false);
+  assert.equal(countCrossings(routes), 0);
   assert.equal([...hops.values()].every((points) => points.length === 0), true);
 }
 
@@ -130,8 +128,8 @@ assert.ok(top && middle && bottom);
 assert.ok(middle.y >= top.y + nodeSize.height);
 assert.ok(bottom.y >= middle.y + nodeSize.height);
 assert.equal(Math.abs(top.x - middle.x) < POINT_MATCH_DISTANCE, true);
-assert.equal(bendCount(chain.routes.get('ab') ?? []), 0);
-assert.equal(bendCount(chain.routes.get('bc') ?? []), 0);
+assert.equal(countBends(chain.routes.get('ab') ?? []), 0);
+assert.equal(countBends(chain.routes.get('bc') ?? []), 0);
 
 const crossed = placeClearFlows(buildNodes(['a', 'b', 'c', 'd']), [
   { id: 'ad', source: 'a', target: 'd' },
@@ -168,10 +166,10 @@ const forced = placeClearFlows(
 );
 for (const points of forced.routes.values()) {
   assert.equal(isOrthogonal(points), true);
-  assert.ok(bendCount(points) <= 1);
+  assert.ok(countBends(points) <= 1);
 }
-assert.equal(doRoutesShareStretch(forced.routes), false);
-assert.ok(crossingCount(forced.routes) > 0);
+assert.equal(hasSharedStretch(forced.routes), false);
+assert.ok(countCrossings(forced.routes) > 0);
 assert.ok([...forced.hops.values()].some((points) => points.length > 0));
 
 const bothWays = placeClearFlows(buildNodes(['a', 'b']), [
@@ -182,7 +180,7 @@ assertClear(bothWays.routes, bothWays.hops);
 const downStart = bothWays.routes.get('down')?.[0];
 const upStart = bothWays.routes.get('up')?.[0];
 assert.ok(downStart && upStart);
-assert.equal(pointsMatch(downStart, upStart), false);
+assert.equal(hasSamePoint(downStart, upStart), false);
 
 const fan = placeClearFlows(buildNodes(['a', 'b', 'c', 'd']), [
   { id: 'ab', source: 'a', target: 'b' },
@@ -201,7 +199,7 @@ const arrivalEnds = ['ac', 'bc'].map((id) => {
   return route[route.length - 1];
 });
 assert.ok(arrivalEnds[0] && arrivalEnds[1]);
-assert.equal(pointsMatch(arrivalEnds[0], arrivalEnds[1]), false);
+assert.equal(hasSamePoint(arrivalEnds[0], arrivalEnds[1]), false);
 
 const rectangle = placeClearFlows(buildNodes(['a', 'b', 'c', 'd']), [
   { id: 'ab', source: 'a', target: 'b' },
@@ -211,7 +209,7 @@ const rectangle = placeClearFlows(buildNodes(['a', 'b', 'c', 'd']), [
 ]);
 assertClear(rectangle.routes, rectangle.hops);
 
-function pointsMatch(left: FlowPoint, right: FlowPoint): boolean {
+function hasSamePoint(left: FlowPoint, right: FlowPoint): boolean {
   return Math.abs(left.x - right.x) < POINT_MATCH_DISTANCE && Math.abs(left.y - right.y) < POINT_MATCH_DISTANCE;
 }
 

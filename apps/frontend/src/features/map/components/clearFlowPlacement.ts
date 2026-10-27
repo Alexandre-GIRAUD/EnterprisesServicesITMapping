@@ -178,7 +178,7 @@ function findOpenPredecessorColumn(
   for (const predecessor of predecessors) {
     const candidate = column.get(predecessor);
     if (candidate === undefined) continue;
-    const isOpen = columnIsOpen({
+    const isOpen = isColumnOpen({
       columnIndex: candidate,
       fromRow: row.get(predecessor) ?? EMPTY_INDEX,
       toRow: row.get(id) ?? EMPTY_INDEX,
@@ -190,7 +190,7 @@ function findOpenPredecessorColumn(
   return undefined;
 }
 
-function columnIsOpen(span: {
+function isColumnOpen(span: {
   columnIndex: number;
   fromRow: number;
   toRow: number;
@@ -237,17 +237,43 @@ function buildFlowRoutes(
     const source = rects.get(edge.source);
     const target = rects.get(edge.target);
     if (!source || !target) continue;
-    const points = isStraightPair(edge, grid)
-      ? buildVerticalRoute(source, target, straightShift.get(edge.id) ?? SINGLE_LANE_SHIFT)
-      : entersFromSide(edge, { edges, rects, grid, straightShift })
-        ? buildSideEntryRoute(source, target, exitShift.get(edge.id) ?? SINGLE_LANE_SHIFT)
-        : buildElbowRoute(source, target, {
-            yShift: exitShift.get(edge.id) ?? SINGLE_LANE_SHIFT,
-            xShift: entryShift.get(edge.id) ?? SINGLE_LANE_SHIFT,
-          });
-    routes.set(edge.id, simplify(points));
+    routes.set(edge.id, simplify(chooseRoute({
+      edge,
+      source,
+      target,
+      grid,
+      edges,
+      rects,
+      straightShift,
+      exitShift,
+      entryShift,
+    })));
   }
   return routes;
+}
+
+function chooseRoute(choice: {
+  edge: FlowPlacementEdge;
+  source: Rect;
+  target: Rect;
+  grid: Grid;
+  edges: readonly FlowPlacementEdge[];
+  rects: Map<string, Rect>;
+  straightShift: Map<string, number>;
+  exitShift: Map<string, number>;
+  entryShift: Map<string, number>;
+}): FlowPoint[] {
+  const { edge, source, target, grid, edges, rects, straightShift, exitShift, entryShift } = choice;
+  if (isStraightPair(edge, grid)) {
+    return buildVerticalRoute(source, target, straightShift.get(edge.id) ?? SINGLE_LANE_SHIFT);
+  }
+  if (shouldEnterFromSide(edge, { edges, rects, grid, straightShift })) {
+    return buildSideEntryRoute(source, target, exitShift.get(edge.id) ?? SINGLE_LANE_SHIFT);
+  }
+  return buildElbowRoute(source, target, {
+    yShift: exitShift.get(edge.id) ?? SINGLE_LANE_SHIFT,
+    xShift: entryShift.get(edge.id) ?? SINGLE_LANE_SHIFT,
+  });
 }
 
 function assignStraightShifts(
@@ -282,7 +308,7 @@ function packLanes(
   const lanes: FlowPlacementEdge[][] = [];
   const ordered = [...edges].sort((left, right) => readSpanStart(left, rects) - readSpanStart(right, rects));
   for (const edge of ordered) {
-    const openLane = lanes.findIndex((members) => members.every((other) => !doSpansOverlap(edge, other, rects)));
+    const openLane = lanes.findIndex((members) => members.every((other) => !hasOverlappingSpans(edge, other, rects)));
     if (openLane < 0) lanes.push([edge]);
     else lanes[openLane].push(edge);
   }
@@ -346,12 +372,12 @@ function assignEntryShifts(layout: {
   return shifts;
 }
 
-function entersFromSide(edge: FlowPlacementEdge, context: RouteContext): boolean {
+function shouldEnterFromSide(edge: FlowPlacementEdge, context: RouteContext): boolean {
   const targetColumn = context.grid.column.get(edge.target);
   const hasStraightArrival = context.edges.some((other) => {
     if (other.id === edge.id || !isStraightPair(other, context.grid)) return false;
-    const doesTouchTarget = other.source === edge.target || other.target === edge.target;
-    return doesTouchTarget && context.grid.column.get(other.source) === targetColumn;
+    const isTouchingTarget = other.source === edge.target || other.target === edge.target;
+    return isTouchingTarget && context.grid.column.get(other.source) === targetColumn;
   });
   if (!hasStraightArrival) return false;
   return isSourceLaneOpen(edge, context);
@@ -370,7 +396,7 @@ function isSourceLaneOpen(edge: FlowPlacementEdge, context: RouteContext): boole
   if (!source || !target) return false;
   const laneX = readCenterX(source);
   const startY = source.y <= target.y ? source.y + source.height : source.y;
-  const endY = target.y + target.height / 2;
+  const endY = target.y + target.height * CENTER_RATIO;
   const low = Math.min(startY, endY);
   const high = Math.max(startY, endY);
   const sourceColumn = context.grid.column.get(edge.source);
@@ -388,23 +414,23 @@ function isSourceLaneOpen(edge: FlowPlacementEdge, context: RouteContext): boole
 }
 
 function buildSideEntryRoute(source: Rect, target: Rect, yShift: number): FlowPoint[] {
-  const sourceIsAbove = source.y <= target.y;
-  const targetIsRight = readCenterX(target) >= readCenterX(source);
+  const isSourceAbove = source.y <= target.y;
+  const isTargetRight = readCenterX(target) >= readCenterX(source);
   const sourceX = readCenterX(source);
   const targetY = clamp(
-    target.y + target.height / 2 + yShift,
+    target.y + target.height * CENTER_RATIO + yShift,
     target.y + PORT_MARGIN,
     target.y + target.height - PORT_MARGIN,
   );
   return [
-    { x: sourceX, y: sourceIsAbove ? source.y + source.height : source.y },
+    { x: sourceX, y: isSourceAbove ? source.y + source.height : source.y },
     { x: sourceX, y: targetY },
-    { x: targetIsRight ? target.x : target.x + target.width, y: targetY },
+    { x: isTargetRight ? target.x : target.x + target.width, y: targetY },
   ];
 }
 function isStraightPair(edge: FlowPlacementEdge, grid: Grid): boolean {
   if ((grid.column.get(edge.source) ?? EMPTY_INDEX) !== (grid.column.get(edge.target) ?? EMPTY_INDEX)) return false;
-  return columnIsOpen({
+  return isColumnOpen({
     columnIndex: grid.column.get(edge.source) ?? EMPTY_INDEX,
     fromRow: grid.row.get(edge.source) ?? EMPTY_INDEX,
     toRow: grid.row.get(edge.target) ?? EMPTY_INDEX,
@@ -443,7 +469,7 @@ function readWidth(rect: Rect | undefined): number {
 }
 
 function readCenterX(rect: Rect): number {
-  return rect.x + rect.width / 2;
+  return rect.x + rect.width * CENTER_RATIO;
 }
 
 function readSpanStart(edge: FlowPlacementEdge, rects: Map<string, Rect>): number {
@@ -457,13 +483,13 @@ function readVerticalSpan(
   const source = rects.get(edge.source);
   const target = rects.get(edge.target);
   if (!source || !target) return undefined;
-  const sourceIsAbove = source.y <= target.y;
-  const start = sourceIsAbove ? source.y + source.height : source.y;
-  const end = sourceIsAbove ? target.y : target.y + target.height;
+  const isSourceAbove = source.y <= target.y;
+  const start = isSourceAbove ? source.y + source.height : source.y;
+  const end = isSourceAbove ? target.y : target.y + target.height;
   return { low: Math.min(start, end), high: Math.max(start, end) };
 }
 
-function doSpansOverlap(
+function hasOverlappingSpans(
   left: FlowPlacementEdge,
   right: FlowPlacementEdge,
   rects: Map<string, Rect>,
@@ -477,7 +503,7 @@ function doSpansOverlap(
 
 function isTargetBelow(source: Rect, target: Rect | undefined): boolean {
   if (!target) return true;
-  return target.y + target.height / 2 >= source.y + source.height / 2;
+  return target.y + target.height * CENTER_RATIO >= source.y + source.height * CENTER_RATIO;
 }
 
 function measureHorizontalDistance(source: Rect, target: Rect | undefined): number {
@@ -494,8 +520,8 @@ function collectReservedEntryPositions(entry: {
   const { target, edges, grid, straightShift } = entry;
   const reserved = new Set<number>();
   for (const edge of edges) {
-    const doesTouchTarget = edge.source === target.id || edge.target === target.id;
-    if (!doesTouchTarget || !isStraightPair(edge, grid)) continue;
+    const isTouchingTarget = edge.source === target.id || edge.target === target.id;
+    if (!isTouchingTarget || !isStraightPair(edge, grid)) continue;
     const shift = straightShift.get(edge.id) ?? SINGLE_LANE_SHIFT;
     reserved.add(Math.round(readCenterX(target) + shift));
   }
@@ -503,11 +529,11 @@ function collectReservedEntryPositions(entry: {
 }
 
 function buildVerticalRoute(source: Rect, target: Rect, shift: number): FlowPoint[] {
-  const x = source.x + source.width / 2 + shift;
-  const sourceIsAbove = source.y <= target.y;
+  const x = source.x + source.width * CENTER_RATIO + shift;
+  const isSourceAbove = source.y <= target.y;
   return [
-    { x, y: sourceIsAbove ? source.y + source.height : source.y },
-    { x, y: sourceIsAbove ? target.y : target.y + target.height },
+    { x, y: isSourceAbove ? source.y + source.height : source.y },
+    { x, y: isSourceAbove ? target.y : target.y + target.height },
   ];
 }
 
@@ -517,14 +543,14 @@ function buildElbowRoute(
   shifts: { yShift: number; xShift: number },
 ): FlowPoint[] {
   const { yShift, xShift } = shifts;
-  const sourceY = clamp(source.y + source.height / 2 + yShift, source.y + PORT_MARGIN, source.y + source.height - PORT_MARGIN);
-  const targetX = clamp(target.x + target.width / 2 + xShift, target.x + PORT_MARGIN, target.x + target.width - PORT_MARGIN);
-  const targetIsRight = target.x + target.width / 2 >= source.x + source.width / 2;
-  const sourceIsAbove = source.y <= target.y;
+  const sourceY = clamp(source.y + source.height * CENTER_RATIO + yShift, source.y + PORT_MARGIN, source.y + source.height - PORT_MARGIN);
+  const targetX = clamp(target.x + target.width * CENTER_RATIO + xShift, target.x + PORT_MARGIN, target.x + target.width - PORT_MARGIN);
+  const isTargetRight = target.x + target.width * CENTER_RATIO >= source.x + source.width * CENTER_RATIO;
+  const isSourceAbove = source.y <= target.y;
   return [
-    { x: targetIsRight ? source.x + source.width : source.x, y: sourceY },
+    { x: isTargetRight ? source.x + source.width : source.x, y: sourceY },
     { x: targetX, y: sourceY },
-    { x: targetX, y: sourceIsAbove ? target.y : target.y + target.height },
+    { x: targetX, y: isSourceAbove ? target.y : target.y + target.height },
   ];
 }
 

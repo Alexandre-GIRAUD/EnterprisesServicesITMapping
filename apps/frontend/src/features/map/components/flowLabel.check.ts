@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import {
   APPLICATION_TITLE_FONT_SIZE_PX,
-  flowLabelMapTransform,
+  buildFlowLabelMapTransform,
   isFlowLabelVisible,
 } from './flowLabel.ts';
 
@@ -36,7 +36,7 @@ assert.equal(
 
 assert.equal(APPLICATION_TITLE_FONT_SIZE_PX, 12);
 
-assert.equal(flowLabelMapTransform(40, 80), 'translate(-50%, -50%) translate(40px, 80px)');
+assert.equal(buildFlowLabelMapTransform(40, 80), 'translate(-50%, -50%) translate(40px, 80px)');
 
 assert.equal(
   isFlowLabelVisible({

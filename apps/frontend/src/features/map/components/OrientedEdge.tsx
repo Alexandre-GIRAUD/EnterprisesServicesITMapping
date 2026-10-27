@@ -14,7 +14,7 @@ import {
 import type { StoredAttribute } from '@/types/api';
 import {
   APPLICATION_TITLE_FONT_SIZE_PX,
-  flowLabelMapTransform,
+  buildFlowLabelMapTransform,
   isFlowLabelVisible,
 } from './flowLabel';
 import { buildLiveRoutes, type Point, type Rect } from './elkLayout';
@@ -623,7 +623,7 @@ export function OrientedEdge({
     isIndirect,
     isHovered,
   });
-  const labelTransform = flowLabelMapTransform(labelX, labelY);
+  const labelTransform = buildFlowLabelMapTransform(labelX, labelY);
   const isActive = !isIndirect && (isHovered || Boolean(selected));
   const zoomSafe = Math.max(zoom, 0.05);
   // Only the emphasis widths compensate the viewport zoom (RF applies it as a CSS
