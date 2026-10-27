@@ -575,7 +575,7 @@ export function OrientedEdge({
   const labelColor = data?.labelColor ?? sourceColor;
   const gradientId  = `oriented-edge-gradient-${id}`;
   const isIndirect  = Boolean(data?.indirect);
-  const hideLabels = Boolean(data?.hideEdgeLabels);
+  const shouldHideLabels = Boolean(data?.hideEdgeLabels);
   const displayText =
     data?.displayLabel !== undefined ? data.displayLabel : String(label ?? '');
   const canEditLabel = Boolean(data?.onDisplayLabelChange) && !isIndirect;
@@ -615,22 +615,22 @@ export function OrientedEdge({
     data?.onSelect?.();
   }
 
-  const hovered = Boolean(data?.hovered) || localHovered;
-  const showLabel = isFlowLabelVisible({
+  const isHovered = Boolean(data?.hovered) || localHovered;
+  const shouldShowLabel = isFlowLabelVisible({
     text: displayText,
     zoom,
-    hideLabels,
+    shouldHideLabels,
     isIndirect,
-    hovered,
+    isHovered,
   });
   const labelTransform = flowLabelMapTransform(labelX, labelY);
-  const isActive = !isIndirect && (hovered || Boolean(selected));
+  const isActive = !isIndirect && (isHovered || Boolean(selected));
   const zoomSafe = Math.max(zoom, 0.05);
   // Only the emphasis widths compensate the viewport zoom (RF applies it as a CSS
   // scale) so the highlight stays readable when zoomed out; the resting width is
   // a plain flow-unit value that thins out with the zoom like the rest of the graph.
   const strokeWidth =
-    hovered && !isIndirect
+    isHovered && !isIndirect
       ? Math.max(REST_STROKE * 1.5, 2.5 / zoomSafe)
       : selected && !isIndirect
         ? Math.max(REST_STROKE * 1.35, 2 / zoomSafe)
@@ -711,7 +711,7 @@ export function OrientedEdge({
           </button>
         </EdgeLabelRenderer>
       )}
-      {!isIndirect && !showLabel && (
+      {!isIndirect && !shouldShowLabel && (
         <EdgeLabelRenderer>
           <button
             type="button"
@@ -733,7 +733,7 @@ export function OrientedEdge({
           />
         </EdgeLabelRenderer>
       )}
-      {showLabel && (
+      {shouldShowLabel && (
         <EdgeLabelRenderer>
           {editing ? (
             <input

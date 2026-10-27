@@ -16,9 +16,9 @@ assert.equal(
   isFlowLabelVisible({
     text: 'Billing',
     zoom: belowOldCutoff,
-    hideLabels: false,
+    shouldHideLabels: false,
     isIndirect: false,
-    hovered: false,
+    isHovered: false,
   }),
   true,
 );
@@ -27,9 +27,9 @@ assert.equal(
   isFlowLabelVisible({
     text: 'Billing',
     zoom: aboveOldCutoff,
-    hideLabels: false,
+    shouldHideLabels: false,
     isIndirect: false,
-    hovered: false,
+    isHovered: false,
   }),
   true,
 );
@@ -42,9 +42,9 @@ assert.equal(
   isFlowLabelVisible({
     text: 'Billing',
     zoom: belowOldCutoff,
-    hideLabels: true,
+    shouldHideLabels: true,
     isIndirect: false,
-    hovered: true,
+    isHovered: true,
   }),
   false,
 );
@@ -53,9 +53,9 @@ assert.equal(
   isFlowLabelVisible({
     text: 'Billing',
     zoom: aboveOldCutoff,
-    hideLabels: false,
+    shouldHideLabels: false,
     isIndirect: true,
-    hovered: false,
+    isHovered: false,
   }),
   false,
 );
@@ -64,9 +64,9 @@ assert.equal(
   isFlowLabelVisible({
     text: '   ',
     zoom: aboveOldCutoff,
-    hideLabels: false,
+    shouldHideLabels: false,
     isIndirect: false,
-    hovered: false,
+    isHovered: false,
   }),
   false,
 );
