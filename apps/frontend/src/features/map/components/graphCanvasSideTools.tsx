@@ -62,7 +62,7 @@ type GraphCanvasSideToolInput = {
   sandboxSeed: () => Parameters<ReturnType<typeof useSandboxes>['openNew']>[0];
 };
 
-export function graphCanvasSideTool(input: GraphCanvasSideToolInput): ReactNode {
+export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): ReactNode {
   const {
     graphMode,
     activeSideMenuTool,

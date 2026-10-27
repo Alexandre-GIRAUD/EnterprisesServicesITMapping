@@ -90,7 +90,7 @@ import { fitGraphView, ensureNodesVisible } from './fitGraphView';
 import { downloadTableFile, tableToCsv, tableToExcelXml, type TableGrid } from '../utils/tableFile';
 import { customTableExportFormats } from '../utils/customTable';
 import { GraphViewsPanel, ViewInspectPanel, type InspectedView, type ViewLibraryActions } from './GraphViewsPanel';
-import { graphCanvasSideTool } from './graphCanvasSideTools';
+import { renderGraphCanvasSideTool } from './graphCanvasSideTools';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { isDiagramFitGesture, resolveNextDiagramHeight } from './diagramFrame';
@@ -1517,7 +1517,7 @@ export function GraphCanvas() {
 
   const toolDetail = useMemo(
     () =>
-      graphCanvasSideTool({
+      renderGraphCanvasSideTool({
         graphMode,
         activeSideMenuTool,
         isSandbox,
