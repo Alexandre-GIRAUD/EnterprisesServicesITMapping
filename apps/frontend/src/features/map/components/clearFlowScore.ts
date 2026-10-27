@@ -36,21 +36,23 @@ export function scoreRoutes(placement: {
   };
 }
 
-/** Scores one candidate route against the routes already drawn, before it is kept. */
-export function scoreCandidateRoute(candidate: {
+/** Scores each candidate route of one flow against the routes already drawn, before one is kept. */
+export function scoreCandidateRoutes(flow: {
   edge: FlowPlacementEdge;
-  points: FlowPoint[];
+  candidates: FlowPoint[][];
   drawnRoutes: Map<string, FlowPoint[]>;
   cards: Map<string, Card>;
-}): PlacementScore {
-  const own = listSegments(new Map([[candidate.edge.id, candidate.points]]));
-  const drawn = listSegments(candidate.drawnRoutes);
-  return {
-    sharedStretches: countPairs(own, drawn, isStretchShared),
-    cuts: countCardCuts(own, { cards: candidate.cards, edges: [candidate.edge] }),
-    crossings: countPairs(own, drawn, isCrossingEitherWay),
-    bends: countBends(new Map([[candidate.edge.id, candidate.points]])),
-  };
+}): PlacementScore[] {
+  const drawn = listSegments(flow.drawnRoutes);
+  return flow.candidates.map((points) => {
+    const own = listSegments(new Map([[flow.edge.id, points]]));
+    return {
+      sharedStretches: countPairs(own, drawn, isStretchShared),
+      cuts: countCardCuts(own, { cards: flow.cards, edges: [flow.edge] }),
+      crossings: countPairs(own, drawn, isCrossingEitherWay),
+      bends: countBends(new Map([[flow.edge.id, points]])),
+    };
+  });
 }
 
 export function isScoreBetter(next: PlacementScore, current: PlacementScore): boolean {

@@ -6,7 +6,7 @@ import {
   isScoreBetter,
   isScorePerfect,
   isSpanOverlapping,
-  scoreCandidateRoute,
+  scoreCandidateRoutes,
   scoreRoutes,
   type Card,
   type PlacementScore,
@@ -23,6 +23,8 @@ const SWEEP_DIRECTION_COUNT = 2;
 const CENTER_RATIO = 0.5;
 const SINGLE_LANE_SHIFT = 0;
 const SINGLE_LANE_COUNT = 1;
+/** Ports tried on each card border when the preferred L shapes are blocked. */
+const PORT_SLOT_COUNT = 5;
 /** A port margin is kept on both ends of a card border. */
 const BORDER_SIDES = 2;
 const EMPTY_INDEX = 0;
@@ -141,7 +143,7 @@ function placeLinkedGroup(group: LinkedGroup & { workBudget: number }): PlacedGr
   const grid = buildPlacementGrid(nodes, edges);
   moveNodesUntilClear({ nodes, edges, grid, workBudget });
   const cards = [...buildNodeCards(nodes, grid).values()];
-  const routes = buildFlowRoutes(new Map(cards.map((card) => [card.id, card])), edges, grid);
+  const routes = buildFlowRoutes({ cards: new Map(cards.map((card) => [card.id, card])), edges, grid, shouldTryEveryPort: true });
   const left = Math.min(...cards.map((card) => card.x));
   const top = Math.min(...cards.map((card) => card.y));
   const moved = translateGroup({ cards, routes }, { x: -left, y: -top });
@@ -377,36 +379,59 @@ function buildNodeCards(nodes: readonly FlowPlacementNode[], grid: Grid): Map<st
   return cards;
 }
 
-function buildFlowRoutes(
-  cards: Map<string, Card>,
-  edges: readonly FlowPlacementEdge[],
-  grid: Grid,
-): Map<string, FlowPoint[]> {
+/**
+ * `shouldTryEveryPort` lets a bent flow whose preferred L shapes still conflict try the
+ * PORT_SLOT_COUNT grid of ports. Only the final drawing pays for it; the search scores
+ * layouts with the two preferred L shapes.
+ */
+function buildFlowRoutes(layout: FlowLayout): Map<string, FlowPoint[]> {
+  const { cards, edges, grid } = layout;
   const straightShift = assignStraightShifts(edges, cards, grid);
-  const exitShift = assignExitShifts(edges, cards, grid);
-  const entryShift = assignEntryShifts({ edges, cards, grid, straightShift });
+  const shifts = {
+    straightShift,
+    exitShift: assignExitShifts(edges, cards, grid),
+    entryShift: assignEntryShifts({ edges, cards, grid, straightShift }),
+  };
   const routes = new Map<string, FlowPoint[]>();
   const straightFirst = [...edges].sort(
     (left, right) => Number(!isStraightPair(left, grid)) - Number(!isStraightPair(right, grid)),
   );
   for (const edge of straightFirst) {
-    const source = cards.get(edge.source);
-    const target = cards.get(edge.target);
-    if (!source || !target) continue;
-    const candidates = listRouteCandidates({
-      edge,
-      source,
-      target,
-      grid,
-      edges,
-      cards,
-      straightShift,
-      exitShift,
-      entryShift,
-    }).map(simplify);
-    routes.set(edge.id, pickFreestRoute({ edge, candidates, drawnRoutes: routes, cards }));
+    const points = routeFlow({ edge, layout, shifts, drawnRoutes: routes });
+    if (points) routes.set(edge.id, points);
   }
   return routes;
+}
+
+type FlowLayout = {
+  cards: Map<string, Card>;
+  edges: readonly FlowPlacementEdge[];
+  grid: Grid;
+  shouldTryEveryPort: boolean;
+};
+
+function routeFlow(flow: {
+  edge: FlowPlacementEdge;
+  layout: FlowLayout;
+  shifts: { straightShift: Map<string, number>; exitShift: Map<string, number>; entryShift: Map<string, number> };
+  drawnRoutes: Map<string, FlowPoint[]>;
+}): FlowPoint[] | undefined {
+  const { edge, layout, shifts, drawnRoutes } = flow;
+  const { cards, edges, grid } = layout;
+  const source = cards.get(edge.source);
+  const target = cards.get(edge.target);
+  if (!source || !target) return undefined;
+  const candidates = listRouteCandidates({ edge, source, target, grid, edges, cards, ...shifts }).map(simplify);
+  const preferred = pickFreestRoute({ edge, candidates, drawnRoutes, cards });
+  const shouldTryOtherPorts = layout.shouldTryEveryPort && !isStraightPair(edge, grid) && hasConflict(preferred.score);
+  if (!shouldTryOtherPorts) return preferred.points;
+  const variants = listPortVariants(source, target).map(simplify);
+  return pickFreestRoute({ edge, candidates: [preferred.points, ...variants], drawnRoutes, cards }).points;
+}
+
+/** A crossing still reads with a hop, so only a stacked stretch or a hidden card pays for every port. */
+function hasConflict(score: PlacementScore): boolean {
+  return score.sharedStretches > EMPTY_INDEX || score.cuts > EMPTY_INDEX;
 }
 
 /** The first candidate wins ties, so the other L shape is taken only when it is freer. */
@@ -415,11 +440,10 @@ function pickFreestRoute(pick: {
   candidates: FlowPoint[][];
   drawnRoutes: Map<string, FlowPoint[]>;
   cards: Map<string, Card>;
-}): FlowPoint[] {
-  const { edge, candidates, drawnRoutes, cards } = pick;
-  const scored = candidates.map((points) => ({ points, score: scoreCandidateRoute({ edge, points, drawnRoutes, cards }) }));
-  const best = scored.reduce((current, next) => (isScoreBetter(next.score, current.score) ? next : current));
-  return best.points;
+}): { points: FlowPoint[]; score: PlacementScore } {
+  const scores = scoreCandidateRoutes(pick);
+  const scored = pick.candidates.map((points, index) => ({ points, score: scores[index] as PlacementScore }));
+  return scored.reduce((current, next) => (isScoreBetter(next.score, current.score) ? next : current));
 }
 
 function listRouteCandidates(choice: {
@@ -437,12 +461,28 @@ function listRouteCandidates(choice: {
   const laneShift = straightShift.get(edge.id) ?? SINGLE_LANE_SHIFT;
   if (isVerticalStraight(edge, grid)) return [buildVerticalRoute(source, target, laneShift)];
   if (isHorizontalStraight(edge, grid)) return [buildHorizontalRoute(source, target, laneShift)];
-  const sideEntry = buildSideEntryRoute(source, target, exitShift.get(edge.id) ?? SINGLE_LANE_SHIFT);
+  const sideEntry = buildSideEntryRoute(source, target, {
+    xShift: SINGLE_LANE_SHIFT,
+    yShift: exitShift.get(edge.id) ?? SINGLE_LANE_SHIFT,
+  });
   const elbow = buildElbowRoute(source, target, {
     yShift: exitShift.get(edge.id) ?? SINGLE_LANE_SHIFT,
     xShift: entryShift.get(edge.id) ?? SINGLE_LANE_SHIFT,
   });
   return shouldEnterFromSide(edge, { edges, cards, grid, straightShift }) ? [sideEntry, elbow] : [elbow, sideEntry];
+}
+
+/** Both L shapes through every pair of PORT_SLOT_COUNT exit and entry ports. */
+function listPortVariants(source: Card, target: Card): FlowPoint[][] {
+  const elbows = pairSlots(calculateLaneShifts(PORT_SLOT_COUNT, source.height), calculateLaneShifts(PORT_SLOT_COUNT, target.width))
+    .map(([yShift, xShift]) => buildElbowRoute(source, target, { yShift, xShift }));
+  const sideEntries = pairSlots(calculateLaneShifts(PORT_SLOT_COUNT, source.width), calculateLaneShifts(PORT_SLOT_COUNT, target.height))
+    .map(([xShift, yShift]) => buildSideEntryRoute(source, target, { xShift, yShift }));
+  return [...elbows, ...sideEntries];
+}
+
+function pairSlots(first: readonly number[], second: readonly number[]): [number, number][] {
+  return first.flatMap((left) => second.map((right): [number, number] => [left, right]));
 }
 
 function assignStraightShifts(
@@ -606,10 +646,11 @@ function isSourceLaneOpen(edge: FlowPlacementEdge, context: RouteContext): boole
   });
 }
 
-function buildSideEntryRoute(source: Card, target: Card, yShift: number): FlowPoint[] {
+function buildSideEntryRoute(source: Card, target: Card, shifts: { xShift: number; yShift: number }): FlowPoint[] {
+  const { xShift, yShift } = shifts;
   const isSourceAbove = source.y <= target.y;
   const isTargetRight = readCenterX(target) >= readCenterX(source);
-  const sourceX = readCenterX(source);
+  const sourceX = clamp(readCenterX(source) + xShift, source.x + PORT_MARGIN, source.x + source.width - PORT_MARGIN);
   const targetY = clamp(
     target.y + target.height * CENTER_RATIO + yShift,
     target.y + PORT_MARGIN,
@@ -849,7 +890,7 @@ function isMoveBetter(search: PlacementSearch, current: PlacementScore): boolean
 
 function scoreGrid(search: PlacementSearch): PlacementScore {
   const cards = buildNodeCards(search.nodes, search.grid);
-  const routes = buildFlowRoutes(cards, search.edges, search.grid);
+  const routes = buildFlowRoutes({ cards, edges: search.edges, grid: search.grid, shouldTryEveryPort: false });
   return scoreRoutes({ routes, cards, edges: search.edges });
 }
 
