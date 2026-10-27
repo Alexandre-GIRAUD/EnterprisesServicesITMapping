@@ -21,6 +21,7 @@ type NavigationItem = {
 };
 
 const NAVIGATION_ITEMS: NavigationItem[] = [
+  { label: 'Chatbot', to: '/chat', icon: 'chat' },
   { label: 'Cartography', to: '/map', icon: 'cartography', isEnd: true },
   { label: 'Data Model', to: '/data-model', icon: 'dataModel' },
   { label: 'Sources', to: '/map/import-github', icon: 'sources' },
