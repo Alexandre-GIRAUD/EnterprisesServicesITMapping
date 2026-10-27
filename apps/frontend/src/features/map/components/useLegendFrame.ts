@@ -32,7 +32,15 @@ type DragSession = {
   setOffset: (offset: LegendOffset) => void;
 };
 
-export function useLegendFrame(frameRef: RefObject<HTMLDivElement | null>) {
+type LegendFrameBindings = {
+  isConcealed: boolean;
+  direction: ReturnType<typeof legendEntryDirection>;
+  style: LegendFrameStyle;
+  onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onToggleClick: (event: { preventDefault: () => void }) => void;
+};
+
+export function useLegendFrame(frameRef: RefObject<HTMLDivElement | null>): LegendFrameBindings {
   const [offset, setOffset] = useState<LegendOffset>({ left: 0, top: 0 });
   const [size, setSize] = useState<LegendSize>({
     width: DEFAULT_LEGEND_WIDTH_PX,
@@ -44,7 +52,39 @@ export function useLegendFrame(frameRef: RefObject<HTMLDivElement | null>) {
   const suppressClickRef = useRef(false);
   sizeRef.current = size;
   concealedRef.current = isConcealed;
+  useLegendResizeObserver({ frameRef, isConcealed, concealedRef, setSize });
 
+  return bindLegendFrame({
+    frameRef,
+    offset,
+    size,
+    isConcealed,
+    sizeRef,
+    concealedRef,
+    suppressClickRef,
+    setOffset,
+    setIsConcealed,
+  });
+}
+
+type LegendResizeWatch = {
+  frameRef: RefObject<HTMLDivElement | null>;
+  isConcealed: boolean;
+  concealedRef: { current: boolean };
+  setSize: (update: (current: LegendSize) => LegendSize) => void;
+};
+
+type LegendFrameInput = LegendResizeWatch & {
+  offset: LegendOffset;
+  size: LegendSize;
+  sizeRef: { current: LegendSize };
+  suppressClickRef: { current: boolean };
+  setOffset: (offset: LegendOffset) => void;
+  setIsConcealed: (update: (value: boolean) => boolean) => void;
+};
+
+function useLegendResizeObserver(watch: LegendResizeWatch): void {
+  const { frameRef, isConcealed, concealedRef, setSize } = watch;
   useEffect(() => {
     const element = frameRef.current;
     if (!element || isConcealed) return undefined;
@@ -53,34 +93,43 @@ export function useLegendFrame(frameRef: RefObject<HTMLDivElement | null>) {
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [frameRef, isConcealed]);
+  }, [frameRef, isConcealed, concealedRef, setSize]);
+}
 
-  const style = legendFrameStyle(offset, size, isConcealed);
-
+function bindLegendFrame(input: LegendFrameInput): LegendFrameBindings {
+  const session: DragSession = {
+    frameRef: input.frameRef,
+    offset: input.offset,
+    sizeRef: input.sizeRef,
+    concealedRef: input.concealedRef,
+    suppressClickRef: input.suppressClickRef,
+    setOffset: input.setOffset,
+  };
   return {
-    isConcealed,
-    direction: legendEntryDirection(size.width, size.height),
-    style,
-    onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => {
+    isConcealed: input.isConcealed,
+    direction: legendEntryDirection(input.size.width, input.size.height),
+    style: legendFrameStyle(input.offset, input.size, input.isConcealed),
+    onPointerDown: (event) => {
       event.stopPropagation();
-      beginLegendDrag(event, {
-        frameRef,
-        offset,
-        sizeRef,
-        concealedRef,
-        suppressClickRef,
-        setOffset,
-      });
+      beginLegendDrag(event, session);
     },
-    onToggleClick: (event: { preventDefault: () => void }) => {
-      if (!suppressClickRef.current) {
-        setIsConcealed((value) => !value);
-        return;
-      }
-      suppressClickRef.current = false;
-      event.preventDefault();
+    onToggleClick: (event) => {
+      toggleConcealedLegend(event, input.suppressClickRef, input.setIsConcealed);
     },
   };
+}
+
+function toggleConcealedLegend(
+  event: { preventDefault: () => void },
+  suppressClickRef: { current: boolean },
+  setIsConcealed: (update: (value: boolean) => boolean) => void,
+): void {
+  if (!suppressClickRef.current) {
+    setIsConcealed((value) => !value);
+    return;
+  }
+  suppressClickRef.current = false;
+  event.preventDefault();
 }
 
 function legendFrameStyle(
