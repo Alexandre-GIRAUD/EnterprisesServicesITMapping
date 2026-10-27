@@ -100,16 +100,17 @@ public class ApplicationConnectionSuggestionService {
     this.documentService = documentService;
     this.persistence =
         new SuggestedConnectionPersistence(
-            edgeWriter,
-            nodeAttributePatchService,
-            nodeRefLinkWriter,
-            edgeAttributeReader,
-            attributeChangeAuditService,
-            edgeLinkService,
-            overrideGuard,
-            dataModelAttributeResolver,
-            decisionSources,
-            nodeRefLinkReader);
+            new SuggestedConnectionPersistence.Dependencies(
+                edgeWriter,
+                nodeAttributePatchService,
+                nodeRefLinkWriter,
+                edgeAttributeReader,
+                attributeChangeAuditService,
+                edgeLinkService,
+                overrideGuard,
+                dataModelAttributeResolver,
+                decisionSources,
+                nodeRefLinkReader));
   }
 
   public SuggestConnectionsFromGithubResponse suggestFromGithub(

@@ -28,9 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 
 /** Writes connection suggestions the discovery step already accepted. */
 final class SuggestedConnectionPersistence {
@@ -48,7 +46,21 @@ final class SuggestedConnectionPersistence {
   private final AiDecisionSourceService decisionSources;
   private final ApplicationNodeRefLinkReader nodeRefLinkReader;
 
-  SuggestedConnectionPersistence(
+  SuggestedConnectionPersistence(Dependencies dependencies) {
+    this.edgeWriter = dependencies.edgeWriter();
+    this.nodeAttributePatchService = dependencies.nodeAttributePatchService();
+    this.nodeRefLinkWriter = dependencies.nodeRefLinkWriter();
+    this.edgeAttributeReader = dependencies.edgeAttributeReader();
+    this.attributeChangeAuditService = dependencies.attributeChangeAuditService();
+    this.edgeLinkService = dependencies.edgeLinkService();
+    this.overrideGuard = dependencies.overrideGuard();
+    this.dataModelAttributeResolver = dependencies.dataModelAttributeResolver();
+    this.decisionSources = dependencies.decisionSources();
+    this.nodeRefLinkReader = dependencies.nodeRefLinkReader();
+  }
+
+  /** Collaborators used only while writing a suggested connection. */
+  record Dependencies(
       ApplicationConnectionEdgeWriter edgeWriter,
       ApplicationNodeAttributePatchService nodeAttributePatchService,
       ApplicationNodeRefLinkWriter nodeRefLinkWriter,
@@ -58,18 +70,7 @@ final class SuggestedConnectionPersistence {
       HumanFieldOverrideGuard overrideGuard,
       DataModelAttributeResolver dataModelAttributeResolver,
       AiDecisionSourceService decisionSources,
-      ApplicationNodeRefLinkReader nodeRefLinkReader) {
-    this.edgeWriter = edgeWriter;
-    this.nodeAttributePatchService = nodeAttributePatchService;
-    this.nodeRefLinkWriter = nodeRefLinkWriter;
-    this.edgeAttributeReader = edgeAttributeReader;
-    this.attributeChangeAuditService = attributeChangeAuditService;
-    this.edgeLinkService = edgeLinkService;
-    this.overrideGuard = overrideGuard;
-    this.dataModelAttributeResolver = dataModelAttributeResolver;
-    this.decisionSources = decisionSources;
-    this.nodeRefLinkReader = nodeRefLinkReader;
-  }
+      ApplicationNodeRefLinkReader nodeRefLinkReader) {}
 
   SuggestConnectionsFromGithubResponse persist(
       String applicationId,
