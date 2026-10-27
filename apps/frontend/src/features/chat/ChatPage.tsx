@@ -68,39 +68,20 @@ export function ChatPage() {
   }
 
   const isEmpty = turns.length === 0;
-  const composer = (
-    <ChatComposer value={input} isBusy={isBusy} onChange={setInput} onSend={() => void send(input)} />
-  );
 
   return (
     <div className="chat-page">
       <header className="chat-page-header">
         <h1>Chatbot</h1>
-        <p className="chat-page-lead">
-          Ask about the Production graph or the functional documentation, or ask to filter the map.
-        </p>
       </header>
 
-      {isEmpty ? (
-        <section className="chat-empty" aria-label="New conversation">
-          <img src={flowraLogo} alt="" className="chat-empty-logo" aria-hidden />
-          <h2 className="chat-empty-title">How can I help you today?</h2>
-          {composer}
-          <div className="chat-suggestions">
-            {SUGGESTIONS.map((suggestion) => (
-              <button
-                key={suggestion}
-                type="button"
-                className="chat-suggestion"
-                onClick={() => setInput(suggestion)}
-              >
-                {suggestion.endsWith(' ') ? `${suggestion}…` : suggestion}
-              </button>
-            ))}
+      <section className="chat-conversation" aria-label="Conversation">
+        {isEmpty ? (
+          <div className="chat-empty">
+            <img src={flowraLogo} alt="" className="chat-empty-logo" aria-hidden />
+            <h2 className="chat-empty-title">How can I help you today?</h2>
           </div>
-        </section>
-      ) : (
-        <section className="chat-conversation" aria-label="Conversation">
+        ) : (
           <div className="chat-transcript">
             {turns.map((turn, index) =>
               turn.role === 'user' ? (
@@ -124,14 +105,28 @@ export function ChatPage() {
             ) : null}
             <div ref={bottomRef} />
           </div>
-          {error ? (
-            <p className="chat-error" role="alert">
-              {error}
-            </p>
-          ) : null}
-          {composer}
-        </section>
-      )}
+        )}
+        {error ? (
+          <p className="chat-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {isEmpty ? (
+          <div className="chat-suggestions">
+            {SUGGESTIONS.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                className="chat-suggestion"
+                onClick={() => setInput(suggestion)}
+              >
+                {suggestion.endsWith(' ') ? `${suggestion}…` : suggestion}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <ChatComposer value={input} isBusy={isBusy} onChange={setInput} onSend={() => void send(input)} />
+      </section>
     </div>
   );
 }

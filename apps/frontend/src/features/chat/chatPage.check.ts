@@ -13,6 +13,11 @@ assert.match(app, /<Route path="\/chat" element={<ChatPage \/>} \/>/);
 const page = read('./ChatPage.tsx');
 assert.match(page, /<h1>Chatbot<\/h1>/);
 assert.match(page, /flowraLogo/);
+assert.doesNotMatch(page, /Ask about the Production graph/);
+assert.equal(page.match(/<ChatComposer\b/g)?.length, 1, 'one composer, pinned at the bottom in every state');
+
+const css = read('../../index.css');
+assert.doesNotMatch(css, /\.chat-page \{[^}]*max-width/, 'the page spans the main area so the composer is centered');
 
 assert.equal(existsSync(new URL('../map/components/MappingChatPanel.tsx', import.meta.url)), false);
 assert.doesNotMatch(read('../map/components/SelfServiceToolBar.tsx'), /'chat'/);

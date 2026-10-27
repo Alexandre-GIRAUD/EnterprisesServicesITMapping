@@ -8163,26 +8163,14 @@ body.is-diagram-grown .layout {
   flex: 1;
   min-height: 0;
   width: 100%;
-  max-width: 1040px;
-}
-
-.chat-page-header {
-  margin-bottom: 1.25rem;
 }
 
 .chat-page-header h1 {
-  margin: 0 0 0.35rem;
+  margin: 0;
   font-size: 1.85rem;
   font-weight: 700;
   letter-spacing: -0.03em;
   color: #0f172a;
-}
-
-.chat-page-lead {
-  margin: 0;
-  color: #64748b;
-  font-size: 0.95rem;
-  line-height: 1.5;
 }
 
 .chat-empty {
@@ -8192,10 +8180,6 @@ body.is-diagram-grown .layout {
   align-items: center;
   justify-content: center;
   gap: 1.25rem;
-  width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-  padding-bottom: 12vh;
 }
 
 .chat-empty-logo {
