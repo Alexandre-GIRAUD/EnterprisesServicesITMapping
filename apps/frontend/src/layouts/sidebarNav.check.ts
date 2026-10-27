@@ -14,7 +14,8 @@ assert.doesNotMatch(layout, /<header/);
 assert.doesNotMatch(css, /\.layout-header/);
 
 const labels = [...layout.matchAll(/label: '([^']+)'/g)].map((match) => match[1]);
-assert.deepEqual(labels, ['Cartography', 'Data Model', 'Sources', 'Changes']);
+assert.deepEqual(labels, ['Chatbot', 'Cartography', 'Data Model', 'Sources', 'Changes']);
+assert.match(layout, /label: 'Chatbot', to: '\/chat'/);
 assert.match(settingsMenu, />Settings</);
 assert.match(layout, /Sign out/);
 
