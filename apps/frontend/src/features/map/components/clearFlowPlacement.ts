@@ -26,6 +26,9 @@ const MINIMUM_SCORE_WORK = 1;
 const SEARCH_PASSES = 64;
 /** Rough operations spent scoring layouts. Keeps the search well under a second on a large map. */
 const SEARCH_WORK_BUDGET = 15_000_000;
+/** Width-to-height ratio the packed groups aim for, close to a desktop map pane. */
+const PACKED_ASPECT_RATIO = 16 / 9;
+const ORIGIN = 0;
 
 export type FlowPoint = { x: number; y: number };
 
@@ -72,13 +75,112 @@ export function placeClearFlows(
   nodes: readonly FlowPlacementNode[],
   edges: readonly FlowPlacementEdge[],
 ): ClearFlowPlacement {
-  const grid = buildPlacementGrid(nodes, edges);
-  moveNodesUntilClear(nodes, edges, grid);
-  const rects = buildNodeRects(nodes, grid);
-  const routes = buildFlowRoutes(rects, edges, grid);
-  const positions = new Map<string, { x: number; y: number }>();
-  for (const rect of rects.values()) positions.set(rect.id, { x: rect.x, y: rect.y });
+  const groups = splitIntoLinkedGroups(nodes, edges).map((group) =>
+    placeLinkedGroup({ ...group, workBudget: (SEARCH_WORK_BUDGET * group.nodes.length) / nodes.length }),
+  );
+  const { positions, routes } = packGroups(groups);
   return { positions, routes, hops: computeBridges(routes) };
+}
+
+type LinkedGroup = { nodes: FlowPlacementNode[]; edges: FlowPlacementEdge[] };
+
+type PlacedGroup = { rects: Rect[]; routes: Map<string, FlowPoint[]>; width: number; height: number };
+
+/** Applications with no flow between them never interact, so each linked group is placed on its own. */
+function splitIntoLinkedGroups(
+  nodes: readonly FlowPlacementNode[],
+  edges: readonly FlowPlacementEdge[],
+): LinkedGroup[] {
+  const groupIndex = labelLinkedGroups(nodes, edges);
+  const groups: LinkedGroup[] = [];
+  for (const node of nodes) {
+    const index = groupIndex.get(node.id) ?? EMPTY_INDEX;
+    groups[index] ??= { nodes: [], edges: [] };
+    groups[index].nodes.push(node);
+  }
+  for (const edge of edges) {
+    const index = groupIndex.get(edge.source);
+    const isInsideOneGroup = index !== undefined && groupIndex.get(edge.target) === index;
+    if (isInsideOneGroup) groups[index]?.edges.push(edge);
+  }
+  return groups;
+}
+
+function labelLinkedGroups(
+  nodes: readonly FlowPlacementNode[],
+  edges: readonly FlowPlacementEdge[],
+): Map<string, number> {
+  const neighbors = new Map<string, string[]>(nodes.map((node) => [node.id, []]));
+  for (const edge of edges) {
+    neighbors.get(edge.source)?.push(edge.target);
+    neighbors.get(edge.target)?.push(edge.source);
+  }
+  const groupIndex = new Map<string, number>();
+  let groupCount = EMPTY_INDEX;
+  for (const node of nodes) {
+    if (groupIndex.has(node.id)) continue;
+    const index = groupCount;
+    groupCount += CELL_STEP;
+    const pending = [node.id];
+    groupIndex.set(node.id, index);
+    for (let id = pending.pop(); id !== undefined; id = pending.pop()) {
+      const unvisited = (neighbors.get(id) ?? []).filter((neighbor) => !groupIndex.has(neighbor));
+      for (const neighbor of unvisited) groupIndex.set(neighbor, index);
+      pending.push(...unvisited);
+    }
+  }
+  return groupIndex;
+}
+
+function placeLinkedGroup(group: LinkedGroup & { workBudget: number }): PlacedGroup {
+  const { nodes, edges, workBudget } = group;
+  const grid = buildPlacementGrid(nodes, edges);
+  moveNodesUntilClear({ nodes, edges, grid, workBudget });
+  const rects = [...buildNodeRects(nodes, grid).values()];
+  const routes = buildFlowRoutes(new Map(rects.map((rect) => [rect.id, rect])), edges, grid);
+  const left = Math.min(...rects.map((rect) => rect.x));
+  const top = Math.min(...rects.map((rect) => rect.y));
+  const moved = translateGroup({ rects, routes }, { x: -left, y: -top });
+  return {
+    ...moved,
+    width: Math.max(...moved.rects.map((rect) => rect.x + rect.width)),
+    height: Math.max(...moved.rects.map((rect) => rect.y + rect.height)),
+  };
+}
+
+/** Shelf packing: tallest groups first, wrapping rows near PACKED_ASPECT_RATIO. */
+function packGroups(groups: readonly PlacedGroup[]): Omit<ClearFlowPlacement, 'hops'> {
+  const positions = new Map<string, FlowPoint>();
+  const routes = new Map<string, FlowPoint[]>();
+  const rowWidth = measurePackedRowWidth(groups);
+  const cursor = { x: ORIGIN, y: ORIGIN, shelfHeight: ORIGIN };
+  for (const group of [...groups].sort((upper, lower) => lower.height - upper.height)) {
+    const isRowFull = cursor.x > ORIGIN && cursor.x + group.width > rowWidth;
+    if (isRowFull) Object.assign(cursor, { x: ORIGIN, y: cursor.y + cursor.shelfHeight + ROW_GAP, shelfHeight: ORIGIN });
+    const moved = translateGroup(group, cursor);
+    for (const rect of moved.rects) positions.set(rect.id, { x: rect.x, y: rect.y });
+    for (const [id, points] of moved.routes) routes.set(id, points);
+    cursor.x += group.width + COLUMN_GAP;
+    cursor.shelfHeight = Math.max(cursor.shelfHeight, group.height);
+  }
+  return { positions, routes };
+}
+
+function measurePackedRowWidth(groups: readonly PlacedGroup[]): number {
+  const totalArea = groups.reduce((sum, group) => sum + (group.width + COLUMN_GAP) * (group.height + ROW_GAP), ORIGIN);
+  const widestGroup = Math.max(...groups.map((group) => group.width), ORIGIN);
+  return Math.max(widestGroup, Math.sqrt(totalArea * PACKED_ASPECT_RATIO));
+}
+
+function translateGroup(
+  group: Pick<PlacedGroup, 'rects' | 'routes'>,
+  offset: FlowPoint,
+): Pick<PlacedGroup, 'rects' | 'routes'> {
+  const movePoint = (point: FlowPoint) => ({ x: point.x + offset.x, y: point.y + offset.y });
+  return {
+    rects: group.rects.map((rect) => ({ ...rect, ...movePoint(rect) })),
+    routes: new Map([...group.routes].map(([id, points]) => [id, points.map(movePoint)])),
+  };
 }
 
 function buildPlacementGrid(nodes: readonly FlowPlacementNode[], edges: readonly FlowPlacementEdge[]): Grid {
@@ -676,13 +778,10 @@ type PlacementSearch = {
  * large or dense map an avoidable crossing can survive as a hop. Upgrade path:
  * a real orthogonal planarization (topology-shape-metrics) pass.
  */
-function moveNodesUntilClear(
-  nodes: readonly FlowPlacementNode[],
-  edges: readonly FlowPlacementEdge[],
-  grid: Grid,
-): void {
+function moveNodesUntilClear(layout: LinkedGroup & { grid: Grid; workBudget: number }): void {
+  const { nodes, edges, grid, workBudget } = layout;
   const workPerScore = Math.max(edges.length * edges.length * nodes.length, MINIMUM_SCORE_WORK);
-  const search: PlacementSearch = { nodes, edges, grid, remainingScores: Math.floor(SEARCH_WORK_BUDGET / workPerScore) };
+  const search: PlacementSearch = { nodes, edges, grid, remainingScores: Math.floor(workBudget / workPerScore) };
   for (let pass = 0; pass < SEARCH_PASSES; pass += 1) {
     const current = scoreGrid(search);
     if (isScorePerfect(current)) return;
