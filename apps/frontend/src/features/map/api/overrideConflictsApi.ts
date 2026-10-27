@@ -27,14 +27,6 @@ export async function listOverrideConflicts(params?: {
   return res.json();
 }
 
-export async function fetchOverrideConflictPendingCount(): Promise<number> {
-  const url = resolveApiUrl('/api/override-conflicts/pending-count');
-  const res = await authenticatedFetch(url, { headers: { Accept: 'application/json' } });
-  if (!res.ok) await readError(res, 'Override conflicts count API');
-  const data = (await res.json()) as { count: number };
-  return data.count ?? 0;
-}
-
 export async function getOverrideConflict(id: string): Promise<AttributeOverrideConflictDto> {
   const url = resolveApiUrl(`/api/override-conflicts/${encodeURIComponent(id)}`);
   const res = await authenticatedFetch(url, { headers: { Accept: 'application/json' } });

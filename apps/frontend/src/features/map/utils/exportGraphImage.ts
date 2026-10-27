@@ -1,6 +1,36 @@
 import { toJpeg, toPng } from 'html-to-image';
+import { dataUrlToBytes, downloadBytes, downloadDataUrl, jpegPixelSize, jpegToPdf } from './jpegPdf';
 
 export type GraphImageFormat = 'png' | 'jpeg';
+
+const TABLE_EXPORT_PIXEL_RATIO = 2;
+const TABLE_EXPORT_BACKGROUND = '#ffffff';
+const TABLE_JPEG_QUALITY = 0.95;
+const TABLE_PNG_FILE_NAME = 'table.png';
+const TABLE_PDF_FILE_NAME = 'table.pdf';
+
+/** Download the visible table as a PNG, or as a one-page PDF built from a JPEG. */
+export async function exportTableElement(element: HTMLElement, format: 'png' | 'pdf'): Promise<void> {
+  if (format === 'png') {
+    const dataUrl = await toPng(element, {
+      backgroundColor: TABLE_EXPORT_BACKGROUND,
+      pixelRatio: TABLE_EXPORT_PIXEL_RATIO,
+    });
+    downloadDataUrl(dataUrl, TABLE_PNG_FILE_NAME);
+    return;
+  }
+  const dataUrl = await toJpeg(element, {
+    backgroundColor: TABLE_EXPORT_BACKGROUND,
+    pixelRatio: TABLE_EXPORT_PIXEL_RATIO,
+    quality: TABLE_JPEG_QUALITY,
+  });
+  const size = await jpegPixelSize(dataUrl);
+  downloadBytes(
+    jpegToPdf(dataUrlToBytes(dataUrl), size.width, size.height),
+    TABLE_PDF_FILE_NAME,
+    'application/pdf',
+  );
+}
 
 type ExportGraphImageOptions = {
   /** React Flow root element (e.g. `#graph-canvas-pane`). */

@@ -147,7 +147,7 @@ export interface GitHubRepoDto {
 /** {@code GET /api/change-detections} — GitHub push diff suggestions (review before Neo4j write). */
 export type ChangeDetectionItemDto = {
   id: string;
-  kind: 'MODULE' | 'CONNECTION' | 'NODE_ATTRIBUTE' | 'EDGE_ATTRIBUTE';
+  kind: 'MODULE' | 'CONNECTION' | 'NODE_ATTRIBUTE';
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
   confidence: number;
   summary: string;

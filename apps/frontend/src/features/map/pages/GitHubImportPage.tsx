@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type { ApplicationResponse, GitHubRepoDto } from '@/types/api';
 import {
   createApplication,
@@ -38,7 +38,6 @@ function GitHubMark() {
 
 export function GitHubImportPage() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [repos, setRepos] = useState<GitHubRepoDto[]>([]);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
   const [filter, setFilter] = useState('');
@@ -62,17 +61,6 @@ export function GitHubImportPage() {
   }
 
   useEffect(() => {
-    const flag = searchParams.get('github');
-    if (!flag) return;
-    if (flag === 'connected') setSuccessMessage('GitHub account connected.');
-    else setErrorMessage('GitHub connection was not completed.');
-    const next = new URLSearchParams(searchParams);
-    next.delete('github');
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
-
-  useEffect(() => {
-    const oauthFlag = new URLSearchParams(window.location.search).get('github');
     let cancelled = false;
 
     async function load() {
@@ -90,7 +78,7 @@ export function GitHubImportPage() {
         setRepos(githubList);
         setStatus('ready');
         if (applicationError) setErrorMessage(applicationError);
-        else if (oauthFlag !== 'denied' && oauthFlag !== 'failed') setErrorMessage(null);
+        else setErrorMessage(null);
       } catch (e) {
         if (cancelled) return;
         setStatus('error');
