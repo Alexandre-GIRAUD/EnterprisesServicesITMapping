@@ -25,7 +25,9 @@ const CENTER_RATIO = 0.5;
 const SINGLE_LANE_SHIFT = 0;
 const SINGLE_LANE_COUNT = 1;
 /** Ports tried on each card border when the preferred L shapes are blocked. */
-const PORT_SLOT_COUNT = 5;
+const COARSE_PORT_SLOT_COUNT = 5;
+/** Only a flow still sharing a stretch after the coarse grid pays for the finer one, so dense maps stay fast. */
+const FINE_PORT_SLOT_COUNT = 7;
 /** A port margin is kept on both ends of a card border. */
 const BORDER_SIDES = 2;
 const EMPTY_INDEX = 0;
@@ -337,7 +339,7 @@ function buildNodeCards(nodes: readonly FlowPlacementNode[], grid: Grid): Map<st
 
 /**
  * `shouldTryEveryPort` lets a bent flow whose preferred L shapes still conflict try the
- * PORT_SLOT_COUNT grid of ports. Only the final drawing pays for it; the search scores
+ * COARSE_PORT_SLOT_COUNT grid of ports, then the finer grid. Only the final drawing pays for it; the search scores
  * layouts with the two preferred L shapes.
  */
 function buildFlowRoutes(layout: FlowLayout): Map<string, FlowPoint[]> {
@@ -379,11 +381,16 @@ function routeFlow(flow: {
   if (!source || !target) return undefined;
   const candidates = listRouteCandidates({ edge, source, target, grid, edges, cards, ...shifts }).map(simplify);
   const preferred = pickFreestRoute({ edge, candidates, drawnRoutes, cards });
-  const shouldTryOtherPorts = layout.shouldTryEveryPort && !isStraightPair(edge, grid) && hasConflict(preferred.score);
-  if (!shouldTryOtherPorts) return preferred.points;
-  const variants = listPortVariants(source, target).map(simplify);
-  return pickFreestRoute({ edge, candidates: [preferred.points, ...variants], drawnRoutes, cards }).points;
+  if (!layout.shouldTryEveryPort || isStraightPair(edge, grid)) return preferred.points;
+  const tryPorts = (current: ScoredRoute, slotCount: number) => {
+    const variants = listPortVariants({ source, target, slotCount }).map(simplify);
+    return pickFreestRoute({ edge, candidates: [current.points, ...variants], drawnRoutes, cards });
+  };
+  const coarse = hasConflict(preferred.score) ? tryPorts(preferred, COARSE_PORT_SLOT_COUNT) : preferred;
+  return coarse.score.sharedStretches > 0 ? tryPorts(coarse, FINE_PORT_SLOT_COUNT).points : coarse.points;
 }
+
+type ScoredRoute = { points: FlowPoint[]; score: PlacementScore };
 
 /** A crossing still reads with a hop, so only a stacked stretch or a hidden card pays for every port. */
 function hasConflict(score: PlacementScore): boolean {
@@ -396,7 +403,7 @@ function pickFreestRoute(pick: {
   candidates: FlowPoint[][];
   drawnRoutes: Map<string, FlowPoint[]>;
   cards: Map<string, Card>;
-}): { points: FlowPoint[]; score: PlacementScore } {
+}): ScoredRoute {
   const scores = scoreCandidateRoutes(pick);
   const scored = pick.candidates.map((points, index) => ({ points, score: scores[index] as PlacementScore }));
   return scored.reduce((current, next) => (isScoreBetter(next.score, current.score) ? next : current));
@@ -428,11 +435,12 @@ function listRouteCandidates(choice: {
   return shouldEnterFromSide(edge, { edges, cards, grid, straightShift }) ? [sideEntry, elbow] : [elbow, sideEntry];
 }
 
-/** Both L shapes through every pair of PORT_SLOT_COUNT exit and entry ports. */
-function listPortVariants(source: Card, target: Card): FlowPoint[][] {
-  const elbows = pairSlots(calculateLaneShifts(PORT_SLOT_COUNT, source.height), calculateLaneShifts(PORT_SLOT_COUNT, target.width))
+/** Both L shapes through every pair of `slotCount` exit and entry ports. */
+function listPortVariants(ports: { source: Card; target: Card; slotCount: number }): FlowPoint[][] {
+  const { source, target, slotCount } = ports;
+  const elbows = pairSlots(calculateLaneShifts(slotCount, source.height), calculateLaneShifts(slotCount, target.width))
     .map(([yShift, xShift]) => buildElbowRoute(source, target, { yShift, xShift }));
-  const sideEntries = pairSlots(calculateLaneShifts(PORT_SLOT_COUNT, source.width), calculateLaneShifts(PORT_SLOT_COUNT, target.height))
+  const sideEntries = pairSlots(calculateLaneShifts(slotCount, source.width), calculateLaneShifts(slotCount, target.height))
     .map(([xShift, yShift]) => buildSideEntryRoute(source, target, { xShift, yShift }));
   return [...elbows, ...sideEntries];
 }
