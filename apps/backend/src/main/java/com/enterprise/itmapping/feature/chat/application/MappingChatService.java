@@ -7,6 +7,7 @@ import com.enterprise.itmapping.feature.applications.application.ApplicationServ
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskRequest;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskResponse;
+import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskResponse.ChatCitationDto;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatMapFilters;
 import com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocumentationService;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributePatchService;
@@ -17,6 +18,7 @@ import com.enterprise.itmapping.feature.integrations.llm.MappingChatProperties;
 import com.enterprise.itmapping.feature.rag.application.FunctionalDocSearchService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -109,8 +111,15 @@ public class MappingChatService {
     if (!StringUtils.hasText(answer)) {
       answer = "I could not produce an answer. Try again or rephrase the question.";
     }
+    String cleaned = ChatReplyPresentation.withoutTechnicalIds(answer);
+    List<ChatCitationDto> cited =
+        ChatReplyPresentation.citationsForQuestion(request.message(), tools.citations());
     return new ChatAskResponse(
-        answer.trim(), tools.citations(), tools.warnings(), tools.appliedFilters(), tools.graphChanged());
+        cleaned,
+        ChatReplyPresentation.citationsMentionedInAnswer(cleaned, cited),
+        tools.warnings(),
+        tools.appliedFilters(),
+        tools.graphChanged());
   }
 
   private String messageWithFilters(ChatAskRequest request) {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ChatAskResponseDto, ChatCitationDto, ChatHistoryMessageDto, GraphFilters } from '@/types/api';
 import { askMappingChat } from '../api/mappingChatApi';
 import { appliedFiltersFromChat } from '../utils/chatAppliedFilters';
+import { layoutChatAnswer, type ChatAnswerLine } from '../utils/chatAnswerLayout';
 import { navigateToModuleGraph } from '../utils/mapNavigation';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,41 +26,61 @@ type MappingChatPanelProps = {
   onGraphChanged?: () => void;
 };
 
-/** Lightweight markdown-ish rendering: paragraphs + bullets + bold **text**. */
-function renderAnswer(text: string) {
-  const blocks = text.split(/\n{2,}/);
-  return blocks.map((block, i) => {
-    const lines = block.split('\n');
-    const isList = lines.every((l) => /^\s*([-*]|\d+\.)\s+/.test(l) || l.trim() === '');
-    if (isList) {
-      return (
-        <ul key={i} className="mapping-chat-list">
-          {lines
-            .filter((l) => l.trim())
-            .map((l, j) => (
-              <li key={j}>{inlineFormat(l.replace(/^\s*([-*]|\d+\.)\s+/, ''))}</li>
-            ))}
-        </ul>
-      );
-    }
-    if (/^##\s+/.test(block.trim())) {
-      return (
-        <h4 key={i} className="mapping-chat-heading">
-          {inlineFormat(block.trim().replace(/^##\s+/, ''))}
-        </h4>
-      );
-    }
-    return (
-      <p key={i} className="mapping-chat-paragraph">
-        {lines.map((line, j) => (
-          <span key={j}>
-            {j > 0 ? <br /> : null}
-            {inlineFormat(line)}
-          </span>
-        ))}
-      </p>
-    );
-  });
+function renderAnswer(
+  text: string,
+  citations: ChatCitationDto[],
+  onCitation: (citation: ChatCitationDto) => void
+) {
+  const lines = layoutChatAnswer(text, citations);
+  return lines.map((line, index) => (
+    <AnswerLine key={index} line={line} onCitation={onCitation} />
+  ));
+}
+
+function AnswerLine({
+  line,
+  onCitation,
+}: {
+  line: ChatAnswerLine;
+  onCitation: (citation: ChatCitationDto) => void;
+}) {
+  if (line.kind === 'gap') return <div className="mapping-chat-gap" />;
+  const className = [
+    'mapping-chat-line',
+    `mapping-chat-line--d${line.depth}`,
+    line.kind === 'section' ? 'mapping-chat-line--section' : '',
+    line.kind === 'text' ? 'mapping-chat-line--text' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return (
+    <div className={className}>
+      <span>{inlineFormat(line.text)}</span>
+      {line.citations.map((citation) => (
+        <CitationButton key={citation.id} citation={citation} onCitation={onCitation} />
+      ))}
+    </div>
+  );
+}
+
+function CitationButton({
+  citation,
+  onCitation,
+}: {
+  citation: ChatCitationDto;
+  onCitation: (citation: ChatCitationDto) => void;
+}) {
+  const kind = citation.type === 'EDGE' ? 'Edge' : citation.type === 'FUNCTIONAL_DOC' ? 'Doc' : 'App';
+  return (
+    <button
+      type="button"
+      className="mapping-chat-citation"
+      onClick={() => onCitation(citation)}
+      title={citation.label}
+    >
+      {kind} · {citation.label}
+    </button>
+  );
 }
 
 function inlineFormat(text: string): ReactNode {
@@ -175,7 +196,7 @@ export function MappingChatPanel({
               {turn.role === 'user' ? (
                 <p className="mapping-chat-paragraph">{turn.content}</p>
               ) : (
-                renderAnswer(turn.content)
+                renderAnswer(turn.content, turn.citations ?? [], handleCitation)
               )}
               {turn.warnings && turn.warnings.length > 0 ? (
                 <ul className="mapping-chat-warnings">
@@ -183,22 +204,6 @@ export function MappingChatPanel({
                     <li key={w}>{w}</li>
                   ))}
                 </ul>
-              ) : null}
-              {turn.citations && turn.citations.length > 0 ? (
-                <div className="mapping-chat-citations">
-                  {turn.citations.map((c) => (
-                    <button
-                      key={`${c.type}:${c.id}`}
-                      type="button"
-                      className="mapping-chat-citation"
-                      onClick={() => handleCitation(c)}
-                      title={`${c.type} ${c.id}`}
-                    >
-                      {c.type === 'EDGE' ? 'Edge' : c.type === 'FUNCTIONAL_DOC' ? 'Doc' : 'App'} ·{' '}
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
               ) : null}
             </div>
           ))
