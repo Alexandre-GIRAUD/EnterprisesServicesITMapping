@@ -5,17 +5,17 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-function source(relativePath: string): string {
+function readSourceFile(relativePath: string): string {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8');
 }
 
-const applicationsApi = source('./api/applicationsApi.ts');
-const conflictsApi = source('./api/overrideConflictsApi.ts');
-const importPage = source('./pages/GitHubImportPage.tsx');
-const changeUi = source('./utils/changeDetectionUi.ts');
-const apiTypes = source('../../types/api.ts');
-const canvas = source('./components/GraphCanvas.tsx');
-const aboutPage = source('../about/AboutPage.tsx');
+const applicationsApi = readSourceFile('./api/applicationsApi.ts');
+const conflictsApi = readSourceFile('./api/overrideConflictsApi.ts');
+const importPage = readSourceFile('./pages/GitHubImportPage.tsx');
+const changeUi = readSourceFile('./utils/changeDetectionUi.ts');
+const apiTypes = readSourceFile('../../types/api.ts');
+const canvas = readSourceFile('./components/GraphCanvas.tsx');
+const aboutPage = readSourceFile('../about/AboutPage.tsx');
 
 assert.equal(applicationsApi.includes('fetchDetectionDocument'), false);
 assert.equal(applicationsApi.includes('suggestModulesFromDocument'), false);

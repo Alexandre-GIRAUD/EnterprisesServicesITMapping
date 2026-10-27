@@ -8,6 +8,7 @@ const TABLE_EXPORT_BACKGROUND = '#ffffff';
 const TABLE_JPEG_QUALITY = 0.95;
 const TABLE_PNG_FILE_NAME = 'table.png';
 const TABLE_PDF_FILE_NAME = 'table.pdf';
+const PDF_MEDIA_TYPE = 'application/pdf';
 
 /** Download the visible table as a PNG, or as a one-page PDF built from a JPEG. */
 export async function exportTableElement(element: HTMLElement, format: 'png' | 'pdf'): Promise<void> {
@@ -28,7 +29,7 @@ export async function exportTableElement(element: HTMLElement, format: 'png' | '
   downloadBytes(
     jpegToPdf(dataUrlToBytes(dataUrl), size.width, size.height),
     TABLE_PDF_FILE_NAME,
-    'application/pdf',
+    PDF_MEDIA_TYPE,
   );
 }
 
