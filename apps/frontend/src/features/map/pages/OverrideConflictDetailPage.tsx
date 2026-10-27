@@ -88,8 +88,8 @@ export function OverrideConflictDetailPage() {
   if (!item) {
     return (
       <div className="change-detail-page">
-        <Link to="/map" state={backToChangesState} className="change-detail-back">
-          ← Changes
+        <Link to="/admin/changes" className="changes-list-map-link">
+          All changes
         </Link>
         <p className="change-detail-error" role="alert">
           {error ?? 'Conflict not found.'}
@@ -108,24 +108,28 @@ export function OverrideConflictDetailPage() {
 
   return (
     <div className="change-detail-page">
-      <div className="change-detail-nav">
-        <Link to="/admin/changes" className="change-detail-back">
-          ← All changes
-        </Link>
-        <Link to="/map" state={backToChangesState} className="change-detail-back">
-          Open in cartography
-        </Link>
-      </div>
-
       <header className="change-detail-header">
-        <p className="change-detail-eyebrow">Human override conflict</p>
-        <h1 className="change-detail-title">{item.fieldKey}</h1>
-        <p className="change-detail-meta">
-          {item.targetType} · {item.targetId} · {item.fieldScope}
-          {item.aiSource ? ` · ${item.aiSource}` : ''}
-        </p>
-        <span className="change-chip-kind change-chip-kind--override">OVERRIDE</span>{' '}
-        <span className="change-detail-status">{item.status}</span>
+        <div>
+          <div className="change-detail-title-row">
+            <span className="change-chip-kind change-chip-kind--override">Override</span>
+            <span className={`change-detail-status change-detail-status--${item.status.toLowerCase()}`}>
+              {item.status.charAt(0) + item.status.slice(1).toLowerCase()}
+            </span>
+          </div>
+          <h1 className="change-detail-heading">{item.fieldKey}</h1>
+          <p className="change-detail-lead">
+            {item.targetType} · {item.fieldScope}
+            {item.aiSource ? ` · ${item.aiSource}` : ''}
+          </p>
+        </div>
+        <div className="change-detail-nav">
+          <Link to="/admin/changes" className="changes-list-map-link">
+            All changes
+          </Link>
+          <Link to="/map" state={backToChangesState} className="changes-list-map-link">
+            Cartography
+          </Link>
+        </div>
       </header>
 
       {error ? (
@@ -139,8 +143,8 @@ export function OverrideConflictDetailPage() {
         </p>
       ) : null}
 
-      <section className="change-detail-section">
-        <h2 className="change-detail-section-title">Values</h2>
+      <section className="change-detail-panel">
+        <h2>Values</h2>
         <dl className="change-detail-dl">
           <div>
             <dt>Protected (human)</dt>
@@ -164,29 +168,27 @@ export function OverrideConflictDetailPage() {
         <div className="change-detail-actions">
           <button
             type="button"
-            className="graph-drawer-action graph-drawer-action-primary"
+            className="change-detail-accept"
             disabled={busy}
             onClick={() => void handleAccept()}
           >
-            <span className="graph-drawer-action-title">
-              {busy ? 'Working…' : 'Accept AI value'}
-            </span>
+            {busy ? 'Working…' : 'Accept AI value'}
           </button>
           <button
             type="button"
-            className="graph-drawer-action"
+            className="change-detail-reject"
             disabled={busy}
             onClick={() => void handleReject()}
           >
-            <span className="graph-drawer-action-title">Reject</span>
+            Reject
           </button>
           <button
             type="button"
-            className="graph-drawer-action"
+            className="change-detail-reject"
             disabled={busy}
             onClick={() => navigate('/admin/changes')}
           >
-            <span className="graph-drawer-action-title">Back</span>
+            Back
           </button>
         </div>
       ) : null}

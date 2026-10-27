@@ -3,7 +3,10 @@ package com.enterprise.itmapping.feature.changedetection.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationConnectionSuggestionService;
@@ -18,6 +21,7 @@ import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.integrations.github.GitHubIntegrationProperties;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubCommitDiffService;
+import com.enterprise.itmapping.feature.integrations.github.application.GitHubCommitDiffService.DiffFile;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubCommitDiffService.DiffResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Method;
@@ -70,6 +74,7 @@ class ChangeDetectionServiceCommitVisibilityTest {
 
   @BeforeEach
   void stubACommittedPush() throws Exception {
+    reset(runRepository, commitDiffService);
     committed.clear();
     pending.remove();
     analysisFinished = new CountDownLatch(1);
@@ -79,7 +84,7 @@ class ChangeDetectionServiceCommitVisibilityTest {
         .thenReturn(Optional.of(application));
     when(runRepository.findByRepoFullNameIgnoreCaseAndCommitSha(anyString(), anyString()))
         .thenReturn(Optional.empty());
-    when(runRepository.save(any())).thenAnswer(invocation -> store(invocation.getArgument(0)));
+    doAnswer(invocation -> store(invocation.getArgument(0))).when(runRepository).save(any());
     when(runRepository.findById(any()))
         .thenAnswer(
             invocation -> {
@@ -90,7 +95,8 @@ class ChangeDetectionServiceCommitVisibilityTest {
               }
               return Optional.ofNullable(committed.get(id));
             });
-    when(commitDiffService.fetchCommitDiff(anyString(), anyString(), anyString()))
+    lenient()
+        .when(commitDiffService.fetchCommitDiff(anyString(), anyString(), anyString()))
         .thenReturn(new DiffResult(List.of(), false));
     when(dataModelService.loadConfig()).thenReturn(new DataModelConfig(List.of()));
   }
@@ -108,6 +114,32 @@ class ChangeDetectionServiceCommitVisibilityTest {
     assertThat(accepted).hasSize(1);
     assertThat(analysisFinished.await(WAIT_SECONDS, TimeUnit.SECONDS)).isTrue();
     assertThat(committed.get(accepted.get(0)).getStatus()).isEqualTo(ChangeDetectionRunStatus.EMPTY);
+  }
+
+  @Test
+  void aPushWithSeveralCommitsIsAnalyzedOnceAcrossTheRange() throws Exception {
+    String before = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    String earlier = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    String after = "cccccccccccccccccccccccccccccccccccccccc";
+    when(commitDiffService.fetchCompareDiff("acme", "datahub", before, after))
+        .thenReturn(new DiffResult(List.of(new DiffFile("range-marker.txt", "modified", "", 1)), false));
+    byte[] body =
+        """
+        {"ref":"refs/heads/main","repository":{"full_name":"acme/datahub"},
+        "before":"%s","after":"%s","head_commit":{"id":"%s"},
+        "commits":[{"id":"%s"},{"id":"%s"}]}
+        """
+            .formatted(before, after, after, earlier, after)
+            .getBytes(StandardCharsets.UTF_8);
+
+    List<UUID> accepted = changeDetectionService.ingestPushWebhook(body);
+
+    assertThat(accepted).hasSize(1);
+    assertThat(analysisFinished.await(WAIT_SECONDS, TimeUnit.SECONDS)).isTrue();
+    ChangeDetectionRunEntity run = committed.get(accepted.get(0));
+    assertThat(run.getCommitSha()).isEqualTo(after);
+    assertThat(run.getBaseSha()).isEqualTo(before);
+    assertThat(run.getFiles()).extracting(file -> file.get("path")).containsExactly("range-marker.txt");
   }
 
   private ChangeDetectionRunEntity store(ChangeDetectionRunEntity entity) throws Exception {

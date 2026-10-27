@@ -5,10 +5,23 @@ export type PendingChangeChip = {
   itemId: string;
   kind: ChangeDetectionItemDto['kind'];
   appName: string;
+  source: string;
+  dest: string | null;
   nodesLabel: string;
   meta: string;
   ariaLabel: string;
 };
+
+const KIND_LABELS: Record<ChangeDetectionItemDto['kind'], string> = {
+  CONNECTION: 'Connection',
+  MODULE: 'Module',
+  NODE_ATTRIBUTE: 'Node attribute',
+  EDGE_ATTRIBUTE: 'Edge attribute',
+};
+
+export function kindLabel(kind: ChangeDetectionItemDto['kind']): string {
+  return KIND_LABELS[kind];
+}
 
 function payloadString(payload: Record<string, unknown>, ...keys: string[]): string | null {
   for (const key of keys) {
@@ -25,10 +38,8 @@ export function resolveAppName(
 ): string {
   if (!applicationId?.trim()) return 'Unlinked application';
   const id = applicationId.trim();
-  if (nameById instanceof Map) {
-    return nameById.get(id) ?? id.slice(0, 8);
-  }
-  return nameById[id] ?? id.slice(0, 8);
+  const name = nameById instanceof Map ? nameById.get(id) : nameById[id];
+  return name?.trim() || 'Unknown application';
 }
 
 function catalogueName(
@@ -129,6 +140,8 @@ export function flattenPendingChips(
         itemId: item.id,
         kind: item.kind,
         appName,
+        source,
+        dest,
         nodesLabel,
         meta,
         ariaLabel: `Review ${item.kind} for ${appName}`,
@@ -144,4 +157,45 @@ export function countPendingItems(runs: ChangeDetectionRunDto[]): number {
 
 export function githubCommitUrl(repoFullName: string, commitSha: string): string {
   return `https://github.com/${repoFullName}/commit/${commitSha}`;
+}
+
+export type EdgeAttributeRow = { key: string; label: string; value: string };
+
+/** Edge fields that accept will write. Labels come from the data model when known. */
+export function edgeAttributeRows(
+  payload: Record<string, unknown> | null | undefined,
+  labels: ReadonlyMap<string, string> = new Map()
+): EdgeAttributeRow[] {
+  const raw = payload?.edgeAttributes;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
+  const rows: EdgeAttributeRow[] = [];
+  for (const [key, value] of Object.entries(raw)) {
+    const trimmed = key.trim();
+    const text = formatAttributeValue(value);
+    if (!trimmed || !text) continue;
+    rows.push({ key: trimmed, label: attributeLabel(trimmed, labels), value: text });
+  }
+  return rows;
+}
+
+function attributeLabel(key: string, labels: ReadonlyMap<string, string>): string {
+  return labels.get(key)?.trim() || humanizeAttributeKey(key);
+}
+
+function humanizeAttributeKey(key: string): string {
+  const words = key
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+function formatAttributeValue(value: unknown): string {
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (!Array.isArray(value)) return '';
+  return value
+    .map((entry) => formatAttributeValue(entry))
+    .filter(Boolean)
+    .join(', ');
 }

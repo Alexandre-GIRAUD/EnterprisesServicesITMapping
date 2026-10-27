@@ -11,6 +11,7 @@ import {
   countPendingItems,
   flattenPendingChips,
   kindChipClass,
+  kindLabel,
 } from '../utils/changeDetectionUi';
 
 type FamilyFilter = 'all' | 'github' | 'override';
@@ -32,6 +33,34 @@ function overrideChipClass(scope: AttributeOverrideConflictDto['fieldScope']): s
   return scope === 'EDGE_ATTR'
     ? 'change-chip-kind change-chip-kind--override change-chip-kind--edge-attr'
     : 'change-chip-kind change-chip-kind--override change-chip-kind--node-attr';
+}
+
+function ChangeFlow({ source, dest }: { source: string; dest: string | null }) {
+  return (
+    <span className="change-flow">
+      <span className="change-flow-node">
+        <span className="change-flow-mark" aria-hidden="true" />
+        <span className="change-flow-copy">
+          <span className="change-flow-role">Source</span>
+          <span className="change-flow-name" title={source}>
+            {source}
+          </span>
+        </span>
+      </span>
+      <span className="change-flow-arrow" aria-hidden="true">
+        →
+      </span>
+      <span className="change-flow-node">
+        <span className="change-flow-mark" aria-hidden="true" />
+        <span className="change-flow-copy">
+          <span className="change-flow-role">Destination</span>
+          <span className="change-flow-name" title={dest ?? undefined}>
+            {dest ?? 'Unspecified'}
+          </span>
+        </span>
+      </span>
+    </span>
+  );
 }
 
 export function PendingChangesPanel({
@@ -95,47 +124,51 @@ export function PendingChangesPanel({
 
   return (
     <section className={rootClass} aria-label="Pending changes">
-      <div className="pending-changes-panel-header">
-        <h2 className="pending-changes-panel-title">
-          Changes
-          {pendingCount > 0 ? (
-            <span className="pending-changes-panel-badge">{pendingCount}</span>
-          ) : null}
-        </h2>
+      {variant === 'embedded' ? (
+        <div className="pending-changes-panel-header">
+          <h2 className="pending-changes-panel-title">
+            Changes
+            {pendingCount > 0 ? (
+              <span className="pending-changes-panel-badge">{pendingCount}</span>
+            ) : null}
+          </h2>
+        </div>
+      ) : null}
+
+      <div className="pending-changes-toolbar">
+        <div className="pending-changes-family-chips" role="tablist" aria-label="Change family">
+          {(
+            [
+              ['all', 'All', pendingCount],
+              ['github', 'GitHub', githubPending],
+              ['override', 'Human override', overridePending],
+            ] as const
+          ).map(([id, label, count]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              className={
+                family === id
+                  ? 'pending-changes-family-chip pending-changes-family-chip--active'
+                  : 'pending-changes-family-chip'
+              }
+              aria-selected={family === id}
+              onClick={() => setFamily(id)}
+            >
+              {label}
+              {count > 0 ? ` (${count})` : ''}
+            </button>
+          ))}
+        </div>
         <button
           type="button"
-          className="graph-filter-compact-btn"
+          className="pending-changes-refresh"
           onClick={() => void reload()}
           disabled={status === 'loading'}
         >
           Refresh
         </button>
-      </div>
-
-      <div className="pending-changes-family-chips" role="group" aria-label="Change family">
-        {(
-          [
-            ['all', 'All'],
-            ['github', 'GitHub'],
-            ['override', 'Human override'],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            className={
-              family === id
-                ? 'pending-changes-family-chip pending-changes-family-chip--active'
-                : 'pending-changes-family-chip'
-            }
-            aria-pressed={family === id}
-            onClick={() => setFamily(id)}
-          >
-            {label}
-            {id === 'github' && githubPending > 0 ? ` (${githubPending})` : ''}
-            {id === 'override' && overridePending > 0 ? ` (${overridePending})` : ''}
-          </button>
-        ))}
       </div>
 
       {error ? (
@@ -164,13 +197,26 @@ export function PendingChangesPanel({
                         navigate(`/admin/changes/${chip.runId}/${chip.itemId}`)
                       }
                     >
-                      <span className={kindChipClass(chip.kind)}>{chip.kind}</span>
+                      <span className={kindChipClass(chip.kind)}>{kindLabel(chip.kind)}</span>
                       <span className="pending-changes-chip-body">
-                        <span className="pending-changes-chip-nodes">{chip.nodesLabel}</span>
+                        {chip.kind === 'CONNECTION' ? (
+                          <ChangeFlow source={chip.source} dest={chip.dest} />
+                        ) : (
+                          <span className="pending-changes-chip-nodes">{chip.nodesLabel}</span>
+                        )}
                         <span className="pending-changes-chip-meta">{chip.meta}</span>
                       </span>
                       <span className="pending-changes-chip-chevron" aria-hidden>
-                        ›
+                        <svg viewBox="0 0 16 16" width="16" height="16">
+                          <path
+                            d="M6 4l4 4-4 4"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
                       </span>
                     </button>
                   </li>
@@ -186,8 +232,8 @@ export function PendingChangesPanel({
                 {overrides.map((item) => {
                   const targetName =
                     item.targetType === 'APPLICATION'
-                      ? (nameById.get(item.targetId) ?? item.targetId.slice(0, 8))
-                      : item.targetId.slice(0, 12);
+                      ? (nameById.get(item.targetId) ?? 'Unknown application')
+                      : 'Edge';
                   return (
                     <li key={item.id}>
                       <button
@@ -207,7 +253,16 @@ export function PendingChangesPanel({
                           </span>
                         </span>
                         <span className="pending-changes-chip-chevron" aria-hidden>
-                          ›
+                          <svg viewBox="0 0 16 16" width="16" height="16">
+                            <path
+                              d="M6 4l4 4-4 4"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
                         </span>
                       </button>
                     </li>
