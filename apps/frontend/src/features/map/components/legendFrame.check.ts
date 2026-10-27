@@ -3,7 +3,14 @@
  * Run: npx --yes tsx src/features/map/components/legendFrame.check.ts
  */
 import assert from 'node:assert/strict';
-import { chooseLegendEntryDirection, clampLegendOffset, measureLegendFontScale } from './legendFrame.ts';
+import {
+  DEFAULT_LEGEND_WIDTH_PX,
+  chooseLegendEntryDirection,
+  clampLegendOffset,
+  measureLegendFontScale,
+} from './legendFrame.ts';
+
+assert.equal(DEFAULT_LEGEND_WIDTH_PX, 220);
 
 assert.equal(chooseLegendEntryDirection(400, 150), 'row');
 assert.equal(chooseLegendEntryDirection(400, 200), 'row');
