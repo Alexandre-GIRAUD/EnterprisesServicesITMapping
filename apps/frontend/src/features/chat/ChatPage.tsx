@@ -75,7 +75,7 @@ export function ChatPage() {
         <h1>Chatbot</h1>
       </header>
 
-      <section className="chat-conversation" aria-label="Conversation">
+      <section className={`chat-conversation${isEmpty ? ' is-empty' : ''}`} aria-label="Conversation">
         {isEmpty ? (
           <div className="chat-empty">
             <img src={flowraLogo} alt="" className="chat-empty-logo" aria-hidden />
@@ -111,6 +111,7 @@ export function ChatPage() {
             {error}
           </p>
         ) : null}
+        <ChatComposer value={input} isBusy={isBusy} onChange={setInput} onSend={() => void send(input)} />
         {isEmpty ? (
           <div className="chat-suggestions">
             {SUGGESTIONS.map((suggestion) => (
@@ -125,7 +126,6 @@ export function ChatPage() {
             ))}
           </div>
         ) : null}
-        <ChatComposer value={input} isBusy={isBusy} onChange={setInput} onSend={() => void send(input)} />
       </section>
     </div>
   );

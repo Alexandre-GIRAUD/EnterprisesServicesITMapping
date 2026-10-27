@@ -18,6 +18,7 @@ assert.equal(page.match(/<ChatComposer\b/g)?.length, 1, 'one composer, pinned at
 
 const css = read('../../index.css');
 assert.doesNotMatch(css, /\.chat-page \{[^}]*max-width/, 'the page spans the main area so the composer is centered');
+assert.match(css, /\.chat-conversation\.is-empty \{[^}]*justify-content: center/, 'empty chat centers the composer');
 
 assert.equal(existsSync(new URL('../map/components/MappingChatPanel.tsx', import.meta.url)), false);
 assert.doesNotMatch(read('../map/components/SelfServiceToolBar.tsx'), /'chat'/);
