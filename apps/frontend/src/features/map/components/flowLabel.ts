@@ -2,18 +2,22 @@
 export const APPLICATION_TITLE_FONT_SIZE_PX = 12;
 const LABEL_ANCHOR_OFFSET = '-50%';
 
-export type FlowLabelVisibilityInput = {
+type FlowLabelVisibilityInput = {
   text: string;
   shouldHideLabels: boolean;
   isIndirect: boolean;
+  isEditing: boolean;
 };
 
 /**
  * A flow label follows the application title, so zoom takes no part in it,
- * and hover cannot bring back a label the legend has hidden.
+ * and hover cannot bring back a label the legend has hidden. An empty label
+ * shows while it is edited, since that is how a flow gets its first name.
  */
 export function isFlowLabelVisible(input: FlowLabelVisibilityInput): boolean {
-  if (input.isIndirect || input.shouldHideLabels) return false;
+  if (input.isIndirect) return false;
+  if (input.isEditing) return true;
+  if (input.shouldHideLabels) return false;
   return input.text.trim().length > 0;
 }
 

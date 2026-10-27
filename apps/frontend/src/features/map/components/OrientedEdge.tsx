@@ -616,7 +616,7 @@ export function OrientedEdge({
   }
 
   const isHovered = Boolean(data?.hovered) || localHovered;
-  const shouldShowLabel = isFlowLabelVisible({ text: displayText, shouldHideLabels, isIndirect });
+  const shouldShowLabel = isFlowLabelVisible({ text: displayText, shouldHideLabels, isIndirect, isEditing: editing });
   const labelTransform = buildFlowLabelMapTransform(labelX, labelY);
   const isActive = !isIndirect && (isHovered || Boolean(selected));
   const zoomSafe = Math.max(zoom, 0.05);
@@ -680,8 +680,9 @@ export function OrientedEdge({
             if (event.button !== 0) return;
             selectEdge();
           }}
+          onDoubleClick={onLabelDoubleClick}
         >
-          <title>Click for connection details</title>
+          <title>{canEditLabel ? 'Click for connection details · double-click to edit label' : 'Click for connection details'}</title>
         </path>
       ) : null}
       {isIndirect && (
@@ -722,6 +723,7 @@ export function OrientedEdge({
               setLocalHovered(true);
               selectEdge();
             }}
+            onDoubleClick={onLabelDoubleClick}
             onMouseEnter={() => setLocalHovered(true)}
             onMouseLeave={() => setLocalHovered(false)}
           />
