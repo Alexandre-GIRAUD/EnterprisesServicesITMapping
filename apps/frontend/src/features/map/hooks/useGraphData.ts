@@ -12,12 +12,11 @@ import {
   useState,
   type Dispatch,
   type MutableRefObject,
-  type RefObject,
   type SetStateAction,
 } from 'react';
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import { fetchGraph } from '../api/graphApi';
-import { placeApplicationGraph } from '../components/graphvizLayout';
+import { placeApplicationGraph } from '../components/clearFlowPlacement';
 import { computeBridges } from '../components/bridges';
 import {
   collectLegendColorValues,
@@ -164,7 +163,6 @@ type UseGraphDataParams = {
   pendingSandboxFilterHint: boolean;
   setPendingSandboxFilterHint: Dispatch<SetStateAction<boolean>>;
   setMessage: Dispatch<SetStateAction<string | null>>;
-  containerRef: RefObject<HTMLDivElement>;
   rfRef: MutableRefObject<ReactFlowInstance<AppNode, Edge> | null>;
 };
 
@@ -184,7 +182,6 @@ export function useGraphData({
   pendingSandboxFilterHint,
   setPendingSandboxFilterHint,
   setMessage,
-  containerRef,
   rfRef,
 }: UseGraphDataParams) {
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
@@ -532,17 +529,10 @@ export function useGraphData({
         const builtEdges = shownEdges.map((e) =>
           buildAppEdge(e, typeById, nextColor, nextLabel, colors, hideEdgeLabelsRef.current)
         );
-        const rect = containerRef.current?.getBoundingClientRect();
-        const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
-
-        const { nodes: laidOut, routes } = await placeApplicationGraph(baseNodes, builtEdges, {
-          nodeWidth: NODE_WIDTH,
-          nodeHeight: NODE_HEIGHT,
-          nodeSeparation: 70,
-          layerSeparation: 100,
-          aspectRatio,
+        const { nodes: laidOut, routes } = placeApplicationGraph(baseNodes, builtEdges, {
+          width: NODE_WIDTH,
+          height: NODE_HEIGHT,
         });
-        if (isCancelled) return;
         const jumps = computeBridges(routes);
         setNodes(laidOut);
         setEdges(builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id))));

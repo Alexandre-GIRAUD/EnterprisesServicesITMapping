@@ -1,11 +1,6 @@
-﻿import { Position, type Node } from '@xyflow/react';
+﻿import { Position } from '@xyflow/react';
 
 export type Point = { x: number; y: number };
-
-export type ElkLayoutResult<N extends Node> = {
-  nodes: N[];
-  routes: Map<string, Point[]>;
-};
 
 export type Rect = { x: number; y: number; width: number; height: number };
 
@@ -350,12 +345,3 @@ export function buildLiveRoutes(
   }
   return routes;
 }
-
-export type ElkLayoutOptions = {
-  nodeWidth?: number;
-  nodeHeight?: number;
-  nodeSeparation?: number;
-  layerSeparation?: number;
-  direction?: 'DOWN' | 'RIGHT' | 'UP' | 'LEFT';
-  aspectRatio?: number;
-};

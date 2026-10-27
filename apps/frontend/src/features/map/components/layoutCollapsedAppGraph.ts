@@ -10,7 +10,7 @@ import {
 import type { LegendColorMaps } from './edgeColorProperty';
 import { computeBridges } from './bridges';
 import { projectCollapsedGraph } from './collapseGraph';
-import { placeApplicationGraph } from './graphvizLayout';
+import { placeApplicationGraph } from './clearFlowPlacement';
 import { attachRoute, buildOrientedEdge } from './orientedEdgeBuilders';
 import type { OrientedEdgeData, OrientedEdgeType } from './OrientedEdge';
 
@@ -129,7 +129,6 @@ export async function layoutCollapsedAppGraph(params: {
   nodeCoding?: NodeCodingKeys;
   colors?: LegendColorMaps;
   hideEdgeLabels?: boolean;
-  aspectRatio: number;
   handlers: CollapseLayoutHandlers;
   /** Optional canvas positions to preserve (visible + newly restored). */
   nodePositions?: NodePositionsMap;
@@ -143,7 +142,6 @@ export async function layoutCollapsedAppGraph(params: {
     nodeCoding,
     colors,
     hideEdgeLabels,
-    aspectRatio,
     handlers,
     nodePositions,
   } = params;
@@ -243,12 +241,9 @@ export async function layoutCollapsedAppGraph(params: {
     return { nodes: positioned, edges: builtEdges };
   }
 
-  const { nodes: laidOut, routes } = await placeApplicationGraph(baseNodes, builtEdges, {
-    nodeWidth: NODE_WIDTH,
-    nodeHeight: NODE_HEIGHT,
-    nodeSeparation: 70,
-    layerSeparation: 100,
-    aspectRatio,
+  const { nodes: laidOut, routes } = placeApplicationGraph(baseNodes, builtEdges, {
+    width: NODE_WIDTH,
+    height: NODE_HEIGHT,
   });
   const jumps = computeBridges(routes);
   return {
