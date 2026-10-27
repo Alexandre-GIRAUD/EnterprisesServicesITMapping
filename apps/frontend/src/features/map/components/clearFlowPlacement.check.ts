@@ -216,28 +216,37 @@ const isAnyRouteHorizontal = [...sideBySide.routes.values()].some(
 assert.equal(isAnyRouteHorizontal, true);
 
 const LARGE_MAP_APPLICATION_COUNT = 80;
-const LARGE_MAP_FLOW_COUNT = 85;
-const LARGE_MAP_SEED = 7;
 const RANDOM_MULTIPLIER = 1103515245;
 const RANDOM_INCREMENT = 12345;
 const RANDOM_MODULUS = 2147483648;
-let randomState = LARGE_MAP_SEED;
-function drawRandomIndex(count: number): number {
-  randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) % RANDOM_MODULUS;
-  return Math.floor((randomState / RANDOM_MODULUS) * count);
+const SPARSE_MAPS = [
+  { seed: 7, flowCount: 85 },
+  { seed: 3, flowCount: 80 },
+];
+
+function placeSeededMap(map: { seed: number; flowCount: number }) {
+  let randomState = map.seed;
+  const drawRandomIndex = (count: number) => {
+    randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) % RANDOM_MODULUS;
+    return Math.floor((randomState / RANDOM_MODULUS) * count);
+  };
+  const ids = Array.from({ length: LARGE_MAP_APPLICATION_COUNT }, (_, index) => `n${index}`);
+  const flows = Array.from({ length: map.flowCount }, (_, index) => ({
+    id: `e${index}`,
+    source: `n${drawRandomIndex(LARGE_MAP_APPLICATION_COUNT)}`,
+    target: `n${drawRandomIndex(LARGE_MAP_APPLICATION_COUNT)}`,
+  })).filter((flow) => flow.source !== flow.target);
+  return placeClearFlows(buildNodes(ids), flows);
 }
-const largeMapIds = Array.from({ length: LARGE_MAP_APPLICATION_COUNT }, (_, index) => `n${index}`);
-const largeMapFlows = Array.from({ length: LARGE_MAP_FLOW_COUNT }, (_, index) => ({
-  id: `e${index}`,
-  source: `n${drawRandomIndex(LARGE_MAP_APPLICATION_COUNT)}`,
-  target: `n${drawRandomIndex(LARGE_MAP_APPLICATION_COUNT)}`,
-})).filter((flow) => flow.source !== flow.target);
-const largeMap = placeClearFlows(buildNodes(largeMapIds), largeMapFlows);
-for (const points of largeMap.routes.values()) {
-  assert.equal(isOrthogonal(points), true);
-  assert.ok(countBends(points) <= MAXIMUM_BENDS);
+
+for (const map of SPARSE_MAPS) {
+  const largeMap = placeSeededMap(map);
+  for (const points of largeMap.routes.values()) {
+    assert.equal(isOrthogonal(points), true);
+    assert.ok(countBends(points) <= MAXIMUM_BENDS);
+  }
+  assert.equal(hasSharedStretch(largeMap.routes), false, `seed ${map.seed} shares a stretch`);
 }
-assert.equal(hasSharedStretch(largeMap.routes), false);
 
 const ISOLATED_APPLICATION_COUNT = 16;
 const COMPACT_SLACK = 3;
