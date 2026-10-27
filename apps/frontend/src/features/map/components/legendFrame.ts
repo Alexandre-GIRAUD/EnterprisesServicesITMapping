@@ -11,14 +11,14 @@ export type LegendPane = LegendSize & { insetLeft?: number; insetTop?: number };
 export type LegendEntryDirection = 'row' | 'column';
 
 /** Row once the frame is at least twice as wide as it is tall. */
-export function legendEntryDirection(width: number, height: number): LegendEntryDirection {
+export function chooseLegendEntryDirection(width: number, height: number): LegendEntryDirection {
   if (height <= 0) return 'column';
   if (width / height >= LEGEND_WIDE_ASPECT) return 'row';
   return 'column';
 }
 
 /** Shrink labels with the shorter side, down to 65%, never above the original size. */
-export function legendFontScale(width: number, height: number): number {
+export function measureLegendFontScale(width: number, height: number): number {
   const shorterSide = Math.min(width, height);
   const rawScale = shorterSide / LEGEND_REFERENCE_SIDE_PX;
   if (rawScale < LEGEND_MIN_FONT_SCALE) return LEGEND_MIN_FONT_SCALE;

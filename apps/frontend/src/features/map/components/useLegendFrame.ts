@@ -9,9 +9,9 @@ import {
 import {
   DEFAULT_LEGEND_HEIGHT_PX,
   DEFAULT_LEGEND_WIDTH_PX,
+  chooseLegendEntryDirection,
   clampLegendOffset,
-  legendEntryDirection,
-  legendFontScale,
+  measureLegendFontScale,
   type LegendOffset,
   type LegendPane,
   type LegendSize,
@@ -36,7 +36,7 @@ type DragSession = {
 
 type LegendFrameBindings = {
   isConcealed: boolean;
-  direction: ReturnType<typeof legendEntryDirection>;
+  direction: ReturnType<typeof chooseLegendEntryDirection>;
   style: LegendFrameStyle;
   onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onToggleClick: (event: { preventDefault: () => void }) => void;
@@ -128,8 +128,8 @@ function bindLegendFrame(input: LegendFrameInput): LegendFrameBindings {
   };
   return {
     isConcealed: input.isConcealed,
-    direction: legendEntryDirection(input.size.width, input.size.height),
-    style: legendFrameStyle(input.offset, input.size, input.isConcealed),
+    direction: chooseLegendEntryDirection(input.size.width, input.size.height),
+    style: buildLegendFrameStyle(input.offset, input.size, input.isConcealed),
     onPointerDown: (event) => {
       event.stopPropagation();
       beginLegendDrag(event, session);
@@ -153,7 +153,7 @@ function toggleConcealedLegend(
   event.preventDefault();
 }
 
-function legendFrameStyle(
+function buildLegendFrameStyle(
   offset: LegendOffset,
   size: LegendSize,
   isConcealed: boolean,
@@ -161,7 +161,7 @@ function legendFrameStyle(
   const style: LegendFrameStyle = {
     left: offset.left,
     top: offset.top,
-    '--legend-font-scale': String(legendFontScale(size.width, size.height)),
+    '--legend-font-scale': String(measureLegendFontScale(size.width, size.height)),
   };
   if (isConcealed) return style;
   style.width = size.width;
@@ -175,11 +175,11 @@ function rememberObservedSize(
   setSize: (update: (current: LegendSize) => LegendSize) => void,
 ): void {
   if (!entry || concealedRef.current) return;
-  const next = borderBox(entry);
+  const next = readBorderBox(entry);
   setSize((current) => (isSameSize(current, next) ? current : next));
 }
 
-function borderBox(entry: ResizeObserverEntry): LegendSize {
+function readBorderBox(entry: ResizeObserverEntry): LegendSize {
   const box = entry.borderBoxSize?.[0];
   if (!box) {
     return {

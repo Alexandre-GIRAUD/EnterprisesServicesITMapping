@@ -3,20 +3,20 @@
  * Run: npx --yes tsx src/features/map/components/legendFrame.check.ts
  */
 import assert from 'node:assert/strict';
-import { clampLegendOffset, legendEntryDirection, legendFontScale } from './legendFrame.ts';
+import { chooseLegendEntryDirection, clampLegendOffset, measureLegendFontScale } from './legendFrame.ts';
 
-assert.equal(legendEntryDirection(400, 150), 'row');
-assert.equal(legendEntryDirection(400, 200), 'row');
-assert.equal(legendEntryDirection(264, 360), 'column');
-assert.equal(legendEntryDirection(500, 400), 'column');
-assert.equal(legendEntryDirection(399, 200), 'column');
-assert.equal(legendEntryDirection(400, 0), 'column');
+assert.equal(chooseLegendEntryDirection(400, 150), 'row');
+assert.equal(chooseLegendEntryDirection(400, 200), 'row');
+assert.equal(chooseLegendEntryDirection(264, 360), 'column');
+assert.equal(chooseLegendEntryDirection(500, 400), 'column');
+assert.equal(chooseLegendEntryDirection(399, 200), 'column');
+assert.equal(chooseLegendEntryDirection(400, 0), 'column');
 
-assert.equal(legendFontScale(264, 360), 1);
-assert.equal(legendFontScale(500, 400), 1);
-assert.equal(legendFontScale(400, 150), 0.65);
-assert.equal(legendFontScale(200, 200), 0.7575757575757576);
-assert.equal(legendFontScale(0, 100), 0.65);
+assert.equal(measureLegendFontScale(264, 360), 1);
+assert.equal(measureLegendFontScale(500, 400), 1);
+assert.equal(measureLegendFontScale(400, 150), 0.65);
+assert.equal(measureLegendFontScale(200, 200), 0.7575757575757576);
+assert.equal(measureLegendFontScale(0, 100), 0.65);
 
 assert.deepEqual(
   clampLegendOffset({ left: 100, top: 100 }, { width: 264, height: 360 }, { width: 800, height: 600 }),
