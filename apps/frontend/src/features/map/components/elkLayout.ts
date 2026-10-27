@@ -101,13 +101,6 @@ function segmentHitsRect(a: Point, b: Point, r: Rect, margin: number): boolean {
   return false;
 }
 
-/** Gap kept between a route and any box it must not enter. */
-const NODE_CLEARANCE = 12;
-/** How far a route steps out from a border before it may turn. */
-const ROUTE_STUB = 24;
-/** Extra gutters tried beside each obstacle, nearest first. */
-const CORRIDOR_GAPS = [20, 48, 96];
-
 /** True if no segment of `points` crosses a node other than the two endpoints. */
 function routeIsClear(
   points: Point[],
@@ -118,7 +111,7 @@ function routeIsClear(
   for (let i = 0; i < points.length - 1; i++) {
     for (const [id, r] of rects) {
       if (id === skipSource || id === skipTarget) continue;
-      if (segmentHitsRect(points[i], points[i + 1], r, NODE_CLEARANCE)) return false;
+      if (segmentHitsRect(points[i], points[i + 1], r, 4)) return false;
     }
   }
   return true;
@@ -171,9 +164,9 @@ function simplifyRoute(points: Point[]): Point[] {
 
 /**
  * Orthogonal route between two border anchors that avoids every node except the
- * two endpoints. A clear direct line wins. Otherwise the shortest gutter beside
- * an obstacle is used.
- * ponytail: one corridor per obstacle side; a visibility graph if graphs pass a few hundred nodes.
+ * two endpoints. Tries the direct route first, then stubbed L-routes, then
+ * detours around the bounding box of the blocking nodes. Best-effort: returns
+ * the shortest clear candidate, or the direct route if none is clear.
  */
 function routeAvoidingNodes(
   sa: Point,
@@ -187,11 +180,48 @@ function routeAvoidingNodes(
   const direct = orthogonalRoute(sa, srcSide, ta, tgtSide);
   if (routeIsClear(direct, rects, skipSource, skipTarget)) return direct;
 
-  const ps = outwardStub(sa, srcSide, ROUTE_STUB);
-  const pt = outwardStub(ta, tgtSide, ROUTE_STUB);
+  const STUB = 18;
+  const ps = outwardStub(sa, srcSide, STUB);
+  const pt = outwardStub(ta, tgtSide, STUB);
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let hasBlocker = false;
+  for (const [id, r] of rects) {
+    if (id === skipSource || id === skipTarget) continue;
+    for (let i = 0; i < direct.length - 1; i++) {
+      if (segmentHitsRect(direct[i], direct[i + 1], r, 4)) {
+        hasBlocker = true;
+        minX = Math.min(minX, r.x);
+        minY = Math.min(minY, r.y);
+        maxX = Math.max(maxX, r.x + r.width);
+        maxY = Math.max(maxY, r.y + r.height);
+        break;
+      }
+    }
+  }
+
+  const candidates: Point[][] = [
+    [sa, ps, { x: pt.x, y: ps.y }, pt, ta],
+    [sa, ps, { x: ps.x, y: pt.y }, pt, ta],
+  ];
+  if (hasBlocker) {
+    const M = 24;
+    const left = minX - M;
+    const right = maxX + M;
+    const top = minY - M;
+    const bottom = maxY + M;
+    candidates.push([sa, ps, { x: left, y: ps.y }, { x: left, y: pt.y }, pt, ta]);
+    candidates.push([sa, ps, { x: right, y: ps.y }, { x: right, y: pt.y }, pt, ta]);
+    candidates.push([sa, ps, { x: ps.x, y: top }, { x: pt.x, y: top }, pt, ta]);
+    candidates.push([sa, ps, { x: ps.x, y: bottom }, { x: pt.x, y: bottom }, pt, ta]);
+  }
+
   let best: Point[] | null = null;
   let bestLen = Infinity;
-  for (const candidate of corridorRoutes(sa, ps, pt, ta, rects, skipSource, skipTarget)) {
+  for (const candidate of candidates) {
     if (!routeIsClear(candidate, rects, skipSource, skipTarget)) continue;
     const len = polylineLength(candidate);
     if (len < bestLen) {
@@ -200,35 +230,6 @@ function routeAvoidingNodes(
     }
   }
   return best ?? direct;
-}
-
-function corridorRoutes(
-  sa: Point,
-  ps: Point,
-  pt: Point,
-  ta: Point,
-  rects: Map<string, Rect>,
-  skipSource: string,
-  skipTarget: string
-): Point[][] {
-  const routes: Point[][] = [
-    [sa, ps, { x: pt.x, y: ps.y }, pt, ta],
-    [sa, ps, { x: ps.x, y: pt.y }, pt, ta],
-  ];
-  for (const gap of CORRIDOR_GAPS) {
-    for (const [id, rect] of rects) {
-      if (id === skipSource || id === skipTarget) continue;
-      const xs = [rect.x - gap, rect.x + rect.width + gap];
-      const ys = [rect.y - gap, rect.y + rect.height + gap];
-      for (const x of xs) {
-        routes.push([sa, ps, { x, y: ps.y }, { x, y: pt.y }, pt, ta]);
-      }
-      for (const y of ys) {
-        routes.push([sa, ps, { x: ps.x, y }, { x: pt.x, y }, pt, ta]);
-      }
-    }
-  }
-  return routes;
 }
 
 /**
