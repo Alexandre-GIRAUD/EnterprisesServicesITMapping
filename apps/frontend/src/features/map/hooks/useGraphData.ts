@@ -17,7 +17,6 @@ import {
 } from 'react';
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import { fetchGraph } from '../api/graphApi';
-import { layoutGraph } from '../components/graphLayout';
 import { placeApplicationGraph } from '../components/graphvizLayout';
 import { computeBridges } from '../components/bridges';
 import {
@@ -536,32 +535,17 @@ export function useGraphData({
         const rect = containerRef.current?.getBoundingClientRect();
         const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
 
-        try {
-          const { nodes: laidOut, routes } = await placeApplicationGraph(baseNodes, builtEdges, {
-            nodeWidth: NODE_WIDTH,
-            nodeHeight: NODE_HEIGHT,
-            nodeSeparation: 70,
-            layerSeparation: 100,
-            aspectRatio,
-          });
-          if (isCancelled) return;
-          const jumps = computeBridges(routes);
-          setNodes(laidOut);
-          setEdges(builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id))));
-        } catch {
-          if (isCancelled) return;
-          setNodes(
-            layoutGraph(baseNodes, builtEdges, {
-              nodeWidth: NODE_WIDTH,
-              nodeHeight: NODE_HEIGHT,
-              nodeSeparation: 70,
-              rankSeparation: 100,
-              snapGrid: GRID,
-              aspectRatio,
-            })
-          );
-          setEdges(builtEdges);
-        }
+        const { nodes: laidOut, routes } = await placeApplicationGraph(baseNodes, builtEdges, {
+          nodeWidth: NODE_WIDTH,
+          nodeHeight: NODE_HEIGHT,
+          nodeSeparation: 70,
+          layerSeparation: 100,
+          aspectRatio,
+        });
+        if (isCancelled) return;
+        const jumps = computeBridges(routes);
+        setNodes(laidOut);
+        setEdges(builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id))));
 
         if (!isCancelled) setLayoutRevision((v) => v + 1);
 

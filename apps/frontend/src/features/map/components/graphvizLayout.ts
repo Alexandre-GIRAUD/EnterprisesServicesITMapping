@@ -113,7 +113,7 @@ function repackIslands<N extends Node>(
   return { nodes: mergedNodes, routes: mergedRoutes };
 }
 
-/** Clear orthogonal placement. Callers still fall back to dagre if this throws. */
+/** Clear orthogonal placement for the application map. */
 export async function placeApplicationGraph<N extends Node>(
   nodes: N[],
   edges: Edge[],
