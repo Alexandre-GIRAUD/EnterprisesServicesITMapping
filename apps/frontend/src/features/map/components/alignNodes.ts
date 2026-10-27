@@ -1,7 +1,7 @@
 import type { Edge, Node } from '@xyflow/react';
 import { buildLiveRoutes, type Point, type Rect } from './elkLayout';
 
-export type AlignOptions = {
+type AlignOptions = {
   nodeWidth?: number;
   nodeHeight?: number;
 };

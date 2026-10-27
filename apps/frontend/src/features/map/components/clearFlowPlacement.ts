@@ -44,12 +44,12 @@ const ORIGIN = 0;
 
 export type FlowPoint = { x: number; y: number };
 
-export type FlowPlacementNode = { id: string; width: number; height: number };
+type FlowPlacementNode = { id: string; width: number; height: number };
 
 export type FlowPlacementEdge = { id: string; source: string; target: string };
 
-export type ClearFlowPlacement = {
-  positions: Map<string, { x: number; y: number }>;
+type ClearFlowPlacement = {
+  positions: Map<string, FlowPoint>;
   routes: Map<string, FlowPoint[]>;
   hops: Map<string, FlowPoint[]>;
 };
@@ -157,19 +157,17 @@ function buildPlacementGrid(nodes: readonly FlowPlacementNode[], edges: readonly
 }
 
 function calculateRankFromSources(ids: readonly string[], edges: readonly FlowPlacementEdge[]): Map<string, number> {
-  const incoming = new Map<string, string[]>();
-  for (const id of ids) incoming.set(id, []);
-  for (const edge of edges) incoming.get(edge.target)?.push(edge.source);
+  const incoming = groupIncomingByTarget(ids, edges);
   const rank = new Map<string, number>();
   const visiting = new Set<string>();
 
   function measureLongestDepth(id: string): number {
     const known = rank.get(id);
     if (known !== undefined) return known;
-    if (visiting.has(id)) return EMPTY_INDEX;
+    if (visiting.has(id)) return 0;
     visiting.add(id);
-    let best = EMPTY_INDEX;
-    for (const source of incoming.get(id) ?? []) best = Math.max(best, measureLongestDepth(source) + CELL_STEP);
+    let best = 0;
+    for (const source of incoming.get(id) ?? []) best = Math.max(best, measureLongestDepth(source) + 1);
     visiting.delete(id);
     rank.set(id, best);
     return best;
@@ -187,7 +185,7 @@ function orderWithinRank(
   const groups = groupIdsByRank(ids, rank);
   let indexOf = readIndexesWithinRank(groups);
   for (let sweep = 0; sweep < ORDER_SWEEPS; sweep += 1) {
-    const isDownwardSweep = sweep % SWEEP_DIRECTION_COUNT === EMPTY_INDEX;
+    const isDownwardSweep = sweep % SWEEP_DIRECTION_COUNT === 0;
     sortRanksByBarycenter({ groups, indexOf, edges, isDownwardSweep });
     indexOf = readIndexesWithinRank(groups);
   }
@@ -394,7 +392,7 @@ type ScoredRoute = { points: FlowPoint[]; score: PlacementScore };
 
 /** A crossing still reads with a hop, so only a stacked stretch or a hidden card pays for every port. */
 function hasConflict(score: PlacementScore): boolean {
-  return score.sharedStretches > EMPTY_INDEX || score.cuts > EMPTY_INDEX;
+  return score.sharedStretches > 0 || score.cuts > 0;
 }
 
 /** The first candidate wins ties, so the other L shape is taken only when it is freer. */
@@ -498,7 +496,7 @@ function packLanes(
   readSpan: (edge: FlowPlacementEdge) => Span | undefined,
 ): FlowPlacementEdge[][] {
   const lanes: FlowPlacementEdge[][] = [];
-  const readLow = (edge: FlowPlacementEdge) => readSpan(edge)?.low ?? EMPTY_INDEX;
+  const readLow = (edge: FlowPlacementEdge) => readSpan(edge)?.low ?? 0;
   const ordered = [...edges].sort((left, right) => readLow(left) - readLow(right));
   for (const edge of ordered) {
     const openLane = lanes.find((members) => members.every((other) => !isSpanOverlapping(readSpan(edge), readSpan(other))));
@@ -521,7 +519,7 @@ function assignExitShifts(
     const below = list.filter((edge) => isTargetBelow(source, cards.get(edge.target)));
     const above = list.filter((edge) => !isTargetBelow(source, cards.get(edge.target)));
     const offsets = calculateLaneShifts(list.length, source.height);
-    writeExitOrder({ edges: above, offsets: offsets.slice(EMPTY_INDEX, above.length), source, cards, shifts, isBelow: false });
+    writeExitOrder({ edges: above, offsets: offsets.slice(0, above.length), source, cards, shifts, isBelow: false });
     writeExitOrder({ edges: below, offsets: offsets.slice(above.length), source, cards, shifts, isBelow: true });
   }
   return shifts;
@@ -543,7 +541,7 @@ function writeExitOrder(order: {
   const nearestFirst = [...edges].sort(
     (left, right) => measureHorizontalDistance(source, cards.get(left.target)) - measureHorizontalDistance(source, cards.get(right.target)),
   );
-  const lastIndex = offsets.length - CELL_STEP;
+  const lastIndex = offsets.length - 1;
   nearestFirst.forEach((edge, index) => {
     const shift = isBelow ? offsets[lastIndex - index] : offsets[index];
     shifts.set(edge.id, shift ?? SINGLE_LANE_SHIFT);
@@ -658,8 +656,8 @@ function isStraightAlong(
 function calculateLaneShifts(count: number, span: number): number[] {
   if (count <= SINGLE_LANE_COUNT) return [SINGLE_LANE_SHIFT];
   const usable = Math.max(span - PORT_MARGIN * BORDER_SIDES, MINIMUM_PORT_SPAN);
-  const gapCount = count + CELL_STEP;
-  return Array.from({ length: count }, (_, index) => ((index + CELL_STEP) / gapCount - CENTER_RATIO) * usable);
+  const gapCount = count + 1;
+  return Array.from({ length: count }, (_, index) => ((index + 1) / gapCount - CENTER_RATIO) * usable);
 }
 
 function groupEdges(
@@ -706,7 +704,7 @@ function isTargetBelow(source: Card, target: Card | undefined): boolean {
 }
 
 function measureHorizontalDistance(source: Card, target: Card | undefined): number {
-  if (!target) return EMPTY_INDEX;
+  if (!target) return 0;
   return Math.abs(readCenterX(target) - readCenterX(source));
 }
 
@@ -808,7 +806,7 @@ function moveNodesUntilClear(layout: LinkedGroup & { grid: Grid; workBudget: num
 function applySwap(search: PlacementSearch, current: PlacementScore): boolean {
   const ids = search.nodes.map((node) => node.id);
   for (const [leftIndex, leftId] of ids.entries()) {
-    for (const rightId of ids.slice(leftIndex + CELL_STEP)) {
+    for (const rightId of ids.slice(leftIndex + 1)) {
       swapCells(search.grid, leftId, rightId);
       if (isMoveBetter(search, current)) return true;
       swapCells(search.grid, leftId, rightId);
@@ -846,9 +844,10 @@ function listNeighborCells(id: string, search: PlacementSearch): Cell[] {
   });
 }
 
+/** Spends one score from the budget, so it reports false once the budget is gone. */
 function isMoveBetter(search: PlacementSearch, current: PlacementScore): boolean {
-  if (search.remainingScores <= EMPTY_INDEX) return false;
-  search.remainingScores -= CELL_STEP;
+  if (search.remainingScores <= 0) return false;
+  search.remainingScores -= 1;
   return isScoreBetter(scoreGrid(search), current);
 }
 
