@@ -360,7 +360,6 @@ export function GraphCanvas() {
     filtersActive: productionFiltersActive,
     graphReloadNonce,
     hiddenNodeIds: hiddenNodeIdsForLegend,
-    graphModeRef,
     pendingSandboxFilterHint,
     setPendingSandboxFilterHint,
     setMessage,
@@ -592,7 +591,7 @@ export function GraphCanvas() {
     } else if (state.graphMode === 'sandbox') {
       mode.setGraphMode('sandbox');
       mode.setSandboxDirty(false);
-      setMessage('Sandbox — customize your graph, no changes saved.');
+      setMessage(null);
       setWorkspacePanelOpen(true);
       setDisplayMode('graph');
       setModuleGraphApp(null);
@@ -1444,13 +1443,10 @@ export function GraphCanvas() {
     if (moduleGraphApp) {
       return 'Module dependency tree for this application. Double-click a module to explore further.';
     }
-    if (isViewsMode) {
-      return 'Saved views (filters, hidden apps, layout). Select a view to apply it to the graph.';
-    }
     if (status === 'loading') return 'Loading graph…';
     if (status === 'error') return message;
     return message;
-  }, [moduleGraphApp, isViewsMode, status, message]);
+  }, [moduleGraphApp, status, message]);
 
   const showGraphDisplayToggle = graphMode === 'normal' || graphMode === 'sandbox';
   const showGraphExport =

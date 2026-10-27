@@ -70,12 +70,12 @@ export function HelpMenu() {
         type="button"
         className="layout-help-toggle"
         aria-label="Help"
-        title="Help"
         aria-expanded={isOpen}
         aria-controls="layout-help-panel"
         onClick={toggle}
       >
         <QuestionGlyph />
+        <span>Help</span>
       </button>
       {isOpen && anchor ? (
         <HelpPanel top={anchor.top} bottom={anchor.bottom} left={anchor.left} panelRef={panelRef} />

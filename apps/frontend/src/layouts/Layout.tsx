@@ -95,6 +95,7 @@ function LayoutShell() {
                 <SettingsMenu />
               </nav>
               <div className="layout-sidebar-footer">
+                <HelpMenu />
                 <span className="layout-sidebar-user-meta">
                   <span className="layout-sidebar-user" title={user.username}>
                     {user.username}
@@ -105,7 +106,6 @@ function LayoutShell() {
                     </span>
                   ) : null}
                   <span className="layout-sidebar-utilities">
-                    <HelpMenu />
                     <ThemeModeButton theme={theme} onToggle={() => setTheme((current) => toggledColorTheme(current))} />
                   </span>
                 </span>
