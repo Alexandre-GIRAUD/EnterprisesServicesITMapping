@@ -616,13 +616,7 @@ export function OrientedEdge({
   }
 
   const isHovered = Boolean(data?.hovered) || localHovered;
-  const shouldShowLabel = isFlowLabelVisible({
-    text: displayText,
-    zoom,
-    shouldHideLabels,
-    isIndirect,
-    isHovered,
-  });
+  const shouldShowLabel = isFlowLabelVisible({ text: displayText, shouldHideLabels, isIndirect });
   const labelTransform = buildFlowLabelMapTransform(labelX, labelY);
   const isActive = !isIndirect && (isHovered || Boolean(selected));
   const zoomSafe = Math.max(zoom, 0.05);

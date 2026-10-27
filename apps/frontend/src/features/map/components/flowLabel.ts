@@ -4,19 +4,15 @@ const LABEL_ANCHOR_OFFSET = '-50%';
 
 export type FlowLabelVisibilityInput = {
   text: string;
-  zoom: number;
   shouldHideLabels: boolean;
   isIndirect: boolean;
-  isHovered: boolean;
 };
 
 /**
- * A flow label follows the application title: it stays drawn at every zoom.
- * Hover does not bring back a label the legend has hidden.
+ * A flow label follows the application title, so zoom takes no part in it,
+ * and hover cannot bring back a label the legend has hidden.
  */
 export function isFlowLabelVisible(input: FlowLabelVisibilityInput): boolean {
-  void input.zoom;
-  void input.isHovered;
   if (input.isIndirect || input.shouldHideLabels) return false;
   return input.text.trim().length > 0;
 }
