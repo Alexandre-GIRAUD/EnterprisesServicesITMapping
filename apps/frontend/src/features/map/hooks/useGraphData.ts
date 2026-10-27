@@ -63,7 +63,6 @@ import {
 } from '../components/orientedEdgeBuilders';
 import type { OrientedEdgeType } from '../components/OrientedEdge';
 import { fitGraphView } from '../components/fitGraphView';
-import type { GraphMode } from '../components/GraphModeTabs';
 
 export type AppNode = AppGraphNodeType;
 
@@ -163,7 +162,6 @@ type UseGraphDataParams = {
   filtersActive: boolean;
   graphReloadNonce: number;
   hiddenNodeIds?: ReadonlySet<string>;
-  graphModeRef: MutableRefObject<GraphMode>;
   pendingSandboxFilterHint: boolean;
   setPendingSandboxFilterHint: Dispatch<SetStateAction<boolean>>;
   setMessage: Dispatch<SetStateAction<string | null>>;
@@ -184,7 +182,6 @@ export function useGraphData({
   filtersActive,
   graphReloadNonce,
   hiddenNodeIds = new Set(),
-  graphModeRef,
   pendingSandboxFilterHint,
   setPendingSandboxFilterHint,
   setMessage,
@@ -572,16 +569,14 @@ export function useGraphData({
         if (pendingSandboxFilterHint) {
           setMessage('Filters applied — sandbox draft reset.');
           setPendingSandboxFilterHint(false);
+        } else if (data.nodes.length === 0) {
+          setMessage(
+            filtersActive
+              ? 'No applications match these filters. Change criteria or reset.'
+              : 'No nodes. Start the backend with Neo4j to load demo data.',
+          );
         } else {
-          const emptyHint =
-            data.nodes.length === 0
-              ? filtersActive
-                ? 'No applications match these filters. Change criteria or reset.'
-                : 'No nodes. Start the backend with Neo4j to load demo data.'
-              : graphModeRef.current === 'sandbox'
-                ? 'Sandbox — customize your graph, no changes saved.'
-                : 'Tip: double-click an application to open its module graph. Single-click for details.';
-          setMessage(emptyHint);
+          setMessage(null);
         }
       } catch (e) {
         if (!isCancelled) {

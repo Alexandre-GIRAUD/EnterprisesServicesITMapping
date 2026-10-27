@@ -648,10 +648,6 @@ export function FilterDrawer({
         {view === 'root' ? renderRootActions() : renderDetailViewActions()}
         {view === 'root' ? (
           <div className="graph-filter-root-list" role="group" aria-label="Filter types">
-            <p className="graph-filter-hint">
-              Narrow the graph. Each dimension combines with AND (all conditions must match).
-            </p>
-
             <div className="graph-filter-search">
               <input
                 type="search"
