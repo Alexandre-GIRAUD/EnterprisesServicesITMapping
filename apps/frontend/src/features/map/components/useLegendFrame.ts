@@ -13,10 +13,12 @@ import {
   legendEntryDirection,
   legendFontScale,
   type LegendOffset,
+  type LegendPane,
   type LegendSize,
 } from './legendFrame.ts';
 
 const DRAG_START_THRESHOLD_PX = 4;
+const PRIMARY_POINTER_BUTTON = 0;
 const LEGEND_CONTROL_SELECTOR = 'button, input, select, textarea, a';
 const LEGEND_DRAG_HANDLE_SELECTOR = '.graph-legend__header, .graph-legend__show';
 const LEGEND_PANE_SELECTOR = '.react-flow, .sandbox-stage, #graph-canvas-pane';
@@ -53,6 +55,7 @@ export function useLegendFrame(frameRef: RefObject<HTMLDivElement | null>): Lege
   sizeRef.current = size;
   concealedRef.current = isConcealed;
   useLegendResizeObserver({ frameRef, isConcealed, concealedRef, setSize });
+  useKeepLegendInside({ frameRef, isConcealed, size, setOffset });
 
   return bindLegendFrame({
     frameRef,
@@ -74,14 +77,32 @@ type LegendResizeWatch = {
   setSize: (update: (current: LegendSize) => LegendSize) => void;
 };
 
-type LegendFrameInput = LegendResizeWatch & {
+type LegendFrameInput = {
+  frameRef: RefObject<HTMLDivElement | null>;
   offset: LegendOffset;
   size: LegendSize;
+  isConcealed: boolean;
   sizeRef: { current: LegendSize };
+  concealedRef: { current: boolean };
   suppressClickRef: { current: boolean };
   setOffset: (offset: LegendOffset) => void;
   setIsConcealed: (update: (value: boolean) => boolean) => void;
 };
+
+function useKeepLegendInside(watch: {
+  frameRef: RefObject<HTMLDivElement | null>;
+  isConcealed: boolean;
+  size: LegendSize;
+  setOffset: (update: (current: LegendOffset) => LegendOffset) => void;
+}): void {
+  const { frameRef, isConcealed, size, setOffset } = watch;
+  useEffect(() => {
+    const element = frameRef.current;
+    if (!element || isConcealed) return;
+    const pane = readLegendPaneBox(element);
+    setOffset((current) => keepLegendInsidePane(current, size, pane));
+  }, [frameRef, isConcealed, size, setOffset]);
+}
 
 function useLegendResizeObserver(watch: LegendResizeWatch): void {
   const { frameRef, isConcealed, concealedRef, setSize } = watch;
@@ -155,7 +176,7 @@ function rememberObservedSize(
 ): void {
   if (!entry || concealedRef.current) return;
   const next = borderBox(entry);
-  setSize((current) => (sameSize(current, next) ? current : next));
+  setSize((current) => (isSameSize(current, next) ? current : next));
 }
 
 function borderBox(entry: ResizeObserverEntry): LegendSize {
@@ -169,29 +190,31 @@ function borderBox(entry: ResizeObserverEntry): LegendSize {
   return { width: Math.round(box.inlineSize), height: Math.round(box.blockSize) };
 }
 
-function sameSize(current: LegendSize, next: LegendSize): boolean {
+function isSameSize(current: LegendSize, next: LegendSize): boolean {
   return current.width === next.width && current.height === next.height;
 }
 
 function beginLegendDrag(event: ReactPointerEvent<HTMLElement>, session: DragSession): void {
-  if (event.button !== 0) return;
+  if (event.button !== PRIMARY_POINTER_BUTTON) return;
   const target = event.target;
   if (!(target instanceof Element) || !isDragHandle(target, session.concealedRef.current)) return;
   if (!target.closest(LEGEND_CONTROL_SELECTOR)) event.preventDefault();
 
-  const startX = event.clientX;
-  const startY = event.clientY;
+  const startClientX = event.clientX;
+  const startClientY = event.clientY;
   const origin = session.offset;
-  let moved = false;
+  let hasMoved = false;
 
   const onMove = (moveEvent: PointerEvent) => {
-    moved = moved || passedDragThreshold(moveEvent.clientX - startX, moveEvent.clientY - startY);
-    moveLegend(session, origin, moveEvent.clientX - startX, moveEvent.clientY - startY);
+    const horizontalDelta = moveEvent.clientX - startClientX;
+    const verticalDelta = moveEvent.clientY - startClientY;
+    hasMoved = hasMoved || hasPassedDragThreshold(horizontalDelta, verticalDelta);
+    moveLegend({ session, origin, horizontalDelta, verticalDelta });
   };
   const onUp = () => {
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
-    if (moved) session.suppressClickRef.current = true;
+    if (hasMoved) session.suppressClickRef.current = true;
   };
 
   window.addEventListener('pointermove', onMove);
@@ -199,45 +222,61 @@ function beginLegendDrag(event: ReactPointerEvent<HTMLElement>, session: DragSes
 }
 
 function isDragHandle(target: Element, isConcealed: boolean): boolean {
-  const startedOnControl = target.closest(LEGEND_CONTROL_SELECTOR) !== null;
-  if (startedOnControl && !isConcealed) return false;
+  const isOnControl = target.closest(LEGEND_CONTROL_SELECTOR) !== null;
+  if (isOnControl && !isConcealed) return false;
   return target.closest(LEGEND_DRAG_HANDLE_SELECTOR) !== null;
 }
 
-function passedDragThreshold(deltaX: number, deltaY: number): boolean {
-  return Math.hypot(deltaX, deltaY) > DRAG_START_THRESHOLD_PX;
+function hasPassedDragThreshold(horizontalDelta: number, verticalDelta: number): boolean {
+  return Math.hypot(horizontalDelta, verticalDelta) > DRAG_START_THRESHOLD_PX;
 }
 
-function moveLegend(session: DragSession, origin: LegendOffset, deltaX: number, deltaY: number): void {
-  const element = session.frameRef.current;
+function moveLegend(move: {
+  session: DragSession;
+  origin: LegendOffset;
+  horizontalDelta: number;
+  verticalDelta: number;
+}): void {
+  const element = move.session.frameRef.current;
   if (!element) return;
-  session.setOffset(
+  move.session.setOffset(
     clampLegendOffset(
-      { left: origin.left + deltaX, top: origin.top + deltaY },
-      dragFrameSize(element, session),
-      legendRoom(element),
+      {
+        left: move.origin.left + move.horizontalDelta,
+        top: move.origin.top + move.verticalDelta,
+      },
+      readDragFrameSize(element, move.session),
+      readLegendPaneBox(element),
     ),
   );
 }
 
-function dragFrameSize(element: HTMLElement, session: DragSession): LegendSize {
+function keepLegendInsidePane(current: LegendOffset, size: LegendSize, pane: LegendPane): LegendOffset {
+  const next = clampLegendOffset(current, size, pane);
+  if (next.left === current.left && next.top === current.top) return current;
+  return next;
+}
+
+function readDragFrameSize(element: HTMLElement, session: DragSession): LegendSize {
   if (!session.concealedRef.current) return session.sizeRef.current;
   const rect = element.getBoundingClientRect();
   return { width: rect.width, height: rect.height };
 }
 
-function legendRoom(element: HTMLElement): LegendSize {
-  const paneRect = legendPane(element).getBoundingClientRect();
+function readLegendPaneBox(element: HTMLElement): LegendPane {
+  const paneRect = findLegendPane(element).getBoundingClientRect();
   const origin = element.offsetParent instanceof HTMLElement
     ? element.offsetParent.getBoundingClientRect()
     : paneRect;
   return {
-    width: paneRect.right - origin.left,
-    height: paneRect.bottom - origin.top,
+    width: paneRect.width,
+    height: paneRect.height,
+    insetLeft: origin.left - paneRect.left,
+    insetTop: origin.top - paneRect.top,
   };
 }
 
-function legendPane(element: HTMLElement): HTMLElement {
+function findLegendPane(element: HTMLElement): HTMLElement {
   const pane = element.closest(LEGEND_PANE_SELECTOR);
   if (pane instanceof HTMLElement) return pane;
   if (element.offsetParent instanceof HTMLElement) return element.offsetParent;

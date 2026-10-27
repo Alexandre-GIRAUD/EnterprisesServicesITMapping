@@ -34,5 +34,21 @@ assert.deepEqual(
   clampLegendOffset({ left: 50, top: 50 }, { width: 900, height: 700 }, { width: 800, height: 600 }),
   { left: 0, top: 0 },
 );
+assert.deepEqual(
+  clampLegendOffset(
+    { left: -20, top: -5 },
+    { width: 264, height: 360 },
+    { width: 800, height: 600, insetLeft: 15, insetTop: 15 },
+  ),
+  { left: -15, top: -5 },
+);
+assert.deepEqual(
+  clampLegendOffset(
+    { left: 900, top: 900 },
+    { width: 264, height: 360 },
+    { width: 800, height: 600, insetLeft: 15, insetTop: 15 },
+  ),
+  { left: 521, top: 225 },
+);
 
 console.log('legendFrame.check: ok');

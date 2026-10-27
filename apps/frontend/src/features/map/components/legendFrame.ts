@@ -7,6 +7,7 @@ export const DEFAULT_LEGEND_HEIGHT_PX = 360;
 
 export type LegendOffset = { left: number; top: number };
 export type LegendSize = { width: number; height: number };
+export type LegendPane = LegendSize & { insetLeft?: number; insetTop?: number };
 export type LegendEntryDirection = 'row' | 'column';
 
 /** Row once the frame is at least twice as wide as it is tall. */
@@ -29,16 +30,23 @@ export function legendFontScale(width: number, height: number): number {
 export function clampLegendOffset(
   offset: LegendOffset,
   frame: LegendSize,
-  pane: LegendSize,
+  pane: LegendPane,
 ): LegendOffset {
+  const insetLeft = pane.insetLeft ?? 0;
+  const insetTop = pane.insetTop ?? 0;
+  const minLeft = -insetLeft || 0;
+  const minTop = -insetTop || 0;
+  const maxLeft = pane.width - insetLeft - frame.width;
+  const maxTop = pane.height - insetTop - frame.height;
+  if (maxLeft < minLeft || maxTop < minTop) return { left: 0, top: 0 };
   return {
-    left: clampAxis(offset.left, Math.max(0, pane.width - frame.width)),
-    top: clampAxis(offset.top, Math.max(0, pane.height - frame.height)),
+    left: clampToRange(offset.left, minLeft, maxLeft),
+    top: clampToRange(offset.top, minTop, maxTop),
   };
 }
 
-function clampAxis(value: number, max: number): number {
-  if (value < 0) return 0;
+function clampToRange(value: number, min: number, max: number): number {
+  if (value < min) return min;
   if (value > max) return max;
   return value;
 }
