@@ -13,6 +13,7 @@ import { AdminUsersPage } from '@/features/auth/pages/AdminUsersPage';
 import { SettingsPage } from '@/features/auth/pages/SettingsPage';
 import { DataModelPage } from '@/features/datamodel/pages/DataModelPage';
 import { AboutPage } from '@/features/about/AboutPage';
+import { ChatPage } from '@/features/chat/ChatPage';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/map" replace />} />
             <Route path="/about" element={<AboutPage />} />
+            <Route path="/chat" element={<ChatPage />} />
             <Route path="/map" element={<MapPage />} />
             <Route path="/map/import-github" element={<GitHubImportPage />} />
             <Route path="/map/apps/:applicationId" element={<ApplicationModuleMapPage />} />

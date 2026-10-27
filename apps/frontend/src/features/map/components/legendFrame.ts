@@ -2,7 +2,7 @@ export const LEGEND_REFERENCE_SIDE_PX = 264;
 export const LEGEND_MIN_FONT_SCALE = 0.65;
 export const LEGEND_MAX_FONT_SCALE = 1;
 export const LEGEND_WIDE_ASPECT = 2;
-export const DEFAULT_LEGEND_WIDTH_PX = 264;
+export const DEFAULT_LEGEND_WIDTH_PX = 220;
 export const DEFAULT_LEGEND_HEIGHT_PX = 360;
 
 export type LegendOffset = { left: number; top: number };
