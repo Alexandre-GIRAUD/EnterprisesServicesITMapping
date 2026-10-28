@@ -53,6 +53,7 @@ class ModuleSuggestionServiceTest {
   @Mock ApplicationModuleSubtreeQuery moduleSubtreeQuery;
   @Mock AiDecisionSourceRepository decisionSourceRepository;
   @Mock ApplicationDetectionDocumentService documentService;
+  @Mock ApplicationModuleLifecycle moduleLifecycle;
 
   private final List<AiDecisionSourceEntity> storedSources = new ArrayList<>();
   private AiDecisionSourceService decisionSources;
@@ -80,7 +81,8 @@ class ModuleSuggestionServiceTest {
             self,
             moduleSubtreeQuery,
             decisionSources,
-            documentService);
+            documentService,
+            moduleLifecycle);
     when(self.getObject()).thenReturn(service);
     lenient()
         .when(applicationRepository.findProjectionById(APP_ID))
@@ -102,6 +104,8 @@ class ModuleSuggestionServiceTest {
 
     String billingId = response.created().get(0).neo4jModuleId();
     String catalogId = response.created().get(1).neo4jModuleId();
+    verify(moduleLifecycle).recordCreated(APP_ID, billingId, "Billing");
+    verify(moduleLifecycle).recordCreated(APP_ID, catalogId, "Catalog");
     assertThat(decisionSources.list(AiDecisionSourceService.TARGET_MODULE, billingId))
         .singleElement()
         .satisfies(
@@ -167,6 +171,7 @@ class ModuleSuggestionServiceTest {
         service.suggestFromGithub(APP_ID, new SuggestModulesFromGithubRequest(null, true));
 
     assertThat(response.created()).isNotEmpty();
+    verify(moduleLifecycle).removeAll(APP_ID);
     verify(agent).discover(any(), anyString(), anyString());
   }
 
