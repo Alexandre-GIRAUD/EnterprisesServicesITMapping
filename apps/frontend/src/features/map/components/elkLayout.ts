@@ -1,6 +1,20 @@
-﻿import { Position } from '@xyflow/react';
+﻿import type { ELK as ElkInstance, ElkNode } from 'elkjs/lib/elk-api';
+import { Position, type Edge, type Node } from '@xyflow/react';
+import { alignPositionsForStraighterEdges } from './alignNodes';
+import {
+  COMPONENT_GAP,
+  findConnectedComponents,
+  normalizeComponentLayout,
+  packComponentOffsets,
+  translateComponentLayout,
+} from './graphComponents';
 
 export type Point = { x: number; y: number };
+
+export type ElkLayoutResult<N extends Node> = {
+  nodes: N[];
+  routes: Map<string, Point[]>;
+};
 
 export type Rect = { x: number; y: number; width: number; height: number };
 
@@ -344,4 +358,285 @@ export function buildLiveRoutes(
     routes.set(plan.id, simplifyRoute(route));
   }
   return routes;
+}
+
+export type ElkLayoutOptions = {
+  nodeWidth?: number;
+  nodeHeight?: number;
+  nodeSeparation?: number;
+  layerSeparation?: number;
+  direction?: 'DOWN' | 'RIGHT' | 'UP' | 'LEFT';
+  aspectRatio?: number;
+};
+
+function buildLayoutOptions(opts: {
+  nodeSeparation: number;
+  layerSeparation: number;
+  direction: string;
+  aspectRatio?: number;
+}): Record<string, string> {
+  const layoutOptions: Record<string, string> = {
+    'elk.algorithm': 'layered',
+    'elk.direction': opts.direction,
+    'elk.edgeRouting': 'ORTHOGONAL',
+    'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
+    'elk.portConstraints': 'FREE',
+    'elk.layered.mergeEdges': 'false',
+    'elk.layered.allowNonFlowPortsToSwitchSides': 'true',
+    'elk.layered.nodePlacement.favorStraightEdges': 'true',
+    'elk.spacing.nodeNode': String(opts.nodeSeparation),
+    'elk.layered.spacing.nodeNodeBetweenLayers': String(opts.layerSeparation),
+    'elk.spacing.edgeEdge': '16',
+    'elk.spacing.edgeNode': '28',
+    'elk.layered.spacing.edgeEdgeBetweenLayers': '16',
+    'elk.layered.spacing.edgeNodeBetweenLayers': '28',
+    'elk.spacing.edgeLabel': '14',
+    'elk.layered.spacing.edgeLabelBetweenLayers': '14',
+    'elk.spacing.portPort': '16',
+    'elk.layered.layering.strategy': 'NETWORK_SIMPLEX',
+    'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+    'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+    'elk.layered.cycleBreaking.strategy': 'GREEDY',
+    'elk.layered.compaction.postCompaction.strategy': 'EDGE_LENGTH',
+    'elk.layered.unnecessaryBendpoints': 'true',
+    'elk.separateConnectedComponents': 'true',
+  };
+  if (opts.aspectRatio && Number.isFinite(opts.aspectRatio)) {
+    layoutOptions['elk.aspectRatio'] = String(opts.aspectRatio);
+  }
+  return layoutOptions;
+}
+
+let elkPromise: Promise<ElkInstance> | null = null;
+function getElk(): Promise<ElkInstance> {
+  if (!elkPromise) {
+    elkPromise = import('elkjs/lib/elk.bundled.js').then((mod) => new mod.default());
+  }
+  return elkPromise;
+}
+
+export async function elkLayout<N extends Node>(
+  nodes: N[],
+  edges: Edge[],
+  options: ElkLayoutOptions = {}
+): Promise<ElkLayoutResult<N>> {
+  const nodeIds = nodes.map((n) => n.id);
+  const components = findConnectedComponents(
+    nodeIds,
+    edges.map((e) => ({ source: e.source, target: e.target }))
+  );
+
+  if (components.length <= 1) {
+    return layoutSingleComponent(nodes, edges, options);
+  }
+
+  const {
+    nodeWidth = 160,
+    nodeHeight = 48,
+    aspectRatio,
+  } = options;
+
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const mergedPositions = new Map<string, { x: number; y: number }>();
+  const mergedRoutes = new Map<string, Point[]>();
+  const mergedNodes: N[] = [];
+  const bounds: { width: number; height: number }[] = [];
+  const componentMeta: {
+    nodeIds: string[];
+    edgeIds: string[];
+    positions: Map<string, { x: number; y: number }>;
+    routes: Map<string, Point[]>;
+    nodes: N[];
+  }[] = [];
+
+  for (const componentIds of components) {
+    const idSet = new Set(componentIds);
+    const compNodes = componentIds
+      .map((id) => nodeById.get(id))
+      .filter((n): n is N => n !== undefined);
+    const compEdges = edges.filter((e) => idSet.has(e.source) && idSet.has(e.target));
+
+    const result = await layoutSingleComponent(compNodes, compEdges, options);
+    const positions = new Map(result.nodes.map((n) => [n.id, { ...n.position }]));
+    const routes = new Map(result.routes);
+
+    const size = normalizeComponentLayout(
+      componentIds,
+      positions,
+      routes,
+      compNodes,
+      nodeWidth,
+      nodeHeight
+    );
+    bounds.push(size);
+    componentMeta.push({
+      nodeIds: componentIds,
+      edgeIds: compEdges.map((e) => e.id),
+      positions,
+      routes,
+      nodes: result.nodes,
+    });
+  }
+
+  const offsets = packComponentOffsets(bounds, COMPONENT_GAP, aspectRatio);
+  for (let i = 0; i < componentMeta.length; i++) {
+    const meta = componentMeta[i];
+    const offset = offsets[i] ?? { x: 0, y: 0 };
+    translateComponentLayout(meta.nodeIds, meta.positions, meta.routes, meta.edgeIds, offset);
+
+    for (const [id, pos] of meta.positions) mergedPositions.set(id, pos);
+    for (const [id, route] of meta.routes) mergedRoutes.set(id, route);
+    for (const node of meta.nodes) {
+      const pos = meta.positions.get(node.id);
+      mergedNodes.push({ ...node, position: pos ?? node.position });
+    }
+  }
+
+  return { nodes: mergedNodes, routes: mergedRoutes };
+}
+
+async function layoutSingleComponent<N extends Node>(
+  nodes: N[],
+  edges: Edge[],
+  options: ElkLayoutOptions = {}
+): Promise<ElkLayoutResult<N>> {
+  const {
+    nodeWidth = 160,
+    nodeHeight = 48,
+    nodeSeparation = 90,
+    layerSeparation = 120,
+    direction = 'DOWN',
+    aspectRatio,
+  } = options;
+
+  const graph: ElkNode = {
+    id: 'root',
+    layoutOptions: buildLayoutOptions({ nodeSeparation, layerSeparation, direction, aspectRatio }),
+    children: nodes.map((n) => ({
+      id: n.id,
+      width: n.width ?? nodeWidth,
+      height: n.height ?? nodeHeight,
+      layoutOptions: { 'elk.portConstraints': 'FREE' },
+    })),
+    edges: edges.map((e) => ({ id: e.id, sources: [e.source], targets: [e.target] })),
+  };
+
+  const elk = await getElk();
+  const laidOut = await elk.layout(graph);
+
+  const positionById = new Map<string, { x: number; y: number }>();
+  for (const child of laidOut.children ?? []) {
+    positionById.set(child.id, { x: child.x ?? 0, y: child.y ?? 0 });
+  }
+
+  // Snap centers onto neighbor axes when it reduces bends on adjacent edges.
+  const aligned = alignPositionsForStraighterEdges(positionById, nodes, edges, {
+    nodeWidth,
+    nodeHeight,
+  });
+  for (const [id, pos] of aligned) {
+    positionById.set(id, pos);
+  }
+
+  const routes = new Map<string, Point[]>();
+  for (const edge of laidOut.edges ?? []) {
+    const section = edge.sections?.[0];
+    if (!section) continue;
+    const points: Point[] = [
+      section.startPoint,
+      ...(section.bendPoints ?? []),
+      section.endPoint,
+    ].map((p) => ({ x: p.x, y: p.y }));
+    routes.set(edge.id, points);
+  }
+
+  // Re-route every link with the shared node-avoiding router so that endpoints
+  // sharing a node side are spread equidistantly (margin = inter-point gap).
+  // The ELK section route is kept only as a fallback when the clean route would
+  // cross another node (preserving ELK's node-avoidance in dense cases).
+  const rectById = new Map<string, Rect>();
+  for (const node of nodes) {
+    const p = positionById.get(node.id);
+    if (!p) continue;
+    rectById.set(node.id, {
+      x: p.x,
+      y: p.y,
+      width: node.width ?? nodeWidth,
+      height: node.height ?? nodeHeight,
+    });
+  }
+
+  const liveRoutes = buildLiveRoutes(
+    edges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
+    rectById
+  );
+  for (const edge of edges) {
+    const live = liveRoutes.get(edge.id);
+    if (!live || live.length < 2) continue;
+    const elkRoute = routes.get(edge.id);
+    if (routeIsClear(live, rectById, edge.source, edge.target) || !elkRoute) {
+      routes.set(edge.id, live);
+    }
+  }
+
+  // Build per-node edge lists to derive actual anchor directions.
+  const edgesBySource = new Map<string, Edge[]>();
+  const edgesByTarget = new Map<string, Edge[]>();
+  for (const edge of edges) {
+    if (!edgesBySource.has(edge.source)) edgesBySource.set(edge.source, []);
+    if (!edgesByTarget.has(edge.target)) edgesByTarget.set(edge.target, []);
+    edgesBySource.get(edge.source)!.push(edge);
+    edgesByTarget.get(edge.target)!.push(edge);
+  }
+
+  function segmentToPosition(from: Point, to: Point): Position {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? Position.Right : Position.Left;
+    return dy >= 0 ? Position.Bottom : Position.Top;
+  }
+
+  function dominantPosition(positions: Position[], fallback: Position): Position {
+    if (positions.length === 0) return fallback;
+    const counts = new Map<Position, number>();
+    for (const p of positions) counts.set(p, (counts.get(p) ?? 0) + 1);
+    let best = fallback;
+    let bestCount = 0;
+    for (const [pos, count] of counts) {
+      if (count > bestCount) { best = pos; bestCount = count; }
+    }
+    return best;
+  }
+
+  const oppositeOf: Record<Position, Position> = {
+    [Position.Right]: Position.Left,
+    [Position.Left]: Position.Right,
+    [Position.Bottom]: Position.Top,
+    [Position.Top]: Position.Bottom,
+  };
+
+  const positionedNodes = nodes.map((node) => {
+    const pos = positionById.get(node.id) ?? { x: 0, y: 0 };
+
+    const srcPositions = (edgesBySource.get(node.id) ?? []).flatMap((e) => {
+      const route = routes.get(e.id);
+      if (!route || route.length < 2) return [];
+      return [segmentToPosition(route[0], route[1])];
+    });
+
+    const tgtPositions = (edgesByTarget.get(node.id) ?? []).flatMap((e) => {
+      const route = routes.get(e.id);
+      if (!route || route.length < 2) return [];
+      return [oppositeOf[segmentToPosition(route[route.length - 2], route[route.length - 1])]];
+    });
+
+    return {
+      ...node,
+      position: { x: pos.x, y: pos.y },
+      sourcePosition: dominantPosition(srcPositions, Position.Bottom),
+      targetPosition: dominantPosition(tgtPositions, Position.Top),
+    };
+  });
+
+  return { nodes: positionedNodes, routes };
 }
