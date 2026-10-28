@@ -32,6 +32,8 @@ type EdgeDetailsDrawerProps = {
   onEdgeDeleted?: (edgeId: string) => void;
   isEmbedded?: boolean;
   shouldOpenInEditMode?: boolean;
+  /** Past day shown: details and history only. */
+  isReadOnly?: boolean;
 };
 
 function dash(value: string | null | undefined): string {
@@ -84,8 +86,9 @@ export function EdgeDetailsDrawer({
   onEdgeDeleted,
   isEmbedded = false,
   shouldOpenInEditMode = false,
+  isReadOnly = false,
 }: EdgeDetailsDrawerProps) {
-  const signOff = useDrawerSignOff('EDGE', edge?.id ?? null, isOpen && !edge?.sandbox);
+  const signOff = useDrawerSignOff('EDGE', edge?.id ?? null, isOpen && !edge?.sandbox && !isReadOnly);
   const [edgeFields, setEdgeFields] = useState<DataModelFieldDto[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -485,12 +488,14 @@ export function EdgeDetailsDrawer({
               refreshKey={historyRefreshKey}
             />
 
-            <CommentsSection targetType="EDGE" targetId={edge.id} enabled={!sandbox} />
+            {isReadOnly ? null : (
+              <CommentsSection targetType="EDGE" targetId={edge.id} enabled={!sandbox} />
+            )}
           </>
         )}
       </div>
 
-      {edge ? (
+      {edge && !isReadOnly ? (
         <div className="graph-details-actions">
           {!isEditing ? (
             <button

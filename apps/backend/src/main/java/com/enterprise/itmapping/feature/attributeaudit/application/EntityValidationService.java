@@ -74,6 +74,7 @@ public class EntityValidationService {
         switch (targetType) {
           case APPLICATION -> applicationRepository.findProjectionById(targetId).isPresent();
           case EDGE -> edgeReader.exists(targetId);
+          case MODULE -> false;
         };
     if (!exists) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, targetType + " not found: " + targetId);

@@ -62,6 +62,23 @@ export function getAuthHeaders(): HeadersInit {
   return headers;
 }
 
+const AS_OF_PARAM = 'asOf';
+/** Reads answered from the Production graph, which the backend can replay as of a past day. */
+const PAST_READ_PATH = /\/api\/(graph|applications)(\/|\?|$)/;
+
+let viewingDay: string | null = null;
+
+/** Past day shown on Cartography (YYYY-MM-DD), or null for today. */
+export function setViewingDay(day: string | null): void {
+  viewingDay = day;
+}
+
+/** Adds asOf to graph and application GETs; writes and other endpoints stay live. */
+export function pastReadUrl(url: string, method: string, day: string | null): string {
+  if (!day || method.toUpperCase() !== 'GET' || !PAST_READ_PATH.test(url)) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}${AS_OF_PARAM}=${encodeURIComponent(day)}`;
+}
+
 /** Same-origin or VITE_API_BASE_URL fetch with JWT attached when present. */
 export function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers ?? undefined);
@@ -69,5 +86,6 @@ export function authenticatedFetch(input: RequestInfo | URL, init?: RequestInit)
   if (t) {
     headers.set('Authorization', `Bearer ${t}`);
   }
-  return fetch(input, { ...init, headers });
+  const url = typeof input === 'string' ? pastReadUrl(input, init?.method ?? 'GET', viewingDay) : input;
+  return fetch(url, { ...init, headers });
 }

@@ -7,6 +7,7 @@ type SelfServiceToolBarProps = {
   filtersActive: boolean;
   activeTool: SideMenuTool;
   onChange: (tool: SideMenuTool) => void;
+  canCorrect?: boolean;
 };
 
 function FiltersIcon() {
@@ -71,6 +72,7 @@ export function SelfServiceToolBar({
   filtersActive,
   activeTool,
   onChange,
+  canCorrect = true,
 }: SelfServiceToolBarProps) {
   const isExplorer = graphMode === 'normal';
   const actionsLabel = isExplorer ? 'Corrections' : 'Toolkit';
@@ -93,17 +95,19 @@ export function SelfServiceToolBar({
           </span>
         ) : null}
       </button>
-      <button
-        type="button"
-        role="tab"
-        className={`self-service-tool-bar-btn${activeTool === 'actions' ? ' is-active' : ''}`}
-        aria-selected={activeTool === 'actions'}
-        aria-label={actionsLabel}
-        title={actionsLabel}
-        onClick={() => onChange('actions')}
-      >
-        <ActionsIcon />
-      </button>
+      {canCorrect ? (
+        <button
+          type="button"
+          role="tab"
+          className={`self-service-tool-bar-btn${activeTool === 'actions' ? ' is-active' : ''}`}
+          aria-selected={activeTool === 'actions'}
+          aria-label={actionsLabel}
+          title={actionsLabel}
+          onClick={() => onChange('actions')}
+        >
+          <ActionsIcon />
+        </button>
+      ) : null}
       {graphMode === 'sandbox' ? (
         <button
           type="button"

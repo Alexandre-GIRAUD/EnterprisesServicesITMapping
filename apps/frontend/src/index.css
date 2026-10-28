@@ -1880,6 +1880,53 @@ body.is-diagram-grown .layout {
   flex-shrink: 0;
 }
 
+.history-date-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0 0.35rem 0 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.history-date-picker input {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+}
+
+.graph-history-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.8125rem;
+}
+
+.graph-history-banner button {
+  margin-left: auto;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #92400e;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .graph-export-menu {
   position: relative;
 }
@@ -6102,6 +6149,29 @@ body.is-diagram-grown .layout {
 .attribute-history-section__disabled {
   font-style: italic;
   color: #64748b;
+}
+
+.attribute-history-range {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.attribute-history-range label {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #64748b);
+}
+
+.attribute-history-range input {
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.25rem 0.375rem;
+  border: 1px solid var(--border-subtle, #e2e8f0);
+  border-radius: 6px;
 }
 
 .attribute-history-list {

@@ -26,6 +26,8 @@ type SelfServiceSideMenuProps = {
   /** When true (table view), hide tool rail and show Columns panel only. */
   columnsOnly?: boolean;
   columnsDetail?: ReactNode;
+  /** False on a past day: the Corrections tool is hidden. */
+  canCorrect?: boolean;
 };
 
 const MENU_WIDTH_STORAGE_KEY = 'flowra.sideMenu.width';
@@ -162,6 +164,7 @@ export function SelfServiceSideMenu({
   toolDetail,
   columnsOnly = false,
   columnsDetail = null,
+  canCorrect = true,
 }: SelfServiceSideMenuProps) {
   const showGraphTools = graphMode === 'normal' || graphMode === 'sandbox';
   const defaultWidth = DEFAULT_MENU_WIDTH;
@@ -234,6 +237,7 @@ export function SelfServiceSideMenu({
                     filtersActive={filtersActive}
                     activeTool={activeTool}
                     onChange={onActiveToolChange}
+                    canCorrect={canCorrect}
                   />
                 </>
               )}

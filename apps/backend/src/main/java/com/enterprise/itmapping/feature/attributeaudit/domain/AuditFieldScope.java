@@ -4,5 +4,7 @@ public enum AuditFieldScope {
   NODE_ATTR,
   EDGE_ATTR,
   APP_FIELD,
-  EDGE_LINK
+  EDGE_LINK,
+  APP_LINK,
+  MODULE_LINK
 }

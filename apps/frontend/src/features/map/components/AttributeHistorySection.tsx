@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { AttributeChangeEventDto, AuditTargetType } from '@/types/api';
 import {
+  fetchApplicationHistory,
   fetchAttributeHistory,
   HUMAN_REASON_LABEL,
 } from '../api/attributeAuditApi';
+import { linkEventSummary } from '../utils/historyEventSummary';
+
+const PAGE_SIZE = 20;
 
 type AttributeHistorySectionProps = {
   targetType: AuditTargetType;
@@ -22,36 +26,6 @@ function formatWhen(iso: string): string {
 function displayValue(value: string | null): string {
   if (value == null || value.trim() === '') return '(cleared)';
   return value;
-}
-
-function linkEventSummary(event: AttributeChangeEventDto): { title: string; detail: string | null } {
-  const created = !event.oldValue && Boolean(event.newValue);
-  const deleted = Boolean(event.oldValue) && !event.newValue;
-  const raw = created ? event.newValue : deleted ? event.oldValue : null;
-  let detail: string | null = null;
-  if (raw) {
-    try {
-      const snap = JSON.parse(raw) as {
-        sourceId?: string;
-        targetId?: string;
-        type?: string;
-        connection_kind?: string;
-        channel?: string;
-      };
-      const parts = [
-        snap.type,
-        snap.connection_kind,
-        snap.channel,
-        snap.sourceId && snap.targetId ? `${snap.sourceId} → ${snap.targetId}` : null,
-      ].filter(Boolean);
-      detail = parts.join(' · ');
-    } catch {
-      detail = raw.slice(0, 120);
-    }
-  }
-  if (created) return { title: 'Connection created', detail };
-  if (deleted) return { title: 'Connection deleted', detail };
-  return { title: 'Connection updated', detail };
 }
 
 function actorLabel(event: AttributeChangeEventDto): string {
@@ -73,7 +47,8 @@ function reasonLabel(event: AttributeChangeEventDto): string | null {
 }
 
 /**
- * Chronological attribute change history for application / edge drawers.
+ * Chronological change history for application / edge drawers. An application lists its own
+ * changes plus those of its modules and flows, filterable by day.
  */
 export function AttributeHistorySection({
   targetType,
@@ -87,6 +62,15 @@ export function AttributeHistorySection({
   const [hasMore, setHasMore] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fromDay, setFromDay] = useState('');
+  const [toDay, setToDay] = useState('');
+  const isApplication = targetType === 'APPLICATION';
+
+  function fetchPage(id: string, pageIndex: number) {
+    return isApplication
+      ? fetchApplicationHistory(id, { fromDay, toDay }, pageIndex, PAGE_SIZE)
+      : fetchAttributeHistory(targetType, id, pageIndex, PAGE_SIZE);
+  }
 
   useEffect(() => {
     if (!enabled || !targetId) {
@@ -104,7 +88,7 @@ export function AttributeHistorySection({
     setErrorMessage(null);
     setPage(0);
 
-    void fetchAttributeHistory(targetType, targetId, 0, 20)
+    void fetchPage(targetId, 0)
       .then((data) => {
         if (cancelled) return;
         setItems(data.items);
@@ -125,14 +109,15 @@ export function AttributeHistorySection({
     return () => {
       cancelled = true;
     };
-  }, [enabled, targetId, targetType, refreshKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchPage only reads these deps
+  }, [enabled, targetId, targetType, refreshKey, fromDay, toDay]);
 
   async function onLoadMore() {
     if (!enabled || !targetId || !hasMore || status === 'loading') return;
     const nextPage = page + 1;
     setStatus('loading');
     try {
-      const data = await fetchAttributeHistory(targetType, targetId, nextPage, 20);
+      const data = await fetchPage(targetId, nextPage);
       setItems((prev) => [...prev, ...data.items]);
       setTotal(data.totalElements);
       setHasMore(data.hasMore);
@@ -150,6 +135,29 @@ export function AttributeHistorySection({
         History{total > 0 ? ` (${total})` : ''}
       </h3>
 
+      {enabled && isApplication ? (
+        <div className="attribute-history-range">
+          <label>
+            From
+            <input
+              type="date"
+              value={fromDay}
+              max={toDay || undefined}
+              onChange={(event) => setFromDay(event.target.value)}
+            />
+          </label>
+          <label>
+            To
+            <input
+              type="date"
+              value={toDay}
+              min={fromDay || undefined}
+              onChange={(event) => setToDay(event.target.value)}
+            />
+          </label>
+        </div>
+      ) : null}
+
       {!enabled ? (
         <p className="graph-details-text attribute-history-section__disabled">
           History is not recorded in sandbox.
@@ -161,13 +169,12 @@ export function AttributeHistorySection({
           {errorMessage ?? 'Unable to load history.'}
         </p>
       ) : items.length === 0 ? (
-        <p className="graph-details-text">No attribute changes recorded yet.</p>
+        <p className="graph-details-text">No changes recorded for this period.</p>
       ) : (
         <>
           <ul className="attribute-history-list">
             {items.map((event) => {
-              const isLink =
-                event.fieldScope === 'EDGE_LINK' || event.fieldKey === '__link__';
+              const isLink = event.fieldKey === '__link__';
               const link = isLink ? linkEventSummary(event) : null;
               return (
               <li key={event.id} className="attribute-history-item">

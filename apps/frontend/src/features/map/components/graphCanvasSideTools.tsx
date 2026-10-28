@@ -60,6 +60,7 @@ type GraphCanvasSideToolInput = {
   handleEdgeDeleted: (edgeId: string) => void;
   activeSandboxFilters: SandboxDocFilters;
   sandboxSeed: () => Parameters<ReturnType<typeof useSandboxes>['openNew']>[0];
+  isReadOnly: boolean;
 };
 
 export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): ReactNode {
@@ -108,6 +109,7 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
     handleEdgeDeleted,
     activeSandboxFilters,
     sandboxSeed,
+    isReadOnly,
   } = input;
 
     if (graphMode !== 'normal' && graphMode !== 'sandbox') return null;
@@ -180,7 +182,7 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
               filters.setMatchNothing(Boolean(nextMatchNothing));
               filters.setBlankedDimensions(nextBlanked ?? []);
             }}
-            showPinView={isExplorer}
+            showPinView={isExplorer && !isReadOnly}
             pinViewDisabled={status !== 'ready'}
             onPinView={() => setIsSaveSnapshotOpen(true)}
           />

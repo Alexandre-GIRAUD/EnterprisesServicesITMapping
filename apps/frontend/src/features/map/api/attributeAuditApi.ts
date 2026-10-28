@@ -4,6 +4,7 @@ import type {
   AuditTargetType,
 } from '@/types/api';
 import { authenticatedFetch, resolveApiUrl } from '@/config/api';
+import { historyRangeQuery } from '../utils/historyEventSummary';
 
 async function readError(res: Response, label: string): Promise<never> {
   const detail = await res.text().catch(() => '');
@@ -29,6 +30,35 @@ export async function fetchAttributeHistory(
   const url = resolveApiUrl(`/api/audit/attributes?${params}`);
   const res = await authenticatedFetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) await readError(res, 'Attribute history API');
+  return res.json();
+}
+
+/** One application with its modules and flows, newest first. Days are inclusive, empty = open. */
+export async function fetchApplicationHistory(
+  applicationId: string,
+  range: { fromDay: string; toDay: string },
+  page = 0,
+  size = 20
+): Promise<AttributeChangePageDto> {
+  const params = new URLSearchParams({
+    applicationId,
+    page: String(page),
+    size: String(size),
+  });
+  const url = resolveApiUrl(
+    `/api/history?${params}${historyRangeQuery(range.fromDay, range.toDay)}`
+  );
+  const res = await authenticatedFetch(url, { headers: { Accept: 'application/json' } });
+  if (!res.ok) await readError(res, 'Application history API');
+  return res.json();
+}
+
+/** Days Cartography can show: from the first daily capture to today (YYYY-MM-DD). */
+export async function fetchHistoryRange(): Promise<{ firstDay: string; today: string }> {
+  const res = await authenticatedFetch(resolveApiUrl('/api/history/range'), {
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) await readError(res, 'History range API');
   return res.json();
 }
 

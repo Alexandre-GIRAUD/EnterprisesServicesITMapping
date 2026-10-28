@@ -64,6 +64,8 @@ type ApplicationDetailsDrawerProps = {
   isEmbedded?: boolean;
   /** Open the attribute form immediately. */
   shouldOpenInEditMode?: boolean;
+  /** Past day shown: details and history only. */
+  isReadOnly?: boolean;
 };
 
 function attributeValues(
@@ -112,11 +114,12 @@ export function ApplicationDetailsDrawer({
   onApplicationDeleted,
   isEmbedded = false,
   shouldOpenInEditMode = false,
+  isReadOnly = false,
 }: ApplicationDetailsDrawerProps) {
   const signOff = useDrawerSignOff(
     'APPLICATION',
     application?.id ?? null,
-    isOpen && !sandboxMode && !isSandboxId(application?.id ?? '')
+    isOpen && !sandboxMode && !isReadOnly && !isSandboxId(application?.id ?? '')
   );
   const [details, setDetails] = useState<ApplicationResponse | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
@@ -830,11 +833,13 @@ export function ApplicationDetailsDrawer({
               refreshKey={historyRefreshKey}
             />
 
-            <CommentsSection
-              targetType="APPLICATION"
-              targetId={application?.id ?? null}
-              enabled={!sandboxMode && !isSandboxId(application?.id ?? '')}
-            />
+            {isReadOnly ? null : (
+              <CommentsSection
+                targetType="APPLICATION"
+                targetId={application?.id ?? null}
+                enabled={!sandboxMode && !isSandboxId(application?.id ?? '')}
+              />
+            )}
           </>
         )}
       </div>
@@ -868,6 +873,7 @@ export function ApplicationDetailsDrawer({
           !isEditing &&
           details &&
           !sandboxMode &&
+          !isReadOnly &&
           isGitHubLinkedApplication(details) && (
             <button
               type="button"
@@ -909,6 +915,7 @@ export function ApplicationDetailsDrawer({
           !isEditing &&
           details &&
           !sandboxMode &&
+          !isReadOnly &&
           isGitHubLinkedApplication(details) && (
             <button
               type="button"
@@ -933,7 +940,7 @@ export function ApplicationDetailsDrawer({
             <span className="graph-drawer-action-title">Open module graph</span>
           </button>
         )}
-        {status === 'ready' && !isEditing && (
+        {status === 'ready' && !isEditing && !isReadOnly && (
           <button
             type="button"
             className="graph-drawer-action"

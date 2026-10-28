@@ -6,13 +6,19 @@ import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
 import com.enterprise.itmapping.feature.attributeaudit.domain.HumanChangeReason;
 import com.enterprise.itmapping.feature.attributeaudit.infrastructure.persistence.AttributeChangeEventEntity;
 import com.enterprise.itmapping.feature.attributeaudit.infrastructure.persistence.AttributeChangeEventRepository;
+import com.enterprise.itmapping.feature.attributeaudit.infrastructure.persistence.EdgeEndpointLookup;
 import com.enterprise.itmapping.feature.attributeaudit.infrastructure.persistence.HumanFieldOverrideEntity;
 import com.enterprise.itmapping.feature.attributeaudit.infrastructure.persistence.HumanFieldOverrideRepository;
 import com.enterprise.itmapping.feature.attributeaudit.presentation.dto.AttributeChangeEventResponse;
 import com.enterprise.itmapping.feature.attributeaudit.presentation.dto.AttributeChangePageResponse;
 import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,17 +35,77 @@ public class AttributeChangeAuditService {
   public static final int DEFAULT_PAGE_SIZE = 20;
   public static final int MAX_PAGE_SIZE = 50;
 
+  /** Actor label for lifecycle changes made with nobody signed in. */
+  public static final String SYSTEM_SOURCE = "SYSTEM";
+
+  private static final Instant NO_LOWER_BOUND = Instant.EPOCH;
+  private static final Instant NO_UPPER_BOUND = Instant.parse("9999-12-31T00:00:00Z");
+
   private final AttributeChangeEventRepository eventRepository;
   private final HumanFieldOverrideRepository overrideRepository;
   private final CurrentUserResolver currentUserResolver;
+  private final EdgeEndpointLookup edgeEndpointLookup;
 
   public AttributeChangeAuditService(
       AttributeChangeEventRepository eventRepository,
       HumanFieldOverrideRepository overrideRepository,
-      CurrentUserResolver currentUserResolver) {
+      CurrentUserResolver currentUserResolver,
+      EdgeEndpointLookup edgeEndpointLookup) {
     this.eventRepository = eventRepository;
     this.overrideRepository = overrideRepository;
     this.currentUserResolver = currentUserResolver;
+    this.edgeEndpointLookup = edgeEndpointLookup;
+  }
+
+  /** Everything that happened to one application, its modules and its flows, newest first. */
+  @Transactional(readOnly = true)
+  public AttributeChangePageResponse listForApplication(
+      String applicationId, LocalDate fromDay, LocalDate toDay, int page, int size) {
+    if (!StringUtils.hasText(applicationId)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "applicationId is required.");
+    }
+    int safePage = Math.max(0, page);
+    int safeSize = Math.min(MAX_PAGE_SIZE, Math.max(1, size));
+    Instant from = fromDay == null ? NO_LOWER_BOUND : startOf(fromDay);
+    Instant to = toDay == null ? NO_UPPER_BOUND : startOf(toDay.plusDays(1));
+    Page<AttributeChangeEventEntity> result =
+        eventRepository.findForApplication(
+            applicationId.trim(), from, to, PageRequest.of(safePage, safeSize));
+    return new AttributeChangePageResponse(
+        result.getContent().stream().map(this::toResponse).toList(),
+        safePage,
+        safeSize,
+        result.getTotalElements(),
+        result.hasNext());
+  }
+
+  /**
+   * Creation, deletion or rename of an application or module. No reason is asked: the signed-in
+   * user is the actor, or {@link #SYSTEM_SOURCE} when nobody is.
+   *
+   * @return event id, or null if no-op
+   */
+  @Transactional
+  public UUID recordLifecycle(LifecycleChange change) {
+    String oldNorm = normalizeValue(change.oldValue());
+    String newNorm = normalizeValue(change.newValue());
+    if (Objects.equals(oldNorm, newNorm)) {
+      return null;
+    }
+    AttributeChangeEventEntity event = new AttributeChangeEventEntity();
+    event.setTargetType(change.targetType());
+    event.setTargetId(change.targetId());
+    event.setFieldScope(change.fieldScope());
+    event.setFieldKey(change.fieldKey());
+    event.setOldValue(oldNorm);
+    event.setNewValue(newNorm);
+    event.setApplicationIds(change.applicationIds());
+    Optional<UserEntity> user = currentUserResolver.findCurrentUser();
+    event.setActorType(user.isPresent() ? AuditActorType.HUMAN : AuditActorType.AI);
+    event.setActorUserId(user.map(UserEntity::getId).orElse(null));
+    event.setActorUsername(user.map(UserEntity::getUsername).orElse(null));
+    event.setAiSource(user.isPresent() ? null : SYSTEM_SOURCE);
+    return eventRepository.save(event).getId();
   }
 
   @Transactional(readOnly = true)
@@ -92,6 +158,7 @@ public class AttributeChangeAuditService {
     event.setNewValue(newNorm);
     event.setActorType(request.actorType());
     event.setAiSource(request.aiSource());
+    event.setApplicationIds(applicationIdsOf(request.targetType(), request.targetId()));
 
     if (request.actorType() == AuditActorType.HUMAN) {
       HumanChangeReason reason = request.humanReason();
@@ -170,6 +237,18 @@ public class AttributeChangeAuditService {
         e.getCreatedAt());
   }
 
+  private List<String> applicationIdsOf(AuditTargetType targetType, String targetId) {
+    return switch (targetType) {
+      case APPLICATION -> List.of(targetId);
+      case EDGE -> edgeEndpointLookup.applicationIds(targetId);
+      case MODULE -> List.of();
+    };
+  }
+
+  private static Instant startOf(LocalDate day) {
+    return day.atStartOfDay(ZoneOffset.UTC).toInstant();
+  }
+
   private static String normalizeValue(String value) {
     if (value == null) {
       return null;
@@ -185,6 +264,15 @@ public class AttributeChangeAuditService {
     String trimmed = comment.trim();
     return trimmed.isEmpty() ? null : trimmed;
   }
+
+  public record LifecycleChange(
+      AuditTargetType targetType,
+      String targetId,
+      AuditFieldScope fieldScope,
+      String fieldKey,
+      String oldValue,
+      String newValue,
+      List<String> applicationIds) {}
 
   public record AttributeChangeRequest(
       AuditTargetType targetType,

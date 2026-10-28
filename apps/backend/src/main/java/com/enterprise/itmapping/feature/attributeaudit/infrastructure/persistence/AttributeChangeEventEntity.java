@@ -12,7 +12,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "attribute_change_events")
@@ -64,6 +68,10 @@ public class AttributeChangeEventEntity {
 
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
+
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "application_ids", nullable = false, columnDefinition = "jsonb")
+  private List<String> applicationIds = new ArrayList<>();
 
   @PrePersist
   void prePersist() {
@@ -182,5 +190,13 @@ public class AttributeChangeEventEntity {
 
   public Instant getCreatedAt() {
     return createdAt;
+  }
+
+  public List<String> getApplicationIds() {
+    return applicationIds;
+  }
+
+  public void setApplicationIds(List<String> applicationIds) {
+    this.applicationIds = new ArrayList<>(applicationIds);
   }
 }
