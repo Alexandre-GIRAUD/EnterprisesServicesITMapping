@@ -32,28 +32,31 @@ export const NODE_TYPE_STYLES: Record<NodeTypeKey, NodeTypeStyle> = {
 const NEUTRAL_NODE_COLOR = '#52525b';
 const NEUTRAL_EDGE_COLOR = '#334155';
 
-/** ponytail: 8 fixed slots, a 9th value reuses one. Add slots if legends regularly exceed 8. */
+/**
+ * Soft-UI inspired pastels: clear coral / mint / lavender / lemon / sky / spring /
+ * peach / lilac. ponytail: 8 fixed slots, a 9th value reuses one.
+ */
 export const PASTEL_NODE_PALETTE = [
-  '#f8b4b4',
-  '#7ed8cc',
-  '#c8b6f8',
-  '#e6ee7a',
-  '#9ec8f8',
-  '#b6e8a0',
-  '#f8c48a',
-  '#f6c6f4',
+  '#ffb4c0',
+  '#7fe3d4',
+  '#d4b8ff',
+  '#f0f48a',
+  '#8ecbff',
+  '#b4f0a0',
+  '#ffc891',
+  '#ffb8f0',
 ] as const;
 
-/** Distinct darks, same slot order as the node pastels. */
+/** Distinct darks, same slot order as the node pastels (modern ink strokes). */
 export const DARK_EDGE_PALETTE = [
-  '#991b1b',
+  '#c1121f',
   '#0f766e',
-  '#6d28d9',
+  '#7c3aed',
   '#854d0e',
-  '#1e3a8a',
+  '#1d4ed8',
   '#3f6212',
   '#c2410c',
-  '#44403c',
+  '#86198f',
 ] as const;
 
 function colorSlot(text: string): number {
@@ -91,7 +94,7 @@ export const ZOOM_THRESHOLDS = {
 } as const;
 
 export const EDGE_TYPE_STYLES: Record<EdgeTypeKey, EdgeTypeStyle> = {
-  DEPENDS_ON: { legendLabel: 'Dependency', color: '#1e3a8a' },
+  DEPENDS_ON: { legendLabel: 'Dependency', color: '#1d4ed8' },
   CONTAINS: { legendLabel: 'Composition', color: '#c2410c', dashed: true },
 };
 
