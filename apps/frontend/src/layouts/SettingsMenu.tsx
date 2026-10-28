@@ -1,5 +1,6 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { NavigationIcon } from './NavigationIcon';
+import { SidebarNavItem } from './SidebarNavItem';
 import { settingsMenuItems } from './settingsEntries';
 
 const SETTINGS_PATH = '/settings';
@@ -11,14 +12,11 @@ export function SettingsMenu() {
   );
 
   return (
-    <NavLink
+    <SidebarNavItem
+      label="Settings"
       to={SETTINGS_PATH}
-      className={({ isActive }) =>
-        `layout-sidebar-link${isActive || isOnSettingsDestination ? ' is-active' : ''}`
-      }
-    >
-      <NavigationIcon name="settings" />
-      <span>Settings</span>
-    </NavLink>
+      forceActive={isOnSettingsDestination}
+      icon={<NavigationIcon name="settings" />}
+    />
   );
 }

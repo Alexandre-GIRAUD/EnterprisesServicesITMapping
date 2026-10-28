@@ -1,42 +1,37 @@
 import type { GraphMode } from '@/features/map/components/GraphModeTabs';
-import { primaryWorkspaceMode } from '@/features/map/utils/workspaceViews';
+import { SidebarSubItem } from './SidebarSubItem';
 
-const WORKSPACE_MODES: { mode: GraphMode; label: string; tabId: string; accent: string }[] = [
-  { mode: 'normal', label: 'Production', tabId: 'graph-mode-tab-normal', accent: 'explorer' },
-  { mode: 'sandbox', label: 'Sandbox', tabId: 'graph-mode-tab-sandbox', accent: 'sandbox' },
-  { mode: 'views', label: 'My views', tabId: 'graph-mode-tab-views', accent: 'views' },
+const WORKSPACE_MODES: { mode: GraphMode; label: string; tabId: string; tone: 'production' | 'sandbox' | 'views' }[] = [
+  { mode: 'normal', label: 'Production', tabId: 'graph-mode-tab-normal', tone: 'production' },
+  { mode: 'sandbox', label: 'Sandbox', tabId: 'graph-mode-tab-sandbox', tone: 'sandbox' },
+  { mode: 'views', label: 'My views', tabId: 'graph-mode-tab-views', tone: 'views' },
 ];
 
 type WorkspaceModeNavProps = {
+  id: string;
   mode: GraphMode | null;
   sandboxDirty: boolean;
   onModeChange: (mode: GraphMode) => void;
 };
 
-export function WorkspaceModeNav({ mode, sandboxDirty, onModeChange }: WorkspaceModeNavProps) {
-  const primaryMode = mode == null ? null : primaryWorkspaceMode(mode);
+export function WorkspaceModeNav({ id, mode, sandboxDirty, onModeChange }: WorkspaceModeNavProps) {
   return (
-    <div className="layout-mode-list" role="tablist" aria-label="Workspace views">
+    <div id={id} className="sidebar-subnav" role="tablist" aria-label="Workspace views">
       {WORKSPACE_MODES.map((view) => {
         const isActive = mode === view.mode;
-        const isPrimary = primaryMode === view.mode;
+        const showDraft = view.mode === 'sandbox' && sandboxDirty && isActive;
         return (
-          <button
+          <SidebarSubItem
             key={view.mode}
-            type="button"
-            role="tab"
             id={view.tabId}
-            className={`layout-mode-item layout-mode-item--${view.accent}${isPrimary ? ' is-primary' : ''}`}
-            aria-selected={isActive}
+            label={view.label}
+            tone={view.tone}
+            isActive={isActive}
             onClick={() => {
               if (!isActive) onModeChange(view.mode);
             }}
-          >
-            <span className="layout-mode-item-label">{view.label}</span>
-            {view.mode === 'sandbox' && sandboxDirty && isActive ? (
-              <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
-            ) : null}
-          </button>
+            trailing={showDraft ? <span className="graph-mode-tab__draft" aria-label="Unsaved draft" /> : null}
+          />
         );
       })}
     </div>
