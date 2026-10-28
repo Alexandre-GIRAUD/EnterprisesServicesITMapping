@@ -347,6 +347,7 @@ export function GraphCanvas() {
     pendingSandboxFilterHint,
     setPendingSandboxFilterHint,
     setMessage,
+    containerRef,
     rfRef,
   });
   const {
@@ -666,6 +667,8 @@ export function GraphCanvas() {
     ) => {
       if (status !== 'ready' || graphNodes.length === 0) return;
       const gen = ++collapseGenerationRef.current;
+      const rect = containerRef.current?.getBoundingClientRect();
+      const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
       const coding = legendCodingRef.current;
       const laid = await layoutCollapsedAppGraph({
         graphNodes,
@@ -680,6 +683,7 @@ export function GraphCanvas() {
         },
         colors: coding.legendColors,
         hideEdgeLabels: coding.hideEdgeLabels,
+        aspectRatio,
         nodePositions,
         handlers: {
           onHideNode: (id) => collapseHandlersRef.current.hideNode(id),
