@@ -19,7 +19,7 @@ import {
 } from './flowLabel';
 import { buildLiveRoutes, type Point, type Rect } from './elkLayout';
 import { buildOrthogonalPath } from './orthogonalPath';
-import { computeBridges } from './bridges';
+import { computeBridges, spreadStackedRoutes } from './bridges';
 import { notifyEdgeDetailsOpen } from '../utils/edgeDetailsSelection';
 
 export type OrientedEdgeData = {
@@ -438,10 +438,10 @@ function liveKey(allEdges: Edge[], rectById: Map<string, Rect>): string {
 function getLiveBundle(allEdges: Edge[], rectById: Map<string, Rect>): LiveBundle {
   const key = liveKey(allEdges, rectById);
   if (liveCache && liveCache.key === key) return liveCache.bundle;
-  const routes = buildLiveRoutes(
+  const routes = spreadStackedRoutes(buildLiveRoutes(
     allEdges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
     rectById
-  );
+  ));
   const jumps = computeBridges(routes);
   const bundle: LiveBundle = { routes, jumps };
   liveCache = { key, bundle };

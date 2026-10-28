@@ -8,7 +8,7 @@ import {
   type NodeCodingKeys,
 } from '../hooks/useGraphData';
 import type { LegendColorMaps } from './edgeColorProperty';
-import { computeBridges } from './bridges';
+import { computeBridges, spreadStackedRoutes } from './bridges';
 import { projectCollapsedGraph } from './collapseGraph';
 import { placeApplicationGraph } from './graphvizLayout';
 import { layoutGraph } from './graphLayout';
@@ -256,8 +256,9 @@ export async function layoutCollapsedAppGraph(params: {
       aspectRatio,
     });
     positioned = laidOut;
-    const jumps = computeBridges(routes);
-    routedEdges = builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id)));
+    const separated = spreadStackedRoutes(routes);
+    const jumps = computeBridges(separated);
+    routedEdges = builtEdges.map((e) => attachRoute(e, separated.get(e.id), jumps.get(e.id)));
   } catch {
     positioned = layoutGraph(baseNodes, builtEdges, {
       nodeWidth: NODE_WIDTH,
