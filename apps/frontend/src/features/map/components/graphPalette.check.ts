@@ -14,9 +14,9 @@ import {
   RELATION_TYPE_COLOR_KEY,
   chooseSpreadColorKey,
   distinctColorMap,
-  nodeFillColorForValue,
   borderFromFill,
   nodeBorderColorForValue,
+  nodeFillColorForValue,
   paintChannelColors,
   paintEdgeStrokeColor,
   resolveMirroredKey,
@@ -243,6 +243,11 @@ assert.equal(nodeBorderColorForValue('pillar', 'Payments', undefined, 'pillar', 
 assert.equal(
   nodeBorderColorForValue('pillar', 'Payments', { Payments: '#112233' }, 'pillar', { Payments: fill }),
   '#112233',
+);
+const typeFill = nodeFillColorForValue(NODE_TYPE_COLOR_KEY, 'Application');
+assert.equal(
+  nodeBorderColorForValue(NODE_TYPE_COLOR_KEY, 'Application', undefined, NODE_TYPE_COLOR_KEY),
+  borderFromFill(typeFill),
 );
 
 const mirrored = resolveSpreadColorKeys({

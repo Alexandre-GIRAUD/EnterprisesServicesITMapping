@@ -659,12 +659,7 @@ export function nodeBorderColor(
   if (fillKey && fillKey === propertyKey) {
     const value = nodePropValue(node, fillKey);
     if (value && colorMap?.[value]) return colorMap[value];
-    const fill = nodeFillColor(node, fillKey, fillColorMap);
-    const hasCustom = Boolean(value && fillColorMap?.[value]);
-    if (fillKey === NODE_TYPE_COLOR_KEY && !hasCustom) {
-      return nodeColorForType(node.type);
-    }
-    return borderFromFill(fill);
+    return borderFromFill(nodeFillColor(node, fillKey, fillColorMap));
   }
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     const value = nodePropValue(node, propertyKey);
@@ -693,12 +688,7 @@ export function nodeBorderColorForValue(
 ): string {
   if (fillKey && fillKey === propertyKey) {
     if (colorMap?.[value]) return colorMap[value];
-    const fill = nodeFillColorForValue(fillKey, value, fillColorMap);
-    const hasCustom = Boolean(fillColorMap?.[value]);
-    if (fillKey === NODE_TYPE_COLOR_KEY && !hasCustom) {
-      return nodeColorForType(value);
-    }
-    return borderFromFill(fill);
+    return borderFromFill(nodeFillColorForValue(fillKey, value, fillColorMap));
   }
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     return overrideOr(colorMap, value, nodeColorForType(value));
