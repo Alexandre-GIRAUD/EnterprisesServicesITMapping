@@ -233,11 +233,11 @@ const MINIMUM_FIT_ZOOM = 0.2;
 
 type SeededMap = { seed: number; applicationCount: number; flowCount: number };
 
-function seededIds(map: SeededMap): string[] {
+function buildSeededIds(map: SeededMap): string[] {
   return Array.from({ length: map.applicationCount }, (_, index) => `n${index}`);
 }
 
-function seededFlows(map: SeededMap) {
+function buildSeededFlows(map: SeededMap) {
   let randomState = map.seed;
   const drawRandomIndex = (count: number) => {
     randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) % RANDOM_MODULUS;
@@ -251,10 +251,12 @@ function seededFlows(map: SeededMap) {
 }
 
 function placeSeededMap(map: SeededMap) {
-  return placeClearFlows(buildNodes(seededIds(map)), seededFlows(map));
+  return placeClearFlows(buildNodes(buildSeededIds(map)), buildSeededFlows(map));
 }
 
-function mapFitZoom(positions: Map<string, FlowPoint>): number {
+const FIT_ZOOM_DIGITS = 2;
+
+function calculateMapFitZoom(positions: Map<string, FlowPoint>): number {
   const points = [...positions.values()];
   const width = Math.max(...points.map((point) => point.x)) - Math.min(...points.map((point) => point.x)) + nodeSize.width;
   const height = Math.max(...points.map((point) => point.y)) - Math.min(...points.map((point) => point.y)) + nodeSize.height;
@@ -269,8 +271,8 @@ for (const map of SEEDED_MAPS) {
   }
   assert.equal(hasSharedStretch(largeMap.routes), false, `seed ${map.seed} shares a stretch`);
   if (map.applicationCount <= COMPACT_MAP_APPLICATION_LIMIT) {
-    const fitZoom = mapFitZoom(largeMap.positions);
-    assert.ok(fitZoom >= MINIMUM_FIT_ZOOM, `seed ${map.seed} fits at ${fitZoom.toFixed(2)}`);
+    const fitZoom = calculateMapFitZoom(largeMap.positions);
+    assert.ok(fitZoom >= MINIMUM_FIT_ZOOM, `seed ${map.seed} fits at ${fitZoom.toFixed(FIT_ZOOM_DIGITS)}`);
   }
 }
 

@@ -71,7 +71,7 @@ export function packComponentOffsets(
   let bestCost = Infinity;
   let best: Pos[] = shelfPack(bounds, gap);
   const consider = (placed: Pos[]) => {
-    const cost = fitCost(placed, items, aspectRatio);
+    const cost = calculateFitCost(placed, items, aspectRatio);
     if (cost < bestCost) {
       bestCost = cost;
       best = placed;
@@ -86,14 +86,14 @@ export function packComponentOffsets(
 }
 
 /** Smaller means the islands fit a 16:9 pane at a larger zoom. */
-function fitCost(offsets: Pos[], items: IndexedSize[], aspectRatio: number): number {
+function calculateFitCost(offsets: Pos[], items: IndexedSize[], aspectRatio: number): number {
   let width = 0;
   let height = 0;
   for (const item of items) {
-    const pos = offsets[item.i];
-    if (!pos) continue;
-    width = Math.max(width, pos.x + item.width);
-    height = Math.max(height, pos.y + item.height);
+    const offset = offsets[item.i];
+    if (!offset) continue;
+    width = Math.max(width, offset.x + item.width);
+    height = Math.max(height, offset.y + item.height);
   }
   return Math.max(width, height * aspectRatio);
 }
@@ -104,21 +104,21 @@ function packRestBesideFirst(items: IndexedSize[], gap: number): Pos[] {
   if (!first) return [];
   const offsets: Pos[] = [];
   offsets[first.i] = { x: ZONE_PADDING, y: ZONE_PADDING };
-  let x = first.width + 2 * ZONE_PADDING + gap;
+  let x = first.width + ZONE_PADDING_SPAN + gap;
   let y = ZONE_PADDING;
   let columnWidth = 0;
   const bandBottom = ZONE_PADDING + first.height;
   for (const item of items.slice(1)) {
-    const itemSpan = item.height + 2 * ZONE_PADDING;
-    const startsNewColumn = y > ZONE_PADDING && y + item.height > bandBottom;
-    if (startsNewColumn) {
+    const itemSpan = item.height + ZONE_PADDING_SPAN;
+    const isNewColumn = y > ZONE_PADDING && y + item.height > bandBottom;
+    if (isNewColumn) {
       x += columnWidth + gap;
       y = ZONE_PADDING;
       columnWidth = 0;
     }
     offsets[item.i] = { x, y };
     y += itemSpan + gap;
-    columnWidth = Math.max(columnWidth, item.width + 2 * ZONE_PADDING);
+    columnWidth = Math.max(columnWidth, item.width + ZONE_PADDING_SPAN);
   }
   return offsets;
 }
@@ -202,6 +202,8 @@ function shelfPack(bounds: Size[], gap: number): Pos[] {
 
 /** Gap between a diagram's nodes and its dashed zone. */
 export const ZONE_PADDING = 28;
+/** The same gap on both sides of an island. */
+const ZONE_PADDING_SPAN = ZONE_PADDING + ZONE_PADDING;
 
 const FALLBACK_NODE_WIDTH = 160;
 const FALLBACK_NODE_HEIGHT = 48;

@@ -163,13 +163,11 @@ function translateGroup(
 }
 
 function buildLayeredGrid(nodes: readonly FlowPlacementNode[], edges: readonly FlowPlacementEdge[]): Grid {
-  const ids = nodes.map((node) => node.id);
-  const rank = calculateRankFromSources(ids, edges);
-  const order = orderWithinRank(ids, edges, rank);
-  return assignLayeredCells({ ids, rank, order, pitchRatio: layerPitchRatio(nodes) });
+  const ranked = buildRankAndOrder(nodes, edges);
+  return assignLayeredCells({ ...ranked, pitchRatio: calculateLayerPitchRatio(nodes) });
 }
 
-function layerPitchRatio(nodes: readonly FlowPlacementNode[]): number {
+function calculateLayerPitchRatio(nodes: readonly FlowPlacementNode[]): number {
   const sample = nodes[EMPTY_INDEX];
   const width = sample?.width ?? MINIMUM_PORT_SPAN;
   const height = sample?.height ?? MINIMUM_PORT_SPAN;
@@ -181,11 +179,16 @@ function layerPitchRatio(nodes: readonly FlowPlacementNode[]): number {
  * the same stretch, which a deep dense map can do.
  */
 function buildSpreadGrid(nodes: readonly FlowPlacementNode[], edges: readonly FlowPlacementEdge[]): Grid {
+  const { ids, rank, order } = buildRankAndOrder(nodes, edges);
+  const row = assignSpreadRows(ids, rank, order);
+  return { row, column: assignColumnFromPredecessors(ids, edges, row) };
+}
+
+function buildRankAndOrder(nodes: readonly FlowPlacementNode[], edges: readonly FlowPlacementEdge[]) {
   const ids = nodes.map((node) => node.id);
   const rank = calculateRankFromSources(ids, edges);
   const order = orderWithinRank(ids, edges, rank);
-  const row = assignSpreadRows(ids, rank, order);
-  return { row, column: assignColumnFromPredecessors(ids, edges, row) };
+  return { ids, rank, order };
 }
 
 function calculateRankFromSources(ids: readonly string[], edges: readonly FlowPlacementEdge[]): Map<string, number> {
