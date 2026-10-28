@@ -1575,6 +1575,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         handleEdgeDeleted,
         activeSandboxFilters,
         sandboxSeed,
+        isReadOnly,
       }),
     [
     graphMode,
@@ -1606,6 +1607,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     status,
     rememberSandboxIcon,
     toolkitRequest,
+    isReadOnly,
   ]);
 
   const isDiagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;

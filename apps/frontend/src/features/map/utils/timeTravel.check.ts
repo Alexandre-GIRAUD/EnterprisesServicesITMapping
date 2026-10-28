@@ -34,9 +34,13 @@ assert.match(canvas, /Read-only\./);
 assert.match(canvas, /Back to today/);
 assert.equal((canvas.match(/isReadOnly=\{isReadOnly\}/g) ?? []).length, 2);
 assert.match(canvas, /canCorrect=\{!isReadOnly\}/);
+assert.match(canvas, /isReadOnly,/);
 
 const toolBar = source('../components/SelfServiceToolBar.tsx');
 assert.match(toolBar, /canCorrect \?/);
+
+const sideTools = source('../components/graphCanvasSideTools.tsx');
+assert.match(sideTools, /showPinView=\{isExplorer && !isReadOnly\}/);
 
 for (const drawer of ['ApplicationDetailsDrawer', 'EdgeDetailsDrawer']) {
   assert.match(source(`../components/${drawer}.tsx`), /isReadOnly = false/);
