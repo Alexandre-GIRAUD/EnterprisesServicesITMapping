@@ -4,6 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { placeClearFlows, type FlowPoint } from './clearFlowPlacement.ts';
+import { scoreRoutes } from './clearFlowScore.ts';
 
 const nodeSize = { width: 160, height: 48 };
 
@@ -225,11 +226,12 @@ const SEEDED_MAPS = [
   { seed: 12, applicationCount: 80, flowCount: 80 },
   { seed: 5, applicationCount: 300, flowCount: 450 },
 ];
-const COMPACT_MAP_APPLICATION_LIMIT = 80;
-/** A landscape map pane. One card per row fits this pane only as hairlines. */
-const MAP_PANE_WIDTH = 1200;
-const MAP_PANE_HEIGHT = 700;
-const MINIMUM_FIT_ZOOM = 0.2;
+const APPLICATION_MAP_NODE_LIMIT = 80;
+/**
+ * Ceiling for flows drawn across an unrelated card on an 80-application map.
+ * Packing a whole dependency depth onto one row cuts through more than a hundred cards.
+ */
+const MAXIMUM_CARD_CUTS = 12;
 
 type SeededMap = { seed: number; applicationCount: number; flowCount: number };
 
@@ -254,13 +256,11 @@ function placeSeededMap(map: SeededMap) {
   return placeClearFlows(buildNodes(buildSeededIds(map)), buildSeededFlows(map));
 }
 
-const FIT_ZOOM_DIGITS = 2;
-
-function calculateMapFitZoom(positions: Map<string, FlowPoint>): number {
-  const points = [...positions.values()];
-  const width = Math.max(...points.map((point) => point.x)) - Math.min(...points.map((point) => point.x)) + nodeSize.width;
-  const height = Math.max(...points.map((point) => point.y)) - Math.min(...points.map((point) => point.y)) + nodeSize.height;
-  return Math.min(MAP_PANE_WIDTH / width, MAP_PANE_HEIGHT / height);
+function countCardCuts(map: SeededMap, placed: ReturnType<typeof placeClearFlows>): number {
+  const cards = new Map(
+    [...placed.positions.entries()].map(([id, point]) => [id, { id, ...point, ...nodeSize }]),
+  );
+  return scoreRoutes({ routes: placed.routes, cards, edges: buildSeededFlows(map) }).cuts;
 }
 
 for (const map of SEEDED_MAPS) {
@@ -270,9 +270,9 @@ for (const map of SEEDED_MAPS) {
     assert.ok(countBends(points) <= MAXIMUM_BENDS);
   }
   assert.equal(hasSharedStretch(largeMap.routes), false, `seed ${map.seed} shares a stretch`);
-  if (map.applicationCount <= COMPACT_MAP_APPLICATION_LIMIT) {
-    const fitZoom = calculateMapFitZoom(largeMap.positions);
-    assert.ok(fitZoom >= MINIMUM_FIT_ZOOM, `seed ${map.seed} fits at ${fitZoom.toFixed(FIT_ZOOM_DIGITS)}`);
+  if (map.applicationCount <= APPLICATION_MAP_NODE_LIMIT) {
+    const cardCuts = countCardCuts(map, largeMap);
+    assert.ok(cardCuts <= MAXIMUM_CARD_CUTS, `seed ${map.seed} cuts ${cardCuts} cards`);
   }
 }
 
