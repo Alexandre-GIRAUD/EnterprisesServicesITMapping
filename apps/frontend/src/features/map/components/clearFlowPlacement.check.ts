@@ -225,20 +225,40 @@ const SEEDED_MAPS = [
   { seed: 12, applicationCount: 80, flowCount: 80 },
   { seed: 5, applicationCount: 300, flowCount: 450 },
 ];
+const COMPACT_MAP_APPLICATION_LIMIT = 80;
+/** A landscape map pane. One card per row fits this pane only as hairlines. */
+const MAP_PANE_WIDTH = 1200;
+const MAP_PANE_HEIGHT = 700;
+const MINIMUM_FIT_ZOOM = 0.2;
 
-function placeSeededMap(map: { seed: number; applicationCount: number; flowCount: number }) {
+type SeededMap = { seed: number; applicationCount: number; flowCount: number };
+
+function seededIds(map: SeededMap): string[] {
+  return Array.from({ length: map.applicationCount }, (_, index) => `n${index}`);
+}
+
+function seededFlows(map: SeededMap) {
   let randomState = map.seed;
   const drawRandomIndex = (count: number) => {
     randomState = (randomState * RANDOM_MULTIPLIER + RANDOM_INCREMENT) % RANDOM_MODULUS;
     return Math.floor((randomState / RANDOM_MODULUS) * count);
   };
-  const ids = Array.from({ length: map.applicationCount }, (_, index) => `n${index}`);
-  const flows = Array.from({ length: map.flowCount }, (_, index) => ({
+  return Array.from({ length: map.flowCount }, (_, index) => ({
     id: `e${index}`,
     source: `n${drawRandomIndex(map.applicationCount)}`,
     target: `n${drawRandomIndex(map.applicationCount)}`,
   })).filter((flow) => flow.source !== flow.target);
-  return placeClearFlows(buildNodes(ids), flows);
+}
+
+function placeSeededMap(map: SeededMap) {
+  return placeClearFlows(buildNodes(seededIds(map)), seededFlows(map));
+}
+
+function mapFitZoom(positions: Map<string, FlowPoint>): number {
+  const points = [...positions.values()];
+  const width = Math.max(...points.map((point) => point.x)) - Math.min(...points.map((point) => point.x)) + nodeSize.width;
+  const height = Math.max(...points.map((point) => point.y)) - Math.min(...points.map((point) => point.y)) + nodeSize.height;
+  return Math.min(MAP_PANE_WIDTH / width, MAP_PANE_HEIGHT / height);
 }
 
 for (const map of SEEDED_MAPS) {
@@ -248,6 +268,10 @@ for (const map of SEEDED_MAPS) {
     assert.ok(countBends(points) <= MAXIMUM_BENDS);
   }
   assert.equal(hasSharedStretch(largeMap.routes), false, `seed ${map.seed} shares a stretch`);
+  if (map.applicationCount <= COMPACT_MAP_APPLICATION_LIMIT) {
+    const fitZoom = mapFitZoom(largeMap.positions);
+    assert.ok(fitZoom >= MINIMUM_FIT_ZOOM, `seed ${map.seed} fits at ${fitZoom.toFixed(2)}`);
+  }
 }
 
 const ISOLATED_APPLICATION_COUNT = 16;
