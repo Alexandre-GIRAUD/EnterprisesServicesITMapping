@@ -469,7 +469,7 @@ export function GraphLegend({
             title="Hide legend"
             onClick={frame.onToggleClick}
           >
-            Hide
+            -
           </button>
           {canEdit ? (
             <button

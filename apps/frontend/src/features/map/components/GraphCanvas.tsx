@@ -90,14 +90,11 @@ import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle'
 import { TableContentToggle, type TableContentMode, type TableViewMode } from './TableContentToggle';
 import { CreateTablePanel, type CreateTableExportState } from './CreateTablePanel';
 import { fitGraphView, ensureNodesVisible } from './fitGraphView';
-import { toJpeg, toPng } from 'html-to-image';
 import { downloadTableFile, tableToCsv, tableToExcelXml, type TableGrid } from '../utils/tableFile';
-import { dataUrlToBytes, downloadBytes, downloadDataUrl, jpegPixelSize, jpegToPdf } from '../utils/jpegPdf';
 import { customTableExportFormats } from '../utils/customTable';
 import { GraphViewsPanel, ViewInspectPanel, type InspectedView, type ViewLibraryActions } from './GraphViewsPanel';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
-import { MappingChatPanel } from './MappingChatPanel';
 import { isDiagramFitGesture, resolveNextDiagramHeight } from './diagramFrame';
 import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
@@ -106,6 +103,7 @@ import { TableExportMenu } from './TableExportMenu';
 import {
   buildGraphExportFileName,
   exportGraphImage,
+  exportTableElement,
   type GraphImageFormat,
 } from '../utils/exportGraphImage';
 import {
@@ -123,17 +121,6 @@ type SelectedApplication = {
   id: string;
   label: string;
 };
-
-async function exportPivotElement(element: HTMLElement, format: 'png' | 'pdf'): Promise<void> {
-  if (format === 'png') {
-    const dataUrl = await toPng(element, { backgroundColor: '#ffffff', pixelRatio: 2 });
-    downloadDataUrl(dataUrl, 'table.png');
-    return;
-  }
-  const dataUrl = await toJpeg(element, { backgroundColor: '#ffffff', pixelRatio: 2, quality: 0.95 });
-  const size = await jpegPixelSize(dataUrl);
-  downloadBytes(jpegToPdf(dataUrlToBytes(dataUrl), size.width, size.height), 'table.pdf', 'application/pdf');
-}
 
 /**
  * Application dependency graph (React Flow), backed by GET /api/graph.
@@ -595,9 +582,7 @@ export function GraphCanvas() {
       setWorkspacePanelOpen(true);
       setDisplayMode('graph');
       setModuleGraphApp(null);
-      setActiveSideMenuTool((current) =>
-        current === 'changes' || current === 'chat' ? 'filters' : current,
-      );
+      setActiveSideMenuTool((current) => (current === 'changes' ? 'filters' : current));
     } else if (state.graphMode === 'views') {
       if (!sandboxDirty || window.confirm('Leave sandbox? Local changes will be lost.')) {
         mode.setGraphMode('views');
@@ -1464,7 +1449,7 @@ export function GraphCanvas() {
       if (format === 'png' || format === 'pdf') {
         const element = pivotExportRef.current;
         if (!element) return;
-        void exportPivotElement(element, format);
+        void exportTableElement(element, format);
         return;
       }
       const grid = tableView === 'custom' ? customExport?.grid : tableGrid;
@@ -1541,22 +1526,6 @@ export function GraphCanvas() {
     switch (activeSideMenuTool) {
       case 'changes':
         return null;
-      case 'chat':
-        if (!isExplorer) return null;
-        return (
-          <MappingChatPanel
-            currentFilters={currentGraphFilters}
-            onApplyFilters={applyGraphFilters}
-            onGraphChanged={reloadGraph}
-            onFocusApplication={(applicationId) => {
-              const application = applications.find((item) => item.id === applicationId);
-              openApplicationDetails(applicationId, application?.name ?? applicationId);
-            }}
-            onFocusEdge={(edgeId) => {
-              openEdgeByIdRef.current(edgeId);
-            }}
-          />
-        );
       case 'filters':
         return (
           <>

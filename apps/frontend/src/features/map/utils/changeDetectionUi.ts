@@ -16,7 +16,6 @@ const KIND_LABELS: Record<ChangeDetectionItemDto['kind'], string> = {
   CONNECTION: 'Connection',
   MODULE: 'Module',
   NODE_ATTRIBUTE: 'Node attribute',
-  EDGE_ATTRIBUTE: 'Edge attribute',
 };
 
 export function kindLabel(kind: ChangeDetectionItemDto['kind']): string {
@@ -116,8 +115,6 @@ export function kindChipClass(kind: ChangeDetectionItemDto['kind']): string {
       return 'change-chip-kind change-chip-kind--module';
     case 'NODE_ATTRIBUTE':
       return 'change-chip-kind change-chip-kind--node-attr';
-    case 'EDGE_ATTRIBUTE':
-      return 'change-chip-kind change-chip-kind--edge-attr';
     default:
       return 'change-chip-kind';
   }
