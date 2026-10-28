@@ -8,10 +8,8 @@ import {
   type NodeCodingKeys,
 } from '../hooks/useGraphData';
 import type { LegendColorMaps } from './edgeColorProperty';
-import { computeBridges } from './bridges';
 import { projectCollapsedGraph } from './collapseGraph';
-import { placeApplicationGraph } from './graphvizLayout';
-import { layoutGraph } from './graphLayout';
+import { placeApplicationGraph } from './clearFlowPlacement';
 import { attachRoute, buildOrientedEdge } from './orientedEdgeBuilders';
 import type { OrientedEdgeData, OrientedEdgeType } from './OrientedEdge';
 
@@ -130,7 +128,6 @@ export async function layoutCollapsedAppGraph(params: {
   nodeCoding?: NodeCodingKeys;
   colors?: LegendColorMaps;
   hideEdgeLabels?: boolean;
-  aspectRatio: number;
   handlers: CollapseLayoutHandlers;
   /** Optional canvas positions to preserve (visible + newly restored). */
   nodePositions?: NodePositionsMap;
@@ -144,7 +141,6 @@ export async function layoutCollapsedAppGraph(params: {
     nodeCoding,
     colors,
     hideEdgeLabels,
-    aspectRatio,
     handlers,
     nodePositions,
   } = params;
@@ -244,31 +240,12 @@ export async function layoutCollapsedAppGraph(params: {
     return { nodes: positioned, edges: builtEdges };
   }
 
-  let positioned: AppNode[];
-  let routedEdges: OrientedEdgeType[];
-
-  try {
-    const { nodes: laidOut, routes } = await placeApplicationGraph(baseNodes, builtEdges, {
-      nodeWidth: NODE_WIDTH,
-      nodeHeight: NODE_HEIGHT,
-      nodeSeparation: 70,
-      layerSeparation: 100,
-      aspectRatio,
-    });
-    positioned = laidOut;
-    const jumps = computeBridges(routes);
-    routedEdges = builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id)));
-  } catch {
-    positioned = layoutGraph(baseNodes, builtEdges, {
-      nodeWidth: NODE_WIDTH,
-      nodeHeight: NODE_HEIGHT,
-      nodeSeparation: 70,
-      rankSeparation: 100,
-      snapGrid: 16,
-      aspectRatio,
-    });
-    routedEdges = builtEdges;
-  }
-
-  return { nodes: positioned, edges: routedEdges };
+  const { nodes: laidOut, routes, hops } = placeApplicationGraph(baseNodes, builtEdges, {
+    width: NODE_WIDTH,
+    height: NODE_HEIGHT,
+  });
+  return {
+    nodes: laidOut,
+    edges: builtEdges.map((edge) => attachRoute(edge, routes.get(edge.id), hops.get(edge.id))),
+  };
 }

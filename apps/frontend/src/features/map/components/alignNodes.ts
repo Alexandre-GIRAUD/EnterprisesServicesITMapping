@@ -1,10 +1,9 @@
 import type { Edge, Node } from '@xyflow/react';
 import { buildLiveRoutes, type Point, type Rect } from './elkLayout';
 
-export type AlignOptions = {
+type AlignOptions = {
   nodeWidth?: number;
   nodeHeight?: number;
-  maxPasses?: number;
 };
 
 type Pos = { x: number; y: number };
@@ -169,28 +168,6 @@ function findBestAlignmentMove(
   }
 
   return best;
-}
-
-/**
- * Iteratively align node centers with neighbors when doing so reduces the total
- * number of bends across all edges. Used after ELK/Dagre layout.
- */
-export function alignPositionsForStraighterEdges(
-  positions: Map<string, Pos>,
-  nodes: Node[],
-  edges: Edge[],
-  options: AlignOptions = {}
-): Map<string, Pos> {
-  const { nodeWidth = 160, nodeHeight = 48, maxPasses = 10 } = options;
-  const result = new Map(positions);
-
-  for (let pass = 0; pass < maxPasses; pass++) {
-    const move = findBestAlignmentMove(result, nodes, edges, nodeWidth, nodeHeight);
-    if (!move) break;
-    result.set(move.nodeId, move.pos);
-  }
-
-  return result;
 }
 
 /**

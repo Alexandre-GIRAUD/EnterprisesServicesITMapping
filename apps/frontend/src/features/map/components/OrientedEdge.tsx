@@ -12,7 +12,11 @@ import {
   type Node,
 } from '@xyflow/react';
 import type { StoredAttribute } from '@/types/api';
-import { ZOOM_THRESHOLDS } from './graphTheme';
+import {
+  APPLICATION_TITLE_FONT_SIZE_PX,
+  buildFlowLabelMapTransform,
+  isFlowLabelVisible,
+} from './flowLabel';
 import { buildLiveRoutes, type Point, type Rect } from './elkLayout';
 import { buildOrthogonalPath } from './orthogonalPath';
 import { computeBridges } from './bridges';
@@ -571,15 +575,10 @@ export function OrientedEdge({
   const labelColor = data?.labelColor ?? sourceColor;
   const gradientId  = `oriented-edge-gradient-${id}`;
   const isIndirect  = Boolean(data?.indirect);
-  const hideLabels = Boolean(data?.hideEdgeLabels);
+  const shouldHideLabels = Boolean(data?.hideEdgeLabels);
   const displayText =
     data?.displayLabel !== undefined ? data.displayLabel : String(label ?? '');
   const canEditLabel = Boolean(data?.onDisplayLabelChange) && !isIndirect;
-  const showLabel =
-    !isIndirect &&
-    !hideLabels &&
-    (Boolean(displayText) || canEditLabel) &&
-    zoom >= ZOOM_THRESHOLDS.secondaryDetail;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(displayText);
   const [localHovered, setLocalHovered] = useState(false);
@@ -616,14 +615,16 @@ export function OrientedEdge({
     data?.onSelect?.();
   }
 
-  const hovered = Boolean(data?.hovered) || localHovered;
-  const isActive = !isIndirect && (hovered || Boolean(selected));
+  const isHovered = Boolean(data?.hovered) || localHovered;
+  const shouldShowLabel = isFlowLabelVisible({ text: displayText, shouldHideLabels, isIndirect, isEditing: editing });
+  const labelTransform = buildFlowLabelMapTransform(labelX, labelY);
+  const isActive = !isIndirect && (isHovered || Boolean(selected));
   const zoomSafe = Math.max(zoom, 0.05);
   // Only the emphasis widths compensate the viewport zoom (RF applies it as a CSS
   // scale) so the highlight stays readable when zoomed out; the resting width is
   // a plain flow-unit value that thins out with the zoom like the rest of the graph.
   const strokeWidth =
-    hovered && !isIndirect
+    isHovered && !isIndirect
       ? Math.max(REST_STROKE * 1.5, 2.5 / zoomSafe)
       : selected && !isIndirect
         ? Math.max(REST_STROKE * 1.35, 2 / zoomSafe)
@@ -679,8 +680,9 @@ export function OrientedEdge({
             if (event.button !== 0) return;
             selectEdge();
           }}
+          onDoubleClick={onLabelDoubleClick}
         >
-          <title>Click for connection details</title>
+          <title>{canEditLabel ? 'Click for connection details · double-click to edit label' : 'Click for connection details'}</title>
         </path>
       ) : null}
       {isIndirect && (
@@ -704,7 +706,7 @@ export function OrientedEdge({
           </button>
         </EdgeLabelRenderer>
       )}
-      {!isIndirect && !showLabel && (
+      {!isIndirect && !shouldShowLabel && (
         <EdgeLabelRenderer>
           <button
             type="button"
@@ -721,18 +723,20 @@ export function OrientedEdge({
               setLocalHovered(true);
               selectEdge();
             }}
+            onDoubleClick={onLabelDoubleClick}
             onMouseEnter={() => setLocalHovered(true)}
             onMouseLeave={() => setLocalHovered(false)}
           />
         </EdgeLabelRenderer>
       )}
-      {showLabel && (
+      {shouldShowLabel && (
         <EdgeLabelRenderer>
           {editing ? (
             <input
               className="oriented-edge-label oriented-edge-label--input nodrag nopan"
               style={{
-                transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+                transform: labelTransform,
+                fontSize: APPLICATION_TITLE_FONT_SIZE_PX,
                 color: labelColor,
                 borderColor: `${labelColor}55`,
               }}
@@ -747,10 +751,11 @@ export function OrientedEdge({
           ) : (
             <div
               className={`oriented-edge-label nodrag nopan${canEditLabel ? ' is-editable' : ''}${
-                displayText ? '' : ' is-empty'
-              }${data?.onSelect ? ' is-selectable' : ''}`}
+                data?.onSelect ? ' is-selectable' : ''
+              }`}
               style={{
-                transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+                transform: labelTransform,
+                fontSize: APPLICATION_TITLE_FONT_SIZE_PX,
                 color: labelColor,
                 borderColor: `${labelColor}55`,
               }}
@@ -770,7 +775,7 @@ export function OrientedEdge({
                     : displayText
               }
             >
-              {displayText || (canEditLabel ? 'label' : '')}
+              {displayText}
             </div>
           )}
         </EdgeLabelRenderer>
