@@ -2,12 +2,14 @@
  * Runnable self-check for the sidebar help menu.
  * Run: npx --yes tsx src/layouts/helpMenu.check.ts
  */
+import './cssHook.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { HelpMenu } from './HelpMenu.tsx';
 import { HELP_TOPICS } from './helpTopics.ts';
+
+const { HelpMenu } = await import('./HelpMenu.tsx');
 
 const titles = HELP_TOPICS.map((topic) => topic.title);
 assert.deepEqual(titles, ['Cartography', 'Data Model', 'Sources', 'Changes', 'Settings']);
@@ -43,12 +45,15 @@ const brandRow = layout.slice(layout.indexOf('layout-brand-row'), layout.indexOf
 assert.match(brandRow, /<h1>Flowra<\/h1>/);
 assert.doesNotMatch(brandRow, /<HelpMenu \/>/);
 
-const footer = layout.slice(layout.indexOf('layout-sidebar-footer'), layout.indexOf('layout-sidebar-signout'));
+const footer = layout.slice(layout.indexOf('sidebar-footer'));
 const helpAt = footer.indexOf('<HelpMenu />');
-const userAt = footer.indexOf('layout-sidebar-user');
-const themeAt = footer.indexOf('<ThemeModeButton');
-assert.ok(helpAt >= 0 && userAt > helpAt, 'help sits above the user name');
-assert.ok(themeAt > userAt, 'theme stays on the account line');
+const settingsAt = footer.indexOf('<SettingsMenu />');
+const profileAt = footer.indexOf('<SidebarProfile');
+const themeAt = footer.indexOf('<ThemeToggle');
+assert.ok(helpAt >= 0 && settingsAt > helpAt, 'settings sits with help');
+assert.ok(profileAt > settingsAt, 'profile sits under help and settings');
+assert.ok(themeAt > profileAt, 'theme stays on the account line');
+assert.doesNotMatch(layout, /Sign out/);
 
 const helpSource = readFileSync(new URL('./HelpMenu.tsx', import.meta.url), 'utf8');
 assert.match(helpSource, /AboutContactForm/);
@@ -58,16 +63,10 @@ assert.match(helpSource, /createPortal\(/);
 assert.match(helpSource, /document\.body/);
 
 const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
-const helpToggle = css.match(/\.layout-help-toggle\s*\{[^}]*\}/);
-const themeToggle = css.match(/\.layout-theme-toggle\s*\{[^}]*\}/);
-assert.ok(helpToggle && themeToggle, 'help and theme button rules missing');
-const helpGlyph = css.match(/\.layout-help-toggle svg\s*\{[^}]*\}/);
-const themeGlyph = css.match(/\.layout-theme-toggle svg\s*\{[^}]*\}/);
-assert.ok(helpGlyph && themeGlyph, 'help and theme glyph rules missing');
-assert.equal(
-  helpGlyph[0].match(/width:\s*([^;]+)/)?.[1],
-  themeGlyph[0].match(/width:\s*([^;]+)/)?.[1],
-);
+const sidebarCss = readFileSync(new URL('./sidebar.css', import.meta.url), 'utf8');
+assert.match(helpSource, /SidebarNavItem/);
+assert.match(helpSource, /circleHelp/);
+assert.match(sidebarCss, /height:\s*var\(--nav-item-height\)/);
 
 const helpParagraph = css.match(/\.layout-help-section p\s*\{[^}]*\}/);
 assert.ok(helpParagraph, 'help paragraph rule missing');
