@@ -166,7 +166,7 @@ function buildLayeredGrid(nodes: readonly FlowPlacementNode[], edges: readonly F
   const ids = nodes.map((node) => node.id);
   const rank = calculateRankFromSources(ids, edges);
   const order = orderWithinRank(ids, edges, rank);
-  return assignLayeredCells(ids, rank, order, layerPitchRatio(nodes));
+  return assignLayeredCells({ ids, rank, order, pitchRatio: layerPitchRatio(nodes) });
 }
 
 function layerPitchRatio(nodes: readonly FlowPlacementNode[]): number {
@@ -269,12 +269,13 @@ function calculateBarycenter(id: string, indexOf: Map<string, number>, edges: re
  * Applications at the same depth stay together. A depth wider than the screen
  * wraps onto extra rows so the group is close to the map pane's shape.
  */
-function assignLayeredCells(
-  ids: readonly string[],
-  rank: Map<string, number>,
-  order: Map<string, number>,
-  pitchRatio: number,
-): Grid {
+function assignLayeredCells(layout: {
+  ids: readonly string[];
+  rank: Map<string, number>;
+  order: Map<string, number>;
+  pitchRatio: number;
+}): Grid {
+  const { ids, rank, order, pitchRatio } = layout;
   const layers = groupIdsByRank(ids, rank);
   const cardsPerRow = chooseCardsPerRow([...layers.values()].map((layer) => layer.length), pitchRatio);
   const row = new Map<string, number>();
