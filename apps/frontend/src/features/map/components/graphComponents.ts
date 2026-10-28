@@ -1,3 +1,6 @@
+import type { Node } from '@xyflow/react';
+import type { Point } from './elkLayout';
+
 /** Invisible margin between disconnected graph zones (flow-coordinate px). */
 export const COMPONENT_GAP = 140;
 
@@ -39,6 +42,61 @@ export function findConnectedComponents(
     components.push(comp);
   }
   return components;
+}
+
+function nodeSize(node: Node | undefined, nodeWidth: number, nodeHeight: number): Size {
+  return {
+    width: node?.width ?? nodeWidth,
+    height: node?.height ?? nodeHeight,
+  };
+}
+
+/** Shift positions so the component bounding box starts at (0, 0). */
+export function normalizeComponentLayout(
+  nodeIds: string[],
+  positions: Map<string, Pos>,
+  routes: Map<string, Point[]>,
+  nodes: Node[],
+  nodeWidth: number,
+  nodeHeight: number
+): Size {
+  let minX = Infinity;
+  let minY = Infinity;
+  for (const id of nodeIds) {
+    const p = positions.get(id);
+    if (!p) continue;
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+  }
+  if (!Number.isFinite(minX)) minX = 0;
+  if (!Number.isFinite(minY)) minY = 0;
+
+  const dx = -minX;
+  const dy = -minY;
+  if (dx !== 0 || dy !== 0) {
+    for (const id of nodeIds) {
+      const p = positions.get(id);
+      if (p) positions.set(id, { x: p.x + dx, y: p.y + dy });
+    }
+    for (const [edgeId, route] of routes) {
+      routes.set(
+        edgeId,
+        route.map((pt) => ({ x: pt.x + dx, y: pt.y + dy }))
+      );
+    }
+  }
+
+  let maxX = 0;
+  let maxY = 0;
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  for (const id of nodeIds) {
+    const p = positions.get(id);
+    if (!p) continue;
+    const { width, height } = nodeSize(nodeById.get(id), nodeWidth, nodeHeight);
+    maxX = Math.max(maxX, p.x + width);
+    maxY = Math.max(maxY, p.y + height);
+  }
+  return { width: maxX, height: maxY };
 }
 
 /**
@@ -233,4 +291,27 @@ export function componentZoneFrames(
       height: maxY - minY + padding * 2,
     };
   });
+}
+
+/** Apply a translation to every node position and route point in a component. */
+export function translateComponentLayout(
+  nodeIds: string[],
+  positions: Map<string, Pos>,
+  routes: Map<string, Point[]>,
+  edgeIds: string[],
+  offset: Pos
+): void {
+  if (offset.x === 0 && offset.y === 0) return;
+  for (const id of nodeIds) {
+    const p = positions.get(id);
+    if (p) positions.set(id, { x: p.x + offset.x, y: p.y + offset.y });
+  }
+  for (const edgeId of edgeIds) {
+    const route = routes.get(edgeId);
+    if (!route) continue;
+    routes.set(
+      edgeId,
+      route.map((pt) => ({ x: pt.x + offset.x, y: pt.y + offset.y }))
+    );
+  }
 }

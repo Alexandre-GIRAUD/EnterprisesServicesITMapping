@@ -12,11 +12,14 @@ import {
   useState,
   type Dispatch,
   type MutableRefObject,
+  type RefObject,
   type SetStateAction,
 } from 'react';
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import { fetchGraph } from '../api/graphApi';
-import { placeApplicationGraph } from '../components/clearFlowPlacement';
+import { layoutGraph } from '../components/graphLayout';
+import { placeApplicationGraph } from '../components/graphvizLayout';
+import { computeBridges } from '../components/bridges';
 import {
   collectLegendColorValues,
   collectNodeLegendValues,
@@ -162,6 +165,7 @@ type UseGraphDataParams = {
   pendingSandboxFilterHint: boolean;
   setPendingSandboxFilterHint: Dispatch<SetStateAction<boolean>>;
   setMessage: Dispatch<SetStateAction<string | null>>;
+  containerRef: RefObject<HTMLDivElement>;
   rfRef: MutableRefObject<ReactFlowInstance<AppNode, Edge> | null>;
 };
 
@@ -181,6 +185,7 @@ export function useGraphData({
   pendingSandboxFilterHint,
   setPendingSandboxFilterHint,
   setMessage,
+  containerRef,
   rfRef,
 }: UseGraphDataParams) {
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
@@ -528,12 +533,35 @@ export function useGraphData({
         const builtEdges = shownEdges.map((e) =>
           buildAppEdge(e, typeById, nextColor, nextLabel, colors, hideEdgeLabelsRef.current)
         );
-        const { nodes: laidOut, routes, hops } = placeApplicationGraph(baseNodes, builtEdges, {
-          width: NODE_WIDTH,
-          height: NODE_HEIGHT,
-        });
-        setNodes(laidOut);
-        setEdges(builtEdges.map((edge) => attachRoute(edge, routes.get(edge.id), hops.get(edge.id))));
+        const rect = containerRef.current?.getBoundingClientRect();
+        const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
+
+        try {
+          const { nodes: laidOut, routes } = await placeApplicationGraph(baseNodes, builtEdges, {
+            nodeWidth: NODE_WIDTH,
+            nodeHeight: NODE_HEIGHT,
+            nodeSeparation: 70,
+            layerSeparation: 100,
+            aspectRatio,
+          });
+          if (isCancelled) return;
+          const jumps = computeBridges(routes);
+          setNodes(laidOut);
+          setEdges(builtEdges.map((e) => attachRoute(e, routes.get(e.id), jumps.get(e.id))));
+        } catch {
+          if (isCancelled) return;
+          setNodes(
+            layoutGraph(baseNodes, builtEdges, {
+              nodeWidth: NODE_WIDTH,
+              nodeHeight: NODE_HEIGHT,
+              nodeSeparation: 70,
+              rankSeparation: 100,
+              snapGrid: GRID,
+              aspectRatio,
+            })
+          );
+          setEdges(builtEdges);
+        }
 
         if (!isCancelled) setLayoutRevision((v) => v + 1);
 
