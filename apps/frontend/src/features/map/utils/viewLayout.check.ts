@@ -22,7 +22,7 @@ assert.doesNotMatch(pane[0], /border:\s*1px/);
 assert.match(css, /\.graph-views-new:hover:not\(:disabled\)/);
 assert.doesNotMatch(css, /\.graph-views-actions-btn svg \{[^}]*rotate\(90deg\)/);
 
-const views = readFileSync(new URL('../components/GraphViewsPanel.tsx', import.meta.url), 'utf8');
+const views = readFileSync(new URL('../components/graphViewsChrome.tsx', import.meta.url), 'utf8');
 const listGlyph = views.slice(views.indexOf('function ListGlyph'));
 assert.match(listGlyph, /<circle /);
 assert.doesNotMatch(listGlyph, /M3 4\.5h10/);
