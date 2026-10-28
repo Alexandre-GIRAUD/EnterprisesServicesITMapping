@@ -203,8 +203,8 @@ function sideOfEdgeAtNode(
 
 /**
  * Distributed anchor point for `edgeId` on a node side. All edges attaching to
- * the same side of the same node are ordered by id and spread evenly along the
- * side so no two endpoints share the same point — even while dragging.
+ * the same side of the same node are spread along that side so no two endpoints
+ * share an anchor point — several arrows may still touch the same node side.
  */
 function distributedAnchor(
   rect: Rect,
@@ -215,39 +215,6 @@ function distributedAnchor(
   nodeLookup: Map<string, InternalNode<Node>>
 ): Point {
   const horizontalSide = side === Position.Left || side === Position.Right;
-
-  // Fast path: if this edge connects two nodes that are aligned (same X center
-  // for L/R sides, same Y center for T/B sides), return the straight anchor
-  // immediately — no distribution needed, the path must have zero bends.
-  const ALIGN_TOL = 6;
-  const currentEdge = allEdges.find((e) => e.id === edgeId);
-  if (currentEdge) {
-    const otherId = currentEdge.source === nodeId ? currentEdge.target : currentEdge.source;
-    const otherNode = nodeLookup.get(otherId);
-    const otherRect = otherNode ? rectOf(otherNode) : null;
-    if (otherRect) {
-      const myCx  = rect.x + rect.width  / 2;
-      const myCy  = rect.y + rect.height / 2;
-      const otCx  = otherRect.x + otherRect.width  / 2;
-      const otCy  = otherRect.y + otherRect.height / 2;
-      if (!horizontalSide && Math.abs(myCx - otCx) < ALIGN_TOL) {
-        // Vertically aligned → anchor at shared X center on Top/Bottom side.
-        const sharedX = (myCx + otCx) / 2;
-        return {
-          x: sharedX,
-          y: side === Position.Top ? rect.y : rect.y + rect.height,
-        };
-      }
-      if (horizontalSide && Math.abs(myCy - otCy) < ALIGN_TOL) {
-        // Horizontally aligned → anchor at shared Y center on Left/Right side.
-        const sharedY = (myCy + otCy) / 2;
-        return {
-          x: side === Position.Left ? rect.x : rect.x + rect.width,
-          y: sharedY,
-        };
-      }
-    }
-  }
 
   // Sort peers by the center coordinate of their opposite node along the side's
   // axis so each slot is assigned to the edge whose destination is spatially
@@ -266,6 +233,36 @@ function distributedAnchor(
     })
     .map((e) => e.id);
   const count = peers.length || 1;
+
+  // Sole edge on this side + aligned nodes → straight centre tip (unique by definition).
+  const ALIGN_TOL = 6;
+  const currentEdge = allEdges.find((e) => e.id === edgeId);
+  if (count <= 1 && currentEdge) {
+    const otherId = currentEdge.source === nodeId ? currentEdge.target : currentEdge.source;
+    const otherNode = nodeLookup.get(otherId);
+    const otherRect = otherNode ? rectOf(otherNode) : null;
+    if (otherRect) {
+      const myCx  = rect.x + rect.width  / 2;
+      const myCy  = rect.y + rect.height / 2;
+      const otCx  = otherRect.x + otherRect.width  / 2;
+      const otCy  = otherRect.y + otherRect.height / 2;
+      if (!horizontalSide && Math.abs(myCx - otCx) < ALIGN_TOL) {
+        const sharedX = (myCx + otCx) / 2;
+        return {
+          x: sharedX,
+          y: side === Position.Top ? rect.y : rect.y + rect.height,
+        };
+      }
+      if (horizontalSide && Math.abs(myCy - otCy) < ALIGN_TOL) {
+        const sharedY = (myCy + otCy) / 2;
+        return {
+          x: side === Position.Left ? rect.x : rect.x + rect.width,
+          y: sharedY,
+        };
+      }
+    }
+  }
+
   const index = Math.max(0, peers.indexOf(edgeId));
   // Equidistant along the full side: gap == end margin == sideLength / (N+1).
   const frac = (index + 1) / (count + 1);

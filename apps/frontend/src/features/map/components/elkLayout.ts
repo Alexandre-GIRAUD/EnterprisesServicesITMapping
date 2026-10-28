@@ -235,7 +235,8 @@ function routeAvoidingNodes(
 /**
  * Recompute node-avoiding orthogonal routes for every edge from the current
  * node rectangles. Anchors are distributed along node sides so no two endpoints
- * coincide. Used live while a node is dragged (the ELK route is then stale).
+ * share an anchor point (several arrows may still touch the same node side).
+ * Used live while a node is dragged (the ELK route is then stale).
  */
 export function buildLiveRoutes(
   edges: { id: string; source: string; target: string }[],
@@ -306,8 +307,17 @@ export function buildLiveRoutes(
   // assigns the slot closest to the opposite node's position, which minimises
   // total arrow length and avoids crossings between parallel edges.
   //
-  // Exception: aligned-node edges get their forced straight-line offset and
-  // are excluded from the equidistant distribution of regular slots.
+  // Straight-line (aligned) offsets are allowed only when that node side has a
+  // single endpoint — otherwise unique anchors win over a shared centre tip.
+  for (const slots of groups.values()) {
+    if (slots.length <= 1) continue;
+    for (const slot of slots) {
+      forcedOffset.delete(`${slot.id}|${slot.role}`);
+    }
+  }
+
+  // Exception: a sole aligned-node edge may keep its forced straight-line
+  // offset and skip equidistant distribution for that slot.
   const slotOffset = new Map<string, number>();
   for (const slots of groups.values()) {
     const { nodeId, side } = slots[0];
