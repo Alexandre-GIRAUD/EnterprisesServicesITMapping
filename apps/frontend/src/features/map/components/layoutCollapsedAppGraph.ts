@@ -14,6 +14,11 @@ import { placeApplicationGraph } from './graphvizLayout';
 import { layoutGraph } from './graphLayout';
 import { attachRoute, buildOrientedEdge } from './orientedEdgeBuilders';
 import type { OrientedEdgeData, OrientedEdgeType } from './OrientedEdge';
+import {
+  collectLegendColorValues,
+  collectNodeLegendValues,
+  paintChannelColors,
+} from './edgeColorProperty';
 
 export type CollapseLayoutHandlers = {
   onHideNode: (nodeId: string) => void;
@@ -160,9 +165,18 @@ export async function layoutCollapsedAppGraph(params: {
   const visibleDtos = graphNodes.filter((n) => visibleSet.has(n.id));
   const edgeById = new Map(graphEdges.map((e) => [e.id, e]));
   const typeById = new Map(visibleDtos.map((n) => [n.id, n.type]));
+  const fillKey = nodeCoding?.appFillKey ?? '';
+  const paintedColors = paintChannelColors({
+    colors,
+    fillKey,
+    fillValues: collectNodeLegendValues(visibleDtos, fillKey),
+    strokeKey: colorPropertyKey,
+    strokeValues: collectLegendColorValues(graphEdges, colorPropertyKey),
+  });
+  const paintedCoding = nodeCoding ? { ...nodeCoding, colors: paintedColors } : undefined;
 
   const baseNodes: AppNode[] = visibleDtos.map((n) => {
-    const node = buildAppNode(n, nodeCoding);
+    const node = buildAppNode(n, paintedCoding);
     return {
       ...node,
       data: {
@@ -185,7 +199,7 @@ export async function layoutCollapsedAppGraph(params: {
           targetNodeType: typeById.get(pe.targetId) ?? 'Application',
           colorPropertyKey,
           labelPropertyKey,
-          colors,
+          colors: paintedColors,
           hideEdgeLabels,
         });
       }
@@ -194,7 +208,7 @@ export async function layoutCollapsedAppGraph(params: {
         typeById,
         colorPropertyKey,
         labelPropertyKey,
-        colors,
+        paintedColors,
         hideEdgeLabels
       );
     }
@@ -211,7 +225,7 @@ export async function layoutCollapsedAppGraph(params: {
       colorPropertyKey,
       labelPropertyKey,
       colorValue: null,
-      colors,
+      colors: paintedColors,
       hideEdgeLabels,
     });
 

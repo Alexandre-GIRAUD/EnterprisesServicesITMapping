@@ -10,9 +10,14 @@ import {
 } from './graphTheme.ts';
 import {
   NODE_TYPE_COLOR_KEY,
+  NODE_LABEL_COLOR_KEY,
   RELATION_TYPE_COLOR_KEY,
+  chooseSpreadColorKey,
+  distinctColorMap,
   nodeFillColorForValue,
+  paintChannelColors,
   paintEdgeStrokeColor,
+  resolveUntouchedColorKey,
 } from './edgeColorProperty.ts';
 
 const SAMPLE_VALUES = ['Payments', 'Risk', 'Retail', 'Core', 'Treasury'];
@@ -84,5 +89,140 @@ assert.equal(
   paintEdgeStrokeColor('Payments', 'DEPENDS_ON', 'tier', { Payments: '#abcdef' }),
   '#abcdef',
 );
+
+const orderedFills = ['Core', 'Payments', 'Retail', 'Risk', 'Treasury'];
+const fillMap = distinctColorMap(orderedFills, PASTEL_NODE_PALETTE);
+orderedFills.forEach((value, index) => {
+  assert.equal(fillMap[value], PASTEL_NODE_PALETTE[index]);
+});
+assert.equal(distinctColorMap(orderedFills, PASTEL_NODE_PALETTE, { Core: '#112233' }).Core, '#112233');
+const nine = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
+assert.equal(distinctColorMap(nine, PASTEL_NODE_PALETTE).i, PASTEL_NODE_PALETTE[0]);
+
+const orderedStrokes = ['cash flows', 'clearing data', 'price'];
+const strokeMap = distinctColorMap(orderedStrokes, DARK_EDGE_PALETTE);
+orderedStrokes.forEach((value, index) => {
+  assert.equal(strokeMap[value], DARK_EDGE_PALETTE[index]);
+});
+assert.equal(
+  distinctColorMap(orderedStrokes, DARK_EDGE_PALETTE, { price: '#abcdef' }).price,
+  '#abcdef',
+);
+
+assert.equal(
+  chooseSpreadColorKey(
+    [
+      { key: 'pillar', distinct: 3 },
+      { key: 'business_function', distinct: 6 },
+      { key: 'creation_date', distinct: 40 },
+    ],
+    PASTEL_NODE_PALETTE.length,
+    NODE_TYPE_COLOR_KEY,
+  ),
+  'business_function',
+);
+assert.equal(
+  chooseSpreadColorKey(
+    [
+      { key: 'business_function', distinct: 6, covered: 10 },
+      { key: NODE_LABEL_COLOR_KEY, distinct: 112, covered: 112 },
+    ],
+    PASTEL_NODE_PALETTE.length,
+    NODE_TYPE_COLOR_KEY,
+    112,
+  ),
+  NODE_LABEL_COLOR_KEY,
+);
+assert.equal(
+  chooseSpreadColorKey(
+    [
+      { key: 'business_function', distinct: 6, covered: 10 },
+      { key: 'pillar', distinct: 4, covered: 100 },
+    ],
+    PASTEL_NODE_PALETTE.length,
+    NODE_TYPE_COLOR_KEY,
+  ),
+  'pillar',
+);
+assert.equal(
+  chooseSpreadColorKey(
+    [{ key: 'data', distinct: 8 }, { key: 'creation_date', distinct: 40 }],
+    DARK_EDGE_PALETTE.length,
+    RELATION_TYPE_COLOR_KEY,
+  ),
+  'data',
+);
+
+const spreadCounts = [{ key: 'pillar', distinct: 4 }];
+assert.equal(
+  resolveUntouchedColorKey({
+    storedKey: NODE_TYPE_COLOR_KEY,
+    sentinel: NODE_TYPE_COLOR_KEY,
+    userChose: false,
+    hasCustomColor: false,
+    counts: spreadCounts,
+    paletteSize: PASTEL_NODE_PALETTE.length,
+  }),
+  'pillar',
+);
+assert.equal(
+  resolveUntouchedColorKey({
+    storedKey: NODE_TYPE_COLOR_KEY,
+    sentinel: NODE_TYPE_COLOR_KEY,
+    userChose: true,
+    hasCustomColor: false,
+    counts: spreadCounts,
+    paletteSize: PASTEL_NODE_PALETTE.length,
+  }),
+  NODE_TYPE_COLOR_KEY,
+);
+assert.equal(
+  resolveUntouchedColorKey({
+    storedKey: 'business_function',
+    sentinel: NODE_TYPE_COLOR_KEY,
+    userChose: false,
+    hasCustomColor: false,
+    counts: [
+      { key: 'business_function', distinct: 6, covered: 10 },
+      { key: 'pillar', distinct: 4, covered: 100 },
+    ],
+    paletteSize: PASTEL_NODE_PALETTE.length,
+  }),
+  'pillar',
+);
+assert.equal(
+  resolveUntouchedColorKey({
+    storedKey: 'business_function',
+    sentinel: NODE_TYPE_COLOR_KEY,
+    userChose: true,
+    hasCustomColor: false,
+    counts: [
+      { key: 'business_function', distinct: 6, covered: 10 },
+      { key: 'pillar', distinct: 4, covered: 100 },
+    ],
+    paletteSize: PASTEL_NODE_PALETTE.length,
+  }),
+  'business_function',
+);
+
+const painted = paintChannelColors({
+  colors: { appFill: { Retail: '#112233' } },
+  fillKey: 'pillar',
+  fillValues: ['Payments', 'Retail'],
+  strokeKey: 'data',
+  strokeValues: ['cash flows', 'price'],
+});
+assert.equal(painted.appFill?.Payments, PASTEL_NODE_PALETTE[0]);
+assert.equal(painted.appFill?.Retail, '#112233');
+assert.equal(painted.edgeStroke?.['cash flows'], DARK_EDGE_PALETTE[0]);
+assert.equal(painted.edgeStroke?.price, DARK_EDGE_PALETTE[1]);
+const typed = paintChannelColors({
+  fillKey: NODE_TYPE_COLOR_KEY,
+  fillValues: ['Application'],
+  strokeKey: RELATION_TYPE_COLOR_KEY,
+  strokeValues: ['DEPENDS_ON'],
+});
+assert.equal(typed.appFill, undefined);
+assert.equal(typed.edgeStroke, undefined);
 
 console.log('graphPalette.check: ok');
