@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import type { AttributeChangeEventDto } from '../../../types/api.ts';
-import { historyRangeQuery, linkEventSummary } from './historyEventSummary.ts';
+import { linkEventSummary } from './historyEventSummary.ts';
 
 function linkEvent(
   fieldScope: AttributeChangeEventDto['fieldScope'],
@@ -45,15 +45,13 @@ assert.deepEqual(
   { title: 'Connection created', detail: 'DEPENDS_ON · a → b' },
 );
 
-assert.equal(historyRangeQuery('', ''), '');
-assert.equal(historyRangeQuery('2026-03-01', ''), '&from=2026-03-01');
-assert.equal(historyRangeQuery('2026-03-01', '2026-03-31'), '&from=2026-03-01&to=2026-03-31');
-
 const section = readFileSync(
   new URL('../components/AttributeHistorySection.tsx', import.meta.url),
   'utf8',
 );
 assert.match(section, /fetchApplicationHistory/);
-assert.match(section, /type="date"/);
+assert.match(section, /aria-expanded/);
+assert.doesNotMatch(section, /type="date"/);
+assert.doesNotMatch(section, /fromDay/);
 
 console.log('historyEventSummary.check: ok');

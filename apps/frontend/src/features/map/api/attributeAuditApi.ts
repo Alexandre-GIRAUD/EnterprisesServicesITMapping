@@ -4,7 +4,6 @@ import type {
   AuditTargetType,
 } from '@/types/api';
 import { authenticatedFetch, resolveApiUrl } from '@/config/api';
-import { historyRangeQuery } from '../utils/historyEventSummary';
 
 async function readError(res: Response, label: string): Promise<never> {
   const detail = await res.text().catch(() => '');
@@ -33,10 +32,9 @@ export async function fetchAttributeHistory(
   return res.json();
 }
 
-/** One application with its modules and flows, newest first. Days are inclusive, empty = open. */
+/** One application with its modules and flows, newest first. */
 export async function fetchApplicationHistory(
   applicationId: string,
-  range: { fromDay: string; toDay: string },
   page = 0,
   size = 20
 ): Promise<AttributeChangePageDto> {
@@ -45,9 +43,7 @@ export async function fetchApplicationHistory(
     page: String(page),
     size: String(size),
   });
-  const url = resolveApiUrl(
-    `/api/history?${params}${historyRangeQuery(range.fromDay, range.toDay)}`
-  );
+  const url = resolveApiUrl(`/api/history?${params}`);
   const res = await authenticatedFetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) await readError(res, 'Application history API');
   return res.json();

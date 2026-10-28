@@ -46,7 +46,3 @@ export function linkEventSummary(event: AttributeChangeEventDto): {
   return { title: `${entity} ${verb}`, detail };
 }
 
-/** Query suffix for the inclusive day range of an application history. */
-export function historyRangeQuery(fromDay: string, toDay: string): string {
-  return `${fromDay ? `&from=${fromDay}` : ''}${toDay ? `&to=${toDay}` : ''}`;
-}
