@@ -7,6 +7,7 @@ import {
   edgeColorForProperty,
   nodeColorForType,
   pastelNodeColor,
+  preferredPaletteColor,
   type EdgeTypeKey,
 } from './graphTheme';
 
@@ -206,17 +207,33 @@ export function chooseSpreadColorKey(
   return bestKey;
 }
 
-/** Slot 0..n-1 are unique until the palette runs out. Overrides win. */
+/**
+ * Assign preferred defaults so each value of a parameter gets a unique color.
+ * Curated palette slots are used first; further values get derived unique tones.
+ * Explicit legend overrides win (and may deliberately collide).
+ */
 export function distinctColorMap(
   values: readonly string[],
   palette: readonly string[],
   overrides?: Record<string, string>,
 ): Record<string, string> {
   const generated: Record<string, string> = {};
-  for (let index = 0; index < values.length; index += 1) {
-    const value = values[index];
+  const usedDefaults = new Set<string>();
+  let slot = 0;
+  for (const value of values) {
     if (!value) continue;
-    generated[value] = palette[index % palette.length];
+    if (overrides?.[value]) {
+      generated[value] = overrides[value];
+      continue;
+    }
+    let color = preferredPaletteColor(palette, slot);
+    slot += 1;
+    while (usedDefaults.has(color.toLowerCase())) {
+      color = preferredPaletteColor(palette, slot);
+      slot += 1;
+    }
+    usedDefaults.add(color.toLowerCase());
+    generated[value] = color;
   }
   return { ...generated, ...overrides };
 }

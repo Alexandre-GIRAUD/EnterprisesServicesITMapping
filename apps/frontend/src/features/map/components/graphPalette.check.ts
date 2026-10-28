@@ -101,7 +101,14 @@ orderedFills.forEach((value, index) => {
 });
 assert.equal(distinctColorMap(orderedFills, PASTEL_NODE_PALETTE, { Core: '#112233' }).Core, '#112233');
 const nine = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
-assert.equal(distinctColorMap(nine, PASTEL_NODE_PALETTE).i, PASTEL_NODE_PALETTE[0]);
+const nineMap = distinctColorMap(nine, PASTEL_NODE_PALETTE);
+assert.equal(new Set(Object.values(nineMap)).size, nine.length);
+assert.equal(nineMap.a, PASTEL_NODE_PALETTE[0]);
+assert.notEqual(nineMap.i, PASTEL_NODE_PALETTE[0]);
+assert.equal(
+  distinctColorMap(nine, PASTEL_NODE_PALETTE, { i: PASTEL_NODE_PALETTE[0] }).i,
+  PASTEL_NODE_PALETTE[0],
+);
 
 const orderedStrokes = ['cash flows', 'clearing data', 'price'];
 const strokeMap = distinctColorMap(orderedStrokes, DARK_EDGE_PALETTE);
