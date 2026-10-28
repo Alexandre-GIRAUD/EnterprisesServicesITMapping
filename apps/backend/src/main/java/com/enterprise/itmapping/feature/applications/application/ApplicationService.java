@@ -5,6 +5,8 @@ import com.enterprise.itmapping.feature.applications.infrastructure.persistence.
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
+import com.enterprise.itmapping.feature.attributeaudit.application.EntityLifecycleHistory;
+import com.enterprise.itmapping.feature.graph.application.GraphEdgeLinkService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,23 +21,35 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class ApplicationService {
 
+  private static final String NAME_FIELD = "name";
+  private static final String DESCRIPTION_FIELD = "description";
+
   private final ApplicationRepository applicationRepository;
   private final Neo4jClient neo4jClient;
   private final ApplicationModuleSubtreeQuery moduleSubtreeQuery;
   private final ApplicationNodeAttributeReader nodeAttributeReader;
   private final ApplicationNodeRefLinkReader nodeRefLinkReader;
+  private final EntityLifecycleHistory history;
+  private final ApplicationModuleLifecycle moduleLifecycle;
+  private final GraphEdgeLinkService edgeLinkService;
 
   public ApplicationService(
       ApplicationRepository applicationRepository,
       Neo4jClient neo4jClient,
       ApplicationModuleSubtreeQuery moduleSubtreeQuery,
       ApplicationNodeAttributeReader nodeAttributeReader,
-      ApplicationNodeRefLinkReader nodeRefLinkReader) {
+      ApplicationNodeRefLinkReader nodeRefLinkReader,
+      EntityLifecycleHistory history,
+      ApplicationModuleLifecycle moduleLifecycle,
+      GraphEdgeLinkService edgeLinkService) {
     this.applicationRepository = applicationRepository;
     this.neo4jClient = neo4jClient;
     this.moduleSubtreeQuery = moduleSubtreeQuery;
     this.nodeAttributeReader = nodeAttributeReader;
     this.nodeRefLinkReader = nodeRefLinkReader;
+    this.history = history;
+    this.moduleLifecycle = moduleLifecycle;
+    this.edgeLinkService = edgeLinkService;
   }
 
   @Transactional(readOnly = true)
@@ -81,6 +95,7 @@ public class ApplicationService {
     entity.setName(request.name());
     entity.setDescription(request.description());
     Application saved = applicationRepository.save(entity);
+    history.applicationCreated(saved.getId(), saved.getName(), saved.getDescription());
     return new ApplicationResponse(
         saved.getId(),
         saved.getName(),
@@ -95,7 +110,8 @@ public class ApplicationService {
    */
   @Transactional
   public Optional<ApplicationResponse> update(String id, ApplicationRequest request) {
-    if (applicationRepository.findProjectionById(id).isEmpty()) {
+    Optional<ApplicationGraphNodeProjection> before = applicationRepository.findProjectionById(id);
+    if (before.isEmpty()) {
       return Optional.empty();
     }
     List<String> incoming =
@@ -127,6 +143,9 @@ public class ApplicationService {
             """)
         .bindAll(params)
         .run();
+    history.applicationFieldChanged(id, NAME_FIELD, before.get().getName(), request.name());
+    history.applicationFieldChanged(
+        id, DESCRIPTION_FIELD, before.get().getDescription(), request.description());
     return applicationRepository.findProjectionById(id).map(this::toDetailResponse);
   }
 
@@ -142,20 +161,14 @@ public class ApplicationService {
    */
   @Transactional
   public boolean delete(String id) {
-    if (applicationRepository.findProjectionById(id).isEmpty()) {
+    Optional<ApplicationGraphNodeProjection> existing = applicationRepository.findProjectionById(id);
+    if (existing.isEmpty()) {
       return false;
     }
 
-    neo4jClient
-        .query(
-            """
-            MATCH (:Application {id: $id})-[:CONTAINS*1..50]->(m:Module)
-            WITH DISTINCT m
-            DETACH DELETE m
-            """)
-        .bind(id)
-        .to("id")
-        .run();
+    moduleLifecycle.removeAll(id);
+    edgeLinkService.recordDeletionsTouching(id);
+    history.applicationDeleted(id, existing.get().getName(), existing.get().getDescription());
 
     neo4jClient
         .query(

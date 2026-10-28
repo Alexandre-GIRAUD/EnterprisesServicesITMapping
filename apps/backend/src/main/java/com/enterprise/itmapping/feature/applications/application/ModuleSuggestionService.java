@@ -63,6 +63,7 @@ public class ModuleSuggestionService {
   private final ApplicationModuleSubtreeQuery moduleSubtreeQuery;
   private final AiDecisionSourceService decisionSources;
   private final ApplicationDetectionDocumentService documentService;
+  private final ApplicationModuleLifecycle moduleLifecycle;
 
   public ModuleSuggestionService(
       ApplicationRepository applicationRepository,
@@ -73,7 +74,8 @@ public class ModuleSuggestionService {
       ObjectProvider<ModuleSuggestionService> self,
       ApplicationModuleSubtreeQuery moduleSubtreeQuery,
       AiDecisionSourceService decisionSources,
-      ApplicationDetectionDocumentService documentService) {
+      ApplicationDetectionDocumentService documentService,
+      ApplicationModuleLifecycle moduleLifecycle) {
     this.applicationRepository = applicationRepository;
     this.cloneService = cloneService;
     this.moduleDiscoveryAgent = moduleDiscoveryAgent;
@@ -83,6 +85,7 @@ public class ModuleSuggestionService {
     this.moduleSubtreeQuery = moduleSubtreeQuery;
     this.decisionSources = decisionSources;
     this.documentService = documentService;
+    this.moduleLifecycle = moduleLifecycle;
   }
 
   public SuggestModulesFromGithubResponse suggestFromGithub(
@@ -107,16 +110,7 @@ public class ModuleSuggestionService {
         throw new ResponseStatusException(
             HttpStatus.CONFLICT, "Les modules ont déjà été suggérés pour cette application.");
       }
-      neo4jClient
-          .query(
-              """
-              MATCH (:Application {id: $id})-[:CONTAINS*1..50]->(m:Module)
-              WITH DISTINCT m
-              DETACH DELETE m
-              """)
-          .bind(applicationId)
-          .to("id")
-          .run();
+      moduleLifecycle.removeAll(applicationId);
     }
 
     List<String> fullNames =
@@ -296,6 +290,7 @@ public class ModuleSuggestionService {
           .query("CREATE (m:Module {id: $id, name: $name, description: $desc})")
           .bindAll(params)
           .run();
+      moduleLifecycle.recordCreated(applicationId, neoId, e.getValue().getBusinessName());
 
       created.add(new CreatedItem(neoId, e.getKey(), e.getValue().getBusinessName()));
       trace(
@@ -445,6 +440,7 @@ public class ModuleSuggestionService {
         .bindAll(params)
         .run();
     linkApplicationContains(applicationId, neoId);
+    moduleLifecycle.recordCreated(applicationId, neoId, name);
   }
 
   private void linkApplicationContains(String applicationId, String moduleNeoId) {

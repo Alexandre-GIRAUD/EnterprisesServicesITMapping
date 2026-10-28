@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.auth.application;
 
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
+import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -25,5 +26,14 @@ public class CurrentUserResolver {
     return userRepository
         .findByUsernameIgnoreCase(auth.getName())
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Utilisateur introuvable."));
+  }
+
+  /** Empty for background work (schedulers, imports) where nobody is signed in. */
+  public Optional<UserEntity> findCurrentUser() {
+    var auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth == null || !StringUtils.hasText(auth.getName())) {
+      return Optional.empty();
+    }
+    return userRepository.findByUsernameIgnoreCase(auth.getName());
   }
 }

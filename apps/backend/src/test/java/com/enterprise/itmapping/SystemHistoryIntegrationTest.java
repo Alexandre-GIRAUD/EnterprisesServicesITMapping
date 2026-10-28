@@ -39,7 +39,8 @@ class SystemHistoryIntegrationTest {
 
   @Container
   static PostgreSQLContainer<?> postgres =
-      new PostgreSQLContainer<>(DockerImageName.parse("postgres:16-alpine"))
+      new PostgreSQLContainer<>(
+              DockerImageName.parse("pgvector/pgvector:pg16").asCompatibleSubstituteFor("postgres"))
           .withDatabaseName("itmapping")
           .withUsername("itmapping")
           .withPassword("itmapping");

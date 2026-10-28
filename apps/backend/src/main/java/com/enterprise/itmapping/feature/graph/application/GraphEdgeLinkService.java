@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.graph.application;
 
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService.AttributeChangeRequest;
+import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService.LifecycleChange;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditFieldScope;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
 import com.enterprise.itmapping.feature.attributeaudit.domain.HumanChangeReason;
@@ -9,6 +10,7 @@ import com.enterprise.itmapping.feature.attributeaudit.presentation.dto.Attribut
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -147,6 +149,41 @@ public class GraphEdgeLinkService {
   @Transactional
   public void deleteAi(String edgeId, String aiSource) {
     delete(edgeId, null, null, aiSource != null ? aiSource : "API_DELETE");
+  }
+
+  /**
+   * Called before an application is deleted: its flows go with it, each leaving a deletion event
+   * attributed to whoever deleted the application.
+   */
+  @Transactional
+  public void recordDeletionsTouching(String applicationId) {
+    neo4jClient
+        .query(
+            """
+            MATCH (:Application {id: $id})-[r:DEPENDS_ON]-()
+            WHERE r.id IS NOT NULL
+            RETURN DISTINCT r.id AS id
+            """)
+        .bind(applicationId)
+        .to("id")
+        .fetch()
+        .all()
+        .forEach(row -> recordDeletion(String.valueOf(row.get("id"))));
+  }
+
+  private void recordDeletion(String edgeId) {
+    loadSnapshot(edgeId)
+        .ifPresent(
+            snapshot ->
+                auditService.recordLifecycle(
+                    new LifecycleChange(
+                        AuditTargetType.EDGE,
+                        edgeId,
+                        AuditFieldScope.EDGE_LINK,
+                        LINK_FIELD_KEY,
+                        toJson(snapshot),
+                        null,
+                        List.of(snapshot.sourceId(), snapshot.targetId()))));
   }
 
   private void delete(
