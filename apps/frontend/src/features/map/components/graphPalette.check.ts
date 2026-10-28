@@ -15,8 +15,12 @@ import {
   chooseSpreadColorKey,
   distinctColorMap,
   nodeFillColorForValue,
+  borderFromFill,
+  nodeBorderColorForValue,
   paintChannelColors,
   paintEdgeStrokeColor,
+  resolveMirroredKey,
+  resolveSpreadColorKeys,
   resolveUntouchedColorKey,
 } from './edgeColorProperty.ts';
 
@@ -224,5 +228,71 @@ const typed = paintChannelColors({
 });
 assert.equal(typed.appFill, undefined);
 assert.equal(typed.edgeStroke, undefined);
+
+assert.equal(
+  resolveMirroredKey({ storedKey: 'frequency', mirrorKey: 'data', userChose: false }),
+  'data',
+);
+assert.equal(
+  resolveMirroredKey({ storedKey: 'frequency', mirrorKey: 'data', userChose: true }),
+  'frequency',
+);
+
+const fill = PASTEL_NODE_PALETTE[0];
+assert.equal(nodeBorderColorForValue('pillar', 'Payments', undefined, 'pillar', { Payments: fill }), borderFromFill(fill));
+assert.equal(
+  nodeBorderColorForValue('pillar', 'Payments', { Payments: '#112233' }, 'pillar', { Payments: fill }),
+  '#112233',
+);
+
+const mirrored = resolveSpreadColorKeys({
+  nodes: [
+    { id: '1', label: 'A', type: 'Application', properties: { pillar: 'Payments' } },
+    { id: '2', label: 'B', type: 'Application', properties: { pillar: 'Risk' } },
+  ] as never,
+  edges: [
+    {
+      id: 'e1',
+      sourceId: '1',
+      targetId: '2',
+      type: 'DEPENDS_ON',
+      properties: { data: 'price' },
+    },
+  ] as never,
+  fillKey: NODE_TYPE_COLOR_KEY,
+  borderKey: NODE_TYPE_COLOR_KEY,
+  strokeKey: RELATION_TYPE_COLOR_KEY,
+  fillChosen: false,
+  borderChosen: false,
+  strokeChosen: false,
+});
+assert.equal(mirrored.borderKey, mirrored.fillKey);
+assert.notEqual(mirrored.borderKey, NODE_TYPE_COLOR_KEY);
+
+const borderSticky = resolveSpreadColorKeys({
+  nodes: [
+    {
+      id: '1',
+      label: 'A',
+      type: 'Application',
+      properties: { pillar: 'Payments', tier: 'gold' },
+    },
+    {
+      id: '2',
+      label: 'B',
+      type: 'Application',
+      properties: { pillar: 'Risk', tier: 'silver' },
+    },
+  ] as never,
+  edges: [],
+  fillKey: 'pillar',
+  borderKey: 'tier',
+  strokeKey: RELATION_TYPE_COLOR_KEY,
+  fillChosen: true,
+  borderChosen: true,
+  strokeChosen: true,
+});
+assert.equal(borderSticky.fillKey, 'pillar');
+assert.equal(borderSticky.borderKey, 'tier');
 
 console.log('graphPalette.check: ok');

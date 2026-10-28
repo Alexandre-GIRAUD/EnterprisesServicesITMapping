@@ -35,6 +35,7 @@ import {
   loadStoredAppFillKey,
   loadStoredColorPropertyKey,
   loadStrokePropertyChosen,
+  loadLabelPropertyChosen,
   loadStoredLabelPropertyKey,
   NODE_TYPE_COLOR_KEY,
   nodeBorderColor,
@@ -44,7 +45,7 @@ import {
   paintEdgeStrokeColor,
   RELATION_TYPE_COLOR_KEY,
   HIDE_EDGE_LABELS_KEY,
-  resolveColorPropertyKey,
+  resolveMirroredLabelKey,
   resolveSpreadColorKeys,
   setRationalizedColorInMaps,
   storeAppBorderKey,
@@ -53,6 +54,7 @@ import {
   storeColorPropertyKey,
   storeFillPropertyChosen,
   storeHideEdgeLabels,
+  storeLabelPropertyChosen,
   storeLabelPropertyKey,
   storeLegendColorMaps,
   storeLegendSetups,
@@ -212,6 +214,7 @@ export function useGraphData({
   const fillChosenRef = useRef(loadFillPropertyChosen());
   const borderChosenRef = useRef(loadBorderPropertyChosen());
   const strokeChosenRef = useRef(loadStrokePropertyChosen());
+  const labelChosenRef = useRef(loadLabelPropertyChosen());
   const [legendColors, setLegendColors] = useState<LegendColorMaps>(loadLegendColorMaps);
   const legendColorsRef = useRef(legendColors);
   legendColorsRef.current = legendColors;
@@ -306,7 +309,12 @@ export function useGraphData({
       strokeChosen: strokeChosenRef.current,
       colors: legendColorsRef.current,
     });
-    const nextLabel = resolveColorPropertyKey(labelPropertyKey, visible.edges);
+    const nextLabel = resolveMirroredLabelKey({
+      storedKey: labelPropertyKey,
+      strokeKey: spread.strokeKey,
+      userChose: labelChosenRef.current,
+      edges: visible.edges,
+    });
     if (spread.strokeKey !== colorPropertyKey) {
       setColorPropertyKey(spread.strokeKey);
       storeColorPropertyKey(spread.strokeKey);
@@ -338,8 +346,14 @@ export function useGraphData({
     storeStrokePropertyChosen();
     setColorPropertyKey(key);
     storeColorPropertyKey(key);
+    if (!labelChosenRef.current) {
+      setLabelPropertyKey(key);
+      storeLabelPropertyKey(key);
+    }
   }, []);
   const handleLabelPropertyChange = useCallback((key: string) => {
+    labelChosenRef.current = true;
+    storeLabelPropertyChosen();
     if (key === HIDE_EDGE_LABELS_KEY) {
       setHideEdgeLabels(true);
       storeHideEdgeLabels(true);
@@ -355,6 +369,10 @@ export function useGraphData({
     storeFillPropertyChosen();
     setAppFillKey(key);
     storeAppFillKey(key);
+    if (!borderChosenRef.current) {
+      setAppBorderKey(key);
+      storeAppBorderKey(key);
+    }
   }, []);
   const handleAppBorderChange = useCallback((key: string) => {
     borderChosenRef.current = true;
@@ -403,6 +421,8 @@ export function useGraphData({
       storeColorPropertyKey(legend.edgeColorKey);
     }
     if (legend.edgeLabelKey) {
+      labelChosenRef.current = true;
+      storeLabelPropertyChosen();
       setLabelPropertyKey(legend.edgeLabelKey);
       storeLabelPropertyKey(legend.edgeLabelKey);
     }
@@ -427,6 +447,10 @@ export function useGraphData({
     hideEdgeLabelsRef.current = hide;
     setHideEdgeLabels(hide);
     storeHideEdgeLabels(hide);
+    if (hide) {
+      labelChosenRef.current = true;
+      storeLabelPropertyChosen();
+    }
   }, []);
 
   const saveLegendSetup = useCallback(
@@ -552,7 +576,12 @@ export function useGraphData({
         const nextColor = spread.strokeKey;
         const nextLabel = simple
           ? RELATION_TYPE_COLOR_KEY
-          : resolveColorPropertyKey(labelPropertyKey, data.edges);
+          : resolveMirroredLabelKey({
+              storedKey: labelPropertyKey,
+              strokeKey: nextColor,
+              userChose: labelChosenRef.current,
+              edges: data.edges,
+            });
         const nextFill = spread.fillKey;
         const nextBorder = spread.borderKey;
 

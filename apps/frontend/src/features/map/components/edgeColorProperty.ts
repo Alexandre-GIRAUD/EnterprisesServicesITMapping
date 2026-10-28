@@ -121,6 +121,7 @@ export function storeAppBorderKey(key: string): void {
 export const FILL_PROPERTY_CHOSEN_KEY = 'flowra.graph.appFillChosen';
 export const BORDER_PROPERTY_CHOSEN_KEY = 'flowra.graph.appBorderChosen';
 export const STROKE_PROPERTY_CHOSEN_KEY = 'flowra.graph.edgeColorChosen';
+export const LABEL_PROPERTY_CHOSEN_KEY = 'flowra.graph.edgeLabelChosen';
 
 function loadChosen(storageKey: string): boolean {
   try {
@@ -160,6 +161,24 @@ export function loadStrokePropertyChosen(): boolean {
 
 export function storeStrokePropertyChosen(): void {
   storeChosen(STROKE_PROPERTY_CHOSEN_KEY);
+}
+
+export function loadLabelPropertyChosen(): boolean {
+  return loadChosen(LABEL_PROPERTY_CHOSEN_KEY);
+}
+
+export function storeLabelPropertyChosen(): void {
+  storeChosen(LABEL_PROPERTY_CHOSEN_KEY);
+}
+
+/** Follow a parent channel until the user explicitly picks this one. */
+export function resolveMirroredKey(input: {
+  storedKey: string;
+  mirrorKey: string;
+  userChose: boolean;
+}): string {
+  if (input.userChose) return input.storedKey;
+  return input.mirrorKey;
 }
 
 export type ColorValueCount = { key: string; distinct: number; covered?: number };
@@ -639,6 +658,7 @@ export function nodeBorderColor(
 ): string {
   if (fillKey && fillKey === propertyKey) {
     const value = nodePropValue(node, fillKey);
+    if (value && colorMap?.[value]) return colorMap[value];
     const fill = nodeFillColor(node, fillKey, fillColorMap);
     const hasCustom = Boolean(value && fillColorMap?.[value]);
     if (fillKey === NODE_TYPE_COLOR_KEY && !hasCustom) {
@@ -672,6 +692,7 @@ export function nodeBorderColorForValue(
   fillColorMap?: Record<string, string>
 ): string {
   if (fillKey && fillKey === propertyKey) {
+    if (colorMap?.[value]) return colorMap[value];
     const fill = nodeFillColorForValue(fillKey, value, fillColorMap);
     const hasCustom = Boolean(fillColorMap?.[value]);
     if (fillKey === NODE_TYPE_COLOR_KEY && !hasCustom) {
@@ -813,20 +834,19 @@ export function resolveSpreadColorKeys(input: {
   colors?: LegendColorMaps;
 }): { fillKey: string; borderKey: string; strokeKey: string } {
   const fillCounts = nodeSpreadCounts(input.nodes);
+  const fillKey = untouchedNodeChannel({
+    storedKey: input.fillKey,
+    nodes: input.nodes,
+    userChose: input.fillChosen,
+    hasCustomColor: hasCustomColor(input.colors?.appFill),
+    counts: fillCounts,
+  });
   return {
-    fillKey: untouchedNodeChannel({
-      storedKey: input.fillKey,
-      nodes: input.nodes,
-      userChose: input.fillChosen,
-      hasCustomColor: hasCustomColor(input.colors?.appFill),
-      counts: fillCounts,
-    }),
-    borderKey: untouchedNodeChannel({
-      storedKey: input.borderKey,
-      nodes: input.nodes,
+    fillKey,
+    borderKey: resolveMirroredKey({
+      storedKey: resolveNodePropertyKey(input.borderKey, input.nodes),
+      mirrorKey: fillKey,
       userChose: input.borderChosen,
-      hasCustomColor: hasCustomColor(input.colors?.appBorder),
-      counts: fillCounts,
     }),
     strokeKey: resolveUntouchedColorKey({
       storedKey: resolveColorPropertyKey(input.strokeKey, input.edges),
@@ -838,6 +858,20 @@ export function resolveSpreadColorKeys(input: {
       population: input.edges.length,
     }),
   };
+}
+
+/** Label follows stroke until the user picks a label property (or hide-labels). */
+export function resolveMirroredLabelKey(input: {
+  storedKey: string;
+  strokeKey: string;
+  userChose: boolean;
+  edges: GraphEdgeDto[];
+}): string {
+  return resolveMirroredKey({
+    storedKey: resolveColorPropertyKey(input.storedKey, input.edges),
+    mirrorKey: input.strokeKey,
+    userChose: input.userChose,
+  });
 }
 
 export function legendLabelForColorValue(propertyKey: string, value: string): string {
