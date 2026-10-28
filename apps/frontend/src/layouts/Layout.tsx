@@ -1,5 +1,5 @@
-import { Fragment, useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, useMatch, useNavigate } from 'react-router-dom';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Link, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import flowraLogo from '@/assets/flowra.svg';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import type { GraphMode } from '@/features/map/components/GraphModeTabs';
@@ -7,30 +7,18 @@ import { GraphSnapshotsProvider } from '@/features/map/context/GraphSnapshotsCon
 import { WorkspaceModeProvider, useWorkspaceMode } from '@/features/map/context/WorkspaceModeContext';
 import type { MapLocationState } from '@/features/map/utils/mapNavigation';
 import { COLOR_THEME_STORAGE_KEY, storedColorTheme, toggledColorTheme, type ColorTheme } from './colorTheme';
-import { NavigationIcon, type NavigationIconName } from './NavigationIcon';
 import { HelpMenu } from './HelpMenu';
+import { NavigationIcon } from './NavigationIcon';
 import { SettingsMenu } from './SettingsMenu';
-import { ThemeModeButton } from './ThemeModeButton';
+import { SidebarNavItem } from './SidebarNavItem';
+import { SidebarProfile } from './SidebarProfile';
+import { ThemeToggle } from './ThemeToggle';
 import { WorkspaceModeNav } from './WorkspaceModeNav';
+import './sidebar.css';
+import { mainNavigationEntries } from './sidebarModel';
+import { moveSidebarFocus, primeSidebarTabStops, rememberSidebarTabStop } from './sidebarRoving';
 
-type NavigationItem = {
-  label: string;
-  to: string;
-  icon: NavigationIconName;
-  isEnd?: boolean;
-};
-
-const NAVIGATION_ITEMS: NavigationItem[] = [
-  { label: 'Chatbot', to: '/chat', icon: 'chat' },
-  { label: 'Cartography', to: '/map', icon: 'cartography', isEnd: true },
-  { label: 'Data Model', to: '/data-model', icon: 'dataModel' },
-  { label: 'Sources', to: '/map/import-github', icon: 'sources' },
-  { label: 'Changes', to: '/admin/changes', icon: 'changes' },
-];
-
-function navigationLinkClassName({ isActive }: { isActive: boolean }) {
-  return `layout-sidebar-link${isActive ? ' is-active' : ''}`;
-}
+const navigationEntries = mainNavigationEntries();
 
 export function Layout() {
   return (
@@ -47,7 +35,7 @@ function LayoutShell() {
   const navigate = useNavigate();
   const onCartography = useMatch({ path: '/map', end: true });
   const { mode, sandboxDirty } = useWorkspaceMode();
-  const roleLabel = user?.roles?.length ? user.roles.join(' · ') : null;
+  const sidebarRef = useRef<HTMLElement>(null);
   const [theme, setTheme] = useState<ColorTheme>(() =>
     storedColorTheme(localStorage.getItem(COLOR_THEME_STORAGE_KEY)),
   );
@@ -57,76 +45,78 @@ function LayoutShell() {
     localStorage.setItem(COLOR_THEME_STORAGE_KEY, theme);
   }, [theme]);
 
+  useLayoutEffect(() => {
+    if (!sidebarRef.current) return;
+    primeSidebarTabStops(sidebarRef.current);
+  }, [user]);
+
   function openWorkspaceMode(next: GraphMode) {
     if (onCartography && mode === next) return;
     navigate('/map', { state: { graphMode: next } satisfies MapLocationState });
   }
 
+  function signOut() {
+    logout();
+    navigate('/login', { replace: true });
+  }
+
   return (
-      <div className="layout">
-        <aside className="layout-sidebar">
-          <div className="layout-brand-row">
-            <Link to="/about" className="layout-brand layout-brand-link">
-              <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
-              <h1>Flowra</h1>
-            </Link>
-          </div>
-          {user ? (
-            <>
-              <nav className="layout-sidebar-nav" aria-label="Main navigation">
-                {NAVIGATION_ITEMS.map((item) => (
-                  <Fragment key={item.to}>
-                    <NavLink
-                      to={item.to}
-                      end={item.isEnd}
-                      className={navigationLinkClassName}
-                    >
-                      <NavigationIcon name={item.icon} />
-                      <span>{item.label}</span>
-                    </NavLink>
-                    {item.to === '/map' ? (
-                      <WorkspaceModeNav
-                        mode={onCartography ? mode : null}
-                        sandboxDirty={Boolean(onCartography && sandboxDirty)}
-                        onModeChange={openWorkspaceMode}
-                      />
-                    ) : null}
-                  </Fragment>
-                ))}
-                <SettingsMenu />
-              </nav>
-              <div className="layout-sidebar-footer">
-                <HelpMenu />
-                <span className="layout-sidebar-user-meta">
-                  <span className="layout-sidebar-user" title={user.username}>
-                    {user.username}
-                  </span>
-                  {roleLabel ? (
-                    <span className="layout-sidebar-role" title={roleLabel}>
-                      {roleLabel}
-                    </span>
+    <div className="layout">
+      <aside
+        className="layout-sidebar"
+        ref={sidebarRef}
+        onKeyDown={(event) => {
+          if (!sidebarRef.current) return;
+          moveSidebarFocus(event, sidebarRef.current);
+        }}
+        onFocusCapture={(event) => {
+          if (!sidebarRef.current) return;
+          rememberSidebarTabStop(event.target, sidebarRef.current);
+        }}
+      >
+        <div className="layout-brand-row">
+          <Link to="/about" className="layout-brand layout-brand-link">
+            <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
+            <h1>Flowra</h1>
+          </Link>
+        </div>
+        {user ? (
+          <>
+            <nav className="layout-sidebar-nav" aria-label="Main navigation">
+              {navigationEntries.map((entry) => (
+                <Fragment key={entry.to}>
+                  <SidebarNavItem
+                    label={entry.label}
+                    to={entry.to}
+                    end={entry.isEnd}
+                    badge={entry.badge}
+                    showSeparator={entry.showSeparator}
+                    icon={<NavigationIcon name={entry.icon} />}
+                  />
+                  {entry.to === '/map' ? (
+                    <WorkspaceModeNav
+                      mode={onCartography ? mode : null}
+                      sandboxDirty={Boolean(onCartography && sandboxDirty)}
+                      onModeChange={openWorkspaceMode}
+                    />
                   ) : null}
-                  <span className="layout-sidebar-utilities">
-                    <ThemeModeButton theme={theme} onToggle={() => setTheme((current) => toggledColorTheme(current))} />
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className="layout-sidebar-signout"
-                  onClick={() => {
-                    logout();
-                    navigate('/login', { replace: true });
-                  }}
-                >
-                  Sign out
-                </button>
+                </Fragment>
+              ))}
+            </nav>
+            <div className="sidebar-footer">
+              <HelpMenu />
+              <SettingsMenu />
+              <div className="sidebar-account">
+                <SidebarProfile username={user.username} roles={user.roles} onSignOut={signOut} />
+                <ThemeToggle theme={theme} onToggle={() => setTheme((current) => toggledColorTheme(current))} />
               </div>
-            </>
-          ) : null}
-        </aside>
-        <main className="layout-main">
-          <Outlet />
-        </main>
-      </div>
+            </div>
+          </>
+        ) : null}
+      </aside>
+      <main className="layout-main">
+        <Outlet />
+      </main>
+    </div>
   );
 }

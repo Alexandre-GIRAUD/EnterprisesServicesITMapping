@@ -1,0 +1,37 @@
+.layout-sidebar {
+  --nav-item-height: 40px;
+  --nav-subitem-height: 32px;
+  --nav-gap: 4px;
+  --nav-padding-x: 12px;
+  --nav-section-gap: 16px;
+  --nav-logo-gap: 20px;
+  --nav-icon-size: 20px;
+  --nav-icon-gap: 12px;
+  --nav-label-size: 14px;
+  --nav-subitem-label-size: 13px;
+  --nav-profile-height: 48px;
+  --nav-avatar-size: 32px;
+  --nav-theme-size: 32px;
+  --nav-role-size: 12px;
+  --nav-badge-size: 12px;
+  --nav-chevron-size: 16px;
+  --nav-focus-width: 2px;
+  --nav-transition: 140ms;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-full: 999px;
+  --nav-accent-bg: #dbeafe;
+  --nav-accent-fg: #1e3a8a;
+  --nav-text: #0f172a;
+  --nav-item: #334155;
+  --nav-muted: #64748b;
+  --nav-hover: #e7eef5;
+  --nav-active-bg: #ffffff;
+  --nav-active-fg: #1d4ed8;
+  --nav-rule: #b7c3d0;
+  --nav-line: #cbd5e1;
+  --nav-focus: #3b82f6;
+  --nav-tooltip-bg: #0f172a;
+  --nav-tooltip-fg: #ffffff;
+  --nav-surface: #ffffff;
+}

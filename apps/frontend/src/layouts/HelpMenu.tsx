@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AboutContactForm } from '@/features/about/AboutContactForm';
 import { HELP_TOPICS } from './helpTopics';
+import { NavigationIcon } from './NavigationIcon';
+import { SidebarNavItem } from './SidebarNavItem';
 
 const HELP_PANEL_WIDTH = 352;
 const HELP_PANEL_GAP = 8;
@@ -66,17 +68,15 @@ export function HelpMenu() {
 
   return (
     <div className="layout-help" ref={rootRef}>
-      <button
-        type="button"
-        className="layout-help-toggle"
-        aria-label="Help"
-        aria-expanded={isOpen}
-        aria-controls="layout-help-panel"
+      <SidebarNavItem
+        label="Help"
+        icon={<NavigationIcon name="circleHelp" />}
+        isActive={isOpen}
+        ariaLabel="Help"
+        ariaExpanded={isOpen}
+        ariaControls="layout-help-panel"
         onClick={toggle}
-      >
-        <QuestionGlyph />
-        <span>Help</span>
-      </button>
+      />
       {isOpen && anchor ? (
         <HelpPanel top={anchor.top} bottom={anchor.bottom} left={anchor.left} panelRef={panelRef} />
       ) : null}
@@ -116,17 +116,3 @@ function HelpPanel({
   );
 }
 
-function QuestionGlyph() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <path
-        d="M6.15 6.05a1.9 1.9 0 1 1 2.7 1.75c-.62.28-.9.62-.9 1.15"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <circle cx="8" cy="11.7" r="0.8" fill="currentColor" />
-    </svg>
-  );
-}
