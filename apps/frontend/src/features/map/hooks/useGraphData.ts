@@ -692,7 +692,6 @@ export function useGraphData({
     labelPropertyKey: effectiveLabelKey,
     appFillKey: effectiveFillKey,
     appBorderKey: effectiveBorderKey,
-    legendColors,
     displayColors,
     hideEdgeLabels,
     handleColorPropertyChange,
