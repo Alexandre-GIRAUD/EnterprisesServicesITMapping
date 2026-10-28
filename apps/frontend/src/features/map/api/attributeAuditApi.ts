@@ -53,6 +53,15 @@ export async function fetchApplicationHistory(
   return res.json();
 }
 
+/** Days Cartography can show: from the first daily capture to today (YYYY-MM-DD). */
+export async function fetchHistoryRange(): Promise<{ firstDay: string; today: string }> {
+  const res = await authenticatedFetch(resolveApiUrl('/api/history/range'), {
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) await readError(res, 'History range API');
+  return res.json();
+}
+
 export const HUMAN_CHANGE_REASON_OPTIONS: Array<{
   value: AttributeChangeMeta['reason'];
   label: string;

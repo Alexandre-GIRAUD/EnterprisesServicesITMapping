@@ -96,6 +96,7 @@ import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { isDiagramFitGesture, resolveNextDiagramHeight } from './diagramFrame';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { GraphExportMenu } from './GraphExportMenu';
+import { HistoryDatePicker } from './HistoryDatePicker';
 import { TableExportMenu } from './TableExportMenu';
 import {
   buildGraphExportFileName,
@@ -119,6 +120,18 @@ type SelectedApplication = {
   label: string;
 };
 
+type GraphCanvasProps = {
+  /** Past day shown (YYYY-MM-DD), read-only; null for the live graph. */
+  viewingDay?: string | null;
+  onViewingDayChange?: (day: string | null) => void;
+};
+
+function formatViewingDay(day: string): string {
+  const date = new Date(`${day}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return day;
+  return date.toLocaleDateString(undefined, { dateStyle: 'long' });
+}
+
 /**
  * Application dependency graph (React Flow), backed by GET /api/graph.
  *
@@ -127,7 +140,8 @@ type SelectedApplication = {
  * (fetch + layout). This component wires them to the drawers, React Flow
  * surface, mode tabs and the saved-views panel.
  */
-export function GraphCanvas() {
+export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanvasProps = {}) {
+  const isReadOnly = viewingDay != null;
   const navigate = useNavigate();
   const location = useLocation();
   const { refreshSnapshots } = useGraphSnapshotsRefresh();
@@ -1511,11 +1525,14 @@ export function GraphCanvas() {
 
   const noopClose = useCallback(() => {}, []);
 
+  const visibleSideMenuTool: SideMenuTool =
+    isReadOnly && activeSideMenuTool === 'actions' ? 'filters' : activeSideMenuTool;
+
   const toolDetail = useMemo(
     () =>
       renderGraphCanvasSideTool({
         graphMode,
-        activeSideMenuTool,
+        activeSideMenuTool: visibleSideMenuTool,
         isSandbox,
         sandboxes,
         applications,
@@ -1561,7 +1578,7 @@ export function GraphCanvas() {
       }),
     [
     graphMode,
-    activeSideMenuTool,
+    visibleSideMenuTool,
     applications,
     nodeFilters,
     applicationIds,
@@ -1646,6 +1663,9 @@ export function GraphCanvas() {
               ) : null}
             </div>
             <div className="graph-view-header-actions">
+              {onViewingDayChange && graphMode === 'normal' ? (
+                <HistoryDatePicker day={viewingDay} onChange={onViewingDayChange} />
+              ) : null}
               {showGraphExport ? (
                 <GraphExportMenu
                   disabled={status !== 'ready'}
@@ -1678,6 +1698,14 @@ export function GraphCanvas() {
               )}
             </div>
           </header>
+          {isReadOnly && viewingDay ? (
+            <p className="graph-history-banner" role="status">
+              Viewing Production as of {formatViewingDay(viewingDay)}. Read-only.
+              <button type="button" onClick={() => onViewingDayChange?.(null)}>
+                Back to today
+              </button>
+            </p>
+          ) : null}
 
         <div className="map-graph-body">
           <div
@@ -1969,9 +1997,9 @@ export function GraphCanvas() {
                 onEdgeMouseLeave={handleEdgeMouseLeave}
                 onNodeDragStop={handleNodeDragStop}
                 onPaneClick={handlePaneClick}
-                onPaneContextMenu={openProductionContextMenu}
-                onNodeContextMenu={openProductionContextMenu}
-                onEdgeContextMenu={openProductionContextMenu}
+                onPaneContextMenu={isReadOnly ? undefined : openProductionContextMenu}
+                onNodeContextMenu={isReadOnly ? undefined : openProductionContextMenu}
+                onEdgeContextMenu={isReadOnly ? undefined : openProductionContextMenu}
                 nodesDraggable
                 nodeDragThreshold={8}
                 nodesConnectable={false}
@@ -2162,6 +2190,7 @@ export function GraphCanvas() {
                 openModuleGraphById(applicationId, label);
               }}
               onApplicationDeleted={onApplicationDeletedHandler}
+              isReadOnly={isReadOnly}
             />
             <EdgeDetailsDrawer
               isOpen={isEdgeDetailsDrawerOpen && menuEditKind !== 'flow'}
@@ -2170,6 +2199,7 @@ export function GraphCanvas() {
               onOpenApplication={openApplicationDetails}
               onEdgeAttributesUpdated={handleEdgeAttributesUpdated}
               onEdgeDeleted={handleEdgeDeleted}
+              isReadOnly={isReadOnly}
             />
           </div>
         </div>
@@ -2180,8 +2210,9 @@ export function GraphCanvas() {
           onToggle={handleSideMenuToggle}
           graphMode={graphMode}
           filtersActive={filtersActive}
-          activeTool={activeSideMenuTool}
+          activeTool={visibleSideMenuTool}
           onActiveToolChange={setActiveSideMenuTool}
+          canCorrect={!isReadOnly}
           columnsOnly={displayMode === 'table' && tableView !== 'custom'}
           columnsDetail={
             <TableColumnsPicker
