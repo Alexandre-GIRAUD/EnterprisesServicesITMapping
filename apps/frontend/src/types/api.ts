@@ -102,11 +102,17 @@ export type AttributeChangeMeta = {
 
 export type AuditTargetType = 'APPLICATION' | 'EDGE';
 export type AuditActorType = 'HUMAN' | 'AI';
-export type AuditFieldScope = 'NODE_ATTR' | 'EDGE_ATTR' | 'APP_FIELD' | 'EDGE_LINK';
+export type AuditFieldScope =
+  | 'NODE_ATTR'
+  | 'EDGE_ATTR'
+  | 'APP_FIELD'
+  | 'EDGE_LINK'
+  | 'APP_LINK'
+  | 'MODULE_LINK';
 
 export type AttributeChangeEventDto = {
   id: string;
-  targetType: AuditTargetType;
+  targetType: AuditTargetType | 'MODULE';
   targetId: string;
   fieldScope: AuditFieldScope;
   fieldKey: string;
