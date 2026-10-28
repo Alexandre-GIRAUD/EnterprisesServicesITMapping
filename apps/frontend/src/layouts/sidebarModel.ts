@@ -38,6 +38,11 @@ export function mainNavigationEntries(chatbotIsPrimary = CHATBOT_IS_PRIMARY): Si
   return [...CARTOGRAPHY_AND_REST, chatbot];
 }
 
+/** Open the cartography list only when the user arrives on that page. */
+export function shouldOpenWorkspace(wasOnCartography: boolean, isOnCartography: boolean): boolean {
+  return isOnCartography && !wasOnCartography;
+}
+
 export function profileInitial(username: string): string {
   const firstCharacter = Array.from(username.trim())[0];
   return firstCharacter ? firstCharacter.toUpperCase() : '?';

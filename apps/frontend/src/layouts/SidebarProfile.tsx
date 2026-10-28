@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import './sidebarTokens.css';
 import { NavigationIcon } from './NavigationIcon';
 import { profileInitial, profileRoleLabel, type SidebarProfileAction } from './sidebarModel';
-import { nextMenuIndex } from './sidebarRoving';
+import { primeSidebarTabStops } from './sidebarRoving';
 
 const NO_ACTIONS: readonly SidebarProfileAction[] = [];
 
@@ -24,9 +24,9 @@ export function SidebarProfile({ username, roles, onSignOut, actions = NO_ACTION
     if (restoreFocus) triggerRef.current?.focus({ focusVisible: true } as FocusOptions);
   }, []);
   useProfileMenuDismiss(isOpen, rootRef, closeMenu);
-  useEffect(() => {
-    if (!isOpen) return;
-    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ focusVisible: true } as FocusOptions);
+  useLayoutEffect(() => {
+    const sidebar = rootRef.current?.closest('aside');
+    if (sidebar instanceof HTMLElement) primeSidebarTabStops(sidebar);
   }, [isOpen]);
 
   const roleLabel = profileRoleLabel(roles);
@@ -41,20 +41,46 @@ export function SidebarProfile({ username, roles, onSignOut, actions = NO_ACTION
         onToggle={() => setIsOpen((open) => !open)}
       />
       {isOpen ? (
-        <ProfileMenu
-          menuId={menuId}
-          menuRef={menuRef}
-          actions={actions}
-          onKeyDown={(event) => onProfileMenuKeyDown(event, () => closeMenu(true))}
-          onSelect={(action) => {
-            closeMenu(false);
-            action();
+        <div
+          id={menuId}
+          ref={menuRef}
+          className="sidebar-subnav"
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            closeMenu(true);
           }}
-          onSignOut={() => {
-            closeMenu(false);
-            onSignOut();
-          }}
-        />
+        >
+          {actions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              className="sidebar-subitem"
+              data-sidebar-item=""
+              onClick={() => {
+                closeMenu(false);
+                action.onSelect();
+              }}
+            >
+              {action.icon ? <NavigationIcon name={action.icon} /> : null}
+              {action.label}
+            </button>
+          ))}
+          {actions.length > 0 ? <div className="sidebar-profile-separator" role="separator" /> : null}
+          <button
+            type="button"
+            className="sidebar-subitem"
+            data-sidebar-item=""
+            onClick={() => {
+              closeMenu(false);
+              onSignOut();
+            }}
+          >
+            <NavigationIcon name="logOut" />
+            Sign out
+          </button>
+        </div>
       ) : null}
     </div>
   );
@@ -81,7 +107,6 @@ function ProfileTrigger({
       ref={triggerRef}
       className="sidebar-profile-trigger"
       data-sidebar-item=""
-      aria-haspopup="menu"
       aria-expanded={isOpen}
       aria-controls={menuId}
       onClick={onToggle}
@@ -104,69 +129,6 @@ function ProfileTrigger({
       </span>
     </button>
   );
-}
-
-function ProfileMenu({
-  menuId,
-  menuRef,
-  actions,
-  onKeyDown,
-  onSelect,
-  onSignOut,
-}: {
-  menuId: string;
-  menuRef: { current: HTMLDivElement | null };
-  actions: readonly SidebarProfileAction[];
-  onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
-  onSelect: (action: () => void) => void;
-  onSignOut: () => void;
-}) {
-  return (
-    <div
-      id={menuId}
-      ref={menuRef}
-      className="sidebar-profile-menu"
-      role="menu"
-      data-sidebar-menu=""
-      onKeyDown={onKeyDown}
-    >
-      {actions.map((action) => (
-        <button
-          key={action.id}
-          type="button"
-          role="menuitem"
-          className="sidebar-profile-menu-item"
-          onClick={() => onSelect(action.onSelect)}
-        >
-          {action.icon ? <NavigationIcon name={action.icon} /> : null}
-          {action.label}
-        </button>
-      ))}
-      {actions.length > 0 ? <div className="sidebar-profile-separator" role="separator" /> : null}
-      <button type="button" role="menuitem" className="sidebar-profile-menu-item" onClick={onSignOut}>
-        <NavigationIcon name="logOut" />
-        Sign out
-      </button>
-    </div>
-  );
-}
-
-function onProfileMenuKeyDown(event: ReactKeyboardEvent<HTMLDivElement>, closeMenu: () => void) {
-  if (event.altKey || event.ctrlKey || event.metaKey) return;
-  if (event.key === 'Escape') {
-    event.preventDefault();
-    event.stopPropagation();
-    closeMenu();
-    return;
-  }
-  const menuKey = event.key === 'Tab' && event.shiftKey ? 'Shift+Tab' : event.key;
-  const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]')];
-  const currentIndex = items.indexOf(document.activeElement as HTMLElement);
-  const nextIndex = nextMenuIndex(currentIndex, items.length, menuKey);
-  if (nextIndex == null) return;
-  event.preventDefault();
-  event.stopPropagation();
-  items[nextIndex]?.focus({ focusVisible: true } as FocusOptions);
 }
 
 function useProfileMenuDismiss(

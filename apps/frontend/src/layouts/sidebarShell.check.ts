@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { mainNavigationEntries, profileInitial, profileRoleLabel } from './sidebarModel.ts';
+import { mainNavigationEntries, profileInitial, profileRoleLabel, shouldOpenWorkspace } from './sidebarModel.ts';
 import { nextMenuIndex, nextRovingIndex } from './sidebarRoving.ts';
 
 const { SidebarNavItem } = await import('./SidebarNavItem.tsx');
@@ -34,6 +34,9 @@ assert.equal(profileRoleLabel(['ADMIN']), 'Admin');
 assert.equal(profileRoleLabel(['ADMIN', 'USER']), 'Admin · User');
 assert.equal(profileRoleLabel([]), null);
 assert.equal(profileRoleLabel(['   ']), null);
+assert.equal(shouldOpenWorkspace(false, true), true);
+assert.equal(shouldOpenWorkspace(true, true), false);
+assert.equal(shouldOpenWorkspace(false, false), false);
 
 assert.equal(nextRovingIndex(0, 4, 'ArrowDown'), 1);
 assert.equal(nextRovingIndex(3, 4, 'ArrowDown'), 3);
@@ -80,8 +83,8 @@ assert.match(profile, /class="sidebar-profile-role"/);
 assert.match(profile, />Admin</);
 assert.doesNotMatch(profile, />ADMIN</);
 assert.doesNotMatch(profile, /Sign out/);
-assert.match(profile, /aria-haspopup="menu"/);
 assert.match(profile, /aria-expanded="false"/);
+assert.doesNotMatch(profile, /sidebar-subnav/);
 
 const theme = renderToStaticMarkup(
   createElement(ThemeToggle, { theme: 'light', onToggle: () => undefined }),
@@ -102,15 +105,18 @@ const profileSource = readFileSync(new URL('./SidebarProfile.tsx', import.meta.u
 const nav = layout.slice(layout.indexOf('layout-sidebar-nav'), layout.indexOf('sidebar-footer'));
 assert.doesNotMatch(nav, /SettingsMenu/);
 assert.match(nav, /entry\.to === '\/map'/);
+assert.match(layout, /sidebar-disclosure/);
+assert.match(layout, /shouldOpenWorkspace/);
+assert.match(layout, /isWorkspaceOpen/);
 assert.doesNotMatch(layout, /Sign out/);
 assert.doesNotMatch(layout, /layout-sidebar-role/);
 assert.match(layout, /moveSidebarFocus/);
 assert.match(profileSource, /Sign out/);
-assert.match(profileSource, /role="menu"/);
+assert.match(profileSource, /sidebar-subnav/);
 assert.match(profileSource, /logOut/);
 assert.match(profileSource, /Escape/);
 assert.match(profileSource, /actions\.length > 0/);
-assert.match(profileSource, /data-sidebar-menu/);
+assert.doesNotMatch(profileSource, /sidebar-profile-menu/);
 
 for (const fileName of ['SidebarNavItem.tsx', 'SidebarSubItem.tsx', 'SidebarProfile.tsx', 'ThemeToggle.tsx']) {
   const source = readFileSync(new URL(`./${fileName}`, import.meta.url), 'utf8');
@@ -119,11 +125,14 @@ for (const fileName of ['SidebarNavItem.tsx', 'SidebarSubItem.tsx', 'SidebarProf
 
 const tokens = readFileSync(new URL('./sidebarTokens.css', import.meta.url), 'utf8');
 for (const variable of [
-  '--nav-item-height: 40px',
-  '--nav-subitem-height: 32px',
-  '--nav-gap: 4px',
+  '--nav-item-height: 34px',
+  '--nav-subitem-height: 26px',
+  '--nav-gap: 2px',
+  '--nav-subitem-gap: 0px',
   '--nav-padding-x: 12px',
-  '--nav-section-gap: 16px',
+  '--nav-section-gap: 20px',
+  '--nav-footer-gap: 8px',
+  '--nav-footer-end: 12px',
   '--nav-logo-gap: 20px',
   '--radius-sm: 6px',
   '--radius-md: 8px',
@@ -141,5 +150,8 @@ assert.match(sidebarCss, /height:\s*var\(--nav-subitem-height\)/);
 assert.match(sidebarCss, /height:\s*var\(--nav-profile-height\)/);
 assert.match(sidebarCss, /width:\s*var\(--nav-theme-size\)/);
 assert.match(sidebarCss, /gap:\s*var\(--nav-gap\)/);
+assert.match(sidebarCss, /gap:\s*var\(--nav-subitem-gap\)/);
+assert.match(sidebarCss, /padding:\s*var\(--nav-footer-gap\)/);
+assert.match(sidebarCss, /margin-bottom:\s*var\(--nav-section-gap\)/);
 
 console.log('sidebarShell.check: ok');

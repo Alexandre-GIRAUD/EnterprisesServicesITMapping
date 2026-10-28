@@ -1,15 +1,22 @@
 .layout-sidebar {
-  --nav-item-height: 40px;
-  --nav-subitem-height: 32px;
-  --nav-gap: 4px;
+  --nav-item-height: 34px;
+  --nav-subitem-height: 26px;
+  --nav-gap: 2px;
+  --nav-subitem-gap: 0px;
   --nav-padding-x: 12px;
-  --nav-section-gap: 16px;
+  --nav-section-gap: 20px;
+  --nav-footer-gap: 8px;
+  --nav-footer-end: 12px;
   --nav-logo-gap: 20px;
   --nav-icon-size: 20px;
   --nav-icon-gap: 12px;
   --nav-label-size: 14px;
   --nav-subitem-label-size: 13px;
-  --nav-profile-height: 48px;
+  --nav-profile-height: 40px;
+  --nav-underline-size: 2px;
+  --nav-underline-production: #2563eb;
+  --nav-underline-sandbox: #d97706;
+  --nav-underline-views: #16a34a;
   --nav-avatar-size: 32px;
   --nav-theme-size: 32px;
   --nav-role-size: 12px;

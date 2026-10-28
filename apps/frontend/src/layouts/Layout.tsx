@@ -15,10 +15,11 @@ import { SidebarProfile } from './SidebarProfile';
 import { ThemeToggle } from './ThemeToggle';
 import { WorkspaceModeNav } from './WorkspaceModeNav';
 import './sidebar.css';
-import { mainNavigationEntries } from './sidebarModel';
+import { mainNavigationEntries, shouldOpenWorkspace } from './sidebarModel';
 import { moveSidebarFocus, primeSidebarTabStops, rememberSidebarTabStop } from './sidebarRoving';
 
 const navigationEntries = mainNavigationEntries();
+const CARTOGRAPHY_MODES_ID = 'cartography-modes';
 
 export function Layout() {
   return (
@@ -34,6 +35,9 @@ function LayoutShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const onCartography = useMatch({ path: '/map', end: true });
+  const isOnCartography = onCartography != null;
+  const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(isOnCartography);
+  const wasOnCartography = useRef(isOnCartography);
   const { mode, sandboxDirty } = useWorkspaceMode();
   const sidebarRef = useRef<HTMLElement>(null);
   const [theme, setTheme] = useState<ColorTheme>(() =>
@@ -45,10 +49,16 @@ function LayoutShell() {
     localStorage.setItem(COLOR_THEME_STORAGE_KEY, theme);
   }, [theme]);
 
+  useEffect(() => {
+    if (shouldOpenWorkspace(wasOnCartography.current, isOnCartography)) setIsWorkspaceOpen(true);
+    if (wasOnCartography.current && !isOnCartography) setIsWorkspaceOpen(false);
+    wasOnCartography.current = isOnCartography;
+  }, [isOnCartography]);
+
   useLayoutEffect(() => {
     if (!sidebarRef.current) return;
     primeSidebarTabStops(sidebarRef.current);
-  }, [user]);
+  }, [user, isWorkspaceOpen]);
 
   function openWorkspaceMode(next: GraphMode) {
     if (onCartography && mode === next) return;
@@ -85,16 +95,41 @@ function LayoutShell() {
             <nav className="layout-sidebar-nav" aria-label="Main navigation">
               {navigationEntries.map((entry) => (
                 <Fragment key={entry.to}>
-                  <SidebarNavItem
-                    label={entry.label}
-                    to={entry.to}
-                    end={entry.isEnd}
-                    badge={entry.badge}
-                    showSeparator={entry.showSeparator}
-                    icon={<NavigationIcon name={entry.icon} />}
-                  />
                   {entry.to === '/map' ? (
+                    <div className="sidebar-nav-row">
+                      <SidebarNavItem
+                        label={entry.label}
+                        to={entry.to}
+                        end={entry.isEnd}
+                        badge={entry.badge}
+                        showSeparator={entry.showSeparator}
+                        icon={<NavigationIcon name={entry.icon} />}
+                      />
+                      <button
+                        type="button"
+                        className="sidebar-disclosure"
+                        data-sidebar-item=""
+                        aria-expanded={isWorkspaceOpen}
+                        aria-controls={CARTOGRAPHY_MODES_ID}
+                        aria-label="Cartography views"
+                        onClick={() => setIsWorkspaceOpen((open) => !open)}
+                      >
+                        <NavigationIcon name="chevronDown" />
+                      </button>
+                    </div>
+                  ) : (
+                    <SidebarNavItem
+                      label={entry.label}
+                      to={entry.to}
+                      end={entry.isEnd}
+                      badge={entry.badge}
+                      showSeparator={entry.showSeparator}
+                      icon={<NavigationIcon name={entry.icon} />}
+                    />
+                  )}
+                  {entry.to === '/map' && isWorkspaceOpen ? (
                     <WorkspaceModeNav
+                      id={CARTOGRAPHY_MODES_ID}
                       mode={onCartography ? mode : null}
                       sandboxDirty={Boolean(onCartography && sandboxDirty)}
                       onModeChange={openWorkspaceMode}

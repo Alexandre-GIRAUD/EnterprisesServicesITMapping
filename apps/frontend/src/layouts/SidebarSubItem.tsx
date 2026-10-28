@@ -4,13 +4,14 @@ import './sidebarTokens.css';
 type SidebarSubItemProps = {
   id: string;
   label: string;
+  tone: 'production' | 'sandbox' | 'views';
   isActive: boolean;
   onClick: () => void;
   trailing?: ReactNode;
 };
 
-export function SidebarSubItem({ id, label, isActive, onClick, trailing }: SidebarSubItemProps) {
-  const className = isActive ? 'sidebar-subitem is-active' : 'sidebar-subitem';
+export function SidebarSubItem({ id, label, tone, isActive, onClick, trailing }: SidebarSubItemProps) {
+  const className = `sidebar-subitem sidebar-subitem--${tone}${isActive ? ' is-active' : ''}`;
   return (
     <button
       type="button"

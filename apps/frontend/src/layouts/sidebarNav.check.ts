@@ -23,7 +23,7 @@ assert.match(layout, /mainNavigationEntries\(/);
 assert.doesNotMatch(layout, /Sign out/);
 
 assert.match(css, /\.layout \{[^}]*flex-direction: row/);
-const activeLink = sidebarCss.match(/\.sidebar-nav-item\.is-active,\s*\n\.sidebar-subitem\.is-active,[\s\S]*?\{[^}]*\}/);
+const activeLink = sidebarCss.match(/\.sidebar-nav-item\.is-active,[\s\S]*?\{[^}]*\}/);
 assert.ok(activeLink, 'active sidebar link rule missing');
 assert.match(activeLink[0], /background/);
 

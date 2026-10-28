@@ -20,12 +20,15 @@ assert.match(css, /\.layout-sidebar \{[^}]*background: #d5dee8/);
 assert.match(css, /\.self-service-side-menu \{[^}]*background: #ffffff/);
 assert.match(sidebarCss, /\.sidebar-subnav \{[^}]*flex-direction: column/);
 assert.match(sidebarCss, /\.sidebar-subnav::before\s*\{[^}]*width:\s*1px/);
-assert.match(sidebarCss, /\.sidebar-subitem\.is-active,\s*\n\.sidebar-profile-trigger\[aria-expanded='true'\] \{[^}]*background/);
-assert.doesNotMatch(sidebarCss, /\.sidebar-subitem\.is-active[^{]*\{[^}]*text-decoration:\s*underline/);
+assert.match(sidebarCss, /\.sidebar-subitem--production\.is-active\s*\{[^}]*var\(--nav-underline-production\)/);
+assert.match(sidebarCss, /\.sidebar-subitem--sandbox\.is-active\s*\{[^}]*var\(--nav-underline-sandbox\)/);
+assert.match(sidebarCss, /\.sidebar-subitem--views\.is-active\s*\{[^}]*var\(--nav-underline-views\)/);
+assert.match(sidebarCss, /\.sidebar-subitem\.is-active\s*\{[^}]*text-decoration:\s*underline/);
 
 function nav(mode: 'normal' | 'sandbox' | 'views' | null, sandboxDirty = false) {
   return renderToStaticMarkup(
     createElement(WorkspaceModeNav, {
+      id: 'cartography-modes',
       mode,
       sandboxDirty,
       onModeChange: () => undefined,
@@ -43,7 +46,9 @@ const production = nav('normal');
 assert.match(production, />Production</);
 assert.match(production, />Sandbox</);
 assert.match(production, />My views</);
-assert.match(button(production, 'graph-mode-tab-normal'), /is-active/);
+assert.match(button(production, 'graph-mode-tab-normal'), /sidebar-subitem--production is-active/);
+assert.match(button(production, 'graph-mode-tab-sandbox'), /sidebar-subitem--sandbox/);
+assert.match(button(production, 'graph-mode-tab-views'), /sidebar-subitem--views/);
 assert.doesNotMatch(button(production, 'graph-mode-tab-sandbox'), /is-active/);
 assert.match(button(nav('sandbox'), 'graph-mode-tab-sandbox'), /is-active/);
 assert.match(button(nav('views'), 'graph-mode-tab-views'), /is-active/);
