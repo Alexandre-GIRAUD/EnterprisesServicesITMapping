@@ -437,7 +437,6 @@ export async function elkLayout<N extends Node>(
   } = options;
 
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
-  const mergedPositions = new Map<string, { x: number; y: number }>();
   const mergedRoutes = new Map<string, Point[]>();
   const mergedNodes: N[] = [];
   const bounds: { width: number; height: number }[] = [];
@@ -484,7 +483,6 @@ export async function elkLayout<N extends Node>(
     const offset = offsets[i] ?? { x: 0, y: 0 };
     translateComponentLayout(meta.nodeIds, meta.positions, meta.routes, meta.edgeIds, offset);
 
-    for (const [id, pos] of meta.positions) mergedPositions.set(id, pos);
     for (const [id, route] of meta.routes) mergedRoutes.set(id, route);
     for (const node of meta.nodes) {
       const pos = meta.positions.get(node.id);
