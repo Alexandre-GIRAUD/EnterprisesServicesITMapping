@@ -4,6 +4,7 @@ import com.enterprise.itmapping.feature.history.infrastructure.persistence.Syste
 import com.enterprise.itmapping.feature.history.infrastructure.persistence.SystemDailyStateRepository;
 import com.enterprise.itmapping.feature.history.infrastructure.persistence.SystemGraphState;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -37,7 +38,12 @@ public class SystemStateCaptureService {
 
   @Transactional
   public void captureFor(LocalDate day) {
-    repository.save(new SystemDailyStateEntity(day, graphState.read(), clock.instant()));
+    SystemState state = graphState.read();
+    Instant capturedAt = clock.instant();
+    SystemDailyStateEntity row =
+        repository.findById(day).orElseGet(() -> new SystemDailyStateEntity(day, state, capturedAt));
+    row.overwrite(state, capturedAt);
+    repository.save(row);
   }
 
   @Transactional(readOnly = true)

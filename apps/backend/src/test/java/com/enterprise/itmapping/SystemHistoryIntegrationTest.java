@@ -3,6 +3,7 @@ package com.enterprise.itmapping;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.enterprise.itmapping.feature.applications.application.ApplicationModuleLifecycle;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationRequest;
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
@@ -60,6 +61,7 @@ class SystemHistoryIntegrationTest {
   }
 
   @Autowired ApplicationService applicationService;
+  @Autowired ApplicationModuleLifecycle moduleLifecycle;
   @Autowired AttributeChangeAuditService auditService;
   @Autowired GraphService graphService;
   @Autowired Neo4jClient neo4jClient;
@@ -83,6 +85,7 @@ class SystemHistoryIntegrationTest {
         .contains(
             "APP_LINK created",
             "APP_FIELD name",
+            "MODULE_LINK created",
             "EDGE_LINK created",
             "EDGE_LINK deleted",
             "MODULE_LINK deleted",
@@ -126,14 +129,16 @@ class SystemHistoryIntegrationTest {
   }
 
   private void createModule(String applicationId) {
+    String moduleId = UUID.randomUUID().toString();
     neo4jClient
         .query(
             """
             MATCH (a:Application {id: $appId})
             CREATE (a)-[:CONTAINS]->(:Module {id: $moduleId, name: 'Billing', description: ''})
             """)
-        .bindAll(Map.of("appId", applicationId, "moduleId", UUID.randomUUID().toString()))
+        .bindAll(Map.of("appId", applicationId, "moduleId", moduleId))
         .run();
+    moduleLifecycle.recordCreated(applicationId, moduleId, "Billing");
   }
 
   private static String describe(AttributeChangeEventResponse event) {

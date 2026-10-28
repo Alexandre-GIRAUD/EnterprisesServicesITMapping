@@ -40,4 +40,13 @@ public class SystemDailyStateEntity {
   public SystemState getState() {
     return state;
   }
+
+  public Instant getCapturedAt() {
+    return capturedAt;
+  }
+
+  public void overwrite(SystemState state, Instant capturedAt) {
+    this.state = state;
+    this.capturedAt = capturedAt;
+  }
 }

@@ -78,6 +78,9 @@ public class SystemGraphState {
   }
 
   private void createNodes(String label, List<Map<String, Object>> rows) {
+    if (rows.isEmpty()) {
+      return;
+    }
     neo4jClient
         .query("UNWIND $rows AS props CREATE (n:" + label + ") SET n = props")
         .bind(rows)
@@ -96,6 +99,9 @@ public class SystemGraphState {
                         "targetId", relationship.targetId(),
                         "props", relationship.properties()))
             .toList();
+    if (rows.isEmpty()) {
+      return;
+    }
     neo4jClient
         .query(
             """
