@@ -68,21 +68,59 @@ export function packComponentOffsets(
 
   const items = bounds.map((bound, i) => ({ ...bound, i, area: bound.width * bound.height }));
   items.sort((a, b) => b.area - a.area || a.i - b.i);
-  const narrowest = Math.min(...bounds.map((bound) => bound.width));
-
-  let bestScore = Infinity;
+  let bestCost = Infinity;
   let best: Pos[] = shelfPack(bounds, gap);
-  for (let columns = 1; columns <= items.length; columns += 1) {
-    const rows = rowsOf(items, columns);
-    const gapSize = gapMatchingFit(rows, aspectRatio);
-    const placed = placeRows(rows, gapSize);
-    const score = arrangementScore(rows, gapSize, aspectRatio, narrowest);
-    if (score < bestScore) {
-      bestScore = score;
+  const consider = (placed: Pos[]) => {
+    const cost = fitCost(placed, items, aspectRatio);
+    if (cost < bestCost) {
+      bestCost = cost;
       best = placed;
     }
+  };
+  for (let columns = 1; columns <= items.length; columns += 1) {
+    const rows = rowsOf(items, columns);
+    consider(placeRows(rows, gapMatchingFit(rows, aspectRatio)));
   }
+  consider(packRestBesideFirst(items, gap));
   return best;
+}
+
+/** Smaller means the islands fit a 16:9 pane at a larger zoom. */
+function fitCost(offsets: Pos[], items: IndexedSize[], aspectRatio: number): number {
+  let width = 0;
+  let height = 0;
+  for (const item of items) {
+    const pos = offsets[item.i];
+    if (!pos) continue;
+    width = Math.max(width, pos.x + item.width);
+    height = Math.max(height, pos.y + item.height);
+  }
+  return Math.max(width, height * aspectRatio);
+}
+
+/** Small islands fill the free side of the widest one before the map grows. */
+function packRestBesideFirst(items: IndexedSize[], gap: number): Pos[] {
+  const first = items[0];
+  if (!first) return [];
+  const offsets: Pos[] = [];
+  offsets[first.i] = { x: ZONE_PADDING, y: ZONE_PADDING };
+  let x = first.width + 2 * ZONE_PADDING + gap;
+  let y = ZONE_PADDING;
+  let columnWidth = 0;
+  const bandBottom = ZONE_PADDING + first.height;
+  for (const item of items.slice(1)) {
+    const itemSpan = item.height + 2 * ZONE_PADDING;
+    const startsNewColumn = y > ZONE_PADDING && y + item.height > bandBottom;
+    if (startsNewColumn) {
+      x += columnWidth + gap;
+      y = ZONE_PADDING;
+      columnWidth = 0;
+    }
+    offsets[item.i] = { x, y };
+    y += itemSpan + gap;
+    columnWidth = Math.max(columnWidth, item.width + 2 * ZONE_PADDING);
+  }
+  return offsets;
 }
 
 function rowsOf(items: IndexedSize[], columns: number): IndexedSize[][] {
@@ -139,27 +177,6 @@ function placeRows(rows: IndexedSize[][], gap: number): Pos[] {
     y += rowHeight + gap;
   }
   return offsets;
-}
-
-function arrangementScore(
-  rows: IndexedSize[][],
-  gap: number,
-  aspectRatio: number,
-  narrowest: number,
-): number {
-  const { spanX, gapsX, spanY, gapsY } = rowSpans(rows);
-  const nodeW = spanX + gapsX * (2 * ZONE_PADDING + gap);
-  const nodeH = spanY + gapsY * (2 * ZONE_PADDING + gap);
-  const aspect = nodeH > 0 ? nodeW / nodeH : aspectRatio;
-  let score = Math.abs(Math.log(aspect / aspectRatio));
-  const fullSpan = spanX + gapsX * (2 * ZONE_PADDING + gap);
-  for (const row of rows) {
-    const rowSpan =
-      row.reduce((sum, item) => sum + item.width, 0) +
-      Math.max(0, row.length - 1) * (2 * ZONE_PADDING + gap);
-    if (fullSpan - rowSpan > narrowest) score += 10;
-  }
-  return score;
 }
 
 function shelfPack(bounds: Size[], gap: number): Pos[] {

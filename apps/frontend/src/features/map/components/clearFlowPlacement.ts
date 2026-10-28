@@ -16,7 +16,7 @@ import {
 
 /** Gap between columns. Wide enough for one elbow to pass beside a card. */
 const COLUMN_GAP = 96;
-/** Gap between rows. Each application starts on its own row so an elbow misses the other cards. */
+/** Gap between rows. One row per dependency depth, so an elbow can pass between layers. */
 const ROW_GAP = 80;
 const PORT_MARGIN = 8;
 const ORDER_SWEEPS = 4;
@@ -121,11 +121,21 @@ function splitIntoLinkedGroups(
 }
 
 function placeLinkedGroup(group: LinkedGroup & { workBudget: number }): PlacedGroup {
+  const layered = drawGroup(group, buildLayeredGrid(group.nodes, group.edges));
+  if (!hasSharedFlowStretch(layered, group.edges)) return layered;
+  return drawGroup(group, buildSpreadGrid(group.nodes, group.edges));
+}
+
+function drawGroup(group: LinkedGroup & { workBudget: number }, grid: Grid): PlacedGroup {
   const { nodes, edges, workBudget } = group;
-  const grid = buildPlacementGrid(nodes, edges);
   moveNodesUntilClear({ nodes, edges, grid, workBudget });
   const cards = [...buildNodeCards(nodes, grid).values()];
-  const routes = buildFlowRoutes({ cards: new Map(cards.map((card) => [card.id, card])), edges, grid, shouldTryEveryPort: true });
+  const routes = buildFlowRoutes({
+    cards: new Map(cards.map((card) => [card.id, card])),
+    edges,
+    grid,
+    shouldTryEveryPort: true,
+  });
   const left = Math.min(...cards.map((card) => card.x));
   const top = Math.min(...cards.map((card) => card.y));
   const moved = translateGroup({ cards, routes }, { x: -left, y: -top });
@@ -134,6 +144,11 @@ function placeLinkedGroup(group: LinkedGroup & { workBudget: number }): PlacedGr
     width: Math.max(...moved.cards.map((card) => card.x + card.width)),
     height: Math.max(...moved.cards.map((card) => card.y + card.height)),
   };
+}
+
+function hasSharedFlowStretch(placed: Pick<PlacedGroup, 'cards' | 'routes'>, edges: readonly FlowPlacementEdge[]): boolean {
+  const cards = new Map(placed.cards.map((card) => [card.id, card]));
+  return scoreRoutes({ routes: placed.routes, cards, edges }).sharedStretches > 0;
 }
 
 function translateGroup(
@@ -147,13 +162,30 @@ function translateGroup(
   };
 }
 
-function buildPlacementGrid(nodes: readonly FlowPlacementNode[], edges: readonly FlowPlacementEdge[]): Grid {
+function buildLayeredGrid(nodes: readonly FlowPlacementNode[], edges: readonly FlowPlacementEdge[]): Grid {
   const ids = nodes.map((node) => node.id);
   const rank = calculateRankFromSources(ids, edges);
   const order = orderWithinRank(ids, edges, rank);
-  const row = assignRowFromRank(ids, rank, order);
-  const column = assignColumnFromPredecessors(ids, edges, row);
-  return { row, column };
+  return assignLayeredCells(ids, rank, order, layerPitchRatio(nodes));
+}
+
+function layerPitchRatio(nodes: readonly FlowPlacementNode[]): number {
+  const sample = nodes[EMPTY_INDEX];
+  const width = sample?.width ?? MINIMUM_PORT_SPAN;
+  const height = sample?.height ?? MINIMUM_PORT_SPAN;
+  return (width + COLUMN_GAP) / (height + ROW_GAP);
+}
+
+/**
+ * One card per row. Used only when a layered drawing still stacks two flows on
+ * the same stretch, which a deep dense map can do.
+ */
+function buildSpreadGrid(nodes: readonly FlowPlacementNode[], edges: readonly FlowPlacementEdge[]): Grid {
+  const ids = nodes.map((node) => node.id);
+  const rank = calculateRankFromSources(ids, edges);
+  const order = orderWithinRank(ids, edges, rank);
+  const row = assignSpreadRows(ids, rank, order);
+  return { row, column: assignColumnFromPredecessors(ids, edges, row) };
 }
 
 function calculateRankFromSources(ids: readonly string[], edges: readonly FlowPlacementEdge[]): Map<string, number> {
@@ -233,7 +265,55 @@ function calculateBarycenter(id: string, indexOf: Map<string, number>, edges: re
   return total / neighbors.length;
 }
 
-function assignRowFromRank(ids: readonly string[], rank: Map<string, number>, order: Map<string, number>): Map<string, number> {
+/**
+ * Applications at the same depth stay together. A depth wider than the screen
+ * wraps onto extra rows so the group is close to the map pane's shape.
+ */
+function assignLayeredCells(
+  ids: readonly string[],
+  rank: Map<string, number>,
+  order: Map<string, number>,
+  pitchRatio: number,
+): Grid {
+  const layers = groupIdsByRank(ids, rank);
+  const cardsPerRow = chooseCardsPerRow([...layers.values()].map((layer) => layer.length), pitchRatio);
+  const row = new Map<string, number>();
+  const column = new Map<string, number>();
+  let nextRow = EMPTY_INDEX;
+  for (const key of [...layers.keys()].sort((left, right) => left - right)) {
+    const layer = [...(layers.get(key) ?? [])].sort(
+      (left, right) => (order.get(left) ?? EMPTY_INDEX) - (order.get(right) ?? EMPTY_INDEX),
+    );
+    layer.forEach((id, index) => {
+      column.set(id, index % cardsPerRow);
+      row.set(id, nextRow + Math.floor(index / cardsPerRow));
+    });
+    nextRow += Math.ceil(layer.length / cardsPerRow);
+  }
+  return { row, column };
+}
+
+function chooseCardsPerRow(layerSizes: readonly number[], pitchRatio: number): number {
+  const widest = Math.max(...layerSizes, MINIMUM_PORT_SPAN);
+  let bestCount = widest;
+  let bestDistance = Infinity;
+  for (let cardsPerRow = MINIMUM_PORT_SPAN; cardsPerRow <= widest; cardsPerRow += CELL_STEP) {
+    const rowCount = layerSizes.reduce((sum, size) => sum + Math.ceil(size / cardsPerRow), EMPTY_INDEX);
+    const aspect = (cardsPerRow * pitchRatio) / rowCount;
+    const distance = Math.abs(Math.log(aspect / PACKED_ASPECT_RATIO));
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestCount = cardsPerRow;
+    }
+  }
+  return bestCount;
+}
+
+function assignSpreadRows(
+  ids: readonly string[],
+  rank: Map<string, number>,
+  order: Map<string, number>,
+): Map<string, number> {
   const sorted = [...ids].sort((left, right) => {
     const rankDelta = (rank.get(left) ?? EMPTY_INDEX) - (rank.get(right) ?? EMPTY_INDEX);
     if (rankDelta !== 0) return rankDelta;
@@ -263,16 +343,6 @@ function assignColumnFromPredecessors(
   return column;
 }
 
-function groupIncomingByTarget(
-  ids: readonly string[],
-  edges: readonly FlowPlacementEdge[],
-): Map<string, string[]> {
-  const incoming = new Map<string, string[]>();
-  for (const id of ids) incoming.set(id, []);
-  for (const edge of edges) incoming.get(edge.target)?.push(edge.source);
-  return incoming;
-}
-
 function findOpenPredecessorColumn(
   id: string,
   placement: {
@@ -298,6 +368,16 @@ function findOpenPredecessorColumn(
     if (isOpen) return candidate;
   }
   return undefined;
+}
+
+function groupIncomingByTarget(
+  ids: readonly string[],
+  edges: readonly FlowPlacementEdge[],
+): Map<string, string[]> {
+  const incoming = new Map<string, string[]>();
+  for (const id of ids) incoming.set(id, []);
+  for (const edge of edges) incoming.get(edge.target)?.push(edge.source);
+  return incoming;
 }
 
 /** True when no card sits strictly between `from` and `to` on that grid column or row. */
