@@ -4,7 +4,6 @@ import com.enterprise.itmapping.feature.history.infrastructure.persistence.Syste
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Supplier;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -39,12 +38,6 @@ public class PastSystemView {
     this.graphState = graphState;
     this.neo4jTransactionManager = neo4jTransactionManager;
     this.clock = clock;
-  }
-
-  public <T> T read(LocalDate day, Supplier<T> reader) {
-    try (Session ignored = open(day)) {
-      return reader.get();
-    }
   }
 
   /** The graph looks like {@code day} until the session is closed. */

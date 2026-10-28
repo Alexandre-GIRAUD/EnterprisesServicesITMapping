@@ -105,10 +105,9 @@ class SystemHistoryIntegrationTest {
     applicationService.update(appId, new ApplicationRequest("After", ""));
     String laterId = applicationService.create(new ApplicationRequest("Created later", "")).id();
 
-    List<String> pastLabels =
-        pastSystemView.read(CAPTURED_DAY, () -> labelsOf(List.of(appId, laterId)));
-
-    assertThat(pastLabels).containsExactly("Before");
+    try (PastSystemView.Session ignored = pastSystemView.open(CAPTURED_DAY)) {
+      assertThat(labelsOf(List.of(appId, laterId))).containsExactly("Before");
+    }
     assertThat(labelsOf(List.of(appId, laterId))).containsExactlyInAnyOrder("After", "Created later");
   }
 
@@ -116,7 +115,7 @@ class SystemHistoryIntegrationTest {
   void dayBeforeTheFirstCaptureIsRejected() {
     captureService.captureFor(CAPTURED_DAY);
 
-    assertThatThrownBy(() -> pastSystemView.read(BEFORE_ANY_CAPTURE, () -> "unused"))
+    assertThatThrownBy(() -> pastSystemView.open(BEFORE_ANY_CAPTURE))
         .isInstanceOf(ResponseStatusException.class);
   }
 
