@@ -243,8 +243,7 @@ class ChangeDetectionServiceCommitVisibilityTest {
 
     @Bean
     GitHubIntegrationProperties githubProperties() {
-      return new GitHubIntegrationProperties(
-          null, null, 0, null, "refs/heads/main", 0, 0, null, null, null, null);
+      return new GitHubIntegrationProperties(null, null, 0, null, "refs/heads/main", 0, 0);
     }
 
     @Bean

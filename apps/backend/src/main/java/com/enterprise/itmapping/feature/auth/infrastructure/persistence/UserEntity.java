@@ -42,12 +42,6 @@ public class UserEntity {
   @Column(name = "github_access_token")
   private String githubAccessToken;
 
-  @Column(name = "github_oauth_state", unique = true, length = 80)
-  private String githubOauthState;
-
-  @Column(name = "github_oauth_state_expires")
-  private Instant githubOauthStateExpires;
-
   @PrePersist
   void prePersist() {
     if (id == null) {
@@ -117,21 +111,5 @@ public class UserEntity {
 
   public void setGithubAccessToken(String githubAccessToken) {
     this.githubAccessToken = githubAccessToken;
-  }
-
-  public String getGithubOauthState() {
-    return githubOauthState;
-  }
-
-  public void setGithubOauthState(String githubOauthState) {
-    this.githubOauthState = githubOauthState;
-  }
-
-  public Instant getGithubOauthStateExpires() {
-    return githubOauthStateExpires;
-  }
-
-  public void setGithubOauthStateExpires(Instant githubOauthStateExpires) {
-    this.githubOauthStateExpires = githubOauthStateExpires;
   }
 }

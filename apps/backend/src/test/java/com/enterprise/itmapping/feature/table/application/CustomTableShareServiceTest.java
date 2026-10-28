@@ -148,8 +148,6 @@ class CustomTableShareServiceTest {
 
   @Test
   void shareRejectsABlankUsername() {
-    when(sender.getId()).thenReturn(senderId);
-
     ResponseStatusException blank =
         assertThrows(ResponseStatusException.class, () -> customTableShareService.share("  ", "Regions", objectMapper.createObjectNode()));
 

@@ -8,17 +8,14 @@ import com.enterprise.itmapping.feature.integrations.github.dto.GitHubRepoDto;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.servlet.view.RedirectView;
 
 @RestController
 @RequestMapping("/integrations/github")
@@ -37,12 +34,6 @@ public class GitHubIntegrationController {
     this.currentUser = currentUser;
   }
 
-  /** Starts OAuth. The browser is sent to the returned GitHub URL. */
-  @GetMapping("/connect")
-  public Map<String, String> connect() {
-    return Map.of("authorizeUrl", accounts.begin(currentUser.requireCurrentUser()));
-  }
-
   @GetMapping("/connection")
   public GitHubConnectionStatus connection() {
     return accounts.status(currentUser.requireCurrentUser());
@@ -56,25 +47,6 @@ public class GitHubIntegrationController {
   @DeleteMapping("/connection")
   public void disconnect() {
     accounts.disconnect(currentUser.requireCurrentUser());
-  }
-
-  /** GitHub redirects the browser here. No Flowra session is present on this request. */
-  @GetMapping("/callback")
-  public RedirectView callback(
-      @RequestParam(required = false) String code, @RequestParam(required = false) String state) {
-    String flag = "connected";
-    try {
-      if (!StringUtils.hasText(code) || !StringUtils.hasText(state)) {
-        flag = "denied";
-      } else {
-        accounts.finish(state, code);
-      }
-    } catch (ResponseStatusException ex) {
-      flag = "failed";
-    }
-    RedirectView view = new RedirectView(accounts.returnUrl(flag));
-    view.setContextRelative(false);
-    return view;
   }
 
   /**

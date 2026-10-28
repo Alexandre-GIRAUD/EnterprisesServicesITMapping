@@ -75,10 +75,6 @@ class GitHubApiClientTokenTest {
         "",
         "refs/heads/main",
         80,
-        512,
-        "",
-        "",
-        "http://localhost:8081/api/integrations/github/callback",
-        "http://localhost:3000/map/import-github");
+        512);
   }
 }

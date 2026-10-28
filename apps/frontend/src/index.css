@@ -521,101 +521,6 @@ body.is-diagram-grown .layout {
   width: 100%;
 }
 
-.map-filters-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.9rem 1rem;
-  margin-bottom: 1rem;
-}
-
-.map-date-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.65rem 0.75rem;
-}
-
-.map-date-filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  min-width: 140px;
-}
-
-.map-date-filter-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #334155;
-}
-
-.map-date-filter-input {
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 0.58rem 0.62rem;
-  font-size: 0.9rem;
-  outline: none;
-  background: #fff;
-  color: #0f172a;
-}
-
-.map-date-filter-input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgb(37 99 235 / 15%);
-}
-
-.map-toolbar-trailing {
-  margin-left: auto;
-  display: flex;
-  align-items: flex-end;
-}
-
-.map-github-import-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.65rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  padding: 0.58rem 0.95rem;
-  background: rgb(255 255 255 / 94%);
-  color: #334155;
-  text-decoration: none;
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
-  transition:
-    transform 160ms ease,
-    border-color 160ms ease,
-    background-color 160ms ease,
-    box-shadow 160ms ease;
-}
-
-.map-github-import-btn:hover {
-  transform: translateY(-1px);
-  border-color: #93c5fd;
-  background: #ffffff;
-  box-shadow: 0 6px 16px rgb(15 23 42 / 12%);
-}
-
-.map-github-import-btn:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-.map-github-import-btn-meta {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  padding: 0.15rem 0.45rem;
-  background: #f1f5f9;
-}
-
 /* ===== GitHub import page ===== */
 .github-import-page {
   width: 100%;
@@ -1824,14 +1729,6 @@ body.is-diagram-grown .layout {
   border: 0;
 }
 
-.graph-canvas-search {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  z-index: 6;
-  width: min(280px, 42vw);
-}
-
 .application-search--canvas .application-search-input {
   padding: 0.55rem 0.85rem;
   font-size: 0.82rem;
@@ -1854,28 +1751,6 @@ body.is-diagram-grown .layout {
 }
 
 @media (max-width: 640px) {
-  .map-filters-toolbar {
-    display: block;
-  }
-
-  .map-date-filters {
-    margin-top: 0.75rem;
-  }
-
-  .map-toolbar-trailing {
-    margin-left: 0;
-    margin-top: 0.75rem;
-  }
-
-  .map-github-import-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .map-date-filter-field {
-    min-width: 0;
-    width: 100%;
-  }
 
   .application-search {
     max-width: 100%;
@@ -1940,60 +1815,6 @@ body.is-diagram-grown .layout {
 .graph-table-row--static:hover,
 .graph-table-row--static:focus-visible {
   background: transparent;
-}
-
-.graph-table-toggle {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  padding: 0.45rem 0.85rem;
-  background: rgb(255 255 255 / 94%);
-  color: #334155;
-  font-size: 0.85rem;
-  font-weight: 500;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
-  cursor: pointer;
-  transition:
-    transform 180ms ease,
-    border-color 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.graph-table-toggle:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: #93c5fd;
-  background: #ffffff;
-  box-shadow: 0 6px 16px rgb(15 23 42 / 12%);
-}
-
-.graph-table-toggle:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.graph-table-toggle:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-.graph-table-toggle-icon {
-  font-size: 1rem;
-  line-height: 1;
-  opacity: 0.85;
-}
-
-.graph-table-toggle-count {
-  font-size: 0.75rem;
-  color: #64748b;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  border: 1px solid #e2e8f0;
-  background: #f1f5f9;
 }
 
 .graph-table-panel,
@@ -2200,10 +2021,7 @@ body.is-diagram-grown .layout {
 .map-graph-panel .graph-filter-status.is-active {
   color: var(--ss-accent);
 }
-
-.map-graph-panel .graph-filter-root-label input[type='checkbox'],
-.map-graph-panel .graph-filter-detail-list input[type='checkbox'],
-.map-graph-panel .graph-filter-year-detail input[type='checkbox'] {
+.map-graph-panel .graph-filter-detail-list input[type='checkbox'] {
   accent-color: var(--ss-accent);
 }
 
@@ -2571,42 +2389,6 @@ body.is-diagram-grown .layout {
   padding: 0 0.65rem 0.55rem;
 }
 
-.self-service-changes-entry {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-top: 0.55rem;
-  padding: 0.4rem 0.65rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #f8fafc;
-  color: #334155;
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.self-service-changes-entry.is-active {
-  border-color: #93c5fd;
-  background: #ffffff;
-  color: #1d4ed8;
-  box-shadow: 0 2px 8px rgb(37 99 235 / 12%);
-}
-
-.self-service-changes-entry:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-.self-service-changes-entry-count {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #1d4ed8;
-}
-
 .self-service-tool-bar {
   display: flex;
   align-items: stretch;
@@ -2813,14 +2595,6 @@ body.is-diagram-grown .layout {
   background: #e2e8f0;
   color: #0f172a;
 }
-
-.self-service-side-menu-section + .self-service-side-menu-section {
-  margin-top: 1.1rem;
-  padding-top: 1rem;
-  border-top: 2px solid #e2e8f0;
-}
-
-.self-service-side-menu-section-title,
 .section-kicker {
   margin: 0 0 0.45rem;
   font-size: 12px;
@@ -2828,67 +2602,6 @@ body.is-diagram-grown .layout {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #64748b;
-}
-
-.self-service-tool-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.self-service-tool-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.65rem;
-  width: 100%;
-  padding: 0.52rem 0.65rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #f8fafc;
-  color: #475569;
-  font-size: 0.78rem;
-  font-weight: 500;
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-  transition:
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
-}
-
-.self-service-tool-item:hover {
-  background: #ffffff;
-  border-color: #cbd5e1;
-  color: #0f172a;
-}
-
-.self-service-tool-item.is-active {
-  border-color: #93c5fd;
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
-.self-service-tool-item-label {
-  flex: 1;
-  min-width: 0;
-}
-
-.self-service-tool-item-meta {
-  flex-shrink: 0;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: #94a3b8;
-}
-
-.self-service-tool-item.is-active .self-service-tool-item-meta {
-  color: #2563eb;
-}
-
-.self-service-side-menu-search {
-  padding: 0.15rem 0 0.35rem;
 }
 
 .application-search--menu {
@@ -2943,67 +2656,6 @@ body.is-diagram-grown .layout {
 .diagram-resize-handle:focus-visible {
   outline: 2px solid #93c5fd;
   outline-offset: -2px;
-}
-
-.graph-filter-toggle {
-  position: absolute;
-  top: 3.4rem;
-  right: 1rem;
-  z-index: 6;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  padding: 0.6rem 0.9rem;
-  background: rgb(255 255 255 / 94%);
-  color: #334155;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
-  cursor: pointer;
-  transition:
-    transform 180ms ease,
-    border-color 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.graph-filter-toggle:hover {
-  transform: translateY(-1px);
-  border-color: #93c5fd;
-  background: #ffffff;
-  box-shadow: 0 6px 16px rgb(15 23 42 / 12%);
-}
-
-.graph-filter-toggle:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-.graph-filter-toggle .graph-drawer-toggle-icon {
-  color: #64748b;
-}
-
-.graph-save-snapshot-btn {
-  position: absolute;
-  top: 5.9rem;
-  right: 1rem;
-  z-index: 6;
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #334155;
-  background: rgb(255 255 255 / 94%);
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  padding: 0.45rem 0.8rem;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
-}
-
-.graph-save-snapshot-btn:hover {
-  border-color: #93c5fd;
-  background: #ffffff;
 }
 
 .save-snapshot-dialog-backdrop {
@@ -3287,20 +2939,6 @@ body.is-diagram-grown .layout {
   background: #ffffff;
 }
 
-.graph-filter-root-label {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  flex: 1;
-  font-size: 0.92rem;
-  color: #334155;
-  cursor: pointer;
-}
-
-.graph-filter-root-label input[type='checkbox'] {
-  accent-color: #2563eb;
-}
-
 .graph-filter-drill-btn {
   flex-shrink: 0;
   min-width: 2rem;
@@ -3484,54 +3122,11 @@ body.is-diagram-grown .layout {
   padding-right: 0.15rem;
 }
 
-.graph-filter-detail-footer {
-  flex-shrink: 0;
-  display: flex;
-  gap: 0.45rem;
-  padding-top: 0.65rem;
-  margin-top: 0.45rem;
-  border-top: 1px solid #e2e8f0;
-  background: linear-gradient(180deg, transparent 0%, #f8fafc 28%);
-}
-
-.graph-filter-detail-footer .graph-drawer-action {
-  flex: 1;
-  margin: 0;
-}
-
-.graph-filter-done-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-}
-
-.graph-filter-done-icon {
-  font-size: 0.85rem;
-  line-height: 1;
-}
-
 .graph-filter-select-all-row {
   padding-bottom: 0.35rem;
   margin-bottom: 0.25rem;
   border-bottom: 1px solid #e2e8f0;
   font-weight: 500;
-}
-
-.graph-filter-all-badge {
-  font-size: 0.7rem;
-  color: #64748b;
-  margin-left: 0.4rem;
-}
-
-.graph-filter-year-detail {
-  flex: 1;
-  min-height: 0;
-  padding: 0.15rem 0;
-}
-
-.graph-filter-year-detail .graph-filter-status {
-  margin-top: 0.35rem;
 }
 
 .graph-canvas {
@@ -4607,8 +4202,6 @@ body.is-diagram-grown .layout {
 .oriented-edge-label.is-editable {
   cursor: text;
 }
-
-.graph-drawer-sandbox-tools,
 .graph-drawer-sandbox-manage {
   margin-top: 0.15rem;
   display: flex;
@@ -4866,12 +4459,6 @@ body.is-diagram-grown .layout {
   cursor: not-allowed;
 }
 
-.sandbox-manage-mini--danger {
-  color: #b91c1c;
-  border-color: #f87171;
-  background: #ffffff;
-}
-
 .sandbox-manage-load-row {
   display: flex;
   align-items: center;
@@ -4881,13 +4468,6 @@ body.is-diagram-grown .layout {
 .sandbox-manage-load-row .graph-drawer-input {
   flex: 1;
   min-width: 0;
-}
-
-.sandbox-manage-load-btn {
-  flex: 0 0 auto;
-  width: auto;
-  min-width: 0;
-  padding-inline: 0.55rem;
 }
 
 .sandbox-layout-picker {
@@ -4925,12 +4505,6 @@ body.is-diagram-grown .layout {
   border-color: var(--ss-accent-border, #fbbf24);
   color: #0f172a;
   box-shadow: 0 0 0 1px var(--ss-accent-border, #fbbf24);
-}
-
-.graph-drawer-saved-actions {
-  display: flex;
-  gap: 0.35rem;
-  margin-top: 0.35rem;
 }
 
 .graph-drawer-saved-list {
@@ -5176,86 +4750,6 @@ body.is-diagram-grown .layout {
 .graph-drawer-icon-btn:hover {
   border-color: var(--ss-accent-border, #fbbf24);
   background: var(--ss-accent-surface, #fffbeb);
-}
-
-/* ===== Graph mode tabs (Excel / Sheets style) ===== */
-.graph-mode-tabs-bar {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
-  width: 100%;
-}
-
-.graph-mode-tabs-description {
-  margin: 0;
-  padding: 0 0.25rem 0.48rem;
-  flex: 1;
-  min-width: 0;
-  text-align: right;
-  font-size: 0.78rem;
-  line-height: 1.45;
-  color: #64748b;
-}
-
-.graph-mode-tabs-description.is-error {
-  color: #b91c1c;
-}
-
-.graph-mode-tabs {
-  display: inline-flex;
-  align-self: flex-start;
-  align-items: flex-end;
-  gap: 0.15rem;
-  padding: 0 0 0 0.15rem;
-  background: transparent;
-  pointer-events: auto;
-}
-
-.graph-mode-tab {
-  border: 1px solid #cbd5e1;
-  border-bottom: 0;
-  border-radius: 8px 8px 0 0;
-  padding: 0.42rem 0.85rem;
-  background: #e2e8f0;
-  color: #64748b;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition:
-    background-color 160ms ease,
-    color 160ms ease,
-    border-color 160ms ease;
-}
-
-.graph-mode-tab:hover:not(.is-active) {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.graph-mode-tab.is-active {
-  background: #f8fafc;
-  color: #0f172a;
-  font-weight: 700;
-  border-color: #e2e8f0;
-  margin-bottom: -1px;
-  padding-bottom: calc(0.42rem + 1px);
-  position: relative;
-  z-index: 1;
-}
-
-.graph-mode-tab--sandbox.is-active {
-  border-top: 2px solid #f59e0b;
-}
-
-.graph-mode-tab--views.is-active {
-  border-top: 2px solid #3b82f6;
-}
-
-.graph-mode-tab:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
 }
 
 .graph-mode-tab__draft {
@@ -5608,13 +5102,6 @@ body.is-diagram-grown .layout {
   line-height: 1;
   cursor: pointer;
   border-radius: 6px;
-}
-
-.graph-views-toolbar-start {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-width: 0;
 }
 
 .graph-views-layout-switch {
@@ -6264,59 +5751,6 @@ body.is-diagram-grown .layout {
   border-top-style: dashed;
 }
 
-/* ===== Light map controls (Edit + Filters) ===== */
-.graph-edit-toggle {
-  position: absolute;
-  bottom: 1rem;
-  right: 1rem;
-  z-index: 6;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  padding: 0.6rem 0.9rem;
-  background: rgb(255 255 255 / 94%);
-  color: #334155;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
-  cursor: pointer;
-  transition:
-    transform 180ms ease,
-    border-color 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.graph-edit-toggle:hover {
-  transform: translateY(-1px);
-  border-color: #93c5fd;
-  background: #ffffff;
-  box-shadow: 0 6px 16px rgb(15 23 42 / 12%);
-}
-
-.graph-edit-toggle:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-.graph-edit-toggle .graph-drawer-toggle-icon {
-  color: #64748b;
-}
-
-.graph-drawer-toggle-label,
-.graph-drawer-toggle-icon {
-  font-size: 0.82rem;
-}
-
-.graph-drawer-toggle-label {
-  font-weight: 600;
-}
-
-.graph-drawer-toggle-icon {
-  color: #64748b;
-}
-
 .graph-drawer-close:focus-visible,
 .graph-drawer-action:focus-visible,
 .graph-drawer-input:focus-visible {
@@ -6491,24 +5925,11 @@ body.is-diagram-grown .layout {
   }
 }
 
-.pivot-setup-actions {
-  display: flex;
-  gap: 0.5rem;
-  grid-column: 1 / -1;
-}
-
 .pivot-table {
   display: flex;
   flex-direction: column;
   min-height: 0;
   background: #ffffff;
-}
-
-.pivot-table-caption {
-  margin: 0;
-  padding: 0.75rem 1rem 0;
-  font-size: 0.9rem;
-  font-weight: 600;
 }
 
 .pivot-badges {
@@ -6972,18 +6393,6 @@ body.is-diagram-grown .layout {
   margin: 0;
   font-size: 0.75rem;
   color: #64748b;
-}
-
-.graph-details-section-title-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.35rem;
-}
-
-.graph-details-section-title-row .graph-details-section-title {
-  margin-bottom: 0;
 }
 
 .attribute-change-reason {
@@ -7450,14 +6859,6 @@ body.is-diagram-grown .layout {
     cursor: pointer;
   }
 
-  .graph-panel-overlay--filter.is-visible {
-    z-index: 10;
-  }
-
-  .graph-panel-overlay--edit.is-visible {
-    z-index: 10;
-  }
-
   .graph-panel-overlay--details.is-visible {
     z-index: 16;
   }
@@ -7483,12 +6884,6 @@ body.is-diagram-grown .layout {
     overflow: hidden;
     pointer-events: none;
     transform: translateX(1rem);
-  }
-
-  .map-graph-body.is-drawer-open .graph-drawer {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateX(0);
   }
 }
 
@@ -7725,25 +7120,6 @@ body.is-diagram-grown .layout {
   background: transparent;
 }
 
-.module-graph-canvas .module-node-handle {
-  width: 6px;
-  height: 6px;
-  min-width: 0;
-  min-height: 0;
-  border: 1.5px solid #52525b;
-  background: #ffffff;
-  border-radius: 50%;
-  opacity: 0;
-  transition: opacity 150ms ease;
-  pointer-events: none;
-}
-
-.module-graph-canvas .react-flow__node:hover .module-node-handle,
-.module-graph-canvas .react-flow__node.selected .module-node-handle,
-.module-graph-canvas .react-flow__node.is-focus .module-node-handle {
-  opacity: 1;
-}
-
 .module-node-card {
   box-sizing: border-box;
   width: 100%;
@@ -7937,14 +7313,6 @@ body.is-diagram-grown .layout {
   font-size: 0.86rem;
   line-height: 1.45;
   color: #475569;
-}
-
-.auth-page-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-  width: 100%;
 }
 
 /* Login brand: logo + h1 on .auth-page background (~30vw wide, min width for small screens) */

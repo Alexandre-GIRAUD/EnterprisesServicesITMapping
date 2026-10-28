@@ -183,67 +183,6 @@ export async function suggestModulesFromGithub(
   return res.json();
 }
 
-export type DetectionDocument = {
-  title: string | null;
-  body: string | null;
-  characterCount: number;
-  updatedAt: string | null;
-};
-
-export async function fetchDetectionDocument(applicationId: string): Promise<DetectionDocument> {
-  const url = resolveApiUrl(
-    `/api/applications/${encodeURIComponent(applicationId)}/detection-document`
-  );
-  const res = await authenticatedFetch(url, { headers: { Accept: 'application/json' } });
-  if (!res.ok) {
-    throw new Error(await detectionError(res, 'Load document'));
-  }
-  return res.json();
-}
-
-export async function saveDetectionDocumentText(
-  applicationId: string,
-  title: string,
-  body: string
-): Promise<DetectionDocument> {
-  const url = resolveApiUrl(
-    `/api/applications/${encodeURIComponent(applicationId)}/detection-document`
-  );
-  const res = await authenticatedFetch(url, {
-    method: 'PUT',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, body }),
-  });
-  if (!res.ok) {
-    throw new Error(await detectionError(res, 'Save document'));
-  }
-  return res.json();
-}
-
-export async function saveDetectionDocumentFile(
-  applicationId: string,
-  file: File,
-  title: string
-): Promise<DetectionDocument> {
-  const url = resolveApiUrl(
-    `/api/applications/${encodeURIComponent(applicationId)}/detection-document`
-  );
-  const form = new FormData();
-  form.append('file', file);
-  if (title.trim()) {
-    form.append('title', title.trim());
-  }
-  const res = await authenticatedFetch(url, {
-    method: 'POST',
-    headers: { Accept: 'application/json' },
-    body: form,
-  });
-  if (!res.ok) {
-    throw new Error(await detectionError(res, 'Save document'));
-  }
-  return res.json();
-}
-
 export async function importThirdPartyText(payload: {
   name: string;
   description?: string;
@@ -281,38 +220,6 @@ export async function importThirdPartyFile(
   });
   if (!res.ok) {
     throw new Error(await detectionError(res, 'Import third party'));
-  }
-  return res.json();
-}
-
-export async function suggestModulesFromDocument(
-  applicationId: string
-): Promise<SuggestModulesFromGithubResponse> {
-  const url = resolveApiUrl(
-    `/api/applications/${encodeURIComponent(applicationId)}/modules/suggest-from-document`
-  );
-  const res = await authenticatedFetch(url, {
-    method: 'POST',
-    headers: { Accept: 'application/json' },
-  });
-  if (!res.ok) {
-    throw new Error(await detectionError(res, 'AI module suggestion'));
-  }
-  return res.json();
-}
-
-export async function suggestConnectionsFromDocument(
-  applicationId: string
-): Promise<SuggestConnectionsFromGithubResponse> {
-  const url = resolveApiUrl(
-    `/api/applications/${encodeURIComponent(applicationId)}/connections/suggest-from-document`
-  );
-  const res = await authenticatedFetch(url, {
-    method: 'POST',
-    headers: { Accept: 'application/json' },
-  });
-  if (!res.ok) {
-    throw new Error(await detectionError(res, 'Scan connections and attributes'));
   }
   return res.json();
 }

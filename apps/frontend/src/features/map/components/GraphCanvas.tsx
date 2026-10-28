@@ -49,8 +49,6 @@ import {
 import { useGraphFilters } from '../hooks/useGraphFilters';
 import { useGraphMode } from '../hooks/useGraphMode';
 import { useSandboxes } from '../hooks/useSandboxes';
-import { WorkspaceDrawer } from './WorkspaceDrawer';
-import { SandboxesPanel } from './SandboxesPanel';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
 import { SandboxPane } from './SandboxPane';
 import {
@@ -63,7 +61,6 @@ import {
   type SandboxDocument,
 } from '../utils/sandboxDocuments';
 import type { OrientedEdgeData, OrientedEdgeType } from './OrientedEdge';
-import { FilterDrawer } from './FilterDrawer';
 import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
 import { EdgeDetailsDrawer } from './EdgeDetailsDrawer';
 import {
@@ -90,21 +87,20 @@ import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle'
 import { TableContentToggle, type TableContentMode, type TableViewMode } from './TableContentToggle';
 import { CreateTablePanel, type CreateTableExportState } from './CreateTablePanel';
 import { fitGraphView, ensureNodesVisible } from './fitGraphView';
-import { toJpeg, toPng } from 'html-to-image';
 import { downloadTableFile, tableToCsv, tableToExcelXml, type TableGrid } from '../utils/tableFile';
-import { dataUrlToBytes, downloadBytes, downloadDataUrl, jpegPixelSize, jpegToPdf } from '../utils/jpegPdf';
 import { customTableExportFormats } from '../utils/customTable';
 import { GraphViewsPanel, ViewInspectPanel, type InspectedView, type ViewLibraryActions } from './GraphViewsPanel';
+import { renderGraphCanvasSideTool } from './graphCanvasSideTools';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { isDiagramFitGesture, resolveNextDiagramHeight } from './diagramFrame';
-import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { GraphExportMenu } from './GraphExportMenu';
 import { TableExportMenu } from './TableExportMenu';
 import {
   buildGraphExportFileName,
   exportGraphImage,
+  exportTableElement,
   type GraphImageFormat,
 } from '../utils/exportGraphImage';
 import {
@@ -122,17 +118,6 @@ type SelectedApplication = {
   id: string;
   label: string;
 };
-
-async function exportPivotElement(element: HTMLElement, format: 'png' | 'pdf'): Promise<void> {
-  if (format === 'png') {
-    const dataUrl = await toPng(element, { backgroundColor: '#ffffff', pixelRatio: 2 });
-    downloadDataUrl(dataUrl, 'table.png');
-    return;
-  }
-  const dataUrl = await toJpeg(element, { backgroundColor: '#ffffff', pixelRatio: 2, quality: 0.95 });
-  const size = await jpegPixelSize(dataUrl);
-  downloadBytes(jpegToPdf(dataUrlToBytes(dataUrl), size.width, size.height), 'table.pdf', 'application/pdf');
-}
 
 /**
  * Application dependency graph (React Flow), backed by GET /api/graph.
@@ -1457,7 +1442,7 @@ export function GraphCanvas() {
       if (format === 'png' || format === 'pdf') {
         const element = pivotExportRef.current;
         if (!element) return;
-        void exportPivotElement(element, format);
+        void exportTableElement(element, format);
         return;
       }
       const grid = tableView === 'custom' ? customExport?.grid : tableGrid;
@@ -1526,240 +1511,55 @@ export function GraphCanvas() {
 
   const noopClose = useCallback(() => {}, []);
 
-  const toolDetail = useMemo(() => {
-    if (graphMode !== 'normal' && graphMode !== 'sandbox') return null;
-
-    const isExplorer = graphMode === 'normal';
-
-    switch (activeSideMenuTool) {
-      case 'changes':
-        return null;
-      case 'filters':
-        return (
-          <>
-            {isSandbox ? <ApplicationSearchBar variant="menu" /> : null}
-            <FilterDrawer
-            key={
-              isSandbox
-                ? `filters-sandbox-${sandboxes.activeDoc?.id ?? 'none'}`
-                : `filters-${graphMode}`
-            }
-            variant="embedded"
-            isOpen
-            onClose={noopClose}
-            applications={applications}
-            nodeFilters={nodeFilters}
-            initialApplicationIds={
-              isSandbox ? activeSandboxFilters.applicationIds : applicationIds
-            }
-            initialNodeAttributes={
-              isSandbox ? activeSandboxFilters.nodeAttributes : nodeAttributes
-            }
-            initialNodeRefs={isSandbox ? activeSandboxFilters.nodeRefs : nodeRefs}
-            initialEdgeAttributes={isSandbox ? activeSandboxFilters.edgeAttributes ?? {} : edgeAttributes}
-            initialEdgeIds={isSandbox ? activeSandboxFilters.edgeIds ?? [] : edgeIds}
-            initialMatchNothing={isSandbox ? Boolean(activeSandboxFilters.matchNothing) : matchNothing}
-            initialBlankedDimensions={
-              isSandbox ? activeSandboxFilters.blankedDimensions ?? [] : blankedDimensions
-            }
-            edges={graphEdges}
-            onApply={({
-              applicationIds: appIds,
-              nodeAttributes: attrs,
-              nodeRefs: refs,
-              edgeAttributes: edgeAttrs,
-              edgeIds: nextEdgeIds,
-              matchNothing: nextMatchNothing,
-              blankedDimensions: nextBlanked,
-            }) => {
-              if (isSandbox) {
-                const id = sandboxes.activeId ?? sandboxes.activeDoc?.id;
-                if (!id) return;
-                sandboxes.patchDoc(id, {
-                  filters: {
-                    applicationIds: appIds,
-                    nodeAttributes: attrs,
-                    nodeRefs: refs,
-                    edgeAttributes: edgeAttrs ?? {},
-                    edgeIds: nextEdgeIds ?? [],
-                    matchNothing: Boolean(nextMatchNothing),
-                    blankedDimensions: nextBlanked ?? [],
-                  },
-                  dirty: true,
-                });
-                return;
-              }
-              filters.setApplicationIds(appIds);
-              filters.setNodeAttributes(attrs);
-              filters.setNodeRefs(refs);
-              filters.setEdgeAttributes(edgeAttrs ?? {});
-              filters.setEdgeIds(nextEdgeIds ?? []);
-              filters.setMatchNothing(Boolean(nextMatchNothing));
-              filters.setBlankedDimensions(nextBlanked ?? []);
-            }}
-            showPinView={isExplorer}
-            pinViewDisabled={status !== 'ready'}
-            onPinView={() => setIsSaveSnapshotOpen(true)}
-          />
-          </>
-        );
-      case 'actions':
-        return (
-          <WorkspaceDrawer
-            key={`workspace-${graphMode}`}
-            variant="embedded"
-            isOpen
-            onClose={noopClose}
-            sandboxMode={isSandbox}
-            extraApplications={graphAppsForDrawer}
-            onNodeCreated={onNodeCreatedHandler}
-            onEdgeCreated={onEdgeCreatedHandler}
-            onPickIcon={(iconKey, sticky) => {
-              if (sandboxes.openDocs.length === 0) {
-                setSandboxToast('Open a sandbox to place an icon.');
-                return;
-              }
-              setTextPlacement(false);
-              rememberSandboxIcon(iconKey);
-              setIconGhostPos({ x: 0, y: 0 });
-              setIconPlacement({ iconKey, sticky });
-            }}
-            onClearIconPlacement={() => setIconPlacement(null)}
-            onStartTextPlacement={() => {
-              if (sandboxes.openDocs.length === 0) {
-                setSandboxToast('Open a sandbox to place text.');
-                return;
-              }
-              setIconPlacement(null);
-              setTextPlacement(true);
-              setIconGhostPos({ x: 0, y: 0 });
-            }}
-            requestedView={toolkitRequest}
-            onRequestedViewConsumed={() => setToolkitRequest(null)}
-            applications={applications}
-            flows={graphEdges.map((edge) => {
-              const readFlowEndName = (endpointId: string) =>
-                applications.find((application) => application.id === endpointId)?.name ?? endpointId;
-              const data = edge.data?.trim();
-              const base = `${readFlowEndName(edge.sourceId)} → ${readFlowEndName(edge.targetId)}`;
-              return { id: edge.id, label: data ? `${base} (${data})` : base };
-            })}
-            onEditApplication={(id) => {
-              if (!id) {
-                closeApplicationDetails();
-                return;
-              }
-              const application = applications.find((item) => item.id === id);
-              openApplicationDetails(id, application?.name?.trim() || id, true);
-            }}
-            onEditFlow={(id) => {
-              if (!id) {
-                closeEdgeDetails();
-                setMenuEditKind(null);
-                return;
-              }
-              openEdgeByIdRef.current(id);
-              setMenuEditKind('flow');
-            }}
-            editPanel={
-              menuEditKind === 'application' && selectedApplication ? (
-                <ApplicationDetailsDrawer
-                  isEmbedded
-                  shouldOpenInEditMode
-                  isOpen
-                  application={selectedApplication}
-                  onClose={closeApplicationDetails}
-                  sandboxMode={isSandbox}
-                  resolveSandboxApplication={resolveSandboxApplication}
-                  onApplicationUpdated={handleApplicationUpdated}
-                  onOpenModuleGraph={(applicationId) => {
-                    openModuleGraphById(applicationId, selectedApplication.label);
-                  }}
-                  onApplicationDeleted={onApplicationDeletedHandler}
-                />
-              ) : menuEditKind === 'flow' && selectedEdge ? (
-                <EdgeDetailsDrawer
-                  isEmbedded
-                  shouldOpenInEditMode
-                  isOpen
-                  edge={selectedEdge}
-                  onClose={closeEdgeDetails}
-                  onOpenApplication={(id, label) => openApplicationDetails(id, label, true)}
-                  onEdgeAttributesUpdated={handleEdgeAttributesUpdated}
-                  onEdgeDeleted={handleEdgeDeleted}
-                />
-              ) : null
-            }
-          />
-        );
-      case 'sandboxes':
-        if (!isSandbox) return null;
-        return (
-          <SandboxesPanel
-            openSandboxes={sandboxes.openDocs.map((doc) => ({
-              id: doc.id,
-              name: doc.name,
-              dirty: doc.dirty,
-            }))}
-            activeSandboxId={sandboxes.activeId}
-            onFocusOpen={sandboxes.setActiveId}
-            layoutMode={sandboxes.layout}
-            onLayoutModeChange={sandboxes.setLayout}
-            onNewSandbox={() => {
-              if (sandboxes.openDocs.length >= MAX_OPEN_SANDBOXES) {
-                setSandboxToast('Close at least one sandbox before opening another.');
-                return;
-              }
-              const id = sandboxes.openNew(sandboxSeed());
-              if (!id) setSandboxToast('Close at least one sandbox before opening another.');
-            }}
-            onSaveSandbox={(id) => {
-              const doc = sandboxes.openDocs.find((item) => item.id === id);
-              if (!doc) return;
-              sandboxes.saveDoc(doc.id, doc.name);
-              setSandboxToast('Saved');
-            }}
-            onDuplicateSandbox={(id) => {
-              if (!sandboxes.duplicateDoc(id)) {
-                setSandboxToast('Close at least one sandbox before opening another.');
-              }
-            }}
-            onCloseSandbox={sandboxes.closeDoc}
-            savedSandboxes={sandboxes.saved}
-            sandboxFolders={sandboxes.sandboxFolders}
-            onLoadSandbox={(id) => {
-              const result = sandboxes.loadSaved(id);
-              if (result === 'full') {
-                setSandboxToast('Close at least one sandbox before loading another.');
-              }
-            }}
-            onDeleteSavedSandbox={sandboxes.deleteSaved}
-            onCreateSandboxFolder={sandboxes.createSandboxFolder}
-            onRenameSandboxFolder={sandboxes.renameSandboxFolder}
-            onDeleteSandboxFolder={sandboxes.deleteSandboxFolder}
-            onMoveSandboxFolder={sandboxes.moveSandboxFolder}
-            onRenameSavedSandbox={sandboxes.renameSavedSandbox}
-            onMoveSavedSandbox={sandboxes.moveSavedSandbox}
-            onRenameOpenSandbox={(id, name) => sandboxes.patchDoc(id, { name, dirty: true })}
-            onDuplicateSavedSandbox={sandboxes.duplicateSaved}
-            onShareSandbox={async (id, username) => {
-              const open = sandboxes.openDocs.find((item) => item.id === id);
-              const savedSandbox = sandboxes.saved.find((item) => item.id === id);
-              const sandboxDocument = open ?? savedSandbox?.document;
-              if (!sandboxDocument) return;
-              try {
-                await shareSavedSandbox(username, open?.name ?? savedSandbox?.name ?? sandboxDocument.name, sandboxDocument);
-                setSandboxToast(`Shared with ${username}.`);
-              } catch (error) {
-                setSandboxToast(error instanceof Error ? error.message : 'Unable to share.');
-              }
-            }}
-          />
-        );
-      default:
-        return null;
-    }
-  }, [
+  const toolDetail = useMemo(
+    () =>
+      renderGraphCanvasSideTool({
+        graphMode,
+        activeSideMenuTool,
+        isSandbox,
+        sandboxes,
+        applications,
+        nodeFilters,
+        applicationIds,
+        nodeAttributes,
+        nodeRefs,
+        edgeAttributes,
+        edgeIds,
+        matchNothing,
+        blankedDimensions,
+        graphEdges,
+        filters,
+        graphAppsForDrawer,
+        onNodeCreatedHandler,
+        onEdgeCreatedHandler,
+        noopClose,
+        status,
+        setIsSaveSnapshotOpen,
+        setSandboxToast,
+        setTextPlacement,
+        rememberSandboxIcon,
+        setIconGhostPos,
+        setIconPlacement,
+        toolkitRequest,
+        setToolkitRequest,
+        menuEditKind,
+        selectedApplication,
+        selectedEdge,
+        closeApplicationDetails,
+        openApplicationDetails,
+        closeEdgeDetails,
+        setMenuEditKind,
+        openEdgeByIdRef,
+        resolveSandboxApplication,
+        handleApplicationUpdated,
+        openModuleGraphById,
+        onApplicationDeletedHandler,
+        handleEdgeAttributesUpdated,
+        handleEdgeDeleted,
+        activeSandboxFilters,
+        sandboxSeed,
+      }),
+    [
     graphMode,
     activeSideMenuTool,
     applications,
