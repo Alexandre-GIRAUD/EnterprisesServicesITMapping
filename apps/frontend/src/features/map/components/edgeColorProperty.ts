@@ -21,6 +21,12 @@ export const NODE_LABEL_COLOR_KEY = '__label__';
 export const HIDE_EDGE_LABELS_KEY = '__hide_labels__';
 /** Border when fill is white / near-white (derived border would be invisible). */
 export const LIGHT_BORDER_ON_WHITE = '#cbd5e1';
+/** Darkening applied to a node fill to derive its default border. */
+const BORDER_DARKEN_AMOUNT = 0.45;
+/** Extra darkening of a border to derive the default label text. */
+const TEXT_DARKEN_AMOUNT = 0.4;
+/** Darkening of a node-type color when used as a default border. */
+const TYPE_BORDER_DARKEN_AMOUNT = 0.3;
 
 export const EDGE_COLOR_PROPERTY_STORAGE_KEY = 'flowra.graph.edgeColorProperty';
 export const EDGE_LABEL_PROPERTY_STORAGE_KEY = 'flowra.graph.edgeLabelProperty';
@@ -371,17 +377,17 @@ export function isNearWhite(color: string): boolean {
 /** Border derived from fill: light grey on white, else a clearly darker fill. */
 export function borderFromFill(fill: string): string {
   if (isNearWhite(fill)) return LIGHT_BORDER_ON_WHITE;
-  return darkenColor(fill, 0.45);
+  return darkenColor(fill, BORDER_DARKEN_AMOUNT);
 }
 
 /** Default label text: darker than the border so it reads on the tinted fill. */
 export function textFromFill(fill: string): string {
-  return darkenColor(borderFromFill(fill), 0.4);
+  return darkenColor(borderFromFill(fill), TEXT_DARKEN_AMOUNT);
 }
 
 /** Type-color border, deepened to match derived borders. */
 function typeBorderColor(type: string): string {
-  return darkenColor(nodeColorForType(type), 0.3);
+  return darkenColor(nodeColorForType(type), TYPE_BORDER_DARKEN_AMOUNT);
 }
 
 function toHex(n: number): string {
@@ -730,7 +736,7 @@ export function nodeBorderColor(
 }
 
 /**
- * Text color inside a node. Default: the border color (darker shade of the node color).
+ * Text color inside a node. Default: a darker shade of the border color.
  * With its own attribute, each value gets a legend color (override or dark default).
  */
 export function nodeTextColor(
@@ -744,7 +750,8 @@ export function nodeTextColor(
 ): string {
   const value = nodePropValue(node, textKey);
   if (value && colorMap?.[value]) return colorMap[value];
-  if (textKey === borderKey || !value || textKey === NODE_TYPE_COLOR_KEY) {
+  const usesBorderColor = textKey === borderKey || !value || textKey === NODE_TYPE_COLOR_KEY;
+  if (usesBorderColor) {
     return darkenColor(
       nodeBorderColor(
         node,
@@ -753,7 +760,7 @@ export function nodeTextColor(
         fillKey,
         fillColorMap
       ),
-      0.4
+      TEXT_DARKEN_AMOUNT
     );
   }
   return textFromFill(defaultNodeFill(textKey, value));
@@ -765,7 +772,7 @@ export function nodeTextColorForValue(
   colorMap?: Record<string, string>
 ): string {
   if (colorMap?.[value]) return colorMap[value];
-  if (textKey === NODE_TYPE_COLOR_KEY) return darkenColor(typeBorderColor(value), 0.4);
+  if (textKey === NODE_TYPE_COLOR_KEY) return darkenColor(typeBorderColor(value), TEXT_DARKEN_AMOUNT);
   return textFromFill(defaultNodeFill(textKey, value));
 }
 

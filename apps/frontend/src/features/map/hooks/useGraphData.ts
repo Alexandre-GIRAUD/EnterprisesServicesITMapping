@@ -503,13 +503,16 @@ export function useGraphData({
       setAppBorderKey(legend.appBorderKey);
       storeAppBorderKey(legend.appBorderKey);
     }
-    // Older saved legends have no text key: text follows the border attribute.
-    const textKey = legend.appTextKey || legend.appBorderKey;
-    if (textKey) {
+    // Older saved legends have no text key: text keeps following the border attribute.
+    if (legend.appTextKey) {
       textChosenRef.current = true;
       storeTextPropertyChosen();
-      setAppTextKey(textKey);
-      storeAppTextKey(textKey);
+      setAppTextKey(legend.appTextKey);
+      storeAppTextKey(legend.appTextKey);
+    } else if (legend.appBorderKey) {
+      textChosenRef.current = false;
+      setAppTextKey(legend.appBorderKey);
+      storeAppTextKey(legend.appBorderKey);
     }
     const colors = legend.colors ?? {};
     // Sync refs before any immediate relayout/restyle that reads them.
