@@ -31,4 +31,19 @@ assert.deepEqual(parsed.edgeRoutes[0]?.points, [
   { x: 72, y: 144 },
 ]);
 
+// Graphviz repeats every control point and stops short of the head node.
+// The drawn route must end on that application's border, still moving toward it,
+// so the arrowhead points at the app.
+const repeated = `graph 1 4 5
+node a 2 2 2 1
+node b 2 4 2 1
+edge a b 4 2 2.5 2 2.5 2 3.2 2 3.2
+stop
+`;
+const aimed = parsePlainLayout(repeated);
+assert.deepEqual(aimed.edgeRoutes[0]?.points, [
+  { x: 72, y: 72 },
+  { x: 72, y: 144 },
+]);
+
 console.log('graphvizPlain.check: ok');
