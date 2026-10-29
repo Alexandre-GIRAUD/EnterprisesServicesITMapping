@@ -5370,7 +5370,7 @@ body.is-diagram-grown .layout {
   box-shadow: none;
 }
 
-.react-flow__panel.top-left:has(> .graph-legend.is-concealed) {
+.react-flow__panel.top.left:has(> .graph-legend.is-concealed) {
   top: auto;
   bottom: var(--graph-legend-launcher-lift);
 }
@@ -5384,8 +5384,8 @@ body.is-diagram-grown .layout {
 .graph-legend__show {
   display: grid;
   place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 1.7rem;
+  height: 1.7rem;
   padding: 0;
   border-radius: 6px;
   font-size: 0.85rem;
