@@ -14,6 +14,7 @@ import {
   fillLegendFrame,
   fitLegendHeight,
   measureLegendFontScale,
+  pickShownLegendFrame,
   type LegendOffset,
   type LegendPane,
   type LegendSize,
@@ -23,7 +24,7 @@ const DRAG_START_THRESHOLD_PX = 4;
 const LEGEND_FILL_MARGIN_PX = 8;
 const PRIMARY_POINTER_BUTTON = 0;
 const LEGEND_CONTROL_SELECTOR = 'button, input, select, textarea, a';
-const LEGEND_DRAG_HANDLE_SELECTOR = '.graph-legend__header, .graph-legend__show';
+const LEGEND_DRAG_HANDLE_SELECTOR = '.graph-legend__header';
 const LEGEND_PANE_SELECTOR = '.react-flow, .sandbox-stage, #graph-canvas-pane';
 
 type LegendFrameStyle = CSSProperties & { '--legend-font-scale': string };
@@ -74,6 +75,7 @@ export function useLegendFrame(
     offset,
     size,
     isConcealed,
+    isFilling,
     fill,
     sizeRef,
     concealedRef,
@@ -126,6 +128,7 @@ type LegendFrameInput = {
   offset: LegendOffset;
   size: LegendSize;
   isConcealed: boolean;
+  isFilling: boolean;
   fill: LegendFill | null;
   sizeRef: { current: LegendSize };
   concealedRef: { current: boolean };
@@ -171,7 +174,10 @@ function bindLegendFrame(input: LegendFrameInput): LegendFrameBindings {
     suppressClickRef: input.suppressClickRef,
     setOffset: input.setOffset,
   };
-  const shown = input.fill ?? { offset: input.offset, size: input.size };
+  const shown = pickShownLegendFrame(input.isFilling, input.fill, {
+    offset: input.offset,
+    size: input.size,
+  });
   return {
     isConcealed: input.isConcealed,
     direction: chooseLegendEntryDirection(shown.size.width, shown.size.height),

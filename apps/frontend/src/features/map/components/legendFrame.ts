@@ -14,6 +14,7 @@ const LEGEND_MIN_HEIGHT_PX = 80;
 export type LegendOffset = { left: number; top: number };
 export type LegendSize = { width: number; height: number };
 export type LegendPane = LegendSize & { insetLeft?: number; insetTop?: number };
+export type LegendFrame = { offset: LegendOffset; size: LegendSize };
 export type LegendEntryDirection = 'row' | 'column';
 
 /** Row once the frame is at least twice as wide as it is tall. */
@@ -67,9 +68,18 @@ export function fitLegendHeight(height: number, paneHeight: number): number {
 export function fillLegendFrame(
   pane: LegendPane,
   margin: number,
-): { offset: LegendOffset; size: LegendSize } {
+): LegendFrame {
   return {
     offset: { left: margin - (pane.insetLeft ?? 0), top: margin - (pane.insetTop ?? 0) },
     size: { width: pane.width - 2 * margin, height: pane.height - 2 * margin },
   };
+}
+
+/** The pane-filling frame only while editing: a stale fill must never outlive the edit mode. */
+export function pickShownLegendFrame(
+  isFilling: boolean,
+  fill: LegendFrame | null,
+  own: LegendFrame,
+): LegendFrame {
+  return isFilling && fill ? fill : own;
 }

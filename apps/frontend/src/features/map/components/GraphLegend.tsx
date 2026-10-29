@@ -10,7 +10,6 @@ import {
   HIDE_EDGE_LABELS_KEY,
   NODE_TYPE_COLOR_KEY,
   RELATION_TYPE_COLOR_KEY,
-  cssColorToHex,
   labelForColorProperty,
   legendLabelForColorValue,
   nodeBorderColorForValue,
@@ -23,6 +22,11 @@ import {
 } from './edgeColorProperty';
 import { useLegendFrame } from './useLegendFrame';
 import { LegendIconRows } from './LegendIconRows';
+import { LegendPresetBar } from './LegendPresetBar';
+import { LegendColorPicker, LegendSwatch, type SwatchKind } from './LegendSwatch';
+import { LegendValueChips, type LegendChip } from './LegendValueChips';
+import { LegendControlRow } from './LegendControlRow';
+import { LegendLauncher } from './LegendLauncher';
 import { NODE_ICON_NONE_KEY } from './nodeIcons.ts';
 
 type Props = {
@@ -91,48 +95,14 @@ function ColorValueRow({
   label: string;
   color: string;
   onChange?: (color: string) => void;
-  kind: 'edge' | 'fill' | 'border' | 'app' | 'label' | 'text';
+  kind: SwatchKind;
   borderColor?: string;
 }) {
   return (
     <li className="graph-legend__item">
-      {kind === 'edge' ? (
-        <span
-          className="graph-legend__swatch graph-legend__swatch--edge"
-          style={{ color }}
-          aria-hidden="true"
-        />
-      ) : kind === 'label' || kind === 'text' ? (
-        <span
-          className="graph-legend__swatch graph-legend__swatch--text-label"
-          style={{ color, borderColor: `${color}55` }}
-          aria-hidden="true"
-        >
-          {kind === 'text' ? 'text' : 'label'}
-        </span>
-      ) : (
-        <span
-          className={`graph-legend__swatch graph-legend__swatch--node${
-            kind === 'app' ? ' graph-legend__swatch--mini-app' : ''
-          }`}
-          style={{
-            backgroundColor: kind === 'border' ? '#ffffff' : color,
-            borderColor: kind === 'fill' ? '#94a3b8' : (borderColor ?? color),
-          }}
-          aria-hidden="true"
-        />
-      )}
+      <LegendSwatch color={color} kind={kind} borderColor={borderColor} />
       <span className="graph-legend__label">{label}</span>
-      {onChange ? (
-        <input
-          type="color"
-          className="graph-legend__color"
-          value={cssColorToHex(color)}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={`Color for ${label}`}
-          title="Choose color"
-        />
-      ) : null}
+      {onChange ? <LegendColorPicker label={label} color={color} onChange={onChange} /> : null}
     </li>
   );
 }
@@ -183,8 +153,6 @@ export function GraphLegend({
   onSandboxIconLabelChange,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
-  const [setupName, setSetupName] = useState('');
-  const [selectedSetupId, setSelectedSetupId] = useState('');
   const frameRef = useRef<HTMLDivElement>(null);
   const frame = useLegendFrame(frameRef, isEditing);
 
@@ -256,6 +224,17 @@ export function GraphLegend({
     'DEPENDS_ON',
     legendColors.edgeStroke
   );
+
+  const showAppSelects =
+    isEditing &&
+    showCoding &&
+    !simpleMode &&
+    ((appFillOptions.length > 0 && appFillKey != null && onAppFillChange != null) ||
+      (appBorderOptions.length > 0 && appBorderKey != null && onAppBorderChange != null) ||
+      (appTextOptions.length > 0 && appTextKey != null && onAppTextChange != null));
+
+  const showFlowSelects =
+    isEditing && showCoding && !simpleMode && colorPropertyKey != null;
 
   const appsItems: ReactNode[] = [];
   if (!showCoding && nodeTypes.length > 0 && !simpleMode) {
@@ -459,20 +438,87 @@ export function GraphLegend({
     );
   }
 
+  const fillChips: LegendChip[] = [];
+  const borderChips: LegendChip[] = [];
+  const textChips: LegendChip[] = [];
+  const flowChips: LegendChip[] = [];
+  if (showAppSelects && nodesTypeOnly) {
+    fillChips.push({
+      value: 'Application',
+      label: 'app',
+      color: typeAppFill,
+      borderColor: typeAppBorder,
+      kind: 'app',
+    });
+  } else if (showAppSelects && sharedApp && appFillKey != null) {
+    for (const value of fillValues) {
+      fillChips.push({
+        value,
+        label: nodeValueLabel(appFillKey, value),
+        color: nodeFillColorForValue(appFillKey, value, legendColors.appFill),
+        borderColor: nodeBorderColorForValue(
+          appBorderKey!,
+          value,
+          legendColors.appBorder,
+          appFillKey,
+          legendColors.appFill
+        ),
+        kind: 'app',
+      });
+    }
+  } else if (showAppSelects) {
+    for (const value of fillValues) {
+      fillChips.push({
+        value,
+        label: nodeValueLabel(appFillKey!, value),
+        color: nodeFillColorForValue(appFillKey!, value, legendColors.appFill),
+        kind: 'fill',
+      });
+    }
+    for (const value of borderValues) {
+      borderChips.push({
+        value,
+        label: nodeValueLabel(appBorderKey!, value),
+        color: nodeBorderColorForValue(appBorderKey!, value, legendColors.appBorder),
+        kind: 'border',
+      });
+    }
+  }
+  if (showAppSelects && showTextRows) {
+    for (const value of textValues) {
+      textChips.push({
+        value,
+        label: nodeValueLabel(appTextKey, value),
+        color: nodeTextColorForValue(appTextKey, value, legendColors.appText),
+        kind: 'text',
+      });
+    }
+  }
+  if (showFlowSelects && edgesTypeOnly) {
+    flowChips.push({ value: 'DEPENDS_ON', label: 'flow', color: typeFlowColor, kind: 'edge' });
+  } else if (showFlowSelects && colorPropertyKey != null) {
+    for (const value of colorValues) {
+      flowChips.push({
+        value,
+        label: legendLabelForColorValue(colorPropertyKey, value),
+        color: strokeColorForLegendSwatch(colorPropertyKey, value, 'DEPENDS_ON', legendColors.edgeStroke),
+        kind: 'edge',
+      });
+    }
+  }
+
+  /** The values of the chosen attribute, picked in place of the separate read-only list. */
+  const chipsFor = (channel: keyof LegendColorMaps, chips: LegendChip[]) =>
+    colorChange != null && chips.length > 0 ? (
+      <LegendValueChips
+        chips={chips}
+        onChange={(value, color) => colorChange(channel, value, color)}
+      />
+    ) : undefined;
+
   const labelSelectValue = hideEdgeLabels
     ? HIDE_EDGE_LABELS_KEY
     : (labelPropertyKey ?? '');
-
-  const showAppSelects =
-    isEditing &&
-    showCoding &&
-    !simpleMode &&
-    ((appFillOptions.length > 0 && appFillKey != null && onAppFillChange != null) ||
-      (appBorderOptions.length > 0 && appBorderKey != null && onAppBorderChange != null) ||
-      (appTextOptions.length > 0 && appTextKey != null && onAppTextChange != null));
-
-  const showFlowSelects =
-    isEditing && showCoding && !simpleMode && colorPropertyKey != null;
 
   const shouldShowIconSelect = isEditing && canPickIconAttribute;
   const shouldShowIconRows = iconKey !== NODE_ICON_NONE_KEY && iconValues.length > 0;
@@ -490,15 +536,7 @@ export function GraphLegend({
         style={frame.style}
         onPointerDown={frame.onPointerDown}
       >
-        <button
-          type="button"
-          className="graph-legend__toggle graph-legend__show"
-          aria-label="Show legend"
-          title="Show legend"
-          onClick={frame.onToggleClick}
-        >
-          Legend
-        </button>
+        <LegendLauncher onClick={frame.onToggleClick} />
       </div>
     );
   }
@@ -540,81 +578,24 @@ export function GraphLegend({
       </header>
 
       {isEditing && onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup && (
-        <div className="graph-legend__group graph-legend__group--control">
-          <label className="graph-legend__control">
-            <span className="graph-legend__title">Save legend</span>
-            <div className="graph-legend__setup-row">
-              <input
-                className="graph-legend__input"
-                value={setupName}
-                onChange={(e) => setSetupName(e.target.value)}
-                placeholder="Legend name"
-                aria-label="Legend setup name"
-              />
-              <button
-                type="button"
-                className="graph-legend__btn graph-legend__btn--primary"
-                disabled={!setupName.trim()}
-                onClick={() => {
-                  onSaveLegendSetup(setupName);
-                  setSetupName('');
-                }}
-              >
-                Save
-              </button>
-            </div>
-          </label>
-          {legendSetups.length > 0 && (
-            <div className="graph-legend__setup-row">
-              <select
-                className="graph-legend__select"
-                value={selectedSetupId}
-                onChange={(e) => setSelectedSetupId(e.target.value)}
-                aria-label="Saved legends"
-              >
-                <option value="">Saved legends…</option>
-                {legendSetups.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="graph-legend__btn"
-                disabled={!selectedSetupId}
-                onClick={() => {
-                  const setup = legendSetups.find((s) => s.id === selectedSetupId);
-                  if (setup) onApplyLegendSetup(setup);
-                }}
-              >
-                Apply
-              </button>
-              <button
-                type="button"
-                className="graph-legend__btn graph-legend__btn--danger"
-                disabled={!selectedSetupId}
-                onClick={() => {
-                  if (!selectedSetupId) return;
-                  onDeleteLegendSetup(selectedSetupId);
-                  setSelectedSetupId('');
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
+        <LegendPresetBar
+          setups={legendSetups}
+          onApply={onApplyLegendSetup}
+          onDelete={onDeleteLegendSetup}
+          onSave={onSaveLegendSetup}
+        />
       )}
 
       {showAppsBlock && (
-        <div className="graph-legend__group">
+        <div className="graph-legend__group graph-legend__group--apps">
           {showAppsTitle ? <p className="graph-legend__title">Apps</p> : null}
           {showAppSelects && (
             <div className="graph-legend__group--control graph-legend__group--inline-controls">
               {appFillOptions.length > 0 && appFillKey != null && onAppFillChange != null && (
-                <label className="graph-legend__control">
-                  <span className="graph-legend__title">App fill</span>
+                <LegendControlRow
+                  label="App fill"
+                  trailing={chipsFor('appFill', fillChips)}
+                >
                   <select
                     className="graph-legend__select"
                     value={appFillKey}
@@ -627,13 +608,12 @@ export function GraphLegend({
                       </option>
                     ))}
                   </select>
-                </label>
+                </LegendControlRow>
               )}
               {appBorderOptions.length > 0 &&
                 appBorderKey != null &&
                 onAppBorderChange != null && (
-                  <label className="graph-legend__control">
-                    <span className="graph-legend__title">App border</span>
+                  <LegendControlRow label="App border" trailing={chipsFor('appBorder', borderChips)}>
                     <select
                       className="graph-legend__select"
                       value={appBorderKey}
@@ -646,11 +626,10 @@ export function GraphLegend({
                         </option>
                       ))}
                     </select>
-                  </label>
+                  </LegendControlRow>
                 )}
               {appTextOptions.length > 0 && appTextKey != null && onAppTextChange != null && (
-                <label className="graph-legend__control">
-                  <span className="graph-legend__title">Text color</span>
+                <LegendControlRow label="Text color" trailing={chipsFor('appText', textChips)}>
                   <select
                     className="graph-legend__select"
                     value={appTextKey}
@@ -663,20 +642,19 @@ export function GraphLegend({
                       </option>
                     ))}
                   </select>
-                </label>
+                </LegendControlRow>
               )}
             </div>
           )}
-          {appsItems.length > 0 && <ul className="graph-legend__list">{appsItems}</ul>}
+          {!showAppSelects && appsItems.length > 0 && <ul className="graph-legend__list">{appsItems}</ul>}
         </div>
       )}
 
       {(shouldShowIconSelect || shouldShowIconRows) && (
-        <div className="graph-legend__group">
+        <div className="graph-legend__group graph-legend__group--app-icons">
           <p className="graph-legend__title">App icons</p>
           {shouldShowIconSelect && (
-            <label className="graph-legend__control">
-              <span className="graph-legend__title">Icon</span>
+            <LegendControlRow label="Icon">
               <select
                 className="graph-legend__select"
                 value={iconKey}
@@ -689,7 +667,7 @@ export function GraphLegend({
                   </option>
                 ))}
               </select>
-            </label>
+            </LegendControlRow>
           )}
           {shouldShowIconRows && (
             <LegendIconRows
@@ -702,12 +680,14 @@ export function GraphLegend({
       )}
 
       {showFlowsBlock && (
-        <div className="graph-legend__group">
+        <div className="graph-legend__group graph-legend__group--flows">
           {showFlowsTitle ? <p className="graph-legend__title">Flows</p> : null}
           {showFlowSelects && (
             <div className="graph-legend__group--control graph-legend__group--inline-controls">
-              <label className="graph-legend__control">
-                <span className="graph-legend__title">Flow color</span>
+              <LegendControlRow
+                label="Flow color"
+                trailing={chipsFor('edgeStroke', flowChips)}
+              >
                 <select
                   className="graph-legend__select"
                   value={colorPropertyKey}
@@ -720,11 +700,10 @@ export function GraphLegend({
                     </option>
                   ))}
                 </select>
-              </label>
+              </LegendControlRow>
 
               {labelPropertyOptions.length > 0 && onLabelPropertyChange != null && (
-                <label className="graph-legend__control">
-                  <span className="graph-legend__title">Flow label</span>
+                <LegendControlRow label="Flow label">
                   <select
                     className={`graph-legend__select${
                       hideEdgeLabels ? ' graph-legend__select--hide-labels' : ''
@@ -745,11 +724,11 @@ export function GraphLegend({
                       Hide all labels
                     </option>
                   </select>
-                </label>
+                </LegendControlRow>
               )}
             </div>
           )}
-          {flowsItems.length > 0 && <ul className="graph-legend__list">{flowsItems}</ul>}
+          {!showFlowSelects && flowsItems.length > 0 && <ul className="graph-legend__list">{flowsItems}</ul>}
         </div>
       )}
 

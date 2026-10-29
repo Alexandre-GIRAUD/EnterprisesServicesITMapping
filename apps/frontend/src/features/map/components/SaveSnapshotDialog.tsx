@@ -4,9 +4,19 @@ type SaveSnapshotDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   onSave: (name: string) => Promise<void>;
+  title?: string;
+  hint?: string;
+  placeholder?: string;
 };
 
-export function SaveSnapshotDialog({ isOpen, onClose, onSave }: SaveSnapshotDialogProps) {
+export function SaveSnapshotDialog({
+  isOpen,
+  onClose,
+  onSave,
+  title = 'Pin view',
+  hint = 'Saves the current filters so you can reapply them in one click.',
+  placeholder = 'E.g. Retail EMEA 2024',
+}: SaveSnapshotDialogProps) {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -55,11 +65,9 @@ export function SaveSnapshotDialog({ isOpen, onClose, onSave }: SaveSnapshotDial
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="save-snapshot-dialog-title" className="save-snapshot-dialog-title">
-          Pin view
+          {title}
         </h2>
-        <p className="save-snapshot-dialog-hint">
-          Saves the current filters so you can reapply them in one click.
-        </p>
+        <p className="save-snapshot-dialog-hint">{hint}</p>
         <form onSubmit={handleSubmit}>
           <label className="save-snapshot-dialog-label" htmlFor="save-snapshot-name">
             Name
@@ -73,7 +81,7 @@ export function SaveSnapshotDialog({ isOpen, onClose, onSave }: SaveSnapshotDial
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={saving}
-            placeholder="E.g. Retail EMEA 2024"
+            placeholder={placeholder}
           />
           {error ? <p className="save-snapshot-dialog-error">{error}</p> : null}
           <div className="save-snapshot-dialog-actions">

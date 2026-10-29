@@ -11,6 +11,7 @@ import {
   fillLegendFrame,
   fitLegendHeight,
   measureLegendFontScale,
+  pickShownLegendFrame,
 } from './legendFrame.ts';
 
 assert.equal(DEFAULT_LEGEND_WIDTH_PX, 220);
@@ -75,5 +76,12 @@ assert.deepEqual(
   fillLegendFrame({ width: 800, height: 600 }, 8),
   { offset: { left: 8, top: 8 }, size: { width: 784, height: 584 } },
 );
+
+// Leaving edit mode shows the own frame again, even while the stale fill is still stored.
+const ownFrame = { offset: { left: 4, top: 6 }, size: { width: 220, height: 360 } };
+const staleFill = { offset: { left: 8, top: 8 }, size: { width: 784, height: 584 } };
+assert.deepEqual(pickShownLegendFrame(true, staleFill, ownFrame), staleFill);
+assert.deepEqual(pickShownLegendFrame(false, staleFill, ownFrame), ownFrame);
+assert.deepEqual(pickShownLegendFrame(true, null, ownFrame), ownFrame);
 
 console.log('legendFrame.check: ok');

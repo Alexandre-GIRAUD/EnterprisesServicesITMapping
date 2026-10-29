@@ -5224,6 +5224,11 @@ body.is-diagram-grown .layout {
 }
 
 /* ===== Graph legend ===== */
+:root {
+  /* Height of the three zoom buttons plus a small gap: the collapsed legend square sits above them. */
+  --graph-legend-launcher-lift: 86px;
+}
+
 .graph-legend {
   display: flex;
   flex-direction: column;
@@ -5246,9 +5251,52 @@ body.is-diagram-grown .layout {
   max-height: none;
 }
 
+/*
+ * Edit mode, in the spirit of the Data Model page: white cards, 12px radius,
+ * slate borders. One full-width card per block: presets, apps, flows, app icons.
+ */
 .graph-legend.is-filling {
   resize: none;
   max-width: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.graph-legend.is-filling .graph-legend__header {
+  grid-column: 1 / -1;
+}
+
+.graph-legend.is-filling > .graph-legend__group,
+.graph-legend.is-filling > .graph-legend__presets {
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.graph-legend.is-filling .graph-legend__group .graph-legend__group--control {
+  padding: 0 0 0.6rem;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 0;
+}
+
+.graph-legend.is-filling .graph-legend__presets { order: 0; }
+.graph-legend.is-filling .graph-legend__group--apps { order: 1; }
+.graph-legend.is-filling .graph-legend__group--flows { order: 2; }
+.graph-legend.is-filling .graph-legend__group--app-icons { order: 3; }
+
+.graph-legend.is-filling .graph-legend__group > .graph-legend__title {
+  font-size: 0.85rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #0f172a;
 }
 
 .graph-legend__item--icon {
@@ -5307,15 +5355,48 @@ body.is-diagram-grown .layout {
   background: #fff;
 }
 
+/*
+ * Collapsed: only an accent-colored "L" square, lifted above the zoom controls
+ * (Production blue, Sandbox amber, via --ss-accent-*). The wrapper that holds the
+ * legend moves to the bottom-left corner; the square is as tall as a zoom button.
+ */
 .graph-legend.is-concealed {
+  position: static;
   resize: none;
   overflow: visible;
   width: auto;
   height: auto;
   min-width: 0;
   min-height: 0;
-  padding: 0.35rem;
-  cursor: grab;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.react-flow__panel.top.left:has(> .graph-legend.is-concealed) {
+  top: auto;
+  bottom: var(--graph-legend-launcher-lift);
+}
+
+.sandbox-shared-legend:has(.graph-legend.is-concealed) {
+  top: auto;
+  left: 15px;
+  bottom: calc(15px + var(--graph-legend-launcher-lift));
+}
+
+.graph-legend__show {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-color: var(--ss-accent-border, #93c5fd);
+  box-shadow: 0 4px 12px rgb(15 23 42 / 12%);
 }
 
 .graph-legend__header-actions {
@@ -5392,13 +5473,18 @@ body.is-diagram-grown .layout {
 .graph-legend__input {
   flex: 1;
   min-width: 0;
-  padding: 0.4rem 0.55rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
   background: #fff;
-  color: #334155;
+  color: #0f172a;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
+}
+
+.graph-legend__input:focus-visible {
+  outline: none;
+  border-color: var(--ss-accent, #2563eb);
 }
 
 .graph-legend__btn {
@@ -5406,9 +5492,9 @@ body.is-diagram-grown .layout {
   font: inherit;
   font-size: 0.72rem;
   font-weight: 600;
-  padding: 0.4rem 0.65rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
   background: #ffffff;
   color: #334155;
   cursor: pointer;
@@ -5463,11 +5549,11 @@ body.is-diagram-grown .layout {
 
 .graph-legend__color {
   flex-shrink: 0;
-  width: 1.35rem;
-  height: 1.1rem;
+  width: 1.6rem;
+  height: 1.4rem;
   padding: 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
   background: transparent;
   cursor: pointer;
 }
@@ -5529,20 +5615,94 @@ body.is-diagram-grown .layout {
   gap: 0.25rem;
 }
 
+/* One line: label, short dropdown, then swatch + color picker pinned to the end. */
+.graph-legend__control--row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.graph-legend__presets {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.graph-legend__presets .graph-legend__control-label {
+  padding-top: 0;
+}
+
+.graph-legend__presets .graph-legend__select {
+  flex: 0 1 14rem;
+  width: auto;
+  min-width: 0;
+}
+
+.graph-legend__presets .graph-legend__btn:first-of-type {
+  margin-left: auto;
+}
+
+.graph-legend__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.graph-legend__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.35rem 0.2rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.graph-legend.is-filling .graph-legend__list--icons {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.graph-legend__control-label {
+  flex: 0 0 5.4rem;
+  padding-top: 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.graph-legend__control-end {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+}
+
 .graph-legend__select {
   width: 100%;
-  padding: 0.28rem 0.45rem;
+  padding: 0.35rem 0.5rem;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #fff;
-  color: #334155;
-  font-size: 0.72rem;
+  color: #0f172a;
+  font-size: 0.78rem;
   cursor: pointer;
 }
 
+.graph-legend__control--row .graph-legend__select {
+  flex: 0 1 10rem;
+  width: auto;
+  min-width: 0;
+}
+
 .graph-legend__select:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 1px;
+  outline: none;
+  border-color: var(--ss-accent, #2563eb);
 }
 
 .graph-legend__group {
