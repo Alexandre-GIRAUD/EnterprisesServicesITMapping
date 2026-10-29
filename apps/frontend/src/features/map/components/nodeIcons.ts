@@ -113,8 +113,8 @@ export const NODE_ICON_CATALOG: NodeIconOption[] = [
   { key: 'qr-code', label: 'Qr Code' },
 ];
 
-export function nodeLabelScale(showsIcons: boolean): number {
-  return showsIcons ? LABEL_SCALE_WITH_ICONS : 1;
+export function nodeLabelScale(hasIcons: boolean): number {
+  return hasIcons ? LABEL_SCALE_WITH_ICONS : 1;
 }
 
 /** Spread the values over the catalog so each starts with its own icon. */
@@ -126,10 +126,9 @@ export function defaultIconForValue(values: string[], value: string): string {
 /** Icon shown on a node: the user's pick for its attribute value, else a default. Null hides it. */
 export function nodeIconKeyFor(
   node: GraphNodeDto,
-  attributeKey: string,
-  iconByValue: Record<string, string>,
-  values: string[],
+  coding: { attributeKey: string; iconByValue: Record<string, string>; values: string[] },
 ): string | null {
+  const { attributeKey, iconByValue, values } = coding;
   if (attributeKey === NODE_ICON_NONE_KEY) return null;
   const value = nodePropValue(node, attributeKey);
   if (!value) return null;
@@ -161,6 +160,6 @@ export function storeNodeIcons(attributeKey: string, iconByValue: Record<string,
     localStorage.setItem(NODE_ICON_ATTRIBUTE_STORAGE_KEY, attributeKey);
     localStorage.setItem(NODE_ICON_MAP_STORAGE_KEY, JSON.stringify(iconByValue));
   } catch {
-    /* ignore */
+    // Private browsing or full storage: icons just stay for this session.
   }
 }

@@ -193,9 +193,11 @@ export function GraphLegend({
     colorPropertyKey != null &&
     onColorPropertyChange != null;
 
+  const canPickIconAttribute = onIconKeyChange != null && iconOptions.length > 1;
+
   const canEdit =
     showCoding ||
-    Boolean(onIconKeyChange && iconOptions.length > 1) ||
+    canPickIconAttribute ||
     Boolean(onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup) ||
     Boolean(onSandboxIconLabelChange && sandboxIcons.length > 0);
 
@@ -472,8 +474,8 @@ export function GraphLegend({
   const showFlowSelects =
     isEditing && showCoding && !simpleMode && colorPropertyKey != null;
 
-  const showIconSelect = isEditing && onIconKeyChange != null && iconOptions.length > 1;
-  const showIconRows = iconKey !== NODE_ICON_NONE_KEY && iconValues.length > 0;
+  const shouldShowIconSelect = isEditing && canPickIconAttribute;
+  const shouldShowIconRows = iconKey !== NODE_ICON_NONE_KEY && iconValues.length > 0;
 
   const showAppsBlock = showAppSelects || appsItems.length > 0;
   const showFlowsBlock = showFlowSelects || flowsItems.length > 0;
@@ -669,10 +671,10 @@ export function GraphLegend({
         </div>
       )}
 
-      {(showIconSelect || showIconRows) && (
+      {(shouldShowIconSelect || shouldShowIconRows) && (
         <div className="graph-legend__group">
           <p className="graph-legend__title">App icons</p>
-          {showIconSelect && (
+          {shouldShowIconSelect && (
             <label className="graph-legend__control">
               <span className="graph-legend__title">Icon</span>
               <select
@@ -689,7 +691,7 @@ export function GraphLegend({
               </select>
             </label>
           )}
-          {showIconRows && (
+          {shouldShowIconRows && (
             <LegendIconRows
               values={iconValues}
               iconByValue={iconByValue}

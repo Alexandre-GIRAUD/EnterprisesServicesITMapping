@@ -15,9 +15,9 @@ import {
   NODE_ICON_NONE_KEY,
   defaultIconForValue,
   nodeIconKeyFor,
+  nodeLabelScale,
 } from './nodeIcons.ts';
 import { NODE_ICON_GLYPHS } from './nodeIconGlyphs.ts';
-import { nodeLabelScale } from './nodeIcons.ts';
 
 function app(id: string, tier: string): GraphNodeDto {
   return { id, label: id, type: 'Application', properties: { tier } };
@@ -28,11 +28,11 @@ assert.equal(new Set(NODE_ICON_CATALOG.map((i) => i.key)).size, NODE_ICON_CATALO
 for (const { key } of NODE_ICON_CATALOG) assert.ok(NODE_ICON_GLYPHS[key], `glyph for ${key}`);
 
 const values = ['Gold', 'Silver'];
-assert.equal(nodeIconKeyFor(app('a', 'Gold'), NODE_ICON_NONE_KEY, {}, values), null);
-assert.equal(nodeIconKeyFor(app('a', 'Gold'), 'tier', {}, values), NODE_ICON_CATALOG[0].key);
-assert.equal(nodeIconKeyFor(app('a', 'Silver'), 'tier', {}, values), NODE_ICON_CATALOG[1].key);
-assert.equal(nodeIconKeyFor(app('a', 'Silver'), 'tier', { Silver: 'rocket' }, values), 'rocket');
-assert.equal(nodeIconKeyFor(app('a', ''), 'tier', {}, values), null);
+assert.equal(nodeIconKeyFor(app('a', 'Gold'), { attributeKey: NODE_ICON_NONE_KEY, iconByValue: {}, values }), null);
+assert.equal(nodeIconKeyFor(app('a', 'Gold'), { attributeKey: 'tier', iconByValue: {}, values }), NODE_ICON_CATALOG[0].key);
+assert.equal(nodeIconKeyFor(app('a', 'Silver'), { attributeKey: 'tier', iconByValue: {}, values }), NODE_ICON_CATALOG[1].key);
+assert.equal(nodeIconKeyFor(app('a', 'Silver'), { attributeKey: 'tier', iconByValue: { Silver: 'rocket' }, values }), 'rocket');
+assert.equal(nodeIconKeyFor(app('a', ''), { attributeKey: 'tier', iconByValue: {}, values }), null);
 assert.equal(defaultIconForValue(values, 'Gold'), NODE_ICON_CATALOG[0].key);
 
 // Labels shrink a little when icons are shown.

@@ -28,13 +28,13 @@ export function useNodeIcons(nodes: GraphNodeDto[]) {
     ],
     [nodes],
   );
-  const activeKey = options.some((o) => o.key === attributeKey) ? attributeKey : NODE_ICON_NONE_KEY;
+  const activeKey = options.some((option) => option.key === attributeKey) ? attributeKey : NODE_ICON_NONE_KEY;
   const values = useMemo(
     () => (activeKey === NODE_ICON_NONE_KEY ? [] : collectNodeLegendValues(nodes, activeKey)),
     [nodes, activeKey],
   );
   const iconByValue = useMemo(
-    () => Object.fromEntries(values.map((v) => [v, picked[v] ?? defaultIconForValue(values, v)])),
+    () => Object.fromEntries(values.map((value) => [value, picked[value] ?? defaultIconForValue(values, value)])),
     [values, picked],
   );
 
@@ -55,7 +55,8 @@ export function useNodeIcons(nodes: GraphNodeDto[]) {
   );
 
   const iconKeyOf = useCallback(
-    (node: GraphNodeDto) => nodeIconKeyFor(node, activeKey, picked, values),
+    (node: GraphNodeDto) =>
+      nodeIconKeyFor(node, { attributeKey: activeKey, iconByValue: picked, values }),
     [activeKey, picked, values],
   );
   const labelScale = nodeLabelScale(activeKey !== NODE_ICON_NONE_KEY);

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { NODE_ICON_CATALOG } from './nodeIcons.ts';
 import { NodeIconGlyph } from './NodeIconGlyph';
 
+const PICKER_ICON_SIZE_PX = 18;
+
 type Props = {
   values: string[];
   iconByValue: Record<string, string>;
@@ -43,7 +45,7 @@ export function LegendIconRows({ values, iconByValue, onIconChange }: Props) {
                     setOpenValue(null);
                   }}
                 >
-                  <NodeIconGlyph iconKey={icon.key} size={18} />
+                  <NodeIconGlyph iconKey={icon.key} size={PICKER_ICON_SIZE_PX} />
                 </button>
               ))}
             </div>

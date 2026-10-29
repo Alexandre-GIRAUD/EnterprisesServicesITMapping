@@ -3,6 +3,9 @@ import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { nodeColorForType } from './graphTheme';
 import { NodeIconGlyph } from './NodeIconGlyph';
 
+/** Matches .graph-node-card__label in index.css. */
+const LABEL_FONT_SIZE_PX = 13;
+
 export type AppGraphNodeData = {
   label: string;
   nodeType: string;
@@ -106,27 +109,27 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
         />
       ) : (
         <>
-        {data.iconKey ? (
-          <span className="graph-node-card__icon" style={{ color: textColor }}>
-            <NodeIconGlyph iconKey={data.iconKey} />
+          {data.iconKey ? (
+            <span className="graph-node-card__icon" style={{ color: textColor }}>
+              <NodeIconGlyph iconKey={data.iconKey} />
+            </span>
+          ) : null}
+          <span
+            className={`graph-node-card__label${data.onDisplayLabelChange ? ' is-editable' : ''}`}
+            title={shown}
+            style={{
+              color: textColor,
+              ...(data.labelScale && data.labelScale !== 1
+                ? { fontSize: `${LABEL_FONT_SIZE_PX * data.labelScale}px` }
+                : {}),
+            }}
+            onClick={startLabelEdit}
+            onMouseDown={(event) => {
+              if (data.onDisplayLabelChange) event.stopPropagation();
+            }}
+          >
+            {shown}
           </span>
-        ) : null}
-        <span
-          className={`graph-node-card__label${data.onDisplayLabelChange ? ' is-editable' : ''}`}
-          title={shown}
-          style={{
-            color: textColor,
-            ...(data.labelScale && data.labelScale !== 1
-              ? { fontSize: `${13 * data.labelScale}px` }
-              : {}),
-          }}
-          onClick={startLabelEdit}
-          onMouseDown={(event) => {
-            if (data.onDisplayLabelChange) event.stopPropagation();
-          }}
-        >
-          {shown}
-        </span>
         </>
       )}
     </div>
