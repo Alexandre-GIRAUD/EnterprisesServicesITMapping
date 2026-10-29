@@ -665,7 +665,7 @@ export function FilterDrawer({
                 setWithNeighbours(event.target.checked);
               }}
             />
-            with neighbour
+            with neighbours
           </label>
         ) : null}
         {view === 'root' ? (
