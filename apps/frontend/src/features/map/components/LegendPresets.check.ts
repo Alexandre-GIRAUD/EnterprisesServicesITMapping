@@ -35,6 +35,7 @@ assert.match(bar, />Owners</);
 assert.match(bar, /aria-label="Save legend preset"/);
 assert.doesNotMatch(bar, /<input/);
 assert.doesNotMatch(bar, /Save legend</);
+assert.match(bar, />Save as new preset…</);
 
 const emptyBar = renderToStaticMarkup(
   createElement(LegendPresetBar, { setups: [], onApply: noop, onDelete: noop, onSave: noop }),
@@ -44,8 +45,8 @@ assert.match(emptyBar, /<select[^>]*disabled/);
 const chips = renderToStaticMarkup(
   createElement(LegendValueChips, {
     chips: [
-      { value: 'High', label: 'High', color: '#ff0000', kind: 'fill' },
-      { value: 'Low', label: 'Low', color: '#00ff00', kind: 'fill' },
+      { value: 'High', label: 'High', color: '#ff0000' },
+      { value: 'Low', label: 'Low', color: '#00ff00' },
     ],
     onChange: noop,
   }),
@@ -53,6 +54,7 @@ const chips = renderToStaticMarkup(
 assert.match(chips, /aria-label="Color for High"/);
 assert.match(chips, /aria-label="Color for Low"/);
 assert.equal((chips.match(/type="color"/g) ?? []).length, 2);
+assert.doesNotMatch(chips, /graph-legend__swatch/);
 
 const presetDialog = renderToStaticMarkup(
   createElement(SaveSnapshotDialog, {
