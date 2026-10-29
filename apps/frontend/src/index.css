@@ -5253,13 +5253,13 @@ body.is-diagram-grown .layout {
 
 /*
  * Edit mode, in the spirit of the Data Model page: white cards, 12px radius,
- * slate borders. Groups flow side by side so the wide pane needs little scrolling.
+ * slate borders. One full-width card per block: presets, apps, flows, app icons.
  */
 .graph-legend.is-filling {
   resize: none;
   max-width: none;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   align-items: start;
   gap: 0.75rem;
@@ -5273,7 +5273,7 @@ body.is-diagram-grown .layout {
 }
 
 .graph-legend.is-filling > .graph-legend__group,
-.graph-legend.is-filling > .graph-legend__group--control {
+.graph-legend.is-filling > .graph-legend__presets {
   padding: 0.8rem 0.9rem;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
@@ -5286,6 +5286,11 @@ body.is-diagram-grown .layout {
   border-bottom: 1px solid #e2e8f0;
   border-radius: 0;
 }
+
+.graph-legend.is-filling .graph-legend__presets { order: 0; }
+.graph-legend.is-filling .graph-legend__group--apps { order: 1; }
+.graph-legend.is-filling .graph-legend__group--flows { order: 2; }
+.graph-legend.is-filling .graph-legend__group--app-icons { order: 3; }
 
 .graph-legend.is-filling .graph-legend__group > .graph-legend__title {
   font-size: 0.85rem;
@@ -5613,22 +5618,69 @@ body.is-diagram-grown .layout {
 /* One line: label, short dropdown, then swatch + color picker pinned to the end. */
 .graph-legend__control--row {
   flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.graph-legend__presets {
+  display: flex;
   align-items: center;
   gap: 0.6rem;
 }
 
+.graph-legend__presets .graph-legend__control-label {
+  padding-top: 0;
+}
+
+.graph-legend__presets .graph-legend__select {
+  flex: 0 1 14rem;
+  width: auto;
+  min-width: 0;
+}
+
+.graph-legend__presets .graph-legend__btn:first-of-type {
+  margin-left: auto;
+}
+
+.graph-legend__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.graph-legend__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.35rem 0.2rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.graph-legend.is-filling .graph-legend__list--icons {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
 .graph-legend__control-label {
   flex: 0 0 5.4rem;
+  padding-top: 0.45rem;
   font-size: 0.78rem;
   font-weight: 600;
   color: #334155;
 }
 
 .graph-legend__control-end {
-  display: inline-flex;
+  display: flex;
+  flex: 1 1 12rem;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem;
-  margin-left: auto;
+  min-width: 0;
 }
 
 .graph-legend__select {

@@ -11,10 +11,10 @@ type Props = {
 /** One legend edit line: label, short dropdown, then an optional end-of-line control. */
 export function LegendControlRow({ label, children, trailing }: Props) {
   return (
-    <label className="graph-legend__control graph-legend__control--row">
+    <div className="graph-legend__control graph-legend__control--row">
       <span className="graph-legend__control-label">{label}</span>
       {children}
       {trailing ? <span className="graph-legend__control-end">{trailing}</span> : null}
-    </label>
+    </div>
   );
 }
