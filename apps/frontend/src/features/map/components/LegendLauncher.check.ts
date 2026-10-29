@@ -18,8 +18,11 @@ assert.doesNotMatch(launcher, /Legend</);
 const row = renderToStaticMarkup(
   createElement(
     LegendControlRow,
-    { label: 'App fill', trailing: createElement('input', { type: 'color', readOnly: true }) },
-    createElement('select', { 'aria-label': 'fill' }),
+    {
+      label: 'App fill',
+      trailing: createElement('input', { type: 'color', readOnly: true }),
+      children: createElement('select', { 'aria-label': 'fill' }),
+    },
   ),
 );
 assert.match(row, /class="graph-legend__control graph-legend__control--row"/);
@@ -27,7 +30,7 @@ assert.ok(row.indexOf('App fill') < row.indexOf('<select'));
 assert.ok(row.indexOf('<select') < row.indexOf('type="color"'));
 
 const plainRow = renderToStaticMarkup(
-  createElement(LegendControlRow, { label: 'Flow label' }, createElement('select')),
+  createElement(LegendControlRow, { label: 'Flow label', children: createElement('select') }),
 );
 assert.doesNotMatch(plainRow, /graph-legend__control-end/);
 

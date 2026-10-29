@@ -23,6 +23,8 @@ import {
 } from './edgeColorProperty';
 import { useLegendFrame } from './useLegendFrame';
 import { LegendIconRows } from './LegendIconRows';
+import { LegendControlRow } from './LegendControlRow';
+import { LegendLauncher } from './LegendLauncher';
 import { NODE_ICON_NONE_KEY } from './nodeIcons.ts';
 
 type Props = {
@@ -81,6 +83,72 @@ function nodeValueLabel(propertyKey: string, value: string): string {
   return value;
 }
 
+type SwatchKind = 'edge' | 'fill' | 'border' | 'app' | 'label' | 'text';
+
+function LegendSwatch({
+  color,
+  kind,
+  borderColor,
+}: {
+  color: string;
+  kind: SwatchKind;
+  borderColor?: string;
+}) {
+  if (kind === 'edge') {
+    return (
+      <span
+        className="graph-legend__swatch graph-legend__swatch--edge"
+        style={{ color }}
+        aria-hidden="true"
+      />
+    );
+  }
+  if (kind === 'label' || kind === 'text') {
+    return (
+      <span
+        className="graph-legend__swatch graph-legend__swatch--text-label"
+        style={{ color, borderColor: `${color}55` }}
+        aria-hidden="true"
+      >
+        {kind === 'text' ? 'text' : 'label'}
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`graph-legend__swatch graph-legend__swatch--node${
+        kind === 'app' ? ' graph-legend__swatch--mini-app' : ''
+      }`}
+      style={{
+        backgroundColor: kind === 'border' ? '#ffffff' : color,
+        borderColor: kind === 'fill' ? '#94a3b8' : (borderColor ?? color),
+      }}
+      aria-hidden="true"
+    />
+  );
+}
+
+function LegendColorPicker({
+  label,
+  color,
+  onChange,
+}: {
+  label: string;
+  color: string;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <input
+      type="color"
+      className="graph-legend__color"
+      value={cssColorToHex(color)}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={`Color for ${label}`}
+      title="Choose color"
+    />
+  );
+}
+
 function ColorValueRow({
   label,
   color,
@@ -91,49 +159,37 @@ function ColorValueRow({
   label: string;
   color: string;
   onChange?: (color: string) => void;
-  kind: 'edge' | 'fill' | 'border' | 'app' | 'label' | 'text';
+  kind: SwatchKind;
   borderColor?: string;
 }) {
   return (
     <li className="graph-legend__item">
-      {kind === 'edge' ? (
-        <span
-          className="graph-legend__swatch graph-legend__swatch--edge"
-          style={{ color }}
-          aria-hidden="true"
-        />
-      ) : kind === 'label' || kind === 'text' ? (
-        <span
-          className="graph-legend__swatch graph-legend__swatch--text-label"
-          style={{ color, borderColor: `${color}55` }}
-          aria-hidden="true"
-        >
-          {kind === 'text' ? 'text' : 'label'}
-        </span>
-      ) : (
-        <span
-          className={`graph-legend__swatch graph-legend__swatch--node${
-            kind === 'app' ? ' graph-legend__swatch--mini-app' : ''
-          }`}
-          style={{
-            backgroundColor: kind === 'border' ? '#ffffff' : color,
-            borderColor: kind === 'fill' ? '#94a3b8' : (borderColor ?? color),
-          }}
-          aria-hidden="true"
-        />
-      )}
+      <LegendSwatch color={color} kind={kind} borderColor={borderColor} />
       <span className="graph-legend__label">{label}</span>
-      {onChange ? (
-        <input
-          type="color"
-          className="graph-legend__color"
-          value={cssColorToHex(color)}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={`Color for ${label}`}
-          title="Choose color"
-        />
-      ) : null}
+      {onChange ? <LegendColorPicker label={label} color={color} onChange={onChange} /> : null}
     </li>
+  );
+}
+
+/** Swatch plus color picker for a shared channel, shown at the end of a select line. */
+function InlineColor({
+  label,
+  color,
+  borderColor,
+  kind,
+  onChange,
+}: {
+  label: string;
+  color: string;
+  borderColor?: string;
+  kind: SwatchKind;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <>
+      <LegendSwatch color={color} kind={kind} borderColor={borderColor} />
+      <LegendColorPicker label={label} color={color} onChange={onChange} />
+    </>
   );
 }
 
@@ -257,6 +313,21 @@ export function GraphLegend({
     legendColors.edgeStroke
   );
 
+  const showAppSelects =
+    isEditing &&
+    showCoding &&
+    !simpleMode &&
+    ((appFillOptions.length > 0 && appFillKey != null && onAppFillChange != null) ||
+      (appBorderOptions.length > 0 && appBorderKey != null && onAppBorderChange != null) ||
+      (appTextOptions.length > 0 && appTextKey != null && onAppTextChange != null));
+
+  const showFlowSelects =
+    isEditing && showCoding && !simpleMode && colorPropertyKey != null;
+
+  /** One shared color per channel: its swatch and picker sit at the end of the select line. */
+  const inlineAppColor = showAppSelects && nodesTypeOnly && colorChange != null;
+  const inlineFlowColor = showFlowSelects && edgesTypeOnly && colorChange != null;
+
   const appsItems: ReactNode[] = [];
   if (!showCoding && nodeTypes.length > 0 && !simpleMode) {
     for (const key of nodeTypes) {
@@ -285,7 +356,7 @@ export function GraphLegend({
       );
     }
   } else if (nodesTypeOnly) {
-    appsItems.push(
+    if (!inlineAppColor) appsItems.push(
       <ColorValueRow
         key="type-app"
         label="app"
@@ -389,7 +460,7 @@ export function GraphLegend({
       );
     }
   } else if (edgesTypeOnly) {
-    flowsItems.push(
+    if (!inlineFlowColor) flowsItems.push(
       <ColorValueRow
         key="type-flow"
         label="flow"
@@ -463,17 +534,6 @@ export function GraphLegend({
     ? HIDE_EDGE_LABELS_KEY
     : (labelPropertyKey ?? '');
 
-  const showAppSelects =
-    isEditing &&
-    showCoding &&
-    !simpleMode &&
-    ((appFillOptions.length > 0 && appFillKey != null && onAppFillChange != null) ||
-      (appBorderOptions.length > 0 && appBorderKey != null && onAppBorderChange != null) ||
-      (appTextOptions.length > 0 && appTextKey != null && onAppTextChange != null));
-
-  const showFlowSelects =
-    isEditing && showCoding && !simpleMode && colorPropertyKey != null;
-
   const shouldShowIconSelect = isEditing && canPickIconAttribute;
   const shouldShowIconRows = iconKey !== NODE_ICON_NONE_KEY && iconValues.length > 0;
 
@@ -490,15 +550,7 @@ export function GraphLegend({
         style={frame.style}
         onPointerDown={frame.onPointerDown}
       >
-        <button
-          type="button"
-          className="graph-legend__toggle graph-legend__show"
-          aria-label="Show legend"
-          title="Show legend"
-          onClick={frame.onToggleClick}
-        >
-          Legend
-        </button>
+        <LegendLauncher onClick={frame.onToggleClick} />
       </div>
     );
   }
@@ -613,8 +665,20 @@ export function GraphLegend({
           {showAppSelects && (
             <div className="graph-legend__group--control graph-legend__group--inline-controls">
               {appFillOptions.length > 0 && appFillKey != null && onAppFillChange != null && (
-                <label className="graph-legend__control">
-                  <span className="graph-legend__title">App fill</span>
+                <LegendControlRow
+                  label="App fill"
+                  trailing={
+                    inlineAppColor ? (
+                      <InlineColor
+                        label="app"
+                        color={typeAppFill}
+                        borderColor={typeAppBorder}
+                        kind="app"
+                        onChange={(c) => colorChange('appFill', 'Application', c)}
+                      />
+                    ) : undefined
+                  }
+                >
                   <select
                     className="graph-legend__select"
                     value={appFillKey}
@@ -627,13 +691,12 @@ export function GraphLegend({
                       </option>
                     ))}
                   </select>
-                </label>
+                </LegendControlRow>
               )}
               {appBorderOptions.length > 0 &&
                 appBorderKey != null &&
                 onAppBorderChange != null && (
-                  <label className="graph-legend__control">
-                    <span className="graph-legend__title">App border</span>
+                  <LegendControlRow label="App border">
                     <select
                       className="graph-legend__select"
                       value={appBorderKey}
@@ -646,11 +709,10 @@ export function GraphLegend({
                         </option>
                       ))}
                     </select>
-                  </label>
+                  </LegendControlRow>
                 )}
               {appTextOptions.length > 0 && appTextKey != null && onAppTextChange != null && (
-                <label className="graph-legend__control">
-                  <span className="graph-legend__title">Text color</span>
+                <LegendControlRow label="Text color">
                   <select
                     className="graph-legend__select"
                     value={appTextKey}
@@ -663,7 +725,7 @@ export function GraphLegend({
                       </option>
                     ))}
                   </select>
-                </label>
+                </LegendControlRow>
               )}
             </div>
           )}
@@ -675,8 +737,7 @@ export function GraphLegend({
         <div className="graph-legend__group">
           <p className="graph-legend__title">App icons</p>
           {shouldShowIconSelect && (
-            <label className="graph-legend__control">
-              <span className="graph-legend__title">Icon</span>
+            <LegendControlRow label="Icon">
               <select
                 className="graph-legend__select"
                 value={iconKey}
@@ -689,7 +750,7 @@ export function GraphLegend({
                   </option>
                 ))}
               </select>
-            </label>
+            </LegendControlRow>
           )}
           {shouldShowIconRows && (
             <LegendIconRows
@@ -706,8 +767,19 @@ export function GraphLegend({
           {showFlowsTitle ? <p className="graph-legend__title">Flows</p> : null}
           {showFlowSelects && (
             <div className="graph-legend__group--control graph-legend__group--inline-controls">
-              <label className="graph-legend__control">
-                <span className="graph-legend__title">Flow color</span>
+              <LegendControlRow
+                label="Flow color"
+                trailing={
+                  inlineFlowColor ? (
+                    <InlineColor
+                      label="flow"
+                      color={typeFlowColor}
+                      kind="edge"
+                      onChange={(c) => colorChange('edgeStroke', 'DEPENDS_ON', c)}
+                    />
+                  ) : undefined
+                }
+              >
                 <select
                   className="graph-legend__select"
                   value={colorPropertyKey}
@@ -720,11 +792,10 @@ export function GraphLegend({
                     </option>
                   ))}
                 </select>
-              </label>
+              </LegendControlRow>
 
               {labelPropertyOptions.length > 0 && onLabelPropertyChange != null && (
-                <label className="graph-legend__control">
-                  <span className="graph-legend__title">Flow label</span>
+                <LegendControlRow label="Flow label">
                   <select
                     className={`graph-legend__select${
                       hideEdgeLabels ? ' graph-legend__select--hide-labels' : ''
@@ -745,7 +816,7 @@ export function GraphLegend({
                       Hide all labels
                     </option>
                   </select>
-                </label>
+                </LegendControlRow>
               )}
             </div>
           )}
