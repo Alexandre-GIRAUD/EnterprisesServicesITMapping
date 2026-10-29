@@ -11,6 +11,8 @@ import {
   DEFAULT_LEGEND_WIDTH_PX,
   chooseLegendEntryDirection,
   clampLegendOffset,
+  fillLegendFrame,
+  fitLegendHeight,
   measureLegendFontScale,
   type LegendOffset,
   type LegendPane,
@@ -18,6 +20,7 @@ import {
 } from './legendFrame.ts';
 
 const DRAG_START_THRESHOLD_PX = 4;
+const LEGEND_FILL_MARGIN_PX = 8;
 const PRIMARY_POINTER_BUTTON = 0;
 const LEGEND_CONTROL_SELECTOR = 'button, input, select, textarea, a';
 const LEGEND_DRAG_HANDLE_SELECTOR = '.graph-legend__header, .graph-legend__show';
@@ -42,32 +45,73 @@ type LegendFrameBindings = {
   onToggleClick: (event: { preventDefault: () => void }) => void;
 };
 
-export function useLegendFrame(frameRef: RefObject<HTMLDivElement | null>): LegendFrameBindings {
+type LegendFill = ReturnType<typeof fillLegendFrame>;
+
+/** `isFilling` stretches the legend over the whole pane (edit mode), then restores its own frame. */
+export function useLegendFrame(
+  frameRef: RefObject<HTMLDivElement | null>,
+  isFilling = false,
+): LegendFrameBindings {
   const [offset, setOffset] = useState<LegendOffset>({ left: 0, top: 0 });
   const [size, setSize] = useState<LegendSize>({
     width: DEFAULT_LEGEND_WIDTH_PX,
     height: DEFAULT_LEGEND_HEIGHT_PX,
   });
   const [isConcealed, setIsConcealed] = useState(false);
+  const [fill, setFill] = useState<LegendFill | null>(null);
   const sizeRef = useRef(size);
   const concealedRef = useRef(isConcealed);
   const suppressClickRef = useRef(false);
   sizeRef.current = size;
   concealedRef.current = isConcealed;
-  useLegendResizeObserver({ frameRef, isConcealed, concealedRef, setSize });
-  useKeepLegendInside({ frameRef, isConcealed, size, setOffset });
+  useFitDefaultHeight(frameRef, setSize);
+  useLegendResizeObserver({ frameRef, isConcealed: isConcealed || isFilling, concealedRef, setSize });
+  useKeepLegendInside({ frameRef, isConcealed: isConcealed || isFilling, size, setOffset });
+  useFillPane(frameRef, isFilling, setFill);
 
   return bindLegendFrame({
     frameRef,
     offset,
     size,
     isConcealed,
+    fill,
     sizeRef,
     concealedRef,
     suppressClickRef,
     setOffset,
     setIsConcealed,
   });
+}
+
+function useFitDefaultHeight(
+  frameRef: RefObject<HTMLDivElement | null>,
+  setSize: (update: (current: LegendSize) => LegendSize) => void,
+): void {
+  useEffect(() => {
+    const element = frameRef.current;
+    if (!element) return;
+    const paneHeight = readLegendPaneBox(element).height;
+    setSize((current) => ({ ...current, height: fitLegendHeight(current.height, paneHeight) }));
+  }, [frameRef, setSize]);
+}
+
+function useFillPane(
+  frameRef: RefObject<HTMLDivElement | null>,
+  isFilling: boolean,
+  setFill: (fill: LegendFill | null) => void,
+): void {
+  useEffect(() => {
+    const element = frameRef.current;
+    if (!element || !isFilling) {
+      setFill(null);
+      return undefined;
+    }
+    const measure = () => setFill(fillLegendFrame(readLegendPaneBox(element), LEGEND_FILL_MARGIN_PX));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(findLegendPane(element));
+    return () => observer.disconnect();
+  }, [frameRef, isFilling, setFill]);
 }
 
 type LegendResizeWatch = {
@@ -82,6 +126,7 @@ type LegendFrameInput = {
   offset: LegendOffset;
   size: LegendSize;
   isConcealed: boolean;
+  fill: LegendFill | null;
   sizeRef: { current: LegendSize };
   concealedRef: { current: boolean };
   suppressClickRef: { current: boolean };
@@ -126,10 +171,11 @@ function bindLegendFrame(input: LegendFrameInput): LegendFrameBindings {
     suppressClickRef: input.suppressClickRef,
     setOffset: input.setOffset,
   };
+  const shown = input.fill ?? { offset: input.offset, size: input.size };
   return {
     isConcealed: input.isConcealed,
-    direction: chooseLegendEntryDirection(input.size.width, input.size.height),
-    style: buildLegendFrameStyle(input.offset, input.size, input.isConcealed),
+    direction: chooseLegendEntryDirection(shown.size.width, shown.size.height),
+    style: buildLegendFrameStyle(shown.offset, shown.size, input.isConcealed),
     onPointerDown: (event) => {
       event.stopPropagation();
       beginLegendDrag(event, session);
