@@ -314,11 +314,11 @@ const borderSticky = resolveSpreadColorKeys({
 assert.equal(borderSticky.fillKey, 'pillar');
 assert.equal(borderSticky.borderKey, 'tier');
 
-// Node text defaults to the border color (darker shade of the node color).
+// Node text defaults to a shade darker than the border.
 const textNode = { id: 'n', label: 'N', type: 'Application', properties: { pillar: 'Core' } } as never;
 assert.equal(
   nodeTextColor(textNode, 'pillar', undefined, 'pillar', undefined, 'pillar', undefined),
-  borderFromFill(nodeFillColorForValue('pillar', 'Core')),
+  textFromFill(nodeFillColorForValue('pillar', 'Core')),
 );
 assert.equal(
   nodeTextColor(textNode, 'pillar', { Core: '#123456' }, 'pillar', undefined, 'pillar', undefined),

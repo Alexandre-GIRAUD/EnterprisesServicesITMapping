@@ -368,10 +368,20 @@ export function isNearWhite(color: string): boolean {
   return rgb.r >= 245 && rgb.g >= 245 && rgb.b >= 245;
 }
 
-/** Border derived from fill: light grey on white, else darkened fill. */
+/** Border derived from fill: light grey on white, else a clearly darker fill. */
 export function borderFromFill(fill: string): string {
   if (isNearWhite(fill)) return LIGHT_BORDER_ON_WHITE;
-  return darkenColor(fill);
+  return darkenColor(fill, 0.45);
+}
+
+/** Default label text: darker than the border so it reads on the tinted fill. */
+export function textFromFill(fill: string): string {
+  return darkenColor(borderFromFill(fill), 0.4);
+}
+
+/** Type-color border, deepened to match derived borders. */
+function typeBorderColor(type: string): string {
+  return darkenColor(nodeColorForType(type), 0.3);
 }
 
 function toHex(n: number): string {
@@ -711,11 +721,11 @@ export function nodeBorderColor(
   }
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     const value = nodePropValue(node, propertyKey);
-    const fallback = nodeColorForType(node.type);
+    const fallback = typeBorderColor(node.type);
     return overrideOr(colorMap, value, fallback);
   }
   const value = nodePropValue(node, propertyKey);
-  if (!value) return nodeColorForType(node.type);
+  if (!value) return typeBorderColor(node.type);
   return overrideOr(colorMap, value, edgeColorForProperty(value, 'Application', propertyKey));
 }
 
@@ -735,15 +745,18 @@ export function nodeTextColor(
   const value = nodePropValue(node, textKey);
   if (value && colorMap?.[value]) return colorMap[value];
   if (textKey === borderKey || !value || textKey === NODE_TYPE_COLOR_KEY) {
-    return nodeBorderColor(
-      node,
-      textKey === borderKey ? borderKey : NODE_TYPE_COLOR_KEY,
-      borderColorMap,
-      fillKey,
-      fillColorMap
+    return darkenColor(
+      nodeBorderColor(
+        node,
+        textKey === borderKey ? borderKey : NODE_TYPE_COLOR_KEY,
+        borderColorMap,
+        fillKey,
+        fillColorMap
+      ),
+      0.4
     );
   }
-  return borderFromFill(defaultNodeFill(textKey, value));
+  return textFromFill(defaultNodeFill(textKey, value));
 }
 
 export function nodeTextColorForValue(
@@ -752,8 +765,8 @@ export function nodeTextColorForValue(
   colorMap?: Record<string, string>
 ): string {
   if (colorMap?.[value]) return colorMap[value];
-  if (textKey === NODE_TYPE_COLOR_KEY) return nodeColorForType(value);
-  return borderFromFill(defaultNodeFill(textKey, value));
+  if (textKey === NODE_TYPE_COLOR_KEY) return darkenColor(typeBorderColor(value), 0.4);
+  return textFromFill(defaultNodeFill(textKey, value));
 }
 
 export function nodeFillColorForValue(
@@ -776,7 +789,7 @@ export function nodeBorderColorForValue(
     return borderFromFill(nodeFillColorForValue(fillKey, value, fillColorMap));
   }
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
-    return overrideOr(colorMap, value, nodeColorForType(value));
+    return overrideOr(colorMap, value, typeBorderColor(value));
   }
   return overrideOr(colorMap, value, edgeColorForProperty(value, 'Application', propertyKey));
 }

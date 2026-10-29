@@ -252,7 +252,11 @@ export function GraphLegend({
                 key,
                 legendColors.appFill,
               ),
-              borderColor: NODE_TYPE_STYLES[key].color,
+              borderColor: nodeBorderColorForValue(
+                NODE_TYPE_COLOR_KEY,
+                key,
+                legendColors.appBorder,
+              ),
             }}
             aria-hidden="true"
           />
