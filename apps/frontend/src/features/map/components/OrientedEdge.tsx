@@ -19,6 +19,12 @@ import {
 } from './flowLabel';
 import { buildLiveRoutes, type Point, type Rect } from './elkLayout';
 import { buildOrthogonalPath } from './orthogonalPath';
+import {
+  arcMidpoint,
+  estimateLabelSize,
+  placeEdgeLabels,
+  type LabelRequest,
+} from './labelPlacement';
 import { computeBridges, spreadStackedRoutes } from './bridges';
 import { notifyEdgeDetailsOpen } from '../utils/edgeDetailsSelection';
 
@@ -66,12 +72,6 @@ export type OrientedEdgeType = Edge<OrientedEdgeData, 'oriented'>;
 const CORNER_RADIUS = 8;
 const HOP_RADIUS = 5;
 const BORDER_TOLERANCE = 14;
-/** Approximate half-dimensions of the label pill (flow-coordinate pixels). */
-const LABEL_HALF_W = 44;
-const LABEL_HALF_H = 10;
-/** Step size (px) used when sampling along the arc in stage 2b of safeLabelPos. */
-const ARC_SAMPLE_STEP = 10;
-
 // ---------------------------------------------------------------------------
 // Geometry helpers
 // ---------------------------------------------------------------------------
@@ -96,45 +96,6 @@ function endpointValid(point: Point | undefined, node: InternalNode<Node> | unde
   const rect = rectOf(node);
   if (!rect) return true;
   return pointRectDistance(point, rect) <= BORDER_TOLERANCE;
-}
-
-/**
- * Return the point that lies at exactly `targetDist` px along the polyline
- * defined by `points`. Clamps to the last point when `targetDist` exceeds
- * the total arc length.
- */
-function pointAtArcDistance(points: Point[], targetDist: number): Point {
-  if (points.length === 0) return { x: 0, y: 0 };
-  if (points.length === 1) return { x: points[0].x, y: points[0].y };
-  let accumulated = 0;
-  for (let i = 0; i < points.length - 1; i++) {
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const segLen = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-    if (accumulated + segLen >= targetDist) {
-      const t = segLen > 0 ? (targetDist - accumulated) / segLen : 0;
-      return { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
-    }
-    accumulated += segLen;
-  }
-  return { x: points[points.length - 1].x, y: points[points.length - 1].y };
-}
-
-/**
- * Return the point at exactly 50% of the total arc length of the polyline.
- * This is the true geometric midpoint regardless of how unevenly the bend
- * points are distributed — far more accurate than the index-based midpoint
- * `points[Math.floor(n/2)]` which shifts toward whichever end has shorter
- * segments.
- */
-function arcMidpoint(points: Point[]): Point {
-  if (points.length === 0) return { x: 0, y: 0 };
-  if (points.length === 1) return { x: points[0].x, y: points[0].y };
-  let totalLen = 0;
-  for (let i = 0; i < points.length - 1; i++) {
-    totalLen += Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y);
-  }
-  return pointAtArcDistance(points, totalLen / 2);
 }
 
 // ---------------------------------------------------------------------------
@@ -279,108 +240,77 @@ function distributedAnchor(
 }
 
 // ---------------------------------------------------------------------------
-// Label placement: node-overlap avoidance
+// Label placement: shared by every edge so labels never overlap
 // ---------------------------------------------------------------------------
 
-/**
- * Find a label position on the polyline that does not visually overlap any
- * node bounding box.
- *
- * Stages (executed in order, first clear position wins):
- *  1. Initial position (true arc midpoint) — return immediately if clear.
- *  2. Segment midpoints sorted by segment length (longest = most open space).
- *  2b. Dense arc sampling: walk outward from the midpoint in ±ARC_SAMPLE_STEP
- *      increments along the actual polyline. Catches gaps that lie between
- *      bend points but are missed by the segment-midpoint scan (e.g. when a
- *      node covers the midpoint of every segment but a clear stretch exists
- *      25 px from center).
- *  3. Perpendicular offsets (±20, ±40, ±60, ±80 px perpendicular to the
- *     chord direction) — essential for 2-point straight-line fallback paths
- *     that have only one segment midpoint.
- *  4. Last resort: return initial position unchanged.
- */
-function safeLabelPos(
-  points: Point[],
-  nodeLookup: Map<string, InternalNode<Node>>,
-  skipIds: [string, string],
-  initialX: number,
-  initialY: number
-): { x: number; y: number } {
-  const skip = new Set<string>(skipIds);
-
-  function overlapsNode(x: number, y: number): boolean {
-    for (const [id, node] of nodeLookup) {
-      if (skip.has(id)) continue;
-      const pos = node.internals?.positionAbsolute;
-      if (!pos) continue;
-      const w = node.measured?.width  ?? node.width  ?? 0;
-      const h = node.measured?.height ?? node.height ?? 0;
-      if (!w || !h) continue;
-      if (
-        x + LABEL_HALF_W > pos.x &&
-        x - LABEL_HALF_W < pos.x + w &&
-        y + LABEL_HALF_H > pos.y &&
-        y - LABEL_HALF_H < pos.y + h
-      ) return true;
-    }
-    return false;
+/** Route an edge is drawn along, as far as it is known outside the edge component. */
+function routePointsOf(
+  edge: Edge,
+  rectById: Map<string, Rect>,
+  liveRoutes: Map<string, Point[]> | null
+): Point[] | null {
+  const data = edge.data as OrientedEdgeData | undefined;
+  const live = liveRoutes?.get(edge.id);
+  if (live && live.length >= 2) return live;
+  if (!liveRoutes && data?.routeStart && data?.routeEnd) {
+    return [data.routeStart, ...(data.bendPoints ?? []), data.routeEnd];
   }
+  const srcRect = rectById.get(edge.source);
+  const tgtRect = rectById.get(edge.target);
+  if (!srcRect || !tgtRect) return null;
+  const sides = bestSides(srcRect, tgtRect);
+  return [anchorOf(srcRect, sides.sourcePos), anchorOf(tgtRect, sides.targetPos)];
+}
 
-  // Stage 1: initial position already clear.
-  if (!overlapsNode(initialX, initialY)) return { x: initialX, y: initialY };
-
-  if (points.length < 2) return { x: initialX, y: initialY };
-
-  // Stage 2: every segment midpoint, longest first.
-  const candidates: { x: number; y: number; len: number }[] = [];
-  for (let i = 0; i < points.length - 1; i++) {
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    candidates.push({
-      x:   (p1.x + p2.x) / 2,
-      y:   (p1.y + p2.y) / 2,
-      len: Math.hypot(p2.x - p1.x, p2.y - p1.y),
+function buildLabelRequests(
+  allEdges: Edge[],
+  rectById: Map<string, Rect>,
+  liveRoutes: Map<string, Point[]> | null
+): LabelRequest[] {
+  const requests: LabelRequest[] = [];
+  for (const edge of allEdges) {
+    const data = edge.data as OrientedEdgeData | undefined;
+    const text = data?.displayLabel !== undefined ? data.displayLabel : String(edge.label ?? '');
+    const visible = isFlowLabelVisible({
+      text,
+      shouldHideLabels: Boolean(data?.hideEdgeLabels),
+      isIndirect: Boolean(data?.indirect),
+      isEditing: false,
+    });
+    const points = visible ? routePointsOf(edge, rectById, liveRoutes) : null;
+    if (!points) continue;
+    requests.push({
+      id: edge.id,
+      points,
+      sourceId: edge.source,
+      targetId: edge.target,
+      ...estimateLabelSize(text),
     });
   }
-  candidates.sort((a, b) => b.len - a.len);
-  for (const c of candidates) {
-    if (!overlapsNode(c.x, c.y)) return { x: c.x, y: c.y };
-  }
+  return requests;
+}
 
-  // Stage 2b: dense arc sampling outward from the true midpoint.
-  // Walk in both directions simultaneously (forward then backward per step)
-  // so we always prefer the position closest to the visual center of the edge.
-  const totalLen = candidates.reduce((s, c) => s + c.len, 0);
-  if (totalLen > 0) {
-    const halfLen = totalLen / 2;
-    for (let d = ARC_SAMPLE_STEP; d <= totalLen / 2 + ARC_SAMPLE_STEP; d += ARC_SAMPLE_STEP) {
-      const fwd = pointAtArcDistance(points, Math.min(halfLen + d, totalLen));
-      if (!overlapsNode(fwd.x, fwd.y)) return { x: fwd.x, y: fwd.y };
-      const distBack = halfLen - d;
-      if (distBack >= 0) {
-        const bck = pointAtArcDistance(points, distBack);
-        if (!overlapsNode(bck.x, bck.y)) return { x: bck.x, y: bck.y };
-      }
-    }
-  }
+let labelCache: { key: string; positions: Map<string, Point> } | null = null;
 
-  // Stage 3: perpendicular offsets from the initial position — works for
-  // 2-point fallback paths where only one segment midpoint exists.
-  const edgeDx = points[points.length - 1].x - points[0].x;
-  const edgeDy = points[points.length - 1].y - points[0].y;
-  const edgeLen = Math.hypot(edgeDx, edgeDy);
-  if (edgeLen > 0) {
-    const perpX = -edgeDy / edgeLen;
-    const perpY =  edgeDx / edgeLen;
-    for (const offset of [20, -20, 40, -40, 60, -60, 80, -80]) {
-      const cx = initialX + perpX * offset;
-      const cy = initialY + perpY * offset;
-      if (!overlapsNode(cx, cy)) return { x: cx, y: cy };
-    }
-  }
-
-  // Stage 4: nothing worked — return the initial position unchanged.
-  return { x: initialX, y: initialY };
+/** Memoized label positions for all edges, recomputed only when routes or nodes change. */
+function getLabelPositions(
+  allEdges: Edge[],
+  rectById: Map<string, Rect>,
+  liveRoutes: Map<string, Point[]> | null
+): Map<string, Point> {
+  const requests = buildLabelRequests(allEdges, rectById, liveRoutes);
+  const key = [
+    requests
+      .map((r) => `${r.id}:${r.width}:${r.points.map((p) => `${Math.round(p.x)},${Math.round(p.y)}`).join(';')}`)
+      .sort()
+      .join('|'),
+    liveKey([], rectById),
+  ].join('#');
+  if (labelCache && labelCache.key === key) return labelCache.positions;
+  const obstacles = [...rectById.entries()].map(([id, rect]) => ({ id, ...rect }));
+  const positions = placeEdgeLabels(requests, obstacles);
+  labelCache = { key, positions };
+  return positions;
 }
 
 // ---------------------------------------------------------------------------
@@ -475,7 +405,7 @@ export function OrientedEdge({
   // React Flow mutates nodeLookup in place, so useStore on the Map reference
   // never detects changes (Object.is returns true for the same Map). This scalar
   // hash changes whenever any node moves, guaranteeing a re-render of every edge
-  // (including edges whose own source/target did not move) so safeLabelPos always
+  // (including edges whose own source/target did not move) so label placement always
   // runs with fresh positions for ALL nodes.
   useStore((s) => {
     let hash = 0;
@@ -560,12 +490,10 @@ export function OrientedEdge({
     gradientTo   = data.routeEnd;
   }
 
-  // True geometric midpoint (50% of total arc length) — independent of the
-  // number or distribution of bend points.
-  const mid = arcMidpoint(pathPoints);
-  const safeLabel = safeLabelPos(pathPoints, nodeLookup, [source, target], mid.x, mid.y);
-  const labelX = safeLabel.x;
-  const labelY = safeLabel.y;
+  const labelPositions = getLabelPositions(allEdges, rectById, liveBundle?.routes ?? null);
+  const labelPosition = labelPositions.get(id) ?? arcMidpoint(pathPoints);
+  const labelX = labelPosition.x;
+  const labelY = labelPosition.y;
 
   const sourceColor = data?.sourceColor ?? '#64748b';
   const targetColor = data?.targetColor ?? '#64748b';
