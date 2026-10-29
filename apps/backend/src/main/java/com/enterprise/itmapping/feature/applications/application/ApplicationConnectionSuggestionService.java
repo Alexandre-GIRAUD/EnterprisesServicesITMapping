@@ -124,8 +124,16 @@ public class ApplicationConnectionSuggestionService {
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Application introuvable: " + applicationId));
 
-    List<String> fullNames =
+    List<String> bitbucketNames =
+        BitbucketRepoIdentityResolver.resolveAllFullNames(appRow.getName(), appRow.getDescription());
+    List<String> githubNames =
         GithubRepoIdentityResolver.resolveAllFullNames(appRow.getName(), appRow.getDescription());
+    if (!bitbucketNames.isEmpty() && !githubNames.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "An application cannot mix GitHub and Bitbucket repositories.");
+    }
+    boolean bitbucket = !bitbucketNames.isEmpty();
+    List<String> fullNames = bitbucket ? bitbucketNames : githubNames;
     if (fullNames.isEmpty()
         && request != null
         && request.fullName() != null
@@ -142,8 +150,8 @@ public class ApplicationConnectionSuggestionService {
     if (fullNames.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
-          "Depot GitHub introuvable pour cette application: renseignez name=owner/repo, "
-              + "description GitHub: https://..., ou fullName dans le corps.");
+          "Depot introuvable pour cette application: renseignez une URL GitHub ou Bitbucket "
+              + "dans la description, ou fullName dans le corps.");
     }
 
     Catalog catalog = loadCatalog(applicationId);
@@ -178,7 +186,10 @@ public class ApplicationConnectionSuggestionService {
     DiscoveryResult discovery;
     if (fullNames.size() == 1) {
       String[] parts = parseOwnerRepo(fullNames.get(0));
-      workspace = cloneService.clone(parts[0], parts[1], properties.cloneTimeoutSeconds());
+      workspace =
+          bitbucket
+              ? cloneService.clone(parts[0], parts[1], properties.cloneTimeoutSeconds(), true)
+              : cloneService.clone(parts[0], parts[1], properties.cloneTimeoutSeconds());
       discovery =
           connectionDiscoveryAgent.discover(
               workspace,
@@ -188,7 +199,11 @@ public class ApplicationConnectionSuggestionService {
               catalog.promptText(properties.maxCatalogAppsInPrompt()),
               dataModelPromptSection);
     } else {
-      workspace = cloneService.cloneAll(fullNames, properties.cloneTimeoutSeconds());
+      workspace =
+          bitbucket
+              ? cloneService.cloneAll(
+                  fullNames, properties.cloneTimeoutSeconds(), cloneService.accessToken(true), true)
+              : cloneService.cloneAll(fullNames, properties.cloneTimeoutSeconds());
       discovery =
           connectionDiscoveryAgent.discoverAll(
               workspace,
@@ -369,6 +384,10 @@ public class ApplicationConnectionSuggestionService {
     if (GithubRepoIdentityResolver.resolveFullName(name, description, null).isPresent()) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "This application is linked to GitHub.");
+    }
+    if (!BitbucketRepoIdentityResolver.resolveAllFullNames(name, description).isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "This application is linked to Bitbucket.");
     }
   }
 

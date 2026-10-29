@@ -12,7 +12,7 @@ const css = readFileSync(new URL('../../../index.css', import.meta.url), 'utf8')
 
 assert.doesNotMatch(sources, /github-import-eyebrow/);
 assert.match(sources, /Import sources/);
-assert.match(sources, /Repository/);
+assert.match(sources, /GitHub/);
 assert.match(sources, /Third party/);
 assert.match(sources, /Scan connections and attributes/);
 assert.doesNotMatch(sources, /Suggest connections \(AI\)/);

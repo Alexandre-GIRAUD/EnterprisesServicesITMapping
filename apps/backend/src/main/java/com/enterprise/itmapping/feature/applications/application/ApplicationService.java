@@ -77,20 +77,7 @@ public class ApplicationService {
 
   @Transactional
   public ApplicationResponse create(ApplicationRequest request) {
-    List<String> incoming =
-        GithubRepoIdentityResolver.resolveAllFullNames(request.name(), request.description());
-    if (!incoming.isEmpty()) {
-      for (ApplicationGraphNodeProjection row : applicationRepository.findAllForGraph()) {
-        String overlap =
-            GithubRepoIdentityResolver.firstOverlap(
-                incoming,
-                GithubRepoIdentityResolver.resolveAllFullNames(row.getName(), row.getDescription()));
-        if (overlap != null) {
-          throw new ResponseStatusException(
-              HttpStatus.CONFLICT, "Repository already linked: " + overlap);
-        }
-      }
-    }
+    rejectRepositoryConflicts(request.name(), request.description(), null);
     Application entity = new Application();
     entity.setName(request.name());
     entity.setDescription(request.description());
@@ -114,23 +101,7 @@ public class ApplicationService {
     if (before.isEmpty()) {
       return Optional.empty();
     }
-    List<String> incoming =
-        GithubRepoIdentityResolver.resolveAllFullNames(request.name(), request.description());
-    if (!incoming.isEmpty()) {
-      for (ApplicationGraphNodeProjection row : applicationRepository.findAllForGraph()) {
-        if (id.equals(row.getId())) {
-          continue;
-        }
-        String overlap =
-            GithubRepoIdentityResolver.firstOverlap(
-                incoming,
-                GithubRepoIdentityResolver.resolveAllFullNames(row.getName(), row.getDescription()));
-        if (overlap != null) {
-          throw new ResponseStatusException(
-              HttpStatus.CONFLICT, "Repository already linked: " + overlap);
-        }
-      }
-    }
+    rejectRepositoryConflicts(request.name(), request.description(), id);
     Map<String, Object> params = new HashMap<>();
     params.put("id", id);
     params.put("name", request.name());
@@ -147,6 +118,36 @@ public class ApplicationService {
     history.applicationFieldChanged(
         id, DESCRIPTION_FIELD, before.get().getDescription(), request.description());
     return applicationRepository.findProjectionById(id).map(this::toDetailResponse);
+  }
+
+  private void rejectRepositoryConflicts(String name, String description, String ignoreId) {
+    List<String> github = GithubRepoIdentityResolver.resolveAllFullNames(name, description);
+    List<String> bitbucket = BitbucketRepoIdentityResolver.resolveAllFullNames(name, description);
+    if (!github.isEmpty() && !bitbucket.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "An application cannot mix GitHub and Bitbucket repositories.");
+    }
+    rejectOverlap(github, ignoreId, false);
+    rejectOverlap(bitbucket, ignoreId, true);
+  }
+
+  private void rejectOverlap(List<String> incoming, String ignoreId, boolean bitbucket) {
+    if (incoming.isEmpty()) {
+      return;
+    }
+    for (ApplicationGraphNodeProjection row : applicationRepository.findAllForGraph()) {
+      if (ignoreId != null && ignoreId.equals(row.getId())) {
+        continue;
+      }
+      List<String> existing =
+          bitbucket
+              ? BitbucketRepoIdentityResolver.resolveAllFullNames(row.getName(), row.getDescription())
+              : GithubRepoIdentityResolver.resolveAllFullNames(row.getName(), row.getDescription());
+      String overlap = GithubRepoIdentityResolver.firstOverlap(incoming, existing);
+      if (overlap != null) {
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Repository already linked: " + overlap);
+      }
+    }
   }
 
   /**

@@ -66,6 +66,10 @@ app:
       webhook-branch: ${GITHUB_WEBHOOK_BRANCH:refs/heads/main}
       max-diff-files: ${GITHUB_MAX_DIFF_FILES:80}
       max-diff-kb: ${GITHUB_MAX_DIFF_KB:512}
+    bitbucket:
+      token: ${BITBUCKET_TOKEN:}
+      api-base-url: https://api.bitbucket.org/2.0
+      max-repos: 100
     # Module-discovery agent budgets (model transport is under spring.ai.openai.*).
     llm:
       module-discovery:

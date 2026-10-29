@@ -3,6 +3,7 @@ package com.enterprise.itmapping;
 import com.enterprise.itmapping.feature.auth.security.BootstrapAdminProperties;
 import com.enterprise.itmapping.feature.auth.security.CorsProperties;
 import com.enterprise.itmapping.feature.auth.security.JwtProperties;
+import com.enterprise.itmapping.feature.integrations.bitbucket.BitbucketIntegrationProperties;
 import com.enterprise.itmapping.feature.integrations.github.GitHubIntegrationProperties;
 import com.enterprise.itmapping.feature.integrations.llm.ConnectionDiscoveryProperties;
 import com.enterprise.itmapping.feature.integrations.llm.FunctionalDocumentationProperties;
@@ -16,6 +17,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 @SpringBootApplication
 @EnableConfigurationProperties({
   GitHubIntegrationProperties.class,
+  BitbucketIntegrationProperties.class,
   ModuleDiscoveryProperties.class,
   ConnectionDiscoveryProperties.class,
   FunctionalDocumentationProperties.class,
