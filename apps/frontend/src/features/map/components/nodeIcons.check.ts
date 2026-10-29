@@ -16,7 +16,7 @@ import {
   defaultIconForValue,
   nodeIconKeyFor,
 } from './nodeIcons.ts';
-import { NODE_ICON_GLYPHS } from './nodeIconGlyphs.tsx';
+import { NODE_ICON_GLYPHS } from './nodeIconGlyphs.ts';
 import { nodeLabelScale } from './nodeIcons.ts';
 
 function app(id: string, tier: string): GraphNodeDto {

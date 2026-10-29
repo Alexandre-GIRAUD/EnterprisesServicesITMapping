@@ -1,6 +1,7 @@
 ﻿import { useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { nodeColorForType } from './graphTheme';
+import { NodeIconGlyph } from './NodeIconGlyph';
 
 export type AppGraphNodeData = {
   label: string;
@@ -11,6 +12,10 @@ export type AppGraphNodeData = {
   borderColor?: string;
   /** Visual-only label text color from legend. */
   textColor?: string;
+  /** Visual-only icon from the legend, shown next to the label. */
+  iconKey?: string;
+  /** Label font scale, below 1 when icons are on. */
+  labelScale?: number;
   /** Collapse this application into an indirect flow (application graph only). */
   onHide?: () => void;
   /** Sandbox display-only label override (never written to Neo4j). */
@@ -100,10 +105,21 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
           aria-label="Edit display label"
         />
       ) : (
+        <>
+        {data.iconKey ? (
+          <span className="graph-node-card__icon" style={{ color: textColor }}>
+            <NodeIconGlyph iconKey={data.iconKey} />
+          </span>
+        ) : null}
         <span
           className={`graph-node-card__label${data.onDisplayLabelChange ? ' is-editable' : ''}`}
           title={shown}
-          style={{ color: textColor }}
+          style={{
+            color: textColor,
+            ...(data.labelScale && data.labelScale !== 1
+              ? { fontSize: `${13 * data.labelScale}px` }
+              : {}),
+          }}
           onClick={startLabelEdit}
           onMouseDown={(event) => {
             if (data.onDisplayLabelChange) event.stopPropagation();
@@ -111,6 +127,7 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
         >
           {shown}
         </span>
+        </>
       )}
     </div>
   );

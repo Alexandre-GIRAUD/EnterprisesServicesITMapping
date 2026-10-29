@@ -22,6 +22,8 @@ import {
   type LegendSetup,
 } from './edgeColorProperty';
 import { useLegendFrame } from './useLegendFrame';
+import { LegendIconRows } from './LegendIconRows';
+import { NODE_ICON_NONE_KEY } from './nodeIcons.ts';
 
 type Props = {
   nodeTypes: NodeTypeKey[];
@@ -49,6 +51,13 @@ type Props = {
   appTextOptions?: AttributeOption[];
   onAppTextChange?: (key: string) => void;
   textValues?: string[];
+  /** Node icons: attribute choice, its values and the icon picked per value. */
+  iconKey?: string;
+  iconOptions?: AttributeOption[];
+  onIconKeyChange?: (key: string) => void;
+  iconValues?: string[];
+  iconByValue?: Record<string, string>;
+  onIconChange?: (value: string, iconKey: string) => void;
   legendColors?: LegendColorMaps;
   onValueColorChange?: (channel: keyof LegendColorMaps, value: string, color: string) => void;
   hideEdgeLabels?: boolean;
@@ -156,6 +165,12 @@ export function GraphLegend({
   appTextOptions = [],
   onAppTextChange,
   textValues = [],
+  iconKey = NODE_ICON_NONE_KEY,
+  iconOptions = [],
+  onIconKeyChange,
+  iconValues = [],
+  iconByValue = {},
+  onIconChange,
   legendColors = {},
   onValueColorChange,
   hideEdgeLabels = false,
@@ -171,7 +186,7 @@ export function GraphLegend({
   const [setupName, setSetupName] = useState('');
   const [selectedSetupId, setSelectedSetupId] = useState('');
   const frameRef = useRef<HTMLDivElement>(null);
-  const frame = useLegendFrame(frameRef);
+  const frame = useLegendFrame(frameRef, isEditing);
 
   const showCoding =
     colorPropertyOptions.length > 0 &&
@@ -180,6 +195,7 @@ export function GraphLegend({
 
   const canEdit =
     showCoding ||
+    Boolean(onIconKeyChange && iconOptions.length > 1) ||
     Boolean(onSaveLegendSetup && onApplyLegendSetup && onDeleteLegendSetup) ||
     Boolean(onSandboxIconLabelChange && sandboxIcons.length > 0);
 
@@ -456,6 +472,9 @@ export function GraphLegend({
   const showFlowSelects =
     isEditing && showCoding && !simpleMode && colorPropertyKey != null;
 
+  const showIconSelect = isEditing && onIconKeyChange != null && iconOptions.length > 1;
+  const showIconRows = iconKey !== NODE_ICON_NONE_KEY && iconValues.length > 0;
+
   const showAppsBlock = showAppSelects || appsItems.length > 0;
   const showFlowsBlock = showFlowSelects || flowsItems.length > 0;
 
@@ -485,7 +504,7 @@ export function GraphLegend({
   return (
     <div
       ref={frameRef}
-      className="graph-legend"
+      className={`graph-legend${isEditing ? ' is-filling' : ''}`}
       role="note"
       aria-label="Graph legend"
       data-layout={frame.direction}
@@ -629,7 +648,7 @@ export function GraphLegend({
                 )}
               {appTextOptions.length > 0 && appTextKey != null && onAppTextChange != null && (
                 <label className="graph-legend__control">
-                  <span className="graph-legend__title">App text</span>
+                  <span className="graph-legend__title">Text color</span>
                   <select
                     className="graph-legend__select"
                     value={appTextKey}
@@ -647,6 +666,36 @@ export function GraphLegend({
             </div>
           )}
           {appsItems.length > 0 && <ul className="graph-legend__list">{appsItems}</ul>}
+        </div>
+      )}
+
+      {(showIconSelect || showIconRows) && (
+        <div className="graph-legend__group">
+          <p className="graph-legend__title">App icons</p>
+          {showIconSelect && (
+            <label className="graph-legend__control">
+              <span className="graph-legend__title">Icon</span>
+              <select
+                className="graph-legend__select"
+                value={iconKey}
+                onChange={(event) => onIconKeyChange!(event.target.value)}
+                aria-label="App property used for node icon"
+              >
+                {iconOptions.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {showIconRows && (
+            <LegendIconRows
+              values={iconValues}
+              iconByValue={iconByValue}
+              onIconChange={isEditing ? onIconChange : undefined}
+            />
+          )}
         </div>
       )}
 
