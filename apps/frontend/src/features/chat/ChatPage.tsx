@@ -35,9 +35,10 @@ export function ChatPage() {
     const message = text.trim();
     if (!message || isBusy) return;
     const history: ChatHistoryMessageDto[] = turns.map(({ role, content }) => ({ role, content }));
+    const withUser: ChatTurn[] = [...turns, { role: 'user', content: message }];
     setInput('');
     setError(null);
-    setTurns((previous) => [...previous, { role: 'user', content: message }]);
+    setTurns(withUser);
     setIsBusy(true);
     try {
       const response = await askMappingChat(message, history.slice(-HISTORY_TURN_LIMIT));
@@ -49,9 +50,10 @@ export function ChatPage() {
         warnings: response.warnings,
         appliedFilters,
       };
-      setTurns((previous) => [...previous, answer]);
+      const withAnswer = [...withUser, answer];
+      setTurns(withAnswer);
       if (appliedFilters) {
-        openFiltersOnMap(appliedFilters);
+        openFiltersOnMap(appliedFilters, withAnswer);
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Chat request failed.');
@@ -65,9 +67,14 @@ export function ChatPage() {
     navigateToModuleGraph(navigate, citation.id, citation.label);
   }
 
-  function openFiltersOnMap(filters: GraphFilters) {
+  function openFiltersOnMap(filters: GraphFilters, transcript: ChatTurn[] = turns) {
     navigate('/map', {
-      state: { graphMode: 'normal', applySnapshot: filters } satisfies MapLocationState,
+      state: {
+        graphMode: 'normal',
+        applySnapshot: filters,
+        sideMenuTool: 'chat',
+        chatTurns: transcript.map(({ role, content }) => ({ role, content })),
+      } satisfies MapLocationState,
     });
   }
 

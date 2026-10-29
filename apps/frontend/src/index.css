@@ -7473,6 +7473,43 @@ body.is-diagram-grown .layout {
   margin: 0 auto;
 }
 
+.cartography-chat {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 0.55rem;
+}
+
+.self-service-tool-detail:has(.cartography-chat) {
+  overflow: hidden;
+}
+
+.cartography-chat-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.cartography-chat-empty {
+  flex: 1;
+  gap: 0.75rem;
+  padding: 1.5rem 0.5rem;
+}
+
+.cartography-chat-empty .chat-empty-logo {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.cartography-chat-empty .chat-empty-title {
+  font-size: 1.15rem;
+  text-align: center;
+}
+
 .chat-transcript {
   flex: 1;
   min-height: 0;

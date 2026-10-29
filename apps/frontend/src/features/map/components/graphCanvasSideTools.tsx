@@ -12,7 +12,9 @@ import { FilterDrawer } from './FilterDrawer';
 import type { GraphMode } from './GraphModeTabs';
 import { SandboxesPanel } from './SandboxesPanel';
 import type { SelectedEdgeDetails } from '../utils/selectedEdgeFromDto';
+import { CartographyChatHistory } from './CartographyChatHistory';
 import type { SideMenuTool } from './SelfServiceToolBar';
+import type { CartographyChatTurn } from '../utils/mapNavigation';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
 
 type GraphCanvasSideToolInput = {
@@ -61,6 +63,8 @@ type GraphCanvasSideToolInput = {
   activeSandboxFilters: SandboxDocFilters;
   sandboxSeed: () => Parameters<ReturnType<typeof useSandboxes>['openNew']>[0];
   isReadOnly: boolean;
+  chatTurns: CartographyChatTurn[];
+  onChatTurnsChange: (turns: CartographyChatTurn[]) => void;
 };
 
 export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): ReactNode {
@@ -110,6 +114,8 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
     activeSandboxFilters,
     sandboxSeed,
     isReadOnly,
+    chatTurns,
+    onChatTurnsChange,
   } = input;
 
     if (graphMode !== 'normal' && graphMode !== 'sandbox') return null;
@@ -119,6 +125,20 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
     switch (activeSideMenuTool) {
       case 'changes':
         return null;
+      case 'chat':
+        return (
+          <CartographyChatHistory
+            turns={chatTurns}
+            onTurnsChange={onChatTurnsChange}
+            currentFilters={{
+              applicationIds,
+              nodeAttributes,
+              nodeRefs,
+              edgeAttributes,
+            }}
+            onApplyFilters={filters.applyGraphFilters}
+          />
+        );
       case 'filters':
         return (
           <>

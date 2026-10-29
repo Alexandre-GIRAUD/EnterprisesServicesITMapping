@@ -36,7 +36,7 @@ import { createGraphSnapshot } from '../api/graphSnapshotsApi';
 import { shareSavedSandbox } from '../api/sandboxSharesApi';
 import { useGraphSnapshotsRefresh } from '../context/GraphSnapshotsContext';
 import { useWorkspaceMode } from '../context/WorkspaceModeContext';
-import type { MapLocationState } from '../utils/mapNavigation';
+import type { CartographyChatTurn, MapLocationState } from '../utils/mapNavigation';
 import {
   buildAppNode,
   buildAppEdge,
@@ -209,6 +209,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
   const tableColumns = useTableColumns(tableContent, nodeFilters);
   const [moduleGraphApp, setModuleGraphApp] = useState<{ id: string; label: string } | null>(null);
   const [activeSideMenuTool, setActiveSideMenuTool] = useState<SideMenuTool>('filters');
+  const [cartographyChatTurns, setCartographyChatTurns] = useState<CartographyChatTurn[]>([]);
   const [diagramHeight, setDiagramHeight] = useState<number | null>(null);
   const diagramFitHeightRef = useRef(0);
   const diagramPointerDownAtRef = useRef(0);
@@ -598,7 +599,9 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
       setWorkspacePanelOpen(true);
       setDisplayMode('graph');
       setModuleGraphApp(null);
-      setActiveSideMenuTool((current) => (current === 'changes' ? 'filters' : current));
+      setActiveSideMenuTool((current) =>
+        current === 'changes' || current === 'chat' ? 'filters' : current
+      );
     } else if (state.graphMode === 'views') {
       if (!sandboxDirty || window.confirm('Leave sandbox? Local changes will be lost.')) {
         mode.setGraphMode('views');
@@ -613,8 +616,16 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
       }
     }
 
+    if (state.chatTurns) {
+      setCartographyChatTurns(state.chatTurns);
+    }
+
     if (state.sideMenuTool && state.sideMenuTool !== 'changes') {
       setActiveSideMenuTool(state.sideMenuTool);
+    }
+
+    if (state.sideMenuTool === 'chat') {
+      setIsSideMenuOpen(true);
     }
 
     navigate('.', { replace: true, state: {} });
@@ -1590,6 +1601,8 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         activeSandboxFilters,
         sandboxSeed,
         isReadOnly,
+        chatTurns: cartographyChatTurns,
+        onChatTurnsChange: setCartographyChatTurns,
       }),
     [
     graphMode,
@@ -1622,6 +1635,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     rememberSandboxIcon,
     toolkitRequest,
     isReadOnly,
+    cartographyChatTurns,
   ]);
 
   const isDiagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;
