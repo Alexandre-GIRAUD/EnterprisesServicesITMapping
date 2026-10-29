@@ -41,14 +41,18 @@ export function ChatPage() {
     setIsBusy(true);
     try {
       const response = await askMappingChat(message, history.slice(-HISTORY_TURN_LIMIT));
+      const appliedFilters = appliedFiltersFromChat(response.appliedFilters) ?? undefined;
       const answer: ChatTurn = {
         role: 'assistant',
         content: response.answerMarkdown,
         citations: response.citations,
         warnings: response.warnings,
-        appliedFilters: appliedFiltersFromChat(response.appliedFilters) ?? undefined,
+        appliedFilters,
       };
       setTurns((previous) => [...previous, answer]);
+      if (appliedFilters) {
+        openFiltersOnMap(appliedFilters);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Chat request failed.');
       setTurns((previous) => [...previous, { role: 'assistant', content: FAILED_ANSWER }]);

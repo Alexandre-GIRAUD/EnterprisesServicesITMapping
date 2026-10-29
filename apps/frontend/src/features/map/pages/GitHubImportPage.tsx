@@ -12,7 +12,6 @@ import { generateFunctionalDocumentation } from '../api/functionalDocumentationA
 import { fetchBitbucketRepos } from '../api/integrationsBitbucketApi';
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
 import { ThirdPartySources } from '../components/ThirdPartySources';
-import { navigateToModuleGraph } from '../utils/mapNavigation';
 import {
   applicationDescriptionForBitbucketRepo,
   applicationDescriptionForBitbucketRepos,
@@ -106,10 +105,6 @@ export function GitHubImportPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
-  const [aiBanner, setAiBanner] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
-  const [lastSuggestApplicationId, setLastSuggestApplicationId] = useState<string | null>(null);
-  const [aiBusyRepoId, setAiBusyRepoId] = useState<string | null>(null);
-  const [connBusyRepoId, setConnBusyRepoId] = useState<string | null>(null);
   const [sourceMode, setSourceMode] = useState<'github' | 'bitbucket' | 'third-party'>('github');
   const [targetApplicationId, setTargetApplicationId] = useState('');
   const [groupName, setGroupName] = useState<string | null>(null);
@@ -227,7 +222,6 @@ export function GitHubImportPage() {
 
   async function handleImportSelection(confirmedName?: string) {
     setSuccessMessage(null);
-    setAiBanner(null);
     setImportErrors([]);
     const toCreate = repos.filter((r) => selected.has(r.id) && !isImported(r));
     if (toCreate.length === 0) {
@@ -280,9 +274,7 @@ export function GitHubImportPage() {
           });
           setApplications((prev) => [...prev, created]);
           createdNames.push(normalizeName(name));
-          void generateFunctionalDocumentation(created.id).catch(() => {
-            /* import succeeds even if doc generation fails to start */
-          });
+          await rescanApplication(created.id, errors);
         } catch (e) {
           errors.push(`${name}: ${e instanceof Error ? e.message : 'failed'}`);
         }
@@ -308,9 +300,7 @@ export function GitHubImportPage() {
                   : applicationNameForGitHubRepo(repo.name),
               ),
             );
-            void generateFunctionalDocumentation(created.id).catch(() => {
-              /* import succeeds even if doc generation fails to start */
-            });
+            await rescanApplication(created.id, errors);
           } catch (e) {
             errors.push(`${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`);
           }
@@ -322,7 +312,9 @@ export function GitHubImportPage() {
         setGroupName(null);
         if (!target) {
           setSuccessMessage(
-            `${createdNames.length} application(s) created. Open the map to see the updated graph.`
+            errors.length === 0
+              ? `${createdNames.length} application(s) created. Modules, connections, and attributes were scanned.`
+              : `${createdNames.length} application(s) created.`
           );
         }
       }
@@ -356,79 +348,6 @@ export function GitHubImportPage() {
         ? applicationMatchesBitbucketRepo(application, repo)
         : applicationMatchesGitHubRepo(application, repo),
     );
-  }
-
-  function resolveApplicationId(repo: ListedRepo): string | undefined {
-    return applicationForRepo(repo)?.id;
-  }
-
-  function isRepoHostLinked(repo: ListedRepo, application: { name?: string | null; description?: string | null }) {
-    return repo.host === 'bitbucket'
-      ? isBitbucketLinkedApplication(application)
-      : isGitHubLinkedApplication(application);
-  }
-
-  async function handleSuggestModules(repo: ListedRepo) {
-    const appId = resolveApplicationId(repo);
-    setAiBanner(null);
-    setLastSuggestApplicationId(null);
-    const linkedApplication = applicationForRepo(repo);
-    if (!appId || !linkedApplication || !isRepoHostLinked(repo, linkedApplication)) {
-      setAiBanner({
-        tone: 'err',
-        text: `Neo4j application not found for ${repo.fullName} or repository not detected as GitHub.`,
-      });
-      return;
-    }
-    try {
-      setAiBusyRepoId(repo.id);
-      const res = await suggestModulesFromGithub(appId);
-      setLastSuggestApplicationId(appId);
-      setApplications(await fetchApplications());
-      setAiBanner({
-        tone: 'ok',
-        text: `${res.created.length} module(s) created. ${res.skipped.length} entry(ies) skipped.`,
-      });
-    } catch (e) {
-      setAiBanner({
-        tone: 'err',
-        text: e instanceof Error ? e.message : 'AI suggestion failed.',
-      });
-    } finally {
-      setAiBusyRepoId(null);
-    }
-  }
-
-  async function handleSuggestConnections(repo: ListedRepo) {
-    const appId = resolveApplicationId(repo);
-    setAiBanner(null);
-    setLastSuggestApplicationId(null);
-    const linkedApplication = applicationForRepo(repo);
-    if (!appId || !linkedApplication || !isRepoHostLinked(repo, linkedApplication)) {
-      setAiBanner({
-        tone: 'err',
-        text: `Neo4j application not found for ${repo.fullName} or repository not detected as GitHub.`,
-      });
-      return;
-    }
-    try {
-      setConnBusyRepoId(repo.id);
-      const res = await suggestConnectionsFromGithub(appId);
-      const outbound = res.created.filter((c) => c.direction === 'outbound').length;
-      const inbound = res.created.length - outbound;
-      setApplications(await fetchApplications());
-      setAiBanner({
-        tone: 'ok',
-        text: `${res.created.length} connection(s) created (${outbound} outbound, ${inbound} inbound). ${res.skipped.length} skipped.`,
-      });
-    } catch (e) {
-      setAiBanner({
-        tone: 'err',
-        text: e instanceof Error ? e.message : 'Scan connections and attributes failed.',
-      });
-    } finally {
-      setConnBusyRepoId(null);
-    }
   }
 
   return (
@@ -497,33 +416,6 @@ export function GitHubImportPage() {
         <ThirdPartySources onChanged={async () => setApplications(await fetchApplications())} />
       ) : (
         <>
-
-      <div className="github-import-ai-live" aria-live="polite" aria-relevant="additions text">
-        {aiBanner && (
-          <p
-            className={
-              aiBanner.tone === 'err'
-                ? 'github-import-feedback github-import-feedback-error'
-                : 'github-import-feedback github-import-feedback-success'
-            }
-            role={aiBanner.tone === 'err' ? 'alert' : 'status'}
-          >
-            {aiBanner.text}{' '}
-            {aiBanner.tone === 'ok' && lastSuggestApplicationId ? (
-              <button
-                type="button"
-                className="github-import-inline-link"
-                onClick={() => {
-                  const app = applications.find((a) => a.id === lastSuggestApplicationId);
-                  navigateToModuleGraph(navigate, lastSuggestApplicationId, app?.name);
-                }}
-              >
-                View module graph
-              </button>
-            ) : null}
-          </p>
-        )}
-      </div>
 
       <div className="github-import-tools">
         <label className="github-import-search">
@@ -674,8 +566,6 @@ export function GitHubImportPage() {
       <ul className="github-import-list" aria-label={sourceMode === 'bitbucket' ? 'Bitbucket repositories' : 'GitHub repositories'}>
         {filteredRepos.map((repo) => {
           const imported = isImported(repo);
-          const appRow = applicationForRepo(repo);
-          const modulesLocked = Boolean(appRow?.hasModuleSubtree);
           const checked = imported || selected.has(repo.id);
           return (
             <li key={repo.id} className={`github-import-card${checked ? ' is-selected' : ''}`}>
@@ -724,62 +614,6 @@ export function GitHubImportPage() {
                     </a>
                   </span>
                 </div>
-                {imported &&
-                  isRepoHostLinked(repo, {
-                    name:
-                      repo.host === 'bitbucket'
-                        ? applicationNameForBitbucketRepo(repo.name)
-                        : applicationNameForGitHubRepo(repo.name),
-                    description:
-                      repo.host === 'bitbucket'
-                        ? applicationDescriptionForBitbucketRepo(repo.description, repo.htmlUrl)
-                        : applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
-                  }) && (
-                    <div className="github-import-card-ai">
-                      <button
-                        type="button"
-                        className="github-import-ai-btn"
-                        disabled={
-                          status !== 'ready' ||
-                          aiBusyRepoId !== null ||
-                          connBusyRepoId !== null ||
-                          isImporting ||
-                          !resolveApplicationId(repo)
-                        }
-                        aria-busy={connBusyRepoId === repo.id}
-                        onClick={() => void handleSuggestConnections(repo)}
-                      >
-                        {connBusyRepoId === repo.id
-                          ? 'Scanning connections and attributes…'
-                          : 'Scan connections and attributes'}
-                      </button>
-                      <button
-                        type="button"
-                        className="github-import-ai-btn"
-                        disabled={
-                          status !== 'ready' ||
-                          aiBusyRepoId !== null ||
-                          connBusyRepoId !== null ||
-                          isImporting ||
-                          !resolveApplicationId(repo) ||
-                          modulesLocked
-                        }
-                        title={
-                          modulesLocked
-                            ? 'Modules are already linked to this application. AI suggestion cannot be run again.'
-                            : undefined
-                        }
-                        aria-busy={aiBusyRepoId === repo.id}
-                        onClick={() => void handleSuggestModules(repo)}
-                      >
-                        {aiBusyRepoId === repo.id
-                          ? 'Suggesting modules…'
-                          : modulesLocked
-                            ? 'Modules already in place'
-                            : 'Suggest modules (AI)'}
-                      </button>
-                    </div>
-                  )}
               </div>
             </li>
           );
@@ -788,8 +622,8 @@ export function GitHubImportPage() {
 
       <p className="github-import-footnote" role="note">
         {sourceMode === 'bitbucket'
-          ? 'Bitbucket pagination: only the first page is loaded (max 100 most recently updated repositories). An application is already imported when its description contains the Bitbucket URL. A GitHub application with the same name is not treated as this repository.'
-          : 'GitHub pagination: only the first page is loaded (max 100 most recently updated repositories). Existing applications are detected by the repository name, not owner/repo. The "Suggest modules (AI)" button appears for already-imported rows when the description still contains the GitHub URL. Once modules are linked to the application, the button changes to "Modules already in place" (no new AI suggestion).'}
+          ? 'Bitbucket pagination: only the first page is loaded (max 100 most recently updated repositories). An application is already imported when its description contains the Bitbucket URL. A GitHub application with the same name is not treated as this repository. Import scans modules, connections, and attributes.'
+          : 'GitHub pagination: only the first page is loaded (max 100 most recently updated repositories). Existing applications are detected by the repository name, not owner/repo. Import scans modules, connections, and attributes.'}
       </p>
         </>
       )}

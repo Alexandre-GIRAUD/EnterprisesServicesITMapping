@@ -189,6 +189,34 @@ class MappingChatToolsTest {
   }
 
   @Test
+  void applyMapFiltersAcceptsOneEdgeValueAndAKeySentOnTheWrongAxis() {
+    when(filterFacets.listNodeFilters()).thenReturn(regionAndCountry());
+
+    MappingChatTools tools = tools();
+    String oneValue = tools.applyMapFilters("{\"edgeAttributes\":{\"channel\":\"api\"}}");
+
+    assertThat(oneValue).contains("\"accepted\":true");
+    assertThat(tools.appliedFilters().edgeAttributes()).containsEntry("channel", List.of("API"));
+
+    MappingChatTools misplaced = tools();
+    String moved = misplaced.applyMapFilters("{\"nodeAttributes\":{\"channel\":[\"API\"]}}");
+
+    assertThat(moved).contains("\"accepted\":true");
+    assertThat(misplaced.appliedFilters().edgeAttributes()).containsEntry("channel", List.of("API"));
+    assertThat(misplaced.appliedFilters().nodeAttributes()).isEmpty();
+    assertThat(misplaced.warnings()).isEmpty();
+  }
+
+  @Test
+  void applyMapFiltersNamesTheReasonWhenTheJsonCannotBeRead() {
+    MappingChatTools tools = tools();
+    String json = tools.applyMapFilters("not-json");
+
+    assertThat(json).contains("\"accepted\":false").contains("invalid_json").contains("detail");
+    assertThat(tools.warnings()).anyMatch(warning -> warning.contains("invalid_json"));
+  }
+
+  @Test
   void applyMapFiltersRefusesAnUnknownKeyOrADimensionWithNoValidValue() {
     when(filterFacets.listNodeFilters()).thenReturn(regionAndCountry());
 

@@ -8,6 +8,7 @@ import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetSe
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto.GraphFilterOptionDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -36,10 +37,11 @@ final class MappingChatFilters {
   }
 
   Result apply(String filtersJson) {
-    ChatMapFilters requested = readFilters(filtersJson);
-    if (requested == null) {
-      return new Result(refuse("invalid_json", null), null);
+    ReadOutcome read = readFilters(filtersJson);
+    if (read.filters() == null) {
+      return new Result(refuse("invalid_json", read.detail()), null);
     }
+    ChatMapFilters requested = read.filters();
     FilterDecision decision = resolveFilters(requested);
     if (!decision.accepted()) {
       return new Result(refuse(decision.error(), decision.detail()), null);
@@ -53,14 +55,81 @@ final class MappingChatFilters {
 
   record Result(String json, ChatMapFilters filters) {}
 
-  private ChatMapFilters readFilters(String filtersJson) {
+  private ReadOutcome readFilters(String filtersJson) {
     if (!StringUtils.hasText(filtersJson)) {
-      return null;
+      return ReadOutcome.invalid("empty");
     }
     try {
-      return objectMapper.readValue(filtersJson, ChatMapFilters.class);
-    } catch (JsonProcessingException ex) {
-      return null;
+      JsonNode root = objectMapper.readTree(filtersJson.trim());
+      if (root.isTextual()) {
+        root = objectMapper.readTree(root.asText());
+      }
+      if (!root.isObject()) {
+        return ReadOutcome.invalid("expected a JSON object");
+      }
+      return ReadOutcome.ok(
+          new ChatMapFilters(
+              textList(root.get("applicationIds"), "applicationIds"),
+              axisMap(root.get("nodeAttributes"), "nodeAttributes"),
+              axisMap(root.get("nodeRefs"), "nodeRefs"),
+              axisMap(root.get("edgeAttributes"), "edgeAttributes")));
+    } catch (JsonProcessingException | IllegalArgumentException ex) {
+      return ReadOutcome.invalid(shortDetail(ex.getMessage()));
+    }
+  }
+
+  private static List<String> textList(JsonNode node, String path) {
+    if (node == null || node.isNull()) {
+      return List.of();
+    }
+    if (node.isTextual()) {
+      return List.of(node.asText());
+    }
+    if (!node.isArray()) {
+      throw new IllegalArgumentException(path + " must be a string or an array of strings");
+    }
+    List<String> values = new ArrayList<>();
+    for (JsonNode item : node) {
+      if (item.isNull()) {
+        continue;
+      }
+      if (!item.isTextual()) {
+        throw new IllegalArgumentException(path + " must be a string or an array of strings");
+      }
+      values.add(item.asText());
+    }
+    return values;
+  }
+
+  private static Map<String, List<String>> axisMap(JsonNode node, String path) {
+    if (node == null || node.isNull()) {
+      return Map.of();
+    }
+    if (!node.isObject()) {
+      throw new IllegalArgumentException(path + " must be an object");
+    }
+    Map<String, List<String>> axis = new LinkedHashMap<>();
+    node.fields()
+        .forEachRemaining(
+            entry -> axis.put(entry.getKey(), textList(entry.getValue(), path + "." + entry.getKey())));
+    return axis;
+  }
+
+  private static String shortDetail(String detail) {
+    if (!StringUtils.hasText(detail)) {
+      return "unreadable";
+    }
+    String trimmed = detail.trim();
+    return trimmed.length() <= 160 ? trimmed : trimmed.substring(0, 160);
+  }
+
+  private record ReadOutcome(ChatMapFilters filters, String detail) {
+    private static ReadOutcome ok(ChatMapFilters filters) {
+      return new ReadOutcome(filters, null);
+    }
+
+    private static ReadOutcome invalid(String detail) {
+      return new ReadOutcome(null, detail);
     }
   }
 
@@ -123,6 +192,9 @@ final class MappingChatFilters {
     }
     for (Map.Entry<String, List<String>> entry : requested.entrySet()) {
       DimensionMatch match = matchDimension(dimensions, entry.getKey(), kind);
+      if (match.dimension() == null && "unknown_key".equals(match.error())) {
+        match = matchAnyKind(dimensions, entry.getKey());
+      }
       if (match.dimension() == null) {
         collector.detail = entry.getKey();
         return match.error();
@@ -197,6 +269,25 @@ final class MappingChatFilters {
     }
     if (byLabel.size() == 1) {
       return new DimensionMatch(byLabel.get(0), null);
+    }
+    return new DimensionMatch(null, "unknown_key");
+  }
+
+  private DimensionMatch matchAnyKind(List<GraphNodeFilterDto> dimensions, String keyOrLabel) {
+    List<GraphNodeFilterDto> hits = new ArrayList<>();
+    for (String kind : List.of("NODE", "NODE_REF", "EDGE")) {
+      DimensionMatch match = matchDimension(dimensions, keyOrLabel, kind);
+      if (match.dimension() != null) {
+        hits.add(match.dimension());
+      } else if ("ambiguous_key".equals(match.error())) {
+        return match;
+      }
+    }
+    if (hits.size() == 1) {
+      return new DimensionMatch(hits.get(0), null);
+    }
+    if (hits.size() > 1) {
+      return new DimensionMatch(null, "ambiguous_key");
     }
     return new DimensionMatch(null, "unknown_key");
   }

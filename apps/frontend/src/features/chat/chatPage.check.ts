@@ -15,6 +15,7 @@ assert.match(page, /<h1>Chatbot<\/h1>/);
 assert.match(page, /flowraLogo/);
 assert.doesNotMatch(page, /Ask about the Production graph/);
 assert.equal(page.match(/<ChatComposer\b/g)?.length, 1, 'one composer, pinned at the bottom in every state');
+assert.match(page, /if \(appliedFilters\) \{\s*openFiltersOnMap\(appliedFilters\);/);
 
 const css = read('../../index.css');
 assert.doesNotMatch(css, /\.chat-page \{[^}]*max-width/, 'the page spans the main area so the composer is centered');

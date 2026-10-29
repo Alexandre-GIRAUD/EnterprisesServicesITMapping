@@ -1325,54 +1325,6 @@ body.is-diagram-grown .layout {
   text-transform: none;
 }
 
-.github-import-ai-live {
-  margin-top: 0.35rem;
-}
-
-.github-import-card-ai {
-  margin: 0 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.35rem;
-  flex-shrink: 0;
-}
-
-.github-import-ai-btn {
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
-  cursor: pointer;
-  border-radius: 999px;
-  border: 1px solid #2563eb;
-  background: #eff6ff;
-  color: #1e3a8a;
-  padding: 0.35rem 0.65rem;
-  transition:
-    background-color 140ms ease,
-    color 140ms ease,
-    border-color 140ms ease;
-}
-
-.github-import-ai-btn:hover:not(:disabled) {
-  background: #dbeafe;
-  color: #172554;
-  border-color: #1d4ed8;
-}
-
-.github-import-ai-btn:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
-}
-
-.github-import-ai-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  color: #64748b;
-  border-color: #94a3b8;
-  background: #f1f5f9;
-}
-
 .github-import-link {
   font-size: 0.8rem;
   font-weight: 600;

@@ -20,7 +20,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
   },
   {
     title: 'Sources',
-    text: 'Lists the GitHub and Bitbucket repositories linked to this account and imports them into the map. Suggest modules and Scan connections and attributes start from a repository here.',
+    text: 'Lists the GitHub and Bitbucket repositories linked to this account and imports them into the map. Import starts the scan for modules, connections, and attributes.',
   },
   {
     title: 'Changes',

@@ -29,6 +29,7 @@ import com.enterprise.itmapping.feature.rag.application.FunctionalDocSearchServi
 import com.enterprise.itmapping.feature.rag.presentation.dto.FunctionalDocSearchResponse;
 import com.enterprise.itmapping.feature.rag.presentation.dto.FunctionalDocSearchResponse.HitDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -407,17 +408,34 @@ public class MappingChatTools {
       description =
           "Replace the Production map filters. Does not write the graph. "
               + "The user asks in English. Send the stored key, label, or catalogue spelling, not a translation absent from listFilterDimensions. "
-              + "JSON object with applicationIds, nodeAttributes, nodeRefs, edgeAttributes. "
-              + "Each value is a JSON array of strings. Omit a key or send [] to leave that axis unfiltered. "
+              +           "JSON object with applicationIds, nodeAttributes, nodeRefs, edgeAttributes. "
+              + "Each value is one string or a JSON array of strings. "
+              + "A key sent on the wrong axis is applied on the single dimension it matches. "
+              + "Omit a key or send [] to leave that axis unfiltered. "
               + "{} clears every filter. Unknown keys refuse the whole set. "
-              + "Unknown values in a known dimension are dropped; if none remain, the whole set is refused.")
+              + "Unknown values in a known dimension are dropped; if none remain, the whole set is refused. "
+              + "When accepted is false, tell the user the error and detail. Do not invent an outage.")
   public String applyMapFilters(
-      @ToolParam(description = "JSON filter set. {} clears every filter.") String filtersJson) {
+      @ToolParam(description = "JSON filter set. {} clears every filter. A value may be one string.")
+          String filtersJson) {
     MappingChatFilters.Result result = filters.apply(filtersJson);
     if (result.filters() != null) {
       appliedFilters = result.filters();
+    } else {
+      warnings.add("Filter was not applied: " + refusalText(result.json()));
     }
     return result.json();
+  }
+
+  private String refusalText(String json) {
+    try {
+      JsonNode node = objectMapper.readTree(json);
+      String error = node.path("error").asText("unknown");
+      String detail = node.path("detail").asText("");
+      return detail.isBlank() ? error : error + " (" + detail + ")";
+    } catch (JsonProcessingException ex) {
+      return json;
+    }
   }
 
   private Map<String, Object> payloadView(AiFunctionalDocPayload payload) {
