@@ -28,6 +28,7 @@ type GraphCanvasSideToolInput = {
   edgeAttributes: Record<string, string[]>;
   edgeIds: string[];
   matchNothing: boolean;
+  withNeighbours: boolean;
   blankedDimensions: string[];
   graphEdges: GraphEdgeDto[];
   filters: ReturnType<typeof useGraphFilters>;
@@ -77,6 +78,7 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
     edgeAttributes,
     edgeIds,
     matchNothing,
+    withNeighbours,
     blankedDimensions,
     graphEdges,
     filters,
@@ -144,6 +146,8 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
             initialEdgeAttributes={isSandbox ? activeSandboxFilters.edgeAttributes ?? {} : edgeAttributes}
             initialEdgeIds={isSandbox ? activeSandboxFilters.edgeIds ?? [] : edgeIds}
             initialMatchNothing={isSandbox ? Boolean(activeSandboxFilters.matchNothing) : matchNothing}
+            showWithNeighbours={!isSandbox}
+            initialWithNeighbours={withNeighbours}
             initialBlankedDimensions={
               isSandbox ? activeSandboxFilters.blankedDimensions ?? [] : blankedDimensions
             }
@@ -156,6 +160,7 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
               edgeIds: nextEdgeIds,
               matchNothing: nextMatchNothing,
               blankedDimensions: nextBlanked,
+              withNeighbours: nextWithNeighbours,
             }) => {
               if (isSandbox) {
                 const id = sandboxes.activeId ?? sandboxes.activeDoc?.id;
@@ -180,6 +185,7 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
               filters.setEdgeAttributes(edgeAttrs ?? {});
               filters.setEdgeIds(nextEdgeIds ?? []);
               filters.setMatchNothing(Boolean(nextMatchNothing));
+              filters.setWithNeighbours(Boolean(nextWithNeighbours));
               filters.setBlankedDimensions(nextBlanked ?? []);
             }}
             showPinView={isExplorer && !isReadOnly}

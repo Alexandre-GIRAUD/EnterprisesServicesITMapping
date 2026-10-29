@@ -32,6 +32,8 @@ type FilterDrawerProps = {
   initialEdgeIds?: string[];
   initialMatchNothing?: boolean;
   initialBlankedDimensions?: string[];
+  showWithNeighbours?: boolean;
+  initialWithNeighbours?: boolean;
   edges?: GraphEdgeDto[];
   onApply: (filters: GraphFilters) => void;
   showPinView?: boolean;
@@ -108,6 +110,8 @@ export function FilterDrawer({
   initialEdgeIds = [],
   initialMatchNothing = false,
   initialBlankedDimensions = [],
+  showWithNeighbours = false,
+  initialWithNeighbours = false,
   edges = [],
   onApply,
   showPinView = false,
@@ -120,6 +124,7 @@ export function FilterDrawer({
   const [dimensionQuery, setDimensionQuery] = useState('');
   const [valueQuery, setValueQuery] = useState('');
   const [selectedFlowIds, setSelectedFlowIds] = useState(initialEdgeIds);
+  const [withNeighbours, setWithNeighbours] = useState(initialWithNeighbours);
   const hasEditedFilters = useRef(false);
 
   const appCatalog = useMemo(
@@ -166,6 +171,7 @@ export function FilterDrawer({
     setDimensionQuery('');
     setValueQuery('');
     setSelectedFlowIds(initialEdgeIds);
+    setWithNeighbours(initialWithNeighbours);
     setSelectedApplicationIds(
       blanked.includes('applications')
         ? []
@@ -197,6 +203,7 @@ export function FilterDrawer({
     initialNodeRefs,
     initialEdgeAttributes,
     initialEdgeIds,
+    initialWithNeighbours,
     initialBlankedDimensions,
     initialMatchNothing,
     appCatalog,
@@ -222,10 +229,11 @@ export function FilterDrawer({
       edgeIds: selectedFlowIds,
       matchNothing: blanked.length > 0,
       blankedDimensions: blanked,
+      withNeighbours,
     });
     // collectAttributeFilters closes over the same selection state as this effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedApplicationIds, selectedNodeValues, selectedFlowIds, isOpen]);
+  }, [selectedApplicationIds, selectedNodeValues, selectedFlowIds, withNeighbours, isOpen]);
 
   const detailKey = nodeAttributeKeyFromView(view);
   const detailDimension = nodeFilters.find((dimension) => dimension.key === detailKey) ?? null;
@@ -297,6 +305,7 @@ export function FilterDrawer({
   function onReset() {
     hasEditedFilters.current = true;
     setSelectedFlowIds([]);
+    setWithNeighbours(false);
     setSelectedApplicationIds(selectAllCatalog(appCatalog));
     setSelectedNodeValues(
       Object.fromEntries(
@@ -525,7 +534,7 @@ export function FilterDrawer({
           onClick={() => openDetail(options.view)}
           aria-label={`Choose ${options.plural}`}
         >
-          Choose
+          ›
         </button>
       </div>
     );
@@ -646,6 +655,19 @@ export function FilterDrawer({
 
       <form className="graph-drawer-form graph-filter-form" onSubmit={onSubmit}>
         {view === 'root' ? renderRootActions() : renderDetailViewActions()}
+        {view === 'root' && showWithNeighbours ? (
+          <label className="graph-filter-neighbours" title="Also show applications linked by a feed to the filtered ones">
+            <input
+              type="checkbox"
+              checked={withNeighbours}
+              onChange={(event) => {
+                hasEditedFilters.current = true;
+                setWithNeighbours(event.target.checked);
+              }}
+            />
+            with neighbour
+          </label>
+        ) : null}
         {view === 'root' ? (
           <div className="graph-filter-root-list" role="group" aria-label="Filter types">
             <div className="graph-filter-search">

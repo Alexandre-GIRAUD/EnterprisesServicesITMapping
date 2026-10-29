@@ -313,6 +313,8 @@ export type GraphFilters = {
   blankedDimensions?: string[];
   /** Client-only: specific flows to keep. Empty means every fetched flow. */
   edgeIds?: string[];
+  /** Client-only: also show applications linked by a feed to a filtered application. */
+  withNeighbours?: boolean;
 };
 
 /** One filterable dimension from GET /api/graph/node-filters. */
