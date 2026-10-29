@@ -329,11 +329,13 @@ export type GraphSnapshotLegend = {
   edgeLabelKey: string;
   appFillKey: string;
   appBorderKey: string;
+  appTextKey?: string;
   colors?: {
     edgeStroke?: Record<string, string>;
     edgeLabel?: Record<string, string>;
     appFill?: Record<string, string>;
     appBorder?: Record<string, string>;
+    appText?: Record<string, string>;
   };
   hideEdgeLabels?: boolean;
 };

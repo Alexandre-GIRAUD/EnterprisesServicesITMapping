@@ -17,12 +17,19 @@ import {
   borderFromFill,
   nodeBorderColorForValue,
   nodeFillColorForValue,
+  nodeTextColor,
+  textFromFill,
   paintChannelColors,
   paintEdgeStrokeColor,
   resolveMirroredKey,
   resolveSpreadColorKeys,
   resolveUntouchedColorKey,
 } from './edgeColorProperty.ts';
+
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
 
 const SAMPLE_VALUES = ['Payments', 'Risk', 'Retail', 'Core', 'Treasury'];
 
@@ -316,5 +323,34 @@ assert.deepEqual(
   [...DARK_EDGE_PALETTE],
   ['#1d63c9', '#0f766e', '#7c3aed', '#667f10', '#8a4b2a', '#c1121f', '#b45309', '#1f7a1f'],
 );
+
+// Node text defaults to a shade darker than the border.
+const textNode = { id: 'n', label: 'N', type: 'Application', properties: { pillar: 'Core' } } as never;
+assert.equal(
+  nodeTextColor(textNode, 'pillar', undefined, 'pillar', undefined, 'pillar', undefined),
+  textFromFill(nodeFillColorForValue('pillar', 'Core')),
+);
+assert.equal(
+  nodeTextColor(textNode, 'pillar', { Core: '#123456' }, 'pillar', undefined, 'pillar', undefined),
+  '#123456',
+);
+const textMirrored = resolveSpreadColorKeys({
+  nodes: [],
+  edges: [],
+  fillKey: NODE_TYPE_COLOR_KEY,
+  borderKey: NODE_TYPE_COLOR_KEY,
+  strokeKey: RELATION_TYPE_COLOR_KEY,
+  fillChosen: false,
+  borderChosen: false,
+  strokeChosen: false,
+});
+assert.equal(textMirrored.textKey, textMirrored.borderKey);
+
+// Default border and text are clearly darker than the fill (readable contrast).
+for (const pastel of PASTEL_NODE_PALETTE) {
+  assert.ok(contrast(pastel, borderFromFill(pastel)) >= 2.5, `border contrast on ${pastel}`);
+  assert.ok(contrast(pastel, textFromFill(pastel)) >= 4.5, `text contrast on ${pastel}`);
+  assert.ok(relativeLuminance(textFromFill(pastel)) < relativeLuminance(borderFromFill(pastel)));
+}
 
 console.log('graphPalette.check: ok');
