@@ -17,7 +17,8 @@ assert.doesNotMatch(css, /\.self-service[^{]*is-expanded/);
 assert.match(css, /cubic-bezier\(0\.22, 1, 0\.36, 1\)/);
 assert.doesNotMatch(css, /7\.25rem/);
 assert.match(css, /\.graph-filter-compact-btn--pin:not\(:disabled\) \{[^}]*background: #16a34a/);
-assert.match(css, /\.graph-filter-compact-actions > \.graph-filter-compact-btn \{[^}]*flex: 1 1 0/);
+assert.doesNotMatch(css, /\.graph-filter-compact-actions > \.graph-filter-compact-btn \{[^}]*flex: 1 1 0/);
+assert.match(css, /\.graph-filter-compact-btn \{[^}]*border-radius: 8px[^}]*font-size: 0\.85rem/);
 assert.match(css, /\.graph-drawer-action-danger-solid \{[^}]*background: #ffffff/);
 assert.doesNotMatch(css, /linear-gradient\(180deg, #ef4444/);
 
