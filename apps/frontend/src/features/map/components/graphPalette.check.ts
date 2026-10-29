@@ -18,12 +18,18 @@ import {
   nodeBorderColorForValue,
   nodeFillColorForValue,
   nodeTextColor,
+  textFromFill,
   paintChannelColors,
   paintEdgeStrokeColor,
   resolveMirroredKey,
   resolveSpreadColorKeys,
   resolveUntouchedColorKey,
 } from './edgeColorProperty.ts';
+
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
 
 const SAMPLE_VALUES = ['Payments', 'Risk', 'Retail', 'Core', 'Treasury'];
 
@@ -329,5 +335,12 @@ const textMirrored = resolveSpreadColorKeys({
   strokeChosen: false,
 });
 assert.equal(textMirrored.textKey, textMirrored.borderKey);
+
+// Default border and text are clearly darker than the fill (readable contrast).
+for (const pastel of PASTEL_NODE_PALETTE) {
+  assert.ok(contrast(pastel, borderFromFill(pastel)) >= 2.5, `border contrast on ${pastel}`);
+  assert.ok(contrast(pastel, textFromFill(pastel)) >= 4.5, `text contrast on ${pastel}`);
+  assert.ok(relativeLuminance(textFromFill(pastel)) < relativeLuminance(borderFromFill(pastel)));
+}
 
 console.log('graphPalette.check: ok');
