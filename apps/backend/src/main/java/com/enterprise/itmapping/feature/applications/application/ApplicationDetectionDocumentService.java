@@ -129,6 +129,11 @@ public class ApplicationDetectionDocumentService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "This application is linked to GitHub.");
     }
+    if (!BitbucketRepoIdentityResolver.resolveAllFullNames(app.getName(), app.getDescription())
+        .isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "This application is linked to Bitbucket.");
+    }
   }
 
   private String readUpload(String filename, String contentType, byte[] bytes) {

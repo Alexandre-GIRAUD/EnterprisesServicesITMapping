@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { ApplicationResponse, GitHubRepoDto } from '@/types/api';
+import type { ApplicationResponse, BitbucketRepoDto, GitHubRepoDto } from '@/types/api';
 import {
   createApplication,
   fetchApplications,
@@ -9,9 +9,18 @@ import {
   updateApplicationById,
 } from '../api/applicationsApi';
 import { generateFunctionalDocumentation } from '../api/functionalDocumentationApi';
+import { fetchBitbucketRepos } from '../api/integrationsBitbucketApi';
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
 import { ThirdPartySources } from '../components/ThirdPartySources';
 import { navigateToModuleGraph } from '../utils/mapNavigation';
+import {
+  applicationDescriptionForBitbucketRepo,
+  applicationDescriptionForBitbucketRepos,
+  applicationMatchesBitbucketRepo,
+  applicationNameForBitbucketRepo,
+  descriptionWithAdditionalBitbucketRepos,
+  isBitbucketLinkedApplication,
+} from '../utils/bitbucketLinkedApplication';
 import {
   applicationDescriptionForGitHubRepo,
   applicationDescriptionForGitHubRepos,
@@ -20,6 +29,42 @@ import {
   descriptionWithAdditionalGitHubRepos,
   isGitHubLinkedApplication,
 } from '../utils/githubLinkedApplication';
+
+type SourceHost = 'github' | 'bitbucket';
+
+type ListedRepo = {
+  id: string;
+  fullName: string;
+  name: string;
+  description?: string;
+  htmlUrl: string;
+  repoPrivate: boolean;
+  host: SourceHost;
+};
+
+function listedFromGitHub(repo: GitHubRepoDto): ListedRepo {
+  return {
+    id: String(repo.id),
+    fullName: repo.fullName,
+    name: repo.name,
+    description: repo.description,
+    htmlUrl: repo.htmlUrl,
+    repoPrivate: repo.repoPrivate,
+    host: 'github',
+  };
+}
+
+function listedFromBitbucket(repo: BitbucketRepoDto): ListedRepo {
+  return {
+    id: repo.id,
+    fullName: repo.fullName,
+    name: repo.name,
+    description: repo.description,
+    htmlUrl: repo.htmlUrl,
+    repoPrivate: repo.repoPrivate,
+    host: 'bitbucket',
+  };
+}
 
 const GITHUB_MARK_PATH =
   'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z';
@@ -36,12 +81,26 @@ function GitHubMark() {
   );
 }
 
+const BITBUCKET_MARK_PATH =
+  'M.778 1.213a.768.768 0 00-.768.892l3.263 19.81c.084.5.515.868 1.022.873H19.95a.772.772 0 00.77-.646l3.27-20.03a.768.768 0 00-.768-.891zM14.52 15.53H9.522L8.17 8.466h7.561z';
+
+function BitbucketMark() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d={BITBUCKET_MARK_PATH} />
+    </svg>
+  );
+}
+
 export function GitHubImportPage() {
   const navigate = useNavigate();
-  const [repos, setRepos] = useState<GitHubRepoDto[]>([]);
+  const [githubRepos, setGithubRepos] = useState<ListedRepo[]>([]);
+  const [bitbucketRepos, setBitbucketRepos] = useState<ListedRepo[]>([]);
+  const [githubError, setGithubError] = useState<string | null>(null);
+  const [bitbucketError, setBitbucketError] = useState<string | null>(null);
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
   const [filter, setFilter] = useState('');
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -49,15 +108,24 @@ export function GitHubImportPage() {
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [aiBanner, setAiBanner] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null);
   const [lastSuggestApplicationId, setLastSuggestApplicationId] = useState<string | null>(null);
-  const [aiBusyRepoId, setAiBusyRepoId] = useState<number | null>(null);
-  const [connBusyRepoId, setConnBusyRepoId] = useState<number | null>(null);
-  const [sourceMode, setSourceMode] = useState<'repository' | 'third-party'>('repository');
+  const [aiBusyRepoId, setAiBusyRepoId] = useState<string | null>(null);
+  const [connBusyRepoId, setConnBusyRepoId] = useState<string | null>(null);
+  const [sourceMode, setSourceMode] = useState<'github' | 'bitbucket' | 'third-party'>('github');
   const [targetApplicationId, setTargetApplicationId] = useState('');
   const [groupName, setGroupName] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
 
-  function isImported(repo: GitHubRepoDto): boolean {
+  const repos = sourceMode === 'bitbucket' ? bitbucketRepos : githubRepos;
+  const hostError = sourceMode === 'bitbucket' ? bitbucketError : githubError;
+
+  function isImported(repo: ListedRepo): boolean {
     return applicationForRepo(repo) != null;
+  }
+
+  function selectHost(next: 'github' | 'bitbucket' | 'third-party') {
+    setSourceMode(next);
+    setSelected(new Set());
+    setTargetApplicationId('');
   }
 
   useEffect(() => {
@@ -72,20 +140,36 @@ export function GitHubImportPage() {
       } catch (e) {
         applicationError = e instanceof Error ? e.message : 'Unable to load applications.';
       }
-      try {
-        const githubList = await fetchGitHubRepos();
-        if (cancelled) return;
-        setRepos(githubList);
-        setStatus('ready');
-        if (applicationError) setErrorMessage(applicationError);
-        else setErrorMessage(null);
-      } catch (e) {
-        if (cancelled) return;
-        setStatus('error');
-        setErrorMessage(
-          applicationError ?? (e instanceof Error ? e.message : 'Unable to load repositories.')
+      const [githubResult, bitbucketResult] = await Promise.allSettled([
+        fetchGitHubRepos(),
+        fetchBitbucketRepos(),
+      ]);
+      if (cancelled) return;
+      if (githubResult.status === 'fulfilled') {
+        setGithubRepos(githubResult.value.map(listedFromGitHub));
+        setGithubError(null);
+      } else {
+        setGithubRepos([]);
+        setGithubError(
+          githubResult.reason instanceof Error
+            ? githubResult.reason.message
+            : 'Unable to load GitHub repositories.',
         );
       }
+      if (bitbucketResult.status === 'fulfilled') {
+        setBitbucketRepos(bitbucketResult.value.map(listedFromBitbucket));
+        setBitbucketError(null);
+      } else {
+        setBitbucketRepos([]);
+        setBitbucketError(
+          bitbucketResult.reason instanceof Error
+            ? bitbucketResult.reason.message
+            : 'Unable to load Bitbucket repositories.',
+        );
+      }
+      const bothFailed = githubResult.status === 'rejected' && bitbucketResult.status === 'rejected';
+      setStatus(bothFailed ? 'error' : 'ready');
+      setErrorMessage(applicationError);
     }
 
     void load();
@@ -112,7 +196,17 @@ export function GitHubImportPage() {
     [applications],
   );
 
-  function toggleSelect(id: number, repo: GitHubRepoDto) {
+  const targetApplications = useMemo(
+    () =>
+      importedApplications.filter((application) =>
+        sourceMode === 'bitbucket'
+          ? !isGitHubLinkedApplication(application)
+          : !isBitbucketLinkedApplication(application),
+      ),
+    [importedApplications, sourceMode],
+  );
+
+  function toggleSelect(id: string, repo: ListedRepo) {
     if (isImported(repo)) return;
     setSelected((prev) => {
       const next = new Set(prev);
@@ -155,9 +249,13 @@ export function GitHubImportPage() {
       setIsImporting(true);
       if (target) {
         try {
+          const description =
+            toCreate[0]?.host === 'bitbucket'
+              ? descriptionWithAdditionalBitbucketRepos(target.description, toCreate)
+              : descriptionWithAdditionalGitHubRepos(target.description, toCreate);
           const updated = await updateApplicationById(target.id, {
             name: target.name,
-            description: descriptionWithAdditionalGitHubRepos(target.description, toCreate),
+            description,
           });
           setApplications((prev) => prev.map((application) => (application.id === updated.id ? updated : application)));
           createdNames.push(normalizeName(target.name));
@@ -175,7 +273,10 @@ export function GitHubImportPage() {
         try {
           const created = await createApplication({
             name,
-            description: applicationDescriptionForGitHubRepos(toCreate),
+            description:
+              toCreate[0]?.host === 'bitbucket'
+                ? applicationDescriptionForBitbucketRepos(toCreate)
+                : applicationDescriptionForGitHubRepos(toCreate),
           });
           setApplications((prev) => [...prev, created]);
           createdNames.push(normalizeName(name));
@@ -188,12 +289,25 @@ export function GitHubImportPage() {
       } else {
         for (const repo of toCreate) {
           try {
-            const created = await createApplication({
-              name: applicationNameForGitHubRepo(repo.name),
-              description: applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
-            });
+            const created = await createApplication(
+              repo.host === 'bitbucket'
+                ? {
+                    name: applicationNameForBitbucketRepo(repo.name),
+                    description: applicationDescriptionForBitbucketRepo(repo.description, repo.htmlUrl),
+                  }
+                : {
+                    name: applicationNameForGitHubRepo(repo.name),
+                    description: applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
+                  },
+            );
             setApplications((prev) => [...prev, created]);
-            createdNames.push(normalizeName(applicationNameForGitHubRepo(repo.name)));
+            createdNames.push(
+              normalizeName(
+                repo.host === 'bitbucket'
+                  ? applicationNameForBitbucketRepo(repo.name)
+                  : applicationNameForGitHubRepo(repo.name),
+              ),
+            );
             void generateFunctionalDocumentation(created.id).catch(() => {
               /* import succeeds even if doc generation fails to start */
             });
@@ -236,20 +350,30 @@ export function GitHubImportPage() {
     }
   }
 
-  function applicationForRepo(repo: GitHubRepoDto): ApplicationResponse | undefined {
-    return applications.find((application) => applicationMatchesGitHubRepo(application, repo));
+  function applicationForRepo(repo: ListedRepo): ApplicationResponse | undefined {
+    return applications.find((application) =>
+      repo.host === 'bitbucket'
+        ? applicationMatchesBitbucketRepo(application, repo)
+        : applicationMatchesGitHubRepo(application, repo),
+    );
   }
 
-  function resolveApplicationId(repo: GitHubRepoDto): string | undefined {
+  function resolveApplicationId(repo: ListedRepo): string | undefined {
     return applicationForRepo(repo)?.id;
   }
 
-  async function handleSuggestModules(repo: GitHubRepoDto) {
+  function isRepoHostLinked(repo: ListedRepo, application: { name?: string | null; description?: string | null }) {
+    return repo.host === 'bitbucket'
+      ? isBitbucketLinkedApplication(application)
+      : isGitHubLinkedApplication(application);
+  }
+
+  async function handleSuggestModules(repo: ListedRepo) {
     const appId = resolveApplicationId(repo);
     setAiBanner(null);
     setLastSuggestApplicationId(null);
     const linkedApplication = applicationForRepo(repo);
-    if (!appId || !linkedApplication || !isGitHubLinkedApplication(linkedApplication)) {
+    if (!appId || !linkedApplication || !isRepoHostLinked(repo, linkedApplication)) {
       setAiBanner({
         tone: 'err',
         text: `Neo4j application not found for ${repo.fullName} or repository not detected as GitHub.`,
@@ -275,12 +399,12 @@ export function GitHubImportPage() {
     }
   }
 
-  async function handleSuggestConnections(repo: GitHubRepoDto) {
+  async function handleSuggestConnections(repo: ListedRepo) {
     const appId = resolveApplicationId(repo);
     setAiBanner(null);
     setLastSuggestApplicationId(null);
     const linkedApplication = applicationForRepo(repo);
-    if (!appId || !linkedApplication || !isGitHubLinkedApplication(linkedApplication)) {
+    if (!appId || !linkedApplication || !isRepoHostLinked(repo, linkedApplication)) {
       setAiBanner({
         tone: 'err',
         text: `Neo4j application not found for ${repo.fullName} or repository not detected as GitHub.`,
@@ -313,7 +437,7 @@ export function GitHubImportPage() {
         <div>
           <h1 className="github-import-title">Import sources</h1>
           <p className="github-import-subtitle">
-            Import repositories from the GitHub account connected in Settings.
+            Import repositories from the GitHub or Bitbucket account connected in Settings.
           </p>
         </div>
         <Link className="github-import-back" to="/map">
@@ -324,20 +448,30 @@ export function GitHubImportPage() {
       <div className="github-import-tabs" role="tablist" aria-label="Source kind">
         <button
           type="button"
-          className={`github-import-tab${sourceMode === 'repository' ? ' is-active' : ''}`}
+          className={`github-import-tab${sourceMode === 'github' ? ' is-active' : ''}`}
           role="tab"
-          aria-selected={sourceMode === 'repository'}
-          onClick={() => setSourceMode('repository')}
+          aria-selected={sourceMode === 'github'}
+          onClick={() => selectHost('github')}
         >
           <GitHubMark />
-          Repository
+          GitHub
+        </button>
+        <button
+          type="button"
+          className={`github-import-tab${sourceMode === 'bitbucket' ? ' is-active' : ''}`}
+          role="tab"
+          aria-selected={sourceMode === 'bitbucket'}
+          onClick={() => selectHost('bitbucket')}
+        >
+          <BitbucketMark />
+          Bitbucket
         </button>
         <button
           type="button"
           className={`github-import-tab${sourceMode === 'third-party' ? ' is-active' : ''}`}
           role="tab"
           aria-selected={sourceMode === 'third-party'}
-          onClick={() => setSourceMode('third-party')}
+          onClick={() => selectHost('third-party')}
         >
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
             <path
@@ -352,9 +486,9 @@ export function GitHubImportPage() {
         </button>
       </div>
 
-      {errorMessage && (
+      {(errorMessage || (sourceMode !== 'third-party' && hostError)) && (
         <p className="github-import-state github-import-state-error" role="alert">
-          {errorMessage}
+          {sourceMode !== 'third-party' && hostError ? hostError : errorMessage}
         </p>
       )}
 
@@ -419,7 +553,7 @@ export function GitHubImportPage() {
           }}
         >
           <option value="">Create New</option>
-          {importedApplications.map((application) => (
+          {targetApplications.map((application) => (
             <option key={application.id} value={application.id}>
               {application.name}
             </option>
@@ -501,7 +635,7 @@ export function GitHubImportPage() {
 
       {status === 'loading' && (
         <p className="github-import-state" role="status">
-          Loading GitHub repositories…
+          {sourceMode === 'bitbucket' ? 'Loading Bitbucket repositories…' : 'Loading GitHub repositories…'}
         </p>
       )}
 
@@ -533,11 +667,11 @@ export function GitHubImportPage() {
         </div>
       )}
 
-      {status === 'ready' && filteredRepos.length === 0 && (
+      {status === 'ready' && !hostError && filteredRepos.length === 0 && (
         <p className="github-import-state">No repositories match the filter.</p>
       )}
 
-      <ul className="github-import-list" aria-label="GitHub repositories">
+      <ul className="github-import-list" aria-label={sourceMode === 'bitbucket' ? 'Bitbucket repositories' : 'GitHub repositories'}>
         {filteredRepos.map((repo) => {
           const imported = isImported(repo);
           const appRow = applicationForRepo(repo);
@@ -557,7 +691,7 @@ export function GitHubImportPage() {
                     aria-describedby={`repo-desc-${repo.id}`}
                   />
                   <span className="github-import-mark">
-                    <GitHubMark />
+                    {repo.host === 'bitbucket' ? <BitbucketMark /> : <GitHubMark />}
                   </span>
                   <span className="github-import-card-body">
                     <span className="github-import-card-title">
@@ -577,7 +711,8 @@ export function GitHubImportPage() {
                     </span>
                     <span className="github-import-card-owner">{repo.fullName}</span>
                     <span id={`repo-desc-${repo.id}`} className="github-import-card-desc">
-                      {repo.description?.trim() || 'No description on GitHub.'}
+                      {repo.description?.trim() ||
+                        (repo.host === 'bitbucket' ? 'No description on Bitbucket.' : 'No description on GitHub.')}
                     </span>
                     <a
                       className="github-import-link"
@@ -585,14 +720,20 @@ export function GitHubImportPage() {
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Open on GitHub
+                      {repo.host === 'bitbucket' ? 'Open on Bitbucket' : 'Open on GitHub'}
                     </a>
                   </span>
                 </div>
                 {imported &&
-                  isGitHubLinkedApplication({
-                    name: applicationNameForGitHubRepo(repo.name),
-                    description: applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
+                  isRepoHostLinked(repo, {
+                    name:
+                      repo.host === 'bitbucket'
+                        ? applicationNameForBitbucketRepo(repo.name)
+                        : applicationNameForGitHubRepo(repo.name),
+                    description:
+                      repo.host === 'bitbucket'
+                        ? applicationDescriptionForBitbucketRepo(repo.description, repo.htmlUrl)
+                        : applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
                   }) && (
                     <div className="github-import-card-ai">
                       <button
@@ -646,12 +787,9 @@ export function GitHubImportPage() {
       </ul>
 
       <p className="github-import-footnote" role="note">
-        GitHub pagination: only the first page is loaded (max 100 most recently updated
-        repositories). Existing applications are detected by the repository name, not{' '}
-        <code className="github-import-code">owner/repo</code>. The &quot;Suggest modules (AI)&quot;
-        button appears for already-imported rows when the description still contains the GitHub URL.
-        Once modules are linked to the application, the button changes to &quot;Modules already in
-        place&quot; (no new AI suggestion).
+        {sourceMode === 'bitbucket'
+          ? 'Bitbucket pagination: only the first page is loaded (max 100 most recently updated repositories). An application is already imported when its description contains the Bitbucket URL. A GitHub application with the same name is not treated as this repository.'
+          : 'GitHub pagination: only the first page is loaded (max 100 most recently updated repositories). Existing applications are detected by the repository name, not owner/repo. The "Suggest modules (AI)" button appears for already-imported rows when the description still contains the GitHub URL. Once modules are linked to the application, the button changes to "Modules already in place" (no new AI suggestion).'}
       </p>
         </>
       )}

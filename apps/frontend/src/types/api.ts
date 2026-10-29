@@ -150,6 +150,15 @@ export interface GitHubRepoDto {
   repoPrivate: boolean;
 }
 
+export interface BitbucketRepoDto {
+  id: string;
+  fullName: string;
+  name: string;
+  description?: string;
+  htmlUrl: string;
+  repoPrivate: boolean;
+}
+
 /** {@code GET /api/change-detections} — GitHub push diff suggestions (review before Neo4j write). */
 export type ChangeDetectionItemDto = {
   id: string;

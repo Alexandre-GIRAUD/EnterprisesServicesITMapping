@@ -18,6 +18,7 @@ import {
 } from '../api/applicationsApi';
 import { fetchGraphNodeFilters } from '../api/graphApi';
 import { moduleGraphMapState } from '../utils/mapNavigation';
+import { isBitbucketLinkedApplication } from '../utils/bitbucketLinkedApplication';
 import { gitHubFullNamesInText, isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 import { isSandboxId } from '../utils/sandboxGraph';
 import { CommentsSection } from '@/features/comments/components/CommentsSection';
@@ -874,7 +875,7 @@ export function ApplicationDetailsDrawer({
           details &&
           !sandboxMode &&
           !isReadOnly &&
-          isGitHubLinkedApplication(details) && (
+          (isGitHubLinkedApplication(details) || isBitbucketLinkedApplication(details)) && (
             <button
               type="button"
               className="graph-drawer-action"
@@ -916,7 +917,7 @@ export function ApplicationDetailsDrawer({
           details &&
           !sandboxMode &&
           !isReadOnly &&
-          isGitHubLinkedApplication(details) && (
+          (isGitHubLinkedApplication(details) || isBitbucketLinkedApplication(details)) && (
             <button
               type="button"
               className="graph-drawer-action"

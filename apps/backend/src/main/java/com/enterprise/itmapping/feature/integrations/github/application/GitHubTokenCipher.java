@@ -11,15 +11,15 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-/** AES-GCM for a GitHub access token. The key is the SHA-256 of the JWT secret. */
-final class GitHubTokenCipher {
+/** AES-GCM for a stored access token. The key is the SHA-256 of the JWT secret. */
+public final class GitHubTokenCipher {
 
   private static final int IV_LENGTH = 12;
   private static final int TAG_BITS = 128;
 
   private GitHubTokenCipher() {}
 
-  static String encrypt(String plain, String keyMaterial) {
+  public static String encrypt(String plain, String keyMaterial) {
     try {
       byte[] iv = new byte[IV_LENGTH];
       new SecureRandom().nextBytes(iv);
@@ -35,7 +35,7 @@ final class GitHubTokenCipher {
     }
   }
 
-  static String decrypt(String packed, String keyMaterial) {
+  public static String decrypt(String packed, String keyMaterial) {
     try {
       byte[] raw = Base64.getDecoder().decode(packed);
       if (raw.length <= IV_LENGTH) {

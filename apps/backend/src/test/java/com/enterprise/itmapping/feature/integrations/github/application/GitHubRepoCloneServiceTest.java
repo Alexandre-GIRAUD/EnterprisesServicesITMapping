@@ -26,6 +26,16 @@ class GitHubRepoCloneServiceTest {
   }
 
   @Test
+  void bitbucketCloneUrlUsesTheApiTokenUser() {
+    assertThat(
+            GitHubRepoCloneService.buildCloneUrl("acme", "billing", "secret", true))
+        .isEqualTo("https://x-bitbucket-api-token-auth:secret@bitbucket.org/acme/billing.git");
+    assertThat(
+            GitHubRepoCloneService.buildCloneUrl("acme", "billing", "secret", false))
+        .isEqualTo("https://x-access-token:secret@github.com/acme/billing.git");
+  }
+
+  @Test
   void deleteQuietlyRemovesNestedWorkspace() throws IOException {
     Path workspace = Files.createTempDirectory("clone-test-");
     Path nested = Files.createDirectories(workspace.resolve("a/b/c"));

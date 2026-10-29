@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.feature.functionaldoc.application;
 
+import com.enterprise.itmapping.feature.applications.application.BitbucketRepoIdentityResolver;
 import com.enterprise.itmapping.feature.applications.application.GithubRepoIdentityResolver;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.functionaldoc.application.FunctionalDocumentationAgent.DiscoveryResult;
@@ -69,8 +70,17 @@ public class FunctionalDocumentationService {
    * Returns immediately (caller should respond 202).
    */
   public FunctionalDocumentationResponse startGenerate(String applicationId) {
-    // Commit PENDING first — otherwise @Async can run before the insert is visible.
-    String accessToken = cloneService.currentAccessToken();
+    var app =
+        applicationRepository
+            .findProjectionById(applicationId)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Application not found: " + applicationId));
+    boolean bitbucket =
+        !BitbucketRepoIdentityResolver.resolveAllFullNames(app.getName(), app.getDescription()).isEmpty();
+    String accessToken =
+        bitbucket ? cloneService.accessToken(true) : cloneService.currentAccessToken();
     FunctionalDocumentationResponse pending = self.getObject().markPending(applicationId);
     self.getObject().generateAsync(applicationId, accessToken);
     return pending;
@@ -86,8 +96,11 @@ public class FunctionalDocumentationService {
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Application not found: " + applicationId));
 
-    List<String> fullNames =
+    List<String> bitbucketNames =
+        BitbucketRepoIdentityResolver.resolveAllFullNames(app.getName(), app.getDescription());
+    List<String> githubNames =
         GithubRepoIdentityResolver.resolveAllFullNames(app.getName(), app.getDescription());
+    List<String> fullNames = bitbucketNames.isEmpty() ? githubNames : bitbucketNames;
     if (fullNames.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
@@ -151,8 +164,12 @@ public class FunctionalDocumentationService {
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Application not found: " + applicationId));
 
-    List<String> fullNames =
+    List<String> bitbucketNames =
+        BitbucketRepoIdentityResolver.resolveAllFullNames(app.getName(), app.getDescription());
+    List<String> githubNames =
         GithubRepoIdentityResolver.resolveAllFullNames(app.getName(), app.getDescription());
+    boolean bitbucket = !bitbucketNames.isEmpty();
+    List<String> fullNames = bitbucket ? bitbucketNames : githubNames;
     if (fullNames.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "GitHub repository not found for this application.");
@@ -164,7 +181,10 @@ public class FunctionalDocumentationService {
 
     log.info("Functional documentation generate start applicationId={} repos={}", applicationId, fullNames);
 
-    Path workspace = cloneService.cloneAll(fullNames, properties.cloneTimeoutSeconds(), accessToken);
+    Path workspace =
+        bitbucket
+            ? cloneService.cloneAll(fullNames, properties.cloneTimeoutSeconds(), accessToken, true)
+            : cloneService.cloneAll(fullNames, properties.cloneTimeoutSeconds(), accessToken);
     try {
       DiscoveryResult discovery = agent.discoverAll(workspace, fullNames);
       entity.setStatus(FunctionalDocStatus.READY);
