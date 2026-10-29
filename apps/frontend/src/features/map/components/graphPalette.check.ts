@@ -314,6 +314,16 @@ const borderSticky = resolveSpreadColorKeys({
 assert.equal(borderSticky.fillKey, 'pillar');
 assert.equal(borderSticky.borderKey, 'tier');
 
+// Defaults follow the cartography reference: blue, teal, lavender, olive, terracotta, pink, amber, mint.
+assert.deepEqual(
+  [...PASTEL_NODE_PALETTE],
+  ['#a9ccf5', '#86dccf', '#d9bff5', '#d6e28a', '#e6b49a', '#f8b0c4', '#ffe08a', '#b4eaa8'],
+);
+assert.deepEqual(
+  [...DARK_EDGE_PALETTE],
+  ['#1d63c9', '#0f766e', '#7c3aed', '#667f10', '#8a4b2a', '#c1121f', '#b45309', '#1f7a1f'],
+);
+
 // Node text defaults to a shade darker than the border.
 const textNode = { id: 'n', label: 'N', type: 'Application', properties: { pillar: 'Core' } } as never;
 assert.equal(

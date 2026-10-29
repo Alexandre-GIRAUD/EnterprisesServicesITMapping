@@ -33,31 +33,31 @@ const NEUTRAL_NODE_COLOR = '#52525b';
 const NEUTRAL_EDGE_COLOR = '#334155';
 
 /**
- * Soft-UI inspired pastels: clear coral / mint / lavender / lemon / sky / spring /
- * peach / lilac. Preferred defaults for the first slots; further values get unique
- * derived tones from {@link preferredPaletteColor}.
+ * Pastel fills taken from the cartography reference: blue, teal, lavender, olive,
+ * terracotta, pink, amber, mint. Preferred defaults for the first slots; further
+ * values get unique derived tones from {@link preferredPaletteColor}.
  */
 export const PASTEL_NODE_PALETTE = [
-  '#ffb4c0',
-  '#7fe3d4',
-  '#d4b8ff',
-  '#f0f48a',
-  '#8ecbff',
-  '#b4f0a0',
-  '#ffc891',
-  '#ffb8f0',
+  '#a9ccf5',
+  '#86dccf',
+  '#d9bff5',
+  '#d6e28a',
+  '#e6b49a',
+  '#f8b0c4',
+  '#ffe08a',
+  '#b4eaa8',
 ] as const;
 
-/** Distinct darks, same slot order as the node pastels (modern ink strokes). */
+/** Distinct darks, same slot order as the node pastels (matching link strokes). */
 export const DARK_EDGE_PALETTE = [
-  '#c1121f',
+  '#1d63c9',
   '#0f766e',
   '#7c3aed',
-  '#854d0e',
-  '#1d4ed8',
-  '#3f6212',
-  '#c2410c',
-  '#86198f',
+  '#667f10',
+  '#8a4b2a',
+  '#c1121f',
+  '#b45309',
+  '#1f7a1f',
 ] as const;
 
 function clampByte(value: number): number {
