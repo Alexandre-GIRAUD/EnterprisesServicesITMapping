@@ -21,11 +21,18 @@ export const NODE_LABEL_COLOR_KEY = '__label__';
 export const HIDE_EDGE_LABELS_KEY = '__hide_labels__';
 /** Border when fill is white / near-white (derived border would be invisible). */
 export const LIGHT_BORDER_ON_WHITE = '#cbd5e1';
+/** Darkening applied to a node fill to derive its default border. */
+const BORDER_DARKEN_AMOUNT = 0.45;
+/** Extra darkening of a border to derive the default label text. */
+const TEXT_DARKEN_AMOUNT = 0.4;
+/** Darkening of a node-type color when used as a default border. */
+const TYPE_BORDER_DARKEN_AMOUNT = 0.3;
 
 export const EDGE_COLOR_PROPERTY_STORAGE_KEY = 'flowra.graph.edgeColorProperty';
 export const EDGE_LABEL_PROPERTY_STORAGE_KEY = 'flowra.graph.edgeLabelProperty';
 export const APP_FILL_PROPERTY_STORAGE_KEY = 'flowra.graph.appFillProperty';
 export const APP_BORDER_PROPERTY_STORAGE_KEY = 'flowra.graph.appBorderProperty';
+export const APP_TEXT_PROPERTY_STORAGE_KEY = 'flowra.graph.appTextProperty';
 export const LEGEND_COLORS_STORAGE_KEY = 'flowra.graph.legendColors';
 export const LEGEND_SETUPS_STORAGE_KEY = 'flowra.graph.legendSetups';
 export const HIDE_EDGE_LABELS_STORAGE_KEY = 'flowra.graph.hideEdgeLabels';
@@ -45,6 +52,7 @@ export type LegendColorMaps = {
   edgeLabel?: Record<string, string>;
   appFill?: Record<string, string>;
   appBorder?: Record<string, string>;
+  appText?: Record<string, string>;
 };
 
 export type LegendCodingKeys = {
@@ -52,6 +60,8 @@ export type LegendCodingKeys = {
   edgeLabelKey: string;
   appFillKey: string;
   appBorderKey: string;
+  /** Absent in older saved legends: text then follows the border attribute. */
+  appTextKey?: string;
 };
 
 export type LegendSetup = LegendCodingKeys & {
@@ -119,6 +129,15 @@ export function storeAppBorderKey(key: string): void {
   storeKey(APP_BORDER_PROPERTY_STORAGE_KEY, key);
 }
 
+export function loadStoredAppTextKey(): string {
+  return loadStoredKey(APP_TEXT_PROPERTY_STORAGE_KEY, NODE_TYPE_COLOR_KEY);
+}
+
+export function storeAppTextKey(key: string): void {
+  storeKey(APP_TEXT_PROPERTY_STORAGE_KEY, key);
+}
+
+export const TEXT_PROPERTY_CHOSEN_KEY = 'flowra.graph.appTextChosen';
 export const FILL_PROPERTY_CHOSEN_KEY = 'flowra.graph.appFillChosen';
 export const BORDER_PROPERTY_CHOSEN_KEY = 'flowra.graph.appBorderChosen';
 export const STROKE_PROPERTY_CHOSEN_KEY = 'flowra.graph.edgeColorChosen';
@@ -146,6 +165,14 @@ export function loadFillPropertyChosen(): boolean {
 
 export function storeFillPropertyChosen(): void {
   storeChosen(FILL_PROPERTY_CHOSEN_KEY);
+}
+
+export function loadTextPropertyChosen(): boolean {
+  return loadChosen(TEXT_PROPERTY_CHOSEN_KEY);
+}
+
+export function storeTextPropertyChosen(): void {
+  storeChosen(TEXT_PROPERTY_CHOSEN_KEY);
 }
 
 export function loadBorderPropertyChosen(): boolean {
@@ -268,10 +295,20 @@ export function paintChannelColors(input: {
   fillValues: readonly string[];
   strokeKey: string;
   strokeValues: readonly string[];
+  borderKey?: string;
+  textKey?: string;
+  textValues?: readonly string[];
 }): LegendColorMaps {
   const colors = input.colors ?? {};
+  const textFollowsBorder =
+    input.textKey == null ||
+    input.textKey === NODE_TYPE_COLOR_KEY ||
+    input.textKey === input.borderKey;
   return {
     ...colors,
+    appText: textFollowsBorder
+      ? colors.appText
+      : distinctColorMap(input.textValues ?? [], DARK_EDGE_PALETTE, colors.appText),
     appFill:
       input.fillKey === NODE_TYPE_COLOR_KEY
         ? colors.appFill
@@ -337,10 +374,20 @@ export function isNearWhite(color: string): boolean {
   return rgb.r >= 245 && rgb.g >= 245 && rgb.b >= 245;
 }
 
-/** Border derived from fill: light grey on white, else darkened fill. */
+/** Border derived from fill: light grey on white, else a clearly darker fill. */
 export function borderFromFill(fill: string): string {
   if (isNearWhite(fill)) return LIGHT_BORDER_ON_WHITE;
-  return darkenColor(fill);
+  return darkenColor(fill, BORDER_DARKEN_AMOUNT);
+}
+
+/** Default label text: darker than the border so it reads on the tinted fill. */
+export function textFromFill(fill: string): string {
+  return darkenColor(borderFromFill(fill), TEXT_DARKEN_AMOUNT);
+}
+
+/** Type-color border, deepened to match derived borders. */
+function typeBorderColor(type: string): string {
+  return darkenColor(nodeColorForType(type), TYPE_BORDER_DARKEN_AMOUNT);
 }
 
 function toHex(n: number): string {
@@ -680,12 +727,53 @@ export function nodeBorderColor(
   }
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     const value = nodePropValue(node, propertyKey);
-    const fallback = nodeColorForType(node.type);
+    const fallback = typeBorderColor(node.type);
     return overrideOr(colorMap, value, fallback);
   }
   const value = nodePropValue(node, propertyKey);
-  if (!value) return nodeColorForType(node.type);
+  if (!value) return typeBorderColor(node.type);
   return overrideOr(colorMap, value, edgeColorForProperty(value, 'Application', propertyKey));
+}
+
+/**
+ * Text color inside a node. Default: a darker shade of the border color.
+ * With its own attribute, each value gets a legend color (override or dark default).
+ */
+export function nodeTextColor(
+  node: GraphNodeDto,
+  textKey: string,
+  colorMap: Record<string, string> | undefined,
+  borderKey: string,
+  borderColorMap?: Record<string, string>,
+  fillKey?: string,
+  fillColorMap?: Record<string, string>
+): string {
+  const value = nodePropValue(node, textKey);
+  if (value && colorMap?.[value]) return colorMap[value];
+  const usesBorderColor = textKey === borderKey || !value || textKey === NODE_TYPE_COLOR_KEY;
+  if (usesBorderColor) {
+    return darkenColor(
+      nodeBorderColor(
+        node,
+        textKey === borderKey ? borderKey : NODE_TYPE_COLOR_KEY,
+        borderColorMap,
+        fillKey,
+        fillColorMap
+      ),
+      TEXT_DARKEN_AMOUNT
+    );
+  }
+  return textFromFill(defaultNodeFill(textKey, value));
+}
+
+export function nodeTextColorForValue(
+  textKey: string,
+  value: string,
+  colorMap?: Record<string, string>
+): string {
+  if (colorMap?.[value]) return colorMap[value];
+  if (textKey === NODE_TYPE_COLOR_KEY) return darkenColor(typeBorderColor(value), TEXT_DARKEN_AMOUNT);
+  return textFromFill(defaultNodeFill(textKey, value));
 }
 
 export function nodeFillColorForValue(
@@ -708,7 +796,7 @@ export function nodeBorderColorForValue(
     return borderFromFill(nodeFillColorForValue(fillKey, value, fillColorMap));
   }
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
-    return overrideOr(colorMap, value, nodeColorForType(value));
+    return overrideOr(colorMap, value, typeBorderColor(value));
   }
   return overrideOr(colorMap, value, edgeColorForProperty(value, 'Application', propertyKey));
 }
@@ -834,12 +922,14 @@ export function resolveSpreadColorKeys(input: {
   edges: GraphEdgeDto[];
   fillKey: string;
   borderKey: string;
+  textKey?: string;
   strokeKey: string;
   fillChosen: boolean;
   borderChosen: boolean;
+  textChosen?: boolean;
   strokeChosen: boolean;
   colors?: LegendColorMaps;
-}): { fillKey: string; borderKey: string; strokeKey: string } {
+}): { fillKey: string; borderKey: string; textKey: string; strokeKey: string } {
   const fillCounts = nodeSpreadCounts(input.nodes);
   const fillKey = untouchedNodeChannel({
     storedKey: input.fillKey,
@@ -848,12 +938,18 @@ export function resolveSpreadColorKeys(input: {
     hasCustomColor: hasCustomColor(input.colors?.appFill),
     counts: fillCounts,
   });
+  const borderKey = resolveMirroredKey({
+    storedKey: resolveNodePropertyKey(input.borderKey, input.nodes),
+    mirrorKey: fillKey,
+    userChose: input.borderChosen,
+  });
   return {
     fillKey,
-    borderKey: resolveMirroredKey({
-      storedKey: resolveNodePropertyKey(input.borderKey, input.nodes),
-      mirrorKey: fillKey,
-      userChose: input.borderChosen,
+    borderKey,
+    textKey: resolveMirroredKey({
+      storedKey: resolveNodePropertyKey(input.textKey ?? borderKey, input.nodes),
+      mirrorKey: borderKey,
+      userChose: input.textChosen ?? false,
     }),
     strokeKey: resolveUntouchedColorKey({
       storedKey: resolveColorPropertyKey(input.strokeKey, input.edges),

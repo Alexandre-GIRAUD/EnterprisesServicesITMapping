@@ -9,6 +9,8 @@ export type AppGraphNodeData = {
   fillColor?: string;
   /** Visual-only border from legend (not a stored attribute). */
   borderColor?: string;
+  /** Visual-only label text color from legend. */
+  textColor?: string;
   /** Collapse this application into an indirect flow (application graph only). */
   onHide?: () => void;
   /** Sandbox display-only label override (never written to Neo4j). */
@@ -22,6 +24,7 @@ export type AppGraphNodeType = Node<AppGraphNodeData, 'app'>;
 export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
   const borderColor = data.borderColor ?? nodeColorForType(data.nodeType);
   const fillColor = data.fillColor ?? '#ffffff';
+  const textColor = data.textColor ?? borderColor;
   const shown = data.displayLabel ?? data.label;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(shown);
@@ -100,6 +103,7 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
         <span
           className={`graph-node-card__label${data.onDisplayLabelChange ? ' is-editable' : ''}`}
           title={shown}
+          style={{ color: textColor }}
           onClick={startLabelEdit}
           onMouseDown={(event) => {
             if (data.onDisplayLabelChange) event.stopPropagation();

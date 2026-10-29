@@ -172,6 +172,9 @@ export async function layoutCollapsedAppGraph(params: {
     fillValues: collectNodeLegendValues(visibleDtos, fillKey),
     strokeKey: colorPropertyKey,
     strokeValues: collectLegendColorValues(graphEdges, colorPropertyKey),
+    borderKey: nodeCoding?.appBorderKey,
+    textKey: nodeCoding?.appTextKey,
+    textValues: collectNodeLegendValues(visibleDtos, nodeCoding?.appTextKey ?? ''),
   });
   const paintedCoding = nodeCoding ? { ...nodeCoding, colors: paintedColors } : undefined;
 
