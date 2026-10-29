@@ -17,6 +17,7 @@ import {
 } from 'react';
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import { fetchGraph } from '../api/graphApi';
+import { withNeighbours as addNeighbours } from '../utils/graphNeighbours';
 import { layoutGraph } from '../components/graphLayout';
 import { placeApplicationGraph } from '../components/graphvizLayout';
 import { computeBridges, spreadStackedRoutes } from '../components/bridges';
@@ -192,6 +193,7 @@ type UseGraphDataParams = {
   edgeAttributes: Record<string, string[]>;
   edgeIds?: string[];
   matchNothing?: boolean;
+  withNeighbours?: boolean;
   filtersActive: boolean;
   graphReloadNonce: number;
   hiddenNodeIds?: ReadonlySet<string>;
@@ -212,6 +214,7 @@ export function useGraphData({
   edgeAttributes,
   edgeIds = [],
   matchNothing = false,
+  withNeighbours = false,
   filtersActive,
   graphReloadNonce,
   hiddenNodeIds = new Set(),
@@ -622,12 +625,14 @@ export function useGraphData({
           setMessage('No applications match these filters. Change criteria or reset.');
           return;
         }
-        const data = await fetchGraph({
+        const filtered = await fetchGraph({
           applicationIds: applicationIds.length > 0 ? applicationIds : undefined,
           nodeAttributes: Object.keys(nodeAttributes).length > 0 ? nodeAttributes : undefined,
           nodeRefs: Object.keys(nodeRefs).length > 0 ? nodeRefs : undefined,
           edgeAttributes: Object.keys(edgeAttributes).length > 0 ? edgeAttributes : undefined,
         });
+        const data =
+          withNeighbours && filtersActive ? addNeighbours(filtered, await fetchGraph()) : filtered;
         if (isCancelled) return;
 
         setGraphNodes(data.nodes);
@@ -788,6 +793,7 @@ export function useGraphData({
     edgeAttributes,
     edgeIds,
     matchNothing,
+    withNeighbours,
     filtersActive,
     graphReloadNonce,
     setNodes,

@@ -2698,7 +2698,7 @@ body.is-diagram-grown .layout {
 .graph-filter-root-list {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.25rem;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -2710,23 +2710,23 @@ body.is-diagram-grown .layout {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.45rem 0.35rem;
-  border-radius: 10px;
+  gap: 0.4rem;
+  padding: 0.25rem 0.3rem 0.25rem 0.55rem;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
   background: #ffffff;
 }
 
 .graph-filter-drill-btn {
   flex-shrink: 0;
-  min-width: 2rem;
-  height: 2rem;
-  padding: 0 0.55rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.4rem;
   border: none;
-  border-radius: 8px;
-  background: #f1f5f9;
-  color: #475569;
-  font-size: 0.72rem;
+  border-radius: 6px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 1rem;
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
@@ -2756,19 +2756,29 @@ body.is-diagram-grown .layout {
   margin: 0 0 0.45rem;
 }
 
-.graph-filter-compact-actions > .graph-filter-compact-btn {
-  flex: 1 1 0;
-  width: 0;
-  min-width: 0;
-  text-align: center;
+.graph-filter-neighbours {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+}
+
+.graph-filter-neighbours input {
+  margin: 0;
+  accent-color: var(--ss-accent, #2563eb);
 }
 
 .graph-filter-compact-btn {
   font: inherit;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   font-weight: 600;
   line-height: 1.2;
-  padding: 0.3rem 0.6rem;
+  padding: 0.4rem 0.9rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #ffffff;
@@ -2829,8 +2839,10 @@ body.is-diagram-grown .layout {
 
 .graph-filter-status {
   display: block;
-  margin-top: 0.25rem;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: #64748b;
 }
 
@@ -2864,8 +2876,9 @@ body.is-diagram-grown .layout {
 .graph-filter-root-row-main {
   flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 0.12rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
   min-width: 0;
   padding: 0;
   border: none;
@@ -2879,7 +2892,8 @@ body.is-diagram-grown .layout {
 }
 
 .graph-filter-root-row-title {
-  font-size: 0.9rem;
+  flex-shrink: 0;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #334155;
 }

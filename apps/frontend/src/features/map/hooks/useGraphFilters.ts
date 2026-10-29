@@ -27,6 +27,7 @@ export function useGraphFilters({
   const [edgeAttributes, setEdgeAttributes] = useState<Record<string, string[]>>({});
   const [edgeIds, setEdgeIds] = useState<string[]>([]);
   const [matchNothing, setMatchNothing] = useState(false);
+  const [withNeighbours, setWithNeighbours] = useState(false);
   const [blankedDimensions, setBlankedDimensions] = useState<string[]>([]);
 
   const filtersActive =
@@ -50,6 +51,7 @@ export function useGraphFilters({
       setEdgeAttributes(filters.edgeAttributes ?? {});
       setEdgeIds([]);
       setMatchNothing(false);
+      setWithNeighbours(false);
       setBlankedDimensions([]);
     },
     [graphModeRef, setGraphMode, setSandboxDirty, setIsDrawerOpen]
@@ -73,6 +75,8 @@ export function useGraphFilters({
     setEdgeIds,
     matchNothing,
     setMatchNothing,
+    withNeighbours,
+    setWithNeighbours,
     blankedDimensions,
     setBlankedDimensions,
     filtersActive,
