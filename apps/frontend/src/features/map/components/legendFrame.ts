@@ -5,6 +5,12 @@ export const LEGEND_WIDE_ASPECT = 2;
 export const DEFAULT_LEGEND_WIDTH_PX = 220;
 export const DEFAULT_LEGEND_HEIGHT_PX = 360;
 
+/** Top gap of the legend inside the pane (matches the shared legend anchor). */
+const LEGEND_TOP_MARGIN_PX = 10;
+/** Bottom-left room kept free for the zoom controls. */
+export const LEGEND_CONTROLS_CLEARANCE_PX = 120;
+const LEGEND_MIN_HEIGHT_PX = 80;
+
 export type LegendOffset = { left: number; top: number };
 export type LegendSize = { width: number; height: number };
 export type LegendPane = LegendSize & { insetLeft?: number; insetTop?: number };
@@ -49,4 +55,21 @@ function clampToRange(value: number, min: number, max: number): number {
   if (value < min) return min;
   if (value > max) return max;
   return value;
+}
+
+/** Shorten the default height so the legend never reaches the zoom controls. */
+export function fitLegendHeight(height: number, paneHeight: number): number {
+  const room = paneHeight - LEGEND_TOP_MARGIN_PX - LEGEND_CONTROLS_CLEARANCE_PX;
+  return Math.max(LEGEND_MIN_HEIGHT_PX, Math.min(height, room));
+}
+
+/** Frame covering the whole pane, margin kept so the pane borders stay visible. */
+export function fillLegendFrame(
+  pane: LegendPane,
+  margin: number,
+): { offset: LegendOffset; size: LegendSize } {
+  return {
+    offset: { left: margin - (pane.insetLeft ?? 0), top: margin - (pane.insetTop ?? 0) },
+    size: { width: pane.width - 2 * margin, height: pane.height - 2 * margin },
+  };
 }

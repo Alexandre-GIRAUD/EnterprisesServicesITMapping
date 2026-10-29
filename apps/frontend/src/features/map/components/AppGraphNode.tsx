@@ -1,6 +1,10 @@
 ﻿import { useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import { nodeColorForType } from './graphTheme';
+import { NodeIconGlyph } from './NodeIconGlyph';
+
+/** Matches .graph-node-card__label in index.css. */
+const LABEL_FONT_SIZE_PX = 13;
 
 export type AppGraphNodeData = {
   label: string;
@@ -11,6 +15,10 @@ export type AppGraphNodeData = {
   borderColor?: string;
   /** Visual-only label text color from legend. */
   textColor?: string;
+  /** Visual-only icon from the legend, shown next to the label. */
+  iconKey?: string;
+  /** Label font scale, below 1 when icons are on. */
+  labelScale?: number;
   /** Collapse this application into an indirect flow (application graph only). */
   onHide?: () => void;
   /** Sandbox display-only label override (never written to Neo4j). */
@@ -100,17 +108,29 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
           aria-label="Edit display label"
         />
       ) : (
-        <span
-          className={`graph-node-card__label${data.onDisplayLabelChange ? ' is-editable' : ''}`}
-          title={shown}
-          style={{ color: textColor }}
-          onClick={startLabelEdit}
-          onMouseDown={(event) => {
-            if (data.onDisplayLabelChange) event.stopPropagation();
-          }}
-        >
-          {shown}
-        </span>
+        <>
+          {data.iconKey ? (
+            <span className="graph-node-card__icon" style={{ color: textColor }}>
+              <NodeIconGlyph iconKey={data.iconKey} />
+            </span>
+          ) : null}
+          <span
+            className={`graph-node-card__label${data.onDisplayLabelChange ? ' is-editable' : ''}`}
+            title={shown}
+            style={{
+              color: textColor,
+              ...(data.labelScale && data.labelScale !== 1
+                ? { fontSize: `${LABEL_FONT_SIZE_PX * data.labelScale}px` }
+                : {}),
+            }}
+            onClick={startLabelEdit}
+            onMouseDown={(event) => {
+              if (data.onDisplayLabelChange) event.stopPropagation();
+            }}
+          >
+            {shown}
+          </span>
+        </>
       )}
     </div>
   );

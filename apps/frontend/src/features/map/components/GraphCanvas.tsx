@@ -69,6 +69,7 @@ import {
   type SelectedEdgeDetails,
 } from '../utils/selectedEdgeFromDto';
 import { bindEdgeDetailsOpener } from '../utils/edgeDetailsSelection';
+import { useNodeIcons } from './useNodeIcons';
 import { ApplicationsTablePanel } from './ApplicationsTablePanel';
 import { FeedsTablePanel } from './FeedsTablePanel';
 import { TableColumnsPicker } from './TableColumnsPicker';
@@ -865,21 +866,43 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     [edges, focusedId]
   );
 
+  const iconSourceNodes = isSandbox
+    ? (sandboxes.activeDoc?.graphNodes ?? graphNodes)
+    : graphNodes;
+  const nodeIcons = useNodeIcons(iconSourceNodes);
+  const iconSourceById = useMemo(
+    () => new Map(iconSourceNodes.map((node) => [node.id, node])),
+    [iconSourceNodes],
+  );
+  const legendIconProps = {
+    iconKey: nodeIcons.activeKey,
+    iconOptions: nodeIcons.options,
+    onIconKeyChange: nodeIcons.changeAttribute,
+    iconValues: nodeIcons.values,
+    iconByValue: nodeIcons.iconByValue,
+    onIconChange: nodeIcons.changeIcon,
+  };
+
   const displayNodes = useMemo(() => {
-    return nodes.map((n) => ({
-      ...n,
-      data: {
-        ...n.data,
-        onHide:
-          n.data.nodeType === 'Application'
-            ? () => collapseHandlersRef.current.hideNode(n.id)
-            : undefined,
-      },
-      className: focus
-        ? `graph-node ${focus.nodeIds.has(n.id) ? 'is-focus' : 'is-faded'}`
-        : n.className,
-    }));
-  }, [nodes, focus]);
+    return nodes.map((n) => {
+      const source = iconSourceById.get(n.id);
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          iconKey: source ? (nodeIcons.iconKeyOf(source) ?? undefined) : undefined,
+          labelScale: nodeIcons.labelScale,
+          onHide:
+            n.data.nodeType === 'Application'
+              ? () => collapseHandlersRef.current.hideNode(n.id)
+              : undefined,
+        },
+        className: focus
+          ? `graph-node ${focus.nodeIds.has(n.id) ? 'is-focus' : 'is-faded'}`
+          : n.className,
+      };
+    });
+  }, [nodes, focus, iconSourceById, nodeIcons.iconKeyOf, nodeIcons.labelScale]);
 
   const labelById = useMemo(() => {
     const map = new Map<string, string>();
@@ -1967,6 +1990,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                   appTextOptions={legendAppPropertyOptions}
                   onAppTextChange={handleAppTextChange}
                   textValues={legendTextValues}
+                  {...legendIconProps}
                   legendColors={displayColors}
                   onValueColorChange={handleValueColorChange}
                   hideEdgeLabels={hideEdgeLabels}
@@ -2064,6 +2088,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                     appTextOptions={legendAppPropertyOptions}
                     onAppTextChange={handleAppTextChange}
                     textValues={legendTextValues}
+                    {...legendIconProps}
                     legendColors={displayColors}
                     onValueColorChange={handleValueColorChange}
                     hideEdgeLabels={hideEdgeLabels}

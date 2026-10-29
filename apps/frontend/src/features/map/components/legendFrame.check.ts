@@ -5,8 +5,11 @@
 import assert from 'node:assert/strict';
 import {
   DEFAULT_LEGEND_WIDTH_PX,
+  LEGEND_CONTROLS_CLEARANCE_PX,
   chooseLegendEntryDirection,
   clampLegendOffset,
+  fillLegendFrame,
+  fitLegendHeight,
   measureLegendFontScale,
 } from './legendFrame.ts';
 
@@ -56,6 +59,21 @@ assert.deepEqual(
     { width: 800, height: 600, insetLeft: 15, insetTop: 15 },
   ),
   { left: 521, top: 225 },
+);
+
+// Default height leaves the zoom controls (bottom-left) uncovered.
+assert.equal(fitLegendHeight(360, 900), 360);
+assert.equal(fitLegendHeight(360, 400), 400 - 10 - LEGEND_CONTROLS_CLEARANCE_PX);
+assert.equal(fitLegendHeight(360, 100), 80);
+
+// Edit mode fills the pane, keeping a margin so the pane borders stay visible.
+assert.deepEqual(
+  fillLegendFrame({ width: 800, height: 600, insetLeft: 10, insetTop: 10 }, 8),
+  { offset: { left: -2, top: -2 }, size: { width: 784, height: 584 } },
+);
+assert.deepEqual(
+  fillLegendFrame({ width: 800, height: 600 }, 8),
+  { offset: { left: 8, top: 8 }, size: { width: 784, height: 584 } },
 );
 
 console.log('legendFrame.check: ok');

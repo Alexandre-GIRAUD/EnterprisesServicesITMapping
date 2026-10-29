@@ -40,8 +40,8 @@ export const HIDE_EDGE_LABELS_STORAGE_KEY = 'flowra.graph.hideEdgeLabels';
 const INTERNAL_PROPERTY_KEYS = new Set(['validFrom', 'validTo', 'id', 'name', 'description', 'year']);
 
 export const EDGE_COLOR_PROPERTY_LABELS: Record<string, string> = {
-  [RELATION_TYPE_COLOR_KEY]: 'Flow',
-  [NODE_TYPE_COLOR_KEY]: 'App',
+  [RELATION_TYPE_COLOR_KEY]: 'None',
+  [NODE_TYPE_COLOR_KEY]: 'None',
   [NODE_LABEL_COLOR_KEY]: 'Name',
 };
 
