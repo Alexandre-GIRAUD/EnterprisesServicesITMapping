@@ -1,6 +1,6 @@
 import type { GraphMode } from './GraphModeTabs';
 
-export type SideMenuTool = 'changes' | 'filters' | 'actions' | 'sandboxes';
+export type SideMenuTool = 'changes' | 'filters' | 'actions' | 'sandboxes' | 'chat';
 
 type SelfServiceToolBarProps = {
   graphMode: GraphMode;
@@ -50,6 +50,20 @@ function ActionsIcon() {
         stroke="currentColor"
         strokeWidth="1.4"
         strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChatIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
+      <path
+        d="M4 4.5 H16 V12.5 H8.2 L4.5 15.2 V12.5 H4 Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
         strokeLinejoin="round"
       />
     </svg>
@@ -106,6 +120,19 @@ export function SelfServiceToolBar({
           onClick={() => onChange('actions')}
         >
           <ActionsIcon />
+        </button>
+      ) : null}
+      {isExplorer ? (
+        <button
+          type="button"
+          role="tab"
+          className={`self-service-tool-bar-btn${activeTool === 'chat' ? ' is-active' : ''}`}
+          aria-selected={activeTool === 'chat'}
+          aria-label="Chat"
+          title="Chat"
+          onClick={() => onChange('chat')}
+        >
+          <ChatIcon />
         </button>
       ) : null}
       {graphMode === 'sandbox' ? (

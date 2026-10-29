@@ -38,6 +38,7 @@ const TOOL_DETAIL_TITLES: Record<SideMenuTool, string> = {
   filters: 'Filters',
   actions: 'Corrections',
   sandboxes: 'My sandboxes',
+  chat: 'Chat',
 };
 
 function useResizableMenu(isOpen: boolean, defaultWidth: number) {

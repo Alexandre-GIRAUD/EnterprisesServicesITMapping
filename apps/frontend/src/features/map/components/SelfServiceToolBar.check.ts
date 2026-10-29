@@ -38,8 +38,13 @@ const sandboxHtml = renderToStaticMarkup(
   }),
 );
 
+const productionTabs = html.match(/role="tab"/g) ?? [];
+assert.equal(productionTabs.length, 3, 'Production shows filters, corrections, and chat');
+assert.match(html, /aria-label="Chat"/);
+
 const sandboxTabs = sandboxHtml.match(/role="tab"/g) ?? [];
 assert.equal(sandboxTabs.length, 3, 'Sandbox keeps three tools');
+assert.doesNotMatch(sandboxHtml, /aria-label="Chat"/);
 assert.match(sandboxHtml, /aria-label="Filters"/);
 assert.match(sandboxHtml, /aria-label="Toolkit"/);
 assert.match(sandboxHtml, /aria-label="My sandboxes"/);
