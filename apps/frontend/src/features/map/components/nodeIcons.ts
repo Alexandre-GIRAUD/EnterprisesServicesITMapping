@@ -7,7 +7,7 @@ export const NODE_ICON_NONE_KEY = '__none__';
 /** Label text scale once icons share the box with the name. */
 const LABEL_SCALE_WITH_ICONS = 0.85;
 
-export type NodeIconOption = { key: string; label: string };
+type NodeIconOption = { key: string; label: string };
 
 export const NODE_ICON_CATALOG: NodeIconOption[] = [
   { key: 'server', label: 'Server' },
@@ -136,8 +136,8 @@ export function nodeIconKeyFor(
   return iconByValue[value] ?? defaultIconForValue(values, value);
 }
 
-export const NODE_ICON_ATTRIBUTE_STORAGE_KEY = 'flowra.graph.nodeIconAttribute';
-export const NODE_ICON_MAP_STORAGE_KEY = 'flowra.graph.nodeIconMap';
+const NODE_ICON_ATTRIBUTE_STORAGE_KEY = 'flowra.graph.nodeIconAttribute';
+const NODE_ICON_MAP_STORAGE_KEY = 'flowra.graph.nodeIconMap';
 
 export function loadNodeIconAttribute(): string {
   try {

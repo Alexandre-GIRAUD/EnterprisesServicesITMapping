@@ -6,7 +6,7 @@ export const DEFAULT_LEGEND_WIDTH_PX = 220;
 export const DEFAULT_LEGEND_HEIGHT_PX = 360;
 
 /** Top gap of the legend inside the pane (matches the shared legend anchor). */
-export const LEGEND_TOP_MARGIN_PX = 10;
+const LEGEND_TOP_MARGIN_PX = 10;
 /** Bottom-left room kept free for the zoom controls. */
 export const LEGEND_CONTROLS_CLEARANCE_PX = 120;
 const LEGEND_MIN_HEIGHT_PX = 80;
