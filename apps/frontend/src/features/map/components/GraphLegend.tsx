@@ -443,27 +443,13 @@ export function GraphLegend({
   const textChips: LegendChip[] = [];
   const flowChips: LegendChip[] = [];
   if (showAppSelects && nodesTypeOnly) {
-    fillChips.push({
-      value: 'Application',
-      label: 'app',
-      color: typeAppFill,
-      borderColor: typeAppBorder,
-      kind: 'app',
-    });
+    fillChips.push({ value: 'Application', label: 'app', color: typeAppFill });
   } else if (showAppSelects && sharedApp && appFillKey != null) {
     for (const value of fillValues) {
       fillChips.push({
         value,
         label: nodeValueLabel(appFillKey, value),
         color: nodeFillColorForValue(appFillKey, value, legendColors.appFill),
-        borderColor: nodeBorderColorForValue(
-          appBorderKey!,
-          value,
-          legendColors.appBorder,
-          appFillKey,
-          legendColors.appFill
-        ),
-        kind: 'app',
       });
     }
   } else if (showAppSelects) {
@@ -472,7 +458,6 @@ export function GraphLegend({
         value,
         label: nodeValueLabel(appFillKey!, value),
         color: nodeFillColorForValue(appFillKey!, value, legendColors.appFill),
-        kind: 'fill',
       });
     }
     for (const value of borderValues) {
@@ -480,7 +465,6 @@ export function GraphLegend({
         value,
         label: nodeValueLabel(appBorderKey!, value),
         color: nodeBorderColorForValue(appBorderKey!, value, legendColors.appBorder),
-        kind: 'border',
       });
     }
   }
@@ -490,19 +474,17 @@ export function GraphLegend({
         value,
         label: nodeValueLabel(appTextKey, value),
         color: nodeTextColorForValue(appTextKey, value, legendColors.appText),
-        kind: 'text',
       });
     }
   }
   if (showFlowSelects && edgesTypeOnly) {
-    flowChips.push({ value: 'DEPENDS_ON', label: 'flow', color: typeFlowColor, kind: 'edge' });
+    flowChips.push({ value: 'DEPENDS_ON', label: 'flow', color: typeFlowColor });
   } else if (showFlowSelects && colorPropertyKey != null) {
     for (const value of colorValues) {
       flowChips.push({
         value,
         label: legendLabelForColorValue(colorPropertyKey, value),
         color: strokeColorForLegendSwatch(colorPropertyKey, value, 'DEPENDS_ON', legendColors.edgeStroke),
-        kind: 'edge',
       });
     }
   }

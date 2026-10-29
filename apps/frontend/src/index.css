@@ -5639,7 +5639,7 @@ body.is-diagram-grown .layout {
   min-width: 0;
 }
 
-.graph-legend__presets .graph-legend__btn:first-of-type {
+.graph-legend__presets .graph-legend__btn--primary {
   margin-left: auto;
 }
 
