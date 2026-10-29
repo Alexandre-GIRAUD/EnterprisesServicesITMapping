@@ -35,7 +35,7 @@ assert.match(bar, />Owners</);
 assert.match(bar, /aria-label="Save legend preset"/);
 assert.doesNotMatch(bar, /<input/);
 assert.doesNotMatch(bar, /Save legend</);
-assert.match(bar, />Save as new preset…</);
+assert.match(bar, />Save as new preset</);
 
 const emptyBar = renderToStaticMarkup(
   createElement(LegendPresetBar, { setups: [], onApply: noop, onDelete: noop, onSave: noop }),
