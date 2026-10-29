@@ -10,9 +10,18 @@ import {
 } from './graphTheme.ts';
 import {
   NODE_TYPE_COLOR_KEY,
+  NODE_LABEL_COLOR_KEY,
   RELATION_TYPE_COLOR_KEY,
+  chooseSpreadColorKey,
+  distinctColorMap,
+  borderFromFill,
+  nodeBorderColorForValue,
   nodeFillColorForValue,
+  paintChannelColors,
   paintEdgeStrokeColor,
+  resolveMirroredKey,
+  resolveSpreadColorKeys,
+  resolveUntouchedColorKey,
 } from './edgeColorProperty.ts';
 
 const SAMPLE_VALUES = ['Payments', 'Risk', 'Retail', 'Core', 'Treasury'];
@@ -84,5 +93,218 @@ assert.equal(
   paintEdgeStrokeColor('Payments', 'DEPENDS_ON', 'tier', { Payments: '#abcdef' }),
   '#abcdef',
 );
+
+const orderedFills = ['Core', 'Payments', 'Retail', 'Risk', 'Treasury'];
+const fillMap = distinctColorMap(orderedFills, PASTEL_NODE_PALETTE);
+orderedFills.forEach((value, index) => {
+  assert.equal(fillMap[value], PASTEL_NODE_PALETTE[index]);
+});
+assert.equal(distinctColorMap(orderedFills, PASTEL_NODE_PALETTE, { Core: '#112233' }).Core, '#112233');
+const nine = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
+const nineMap = distinctColorMap(nine, PASTEL_NODE_PALETTE);
+assert.equal(new Set(Object.values(nineMap)).size, nine.length);
+assert.equal(nineMap.a, PASTEL_NODE_PALETTE[0]);
+assert.notEqual(nineMap.i, PASTEL_NODE_PALETTE[0]);
+assert.equal(
+  distinctColorMap(nine, PASTEL_NODE_PALETTE, { i: PASTEL_NODE_PALETTE[0] }).i,
+  PASTEL_NODE_PALETTE[0],
+);
+
+const orderedStrokes = ['cash flows', 'clearing data', 'price'];
+const strokeMap = distinctColorMap(orderedStrokes, DARK_EDGE_PALETTE);
+orderedStrokes.forEach((value, index) => {
+  assert.equal(strokeMap[value], DARK_EDGE_PALETTE[index]);
+});
+assert.equal(
+  distinctColorMap(orderedStrokes, DARK_EDGE_PALETTE, { price: '#abcdef' }).price,
+  '#abcdef',
+);
+
+assert.equal(
+  chooseSpreadColorKey(
+    [
+      { key: 'pillar', distinct: 3 },
+      { key: 'business_function', distinct: 6 },
+      { key: 'creation_date', distinct: 40 },
+    ],
+    PASTEL_NODE_PALETTE.length,
+    NODE_TYPE_COLOR_KEY,
+  ),
+  'business_function',
+);
+assert.equal(
+  chooseSpreadColorKey(
+    [
+      { key: 'business_function', distinct: 6, covered: 10 },
+      { key: NODE_LABEL_COLOR_KEY, distinct: 112, covered: 112 },
+    ],
+    PASTEL_NODE_PALETTE.length,
+    NODE_TYPE_COLOR_KEY,
+    112,
+  ),
+  NODE_LABEL_COLOR_KEY,
+);
+assert.equal(
+  chooseSpreadColorKey(
+    [
+      { key: 'business_function', distinct: 6, covered: 10 },
+      { key: 'pillar', distinct: 4, covered: 100 },
+    ],
+    PASTEL_NODE_PALETTE.length,
+    NODE_TYPE_COLOR_KEY,
+  ),
+  'pillar',
+);
+assert.equal(
+  chooseSpreadColorKey(
+    [{ key: 'data', distinct: 8 }, { key: 'creation_date', distinct: 40 }],
+    DARK_EDGE_PALETTE.length,
+    RELATION_TYPE_COLOR_KEY,
+  ),
+  'data',
+);
+
+const spreadCounts = [{ key: 'pillar', distinct: 4 }];
+assert.equal(
+  resolveUntouchedColorKey({
+    storedKey: NODE_TYPE_COLOR_KEY,
+    sentinel: NODE_TYPE_COLOR_KEY,
+    userChose: false,
+    hasCustomColor: false,
+    counts: spreadCounts,
+    paletteSize: PASTEL_NODE_PALETTE.length,
+  }),
+  'pillar',
+);
+assert.equal(
+  resolveUntouchedColorKey({
+    storedKey: NODE_TYPE_COLOR_KEY,
+    sentinel: NODE_TYPE_COLOR_KEY,
+    userChose: true,
+    hasCustomColor: false,
+    counts: spreadCounts,
+    paletteSize: PASTEL_NODE_PALETTE.length,
+  }),
+  NODE_TYPE_COLOR_KEY,
+);
+assert.equal(
+  resolveUntouchedColorKey({
+    storedKey: 'business_function',
+    sentinel: NODE_TYPE_COLOR_KEY,
+    userChose: false,
+    hasCustomColor: false,
+    counts: [
+      { key: 'business_function', distinct: 6, covered: 10 },
+      { key: 'pillar', distinct: 4, covered: 100 },
+    ],
+    paletteSize: PASTEL_NODE_PALETTE.length,
+  }),
+  'pillar',
+);
+assert.equal(
+  resolveUntouchedColorKey({
+    storedKey: 'business_function',
+    sentinel: NODE_TYPE_COLOR_KEY,
+    userChose: true,
+    hasCustomColor: false,
+    counts: [
+      { key: 'business_function', distinct: 6, covered: 10 },
+      { key: 'pillar', distinct: 4, covered: 100 },
+    ],
+    paletteSize: PASTEL_NODE_PALETTE.length,
+  }),
+  'business_function',
+);
+
+const painted = paintChannelColors({
+  colors: { appFill: { Retail: '#112233' } },
+  fillKey: 'pillar',
+  fillValues: ['Payments', 'Retail'],
+  strokeKey: 'data',
+  strokeValues: ['cash flows', 'price'],
+});
+assert.equal(painted.appFill?.Payments, PASTEL_NODE_PALETTE[0]);
+assert.equal(painted.appFill?.Retail, '#112233');
+assert.equal(painted.edgeStroke?.['cash flows'], DARK_EDGE_PALETTE[0]);
+assert.equal(painted.edgeStroke?.price, DARK_EDGE_PALETTE[1]);
+const typed = paintChannelColors({
+  fillKey: NODE_TYPE_COLOR_KEY,
+  fillValues: ['Application'],
+  strokeKey: RELATION_TYPE_COLOR_KEY,
+  strokeValues: ['DEPENDS_ON'],
+});
+assert.equal(typed.appFill, undefined);
+assert.equal(typed.edgeStroke, undefined);
+
+assert.equal(
+  resolveMirroredKey({ storedKey: 'frequency', mirrorKey: 'data', userChose: false }),
+  'data',
+);
+assert.equal(
+  resolveMirroredKey({ storedKey: 'frequency', mirrorKey: 'data', userChose: true }),
+  'frequency',
+);
+
+const fill = PASTEL_NODE_PALETTE[0];
+assert.equal(nodeBorderColorForValue('pillar', 'Payments', undefined, 'pillar', { Payments: fill }), borderFromFill(fill));
+assert.equal(
+  nodeBorderColorForValue('pillar', 'Payments', { Payments: '#112233' }, 'pillar', { Payments: fill }),
+  '#112233',
+);
+const typeFill = nodeFillColorForValue(NODE_TYPE_COLOR_KEY, 'Application');
+assert.equal(
+  nodeBorderColorForValue(NODE_TYPE_COLOR_KEY, 'Application', undefined, NODE_TYPE_COLOR_KEY),
+  borderFromFill(typeFill),
+);
+
+const mirrored = resolveSpreadColorKeys({
+  nodes: [
+    { id: '1', label: 'A', type: 'Application', properties: { pillar: 'Payments' } },
+    { id: '2', label: 'B', type: 'Application', properties: { pillar: 'Risk' } },
+  ] as never,
+  edges: [
+    {
+      id: 'e1',
+      sourceId: '1',
+      targetId: '2',
+      type: 'DEPENDS_ON',
+      properties: { data: 'price' },
+    },
+  ] as never,
+  fillKey: NODE_TYPE_COLOR_KEY,
+  borderKey: NODE_TYPE_COLOR_KEY,
+  strokeKey: RELATION_TYPE_COLOR_KEY,
+  fillChosen: false,
+  borderChosen: false,
+  strokeChosen: false,
+});
+assert.equal(mirrored.borderKey, mirrored.fillKey);
+assert.notEqual(mirrored.borderKey, NODE_TYPE_COLOR_KEY);
+
+const borderSticky = resolveSpreadColorKeys({
+  nodes: [
+    {
+      id: '1',
+      label: 'A',
+      type: 'Application',
+      properties: { pillar: 'Payments', tier: 'gold' },
+    },
+    {
+      id: '2',
+      label: 'B',
+      type: 'Application',
+      properties: { pillar: 'Risk', tier: 'silver' },
+    },
+  ] as never,
+  edges: [],
+  fillKey: 'pillar',
+  borderKey: 'tier',
+  strokeKey: RELATION_TYPE_COLOR_KEY,
+  fillChosen: true,
+  borderChosen: true,
+  strokeChosen: true,
+});
+assert.equal(borderSticky.fillKey, 'pillar');
+assert.equal(borderSticky.borderKey, 'tier');
 
 console.log('graphPalette.check: ok');

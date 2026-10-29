@@ -1,10 +1,13 @@
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
 import { storedAttributeText } from '../utils/attributeValue';
 import {
+  DARK_EDGE_PALETTE,
   EDGE_TYPE_STYLES,
+  PASTEL_NODE_PALETTE,
   edgeColorForProperty,
   nodeColorForType,
   pastelNodeColor,
+  preferredPaletteColor,
   type EdgeTypeKey,
 } from './graphTheme';
 
@@ -12,6 +15,8 @@ import {
 export const RELATION_TYPE_COLOR_KEY = '__relation__';
 /** Sentinel: paint by app / node type. */
 export const NODE_TYPE_COLOR_KEY = '__type__';
+/** Sentinel: paint each box by its name. */
+export const NODE_LABEL_COLOR_KEY = '__label__';
 /** Sentinel in Link label select: hide all edge labels. */
 export const HIDE_EDGE_LABELS_KEY = '__hide_labels__';
 /** Border when fill is white / near-white (derived border would be invisible). */
@@ -30,6 +35,7 @@ const INTERNAL_PROPERTY_KEYS = new Set(['validFrom', 'validTo', 'id', 'name', 'd
 export const EDGE_COLOR_PROPERTY_LABELS: Record<string, string> = {
   [RELATION_TYPE_COLOR_KEY]: 'Flow',
   [NODE_TYPE_COLOR_KEY]: 'App',
+  [NODE_LABEL_COLOR_KEY]: 'Name',
 };
 
 export type AttributeOption = { key: string; label: string };
@@ -111,6 +117,170 @@ export function loadStoredAppBorderKey(): string {
 
 export function storeAppBorderKey(key: string): void {
   storeKey(APP_BORDER_PROPERTY_STORAGE_KEY, key);
+}
+
+export const FILL_PROPERTY_CHOSEN_KEY = 'flowra.graph.appFillChosen';
+export const BORDER_PROPERTY_CHOSEN_KEY = 'flowra.graph.appBorderChosen';
+export const STROKE_PROPERTY_CHOSEN_KEY = 'flowra.graph.edgeColorChosen';
+export const LABEL_PROPERTY_CHOSEN_KEY = 'flowra.graph.edgeLabelChosen';
+
+function loadChosen(storageKey: string): boolean {
+  try {
+    return localStorage.getItem(storageKey) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function storeChosen(storageKey: string): void {
+  try {
+    localStorage.setItem(storageKey, '1');
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function loadFillPropertyChosen(): boolean {
+  return loadChosen(FILL_PROPERTY_CHOSEN_KEY);
+}
+
+export function storeFillPropertyChosen(): void {
+  storeChosen(FILL_PROPERTY_CHOSEN_KEY);
+}
+
+export function loadBorderPropertyChosen(): boolean {
+  return loadChosen(BORDER_PROPERTY_CHOSEN_KEY);
+}
+
+export function storeBorderPropertyChosen(): void {
+  storeChosen(BORDER_PROPERTY_CHOSEN_KEY);
+}
+
+export function loadStrokePropertyChosen(): boolean {
+  return loadChosen(STROKE_PROPERTY_CHOSEN_KEY);
+}
+
+export function storeStrokePropertyChosen(): void {
+  storeChosen(STROKE_PROPERTY_CHOSEN_KEY);
+}
+
+export function loadLabelPropertyChosen(): boolean {
+  return loadChosen(LABEL_PROPERTY_CHOSEN_KEY);
+}
+
+export function storeLabelPropertyChosen(): void {
+  storeChosen(LABEL_PROPERTY_CHOSEN_KEY);
+}
+
+/** Follow a parent channel until the user explicitly picks this one. */
+export function resolveMirroredKey(input: {
+  storedKey: string;
+  mirrorKey: string;
+  userChose: boolean;
+}): string {
+  if (input.userChose) return input.storedKey;
+  return input.mirrorKey;
+}
+
+export type ColorValueCount = { key: string; distinct: number; covered?: number };
+
+/** Prefer the attribute whose values fit the palette, so defaults stay different. */
+export function chooseSpreadColorKey(
+  counts: readonly ColorValueCount[],
+  paletteSize: number,
+  fallback: string,
+  population = 0,
+): string {
+  let bestKey = fallback;
+  let bestScore = 0;
+  for (const count of counts) {
+    if (count.distinct < 2) continue;
+    const variety = count.distinct <= paletteSize ? count.distinct : paletteSize / count.distinct;
+    const covered = count.covered ?? count.distinct;
+    const uncovered = Math.max(0, population - covered);
+    const score = covered * variety - uncovered * paletteSize;
+    if (score > bestScore) {
+      bestScore = score;
+      bestKey = count.key;
+    }
+  }
+  return bestKey;
+}
+
+/**
+ * Assign preferred defaults so each value of a parameter gets a unique color.
+ * Curated palette slots are used first; further values get derived unique tones.
+ * Explicit legend overrides win (and may deliberately collide).
+ */
+export function distinctColorMap(
+  values: readonly string[],
+  palette: readonly string[],
+  overrides?: Record<string, string>,
+): Record<string, string> {
+  const generated: Record<string, string> = {};
+  const usedDefaults = new Set<string>();
+  let slot = 0;
+  for (const value of values) {
+    if (!value) continue;
+    if (overrides?.[value]) {
+      generated[value] = overrides[value];
+      continue;
+    }
+    let color = preferredPaletteColor(palette, slot);
+    slot += 1;
+    while (usedDefaults.has(color.toLowerCase())) {
+      color = preferredPaletteColor(palette, slot);
+      slot += 1;
+    }
+    usedDefaults.add(color.toLowerCase());
+    generated[value] = color;
+  }
+  return { ...generated, ...overrides };
+}
+
+export function hasCustomColor(map: Record<string, string> | undefined): boolean {
+  return Boolean(map && Object.keys(map).length > 0);
+}
+
+/** Keep an explicit legend choice. Otherwise leave the single-color sentinel for a varied attribute. */
+export function resolveUntouchedColorKey(input: {
+  storedKey: string;
+  sentinel: string;
+  userChose: boolean;
+  hasCustomColor: boolean;
+  counts: readonly ColorValueCount[];
+  paletteSize: number;
+  population?: number;
+}): string {
+  if (input.userChose || input.hasCustomColor) return input.storedKey;
+  return chooseSpreadColorKey(
+    input.counts,
+    input.paletteSize,
+    input.sentinel,
+    input.population ?? 0,
+  );
+}
+
+/** Legend overrides stay. Attribute channels get distinct palette defaults. Type/flow sentinels do not. */
+export function paintChannelColors(input: {
+  colors?: LegendColorMaps;
+  fillKey: string;
+  fillValues: readonly string[];
+  strokeKey: string;
+  strokeValues: readonly string[];
+}): LegendColorMaps {
+  const colors = input.colors ?? {};
+  return {
+    ...colors,
+    appFill:
+      input.fillKey === NODE_TYPE_COLOR_KEY
+        ? colors.appFill
+        : distinctColorMap(input.fillValues, PASTEL_NODE_PALETTE, colors.appFill),
+    edgeStroke:
+      input.strokeKey === RELATION_TYPE_COLOR_KEY
+        ? colors.edgeStroke
+        : distinctColorMap(input.strokeValues, DARK_EDGE_PALETTE, colors.edgeStroke),
+  };
 }
 
 export function loadLegendColorMaps(): LegendColorMaps {
@@ -393,6 +563,10 @@ export function nodePropertyOptions(nodes: GraphNodeDto[]): AttributeOption[] {
     label: labelForColorProperty(key),
   }));
   options.push({
+    key: NODE_LABEL_COLOR_KEY,
+    label: labelForColorProperty(NODE_LABEL_COLOR_KEY),
+  });
+  options.push({
     key: NODE_TYPE_COLOR_KEY,
     label: labelForColorProperty(NODE_TYPE_COLOR_KEY),
   });
@@ -408,6 +582,9 @@ export function resolveNodePropertyKey(storedKey: string, nodes: GraphNodeDto[])
 export function nodePropValue(node: GraphNodeDto, propertyKey: string): string | null {
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     return node.type?.trim() || null;
+  }
+  if (propertyKey === NODE_LABEL_COLOR_KEY) {
+    return node.label?.trim() || null;
   }
   const references = referenceValues(node, propertyKey);
   if (references.length === 1) return references[0];
@@ -498,12 +675,8 @@ export function nodeBorderColor(
 ): string {
   if (fillKey && fillKey === propertyKey) {
     const value = nodePropValue(node, fillKey);
-    const fill = nodeFillColor(node, fillKey, fillColorMap);
-    const hasCustom = Boolean(value && fillColorMap?.[value]);
-    if (fillKey === NODE_TYPE_COLOR_KEY && !hasCustom) {
-      return nodeColorForType(node.type);
-    }
-    return borderFromFill(fill);
+    if (value && colorMap?.[value]) return colorMap[value];
+    return borderFromFill(nodeFillColor(node, fillKey, fillColorMap));
   }
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     const value = nodePropValue(node, propertyKey);
@@ -531,12 +704,8 @@ export function nodeBorderColorForValue(
   fillColorMap?: Record<string, string>
 ): string {
   if (fillKey && fillKey === propertyKey) {
-    const fill = nodeFillColorForValue(fillKey, value, fillColorMap);
-    const hasCustom = Boolean(fillColorMap?.[value]);
-    if (fillKey === NODE_TYPE_COLOR_KEY && !hasCustom) {
-      return nodeColorForType(value);
-    }
-    return borderFromFill(fill);
+    if (colorMap?.[value]) return colorMap[value];
+    return borderFromFill(nodeFillColorForValue(fillKey, value, fillColorMap));
   }
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     return overrideOr(colorMap, value, nodeColorForType(value));
@@ -596,6 +765,11 @@ export function collectNodeLegendValues(
   if (propertyKey === NODE_TYPE_COLOR_KEY) {
     return [...new Set(nodes.map((n) => n.type).filter(Boolean))].sort();
   }
+  if (propertyKey === NODE_LABEL_COLOR_KEY) {
+    return [...new Set(nodes.map((node) => node.label?.trim()).filter((label): label is string => Boolean(label)))].sort(
+      (left, right) => left.localeCompare(right),
+    );
+  }
   const values: string[] = [];
   for (const node of nodes) {
     const references = referenceValues(node, propertyKey);
@@ -607,6 +781,104 @@ export function collectNodeLegendValues(
     if (text?.trim()) values.push(text);
   }
   return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+}
+
+export function nodeColorValueCounts(nodes: GraphNodeDto[]): ColorValueCount[] {
+  return discoverNodePropertyKeys(nodes).map((key) => {
+    const values = nodes
+      .map((node) => nodePropValue(node, key))
+      .filter((value): value is string => Boolean(value));
+    return { key, distinct: new Set(values).size, covered: values.length };
+  });
+}
+
+function nodeSpreadCounts(nodes: GraphNodeDto[]): ColorValueCount[] {
+  const labels = nodes
+    .map((node) => node.label?.trim())
+    .filter((label): label is string => Boolean(label));
+  return [
+    ...nodeColorValueCounts(nodes),
+    { key: NODE_LABEL_COLOR_KEY, distinct: new Set(labels).size, covered: labels.length },
+  ];
+}
+
+export function edgeColorValueCounts(edges: GraphEdgeDto[]): ColorValueCount[] {
+  return discoverColorPropertyKeys(edges).map((key) => {
+    const values = edges
+      .map((edge) => edgeColorValue(edge, key))
+      .filter((value): value is string => Boolean(value));
+    return { key, distinct: new Set(values).size, covered: values.length };
+  });
+}
+
+function untouchedNodeChannel(input: {
+  storedKey: string;
+  nodes: GraphNodeDto[];
+  userChose: boolean;
+  hasCustomColor: boolean;
+  counts: readonly ColorValueCount[];
+}): string {
+  return resolveUntouchedColorKey({
+    storedKey: resolveNodePropertyKey(input.storedKey, input.nodes),
+    sentinel: NODE_TYPE_COLOR_KEY,
+    userChose: input.userChose,
+    hasCustomColor: input.hasCustomColor,
+    counts: input.counts,
+    paletteSize: PASTEL_NODE_PALETTE.length,
+    population: input.nodes.length,
+  });
+}
+
+export function resolveSpreadColorKeys(input: {
+  nodes: GraphNodeDto[];
+  edges: GraphEdgeDto[];
+  fillKey: string;
+  borderKey: string;
+  strokeKey: string;
+  fillChosen: boolean;
+  borderChosen: boolean;
+  strokeChosen: boolean;
+  colors?: LegendColorMaps;
+}): { fillKey: string; borderKey: string; strokeKey: string } {
+  const fillCounts = nodeSpreadCounts(input.nodes);
+  const fillKey = untouchedNodeChannel({
+    storedKey: input.fillKey,
+    nodes: input.nodes,
+    userChose: input.fillChosen,
+    hasCustomColor: hasCustomColor(input.colors?.appFill),
+    counts: fillCounts,
+  });
+  return {
+    fillKey,
+    borderKey: resolveMirroredKey({
+      storedKey: resolveNodePropertyKey(input.borderKey, input.nodes),
+      mirrorKey: fillKey,
+      userChose: input.borderChosen,
+    }),
+    strokeKey: resolveUntouchedColorKey({
+      storedKey: resolveColorPropertyKey(input.strokeKey, input.edges),
+      sentinel: RELATION_TYPE_COLOR_KEY,
+      userChose: input.strokeChosen,
+      hasCustomColor: hasCustomColor(input.colors?.edgeStroke),
+      counts: edgeColorValueCounts(input.edges),
+      paletteSize: DARK_EDGE_PALETTE.length,
+      population: input.edges.length,
+    }),
+  };
+}
+
+/** Label follows stroke until the user picks a label property (or hide-labels). */
+export function resolveMirroredLabelKey(input: {
+  storedKey: string;
+  strokeKey: string;
+  userChose: boolean;
+  edges: GraphEdgeDto[];
+}): string {
+  return resolveMirroredKey({
+    storedKey: resolveColorPropertyKey(input.storedKey, input.edges),
+    mirrorKey: input.strokeKey,
+    userChose: input.userChose,
+  });
 }
 
 export function legendLabelForColorValue(propertyKey: string, value: string): string {

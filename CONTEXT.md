@@ -19,3 +19,11 @@ _Avoid_: Group, collection, directory
 **GitHub connection**:
 A GitHub login linked to one Flowra user. Listing, cloning, and reading that user's repositories use their token. The server token remains the fallback when nobody is connected, including push webhooks.
 _Avoid_: shared personal token, pasting a token in the browser
+
+**Anchor point**:
+The exact point on a node side where one arrow endpoint attaches. At most one arrow may use a given anchor point. Several arrows may still attach to the same node side, each on its own anchor point along that side.
+_Avoid_: shared junction, merged endpoint, shared tip
+
+**Node side**:
+One of the four borders of a box (top, right, bottom, left) that arrows may touch.
+_Avoid_: edge of the node (ambiguous with graph edge/flow)

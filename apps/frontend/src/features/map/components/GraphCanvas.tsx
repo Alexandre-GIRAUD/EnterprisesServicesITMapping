@@ -381,7 +381,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     labelPropertyKey,
     appFillKey,
     appBorderKey,
-    legendColors,
+    displayColors,
     hideEdgeLabels,
     handleColorPropertyChange,
     handleLabelPropertyChange,
@@ -409,7 +409,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     labelPropertyKey,
     appFillKey,
     appBorderKey,
-    legendColors,
+    legendColors: displayColors,
     hideEdgeLabels,
   });
   legendCodingRef.current = {
@@ -417,7 +417,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     labelPropertyKey,
     appFillKey,
     appBorderKey,
-    legendColors,
+    legendColors: displayColors,
     hideEdgeLabels,
   };
 
@@ -477,7 +477,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
             typeById,
             colorPropertyKey,
             labelPropertyKey,
-            legendColors,
+            displayColors,
             hideEdgeLabels
           );
           const override = d.edgeLabelOverrides[ge.id];
@@ -504,7 +504,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- restyle on legend coding only
-  }, [isSandbox, colorPropertyKey, labelPropertyKey, legendColors, hideEdgeLabels]);
+  }, [isSandbox, colorPropertyKey, labelPropertyKey, displayColors, hideEdgeLabels]);
 
   // Keep open sandboxes in memory when leaving (Views / Production); only seed if empty.
   useEffect(() => {
@@ -1215,7 +1215,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
               type: 'Application',
               properties: created.nodeAttributes ?? {},
             },
-            { appFillKey, appBorderKey, colors: legendColors }
+            { appFillKey, appBorderKey, colors: displayColors }
           ),
           position,
         };
@@ -1263,7 +1263,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         typeById,
         colorPropertyKey,
         labelPropertyKey,
-        legendColors,
+        displayColors,
         hideEdgeLabels
       );
       // No default visible label (do not show DEPENDS_ON).
@@ -1319,7 +1319,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
               type: 'Application',
               properties: created.nodeAttributes ?? {},
             },
-            { appFillKey, appBorderKey, colors: legendColors }
+            { appFillKey, appBorderKey, colors: displayColors }
           ),
           position,
         },
@@ -1368,7 +1368,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
           typeById,
           colorPropertyKey,
           labelPropertyKey,
-          legendColors,
+          displayColors,
           hideEdgeLabels
         ),
       ];
@@ -1949,7 +1949,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                   appBorderOptions={legendAppPropertyOptions}
                   onAppBorderChange={handleAppBorderChange}
                   borderValues={legendBorderValues}
-                  legendColors={legendColors}
+                  legendColors={displayColors}
                   onValueColorChange={handleValueColorChange}
                   hideEdgeLabels={hideEdgeLabels}
                   legendSetups={legendSetups}
@@ -2042,7 +2042,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                     appBorderOptions={legendAppPropertyOptions}
                     onAppBorderChange={handleAppBorderChange}
                     borderValues={legendBorderValues}
-                    legendColors={legendColors}
+                    legendColors={displayColors}
                     onValueColorChange={handleValueColorChange}
                     hideEdgeLabels={hideEdgeLabels}
                     legendSetups={legendSetups}
@@ -2124,7 +2124,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                       applications={applications}
                       edges={graphEdges}
                       dimensions={nodeFilters}
-                      colorMap={legendColors.appFill}
+                      colorMap={displayColors.appFill}
                       status={status}
                       errorMessage={status === 'error' ? message : null}
                       exportRootRef={pivotExportRef}

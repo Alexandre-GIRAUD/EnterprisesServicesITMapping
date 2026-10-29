@@ -32,29 +32,111 @@ export const NODE_TYPE_STYLES: Record<NodeTypeKey, NodeTypeStyle> = {
 const NEUTRAL_NODE_COLOR = '#52525b';
 const NEUTRAL_EDGE_COLOR = '#334155';
 
-/** ponytail: 8 fixed slots, a 9th value reuses one. Add slots if legends regularly exceed 8. */
+/**
+ * Soft-UI inspired pastels: clear coral / mint / lavender / lemon / sky / spring /
+ * peach / lilac. Preferred defaults for the first slots; further values get unique
+ * derived tones from {@link preferredPaletteColor}.
+ */
 export const PASTEL_NODE_PALETTE = [
-  '#f8b4b4',
-  '#7ed8cc',
-  '#c8b6f8',
-  '#e6ee7a',
-  '#9ec8f8',
-  '#b6e8a0',
-  '#f8c48a',
-  '#f6c6f4',
+  '#ffb4c0',
+  '#7fe3d4',
+  '#d4b8ff',
+  '#f0f48a',
+  '#8ecbff',
+  '#b4f0a0',
+  '#ffc891',
+  '#ffb8f0',
 ] as const;
 
-/** Distinct darks, same slot order as the node pastels. */
+/** Distinct darks, same slot order as the node pastels (modern ink strokes). */
 export const DARK_EDGE_PALETTE = [
-  '#991b1b',
+  '#c1121f',
   '#0f766e',
-  '#6d28d9',
+  '#7c3aed',
   '#854d0e',
-  '#1e3a8a',
+  '#1d4ed8',
   '#3f6212',
   '#c2410c',
-  '#44403c',
+  '#86198f',
 ] as const;
+
+function clampByte(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function toHexByte(value: number): string {
+  return clampByte(value).toString(16).padStart(2, '0');
+}
+
+function parseHexRgb(hex: string): { r: number; g: number; b: number } | null {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!match) return null;
+  const value = parseInt(match[1], 16);
+  return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
+}
+
+function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
+  const rr = r / 255;
+  const gg = g / 255;
+  const bb = b / 255;
+  const max = Math.max(rr, gg, bb);
+  const min = Math.min(rr, gg, bb);
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l };
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === rr) h = ((gg - bb) / d + (gg < bb ? 6 : 0)) / 6;
+  else if (max === gg) h = ((bb - rr) / d + 2) / 6;
+  else h = ((rr - gg) / d + 4) / 6;
+  return { h: h * 360, s, l };
+}
+
+function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
+  const hh = ((h % 360) + 360) % 360;
+  if (s === 0) {
+    const gray = clampByte(l * 255);
+    return { r: gray, g: gray, b: gray };
+  }
+  const hueToRgb = (p: number, q: number, t: number) => {
+    let tt = t;
+    if (tt < 0) tt += 1;
+    if (tt > 1) tt -= 1;
+    if (tt < 1 / 6) return p + (q - p) * 6 * tt;
+    if (tt < 1 / 2) return q;
+    if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6;
+    return p;
+  };
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const hk = hh / 360;
+  return {
+    r: clampByte(hueToRgb(p, q, hk + 1 / 3) * 255),
+    g: clampByte(hueToRgb(p, q, hk) * 255),
+    b: clampByte(hueToRgb(p, q, hk - 1 / 3) * 255),
+  };
+}
+
+/**
+ * Preferred default at slot `index`: curated palette first, then unique
+ * hue/lightness shifts of those tones so values of one parameter never share
+ * a default color.
+ */
+export function preferredPaletteColor(palette: readonly string[], index: number): string {
+  if (palette.length === 0) return '#888888';
+  if (index < palette.length) return palette[index];
+  const base = palette[index % palette.length];
+  const generation = Math.floor(index / palette.length);
+  const rgb = parseHexRgb(base);
+  if (!rgb) return base;
+  const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+  const shifted = hslToRgb(
+    hsl.h + generation * 23,
+    Math.min(0.92, hsl.s + (generation % 2) * 0.06),
+    Math.max(0.18, Math.min(0.88, hsl.l + (generation % 3 === 0 ? -0.08 : 0.06))),
+  );
+  return `#${toHexByte(shifted.r)}${toHexByte(shifted.g)}${toHexByte(shifted.b)}`;
+}
 
 function colorSlot(text: string): number {
   let hash = 0x811c9dc5;
@@ -91,7 +173,7 @@ export const ZOOM_THRESHOLDS = {
 } as const;
 
 export const EDGE_TYPE_STYLES: Record<EdgeTypeKey, EdgeTypeStyle> = {
-  DEPENDS_ON: { legendLabel: 'Dependency', color: '#1e3a8a' },
+  DEPENDS_ON: { legendLabel: 'Dependency', color: '#1d4ed8' },
   CONTAINS: { legendLabel: 'Composition', color: '#c2410c', dashed: true },
 };
 
