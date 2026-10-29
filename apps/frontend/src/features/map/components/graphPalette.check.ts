@@ -17,6 +17,7 @@ import {
   borderFromFill,
   nodeBorderColorForValue,
   nodeFillColorForValue,
+  nodeTextColor,
   paintChannelColors,
   paintEdgeStrokeColor,
   resolveMirroredKey,
@@ -306,5 +307,27 @@ const borderSticky = resolveSpreadColorKeys({
 });
 assert.equal(borderSticky.fillKey, 'pillar');
 assert.equal(borderSticky.borderKey, 'tier');
+
+// Node text defaults to the border color (darker shade of the node color).
+const textNode = { id: 'n', label: 'N', type: 'Application', properties: { pillar: 'Core' } } as never;
+assert.equal(
+  nodeTextColor(textNode, 'pillar', undefined, 'pillar', undefined, 'pillar', undefined),
+  borderFromFill(nodeFillColorForValue('pillar', 'Core')),
+);
+assert.equal(
+  nodeTextColor(textNode, 'pillar', { Core: '#123456' }, 'pillar', undefined, 'pillar', undefined),
+  '#123456',
+);
+const textMirrored = resolveSpreadColorKeys({
+  nodes: [],
+  edges: [],
+  fillKey: NODE_TYPE_COLOR_KEY,
+  borderKey: NODE_TYPE_COLOR_KEY,
+  strokeKey: RELATION_TYPE_COLOR_KEY,
+  fillChosen: false,
+  borderChosen: false,
+  strokeChosen: false,
+});
+assert.equal(textMirrored.textKey, textMirrored.borderKey);
 
 console.log('graphPalette.check: ok');

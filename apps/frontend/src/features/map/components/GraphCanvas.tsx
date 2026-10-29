@@ -381,12 +381,14 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     labelPropertyKey,
     appFillKey,
     appBorderKey,
+    appTextKey,
     displayColors,
     hideEdgeLabels,
     handleColorPropertyChange,
     handleLabelPropertyChange,
     handleAppFillChange,
     handleAppBorderChange,
+    handleAppTextChange,
     handleValueColorChange,
     getLegendSnapshot,
     applyLegendSnapshot,
@@ -398,6 +400,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     legendLabelStrokeColors,
     legendFillValues,
     legendBorderValues,
+    legendTextValues,
     legendSetups,
     saveLegendSetup,
     applyLegendSetup,
@@ -409,6 +412,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     labelPropertyKey,
     appFillKey,
     appBorderKey,
+    appTextKey,
     legendColors: displayColors,
     hideEdgeLabels,
   });
@@ -417,6 +421,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     labelPropertyKey,
     appFillKey,
     appBorderKey,
+    appTextKey,
     legendColors: displayColors,
     hideEdgeLabels,
   };
@@ -693,6 +698,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         nodeCoding: {
           appFillKey: coding.appFillKey,
           appBorderKey: coding.appBorderKey,
+          appTextKey: coding.appTextKey,
           colors: coding.legendColors,
         },
         colors: coding.legendColors,
@@ -836,6 +842,10 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         labelPropertyKey: pending.legend.edgeLabelKey || legendCodingRef.current.labelPropertyKey,
         appFillKey: pending.legend.appFillKey || legendCodingRef.current.appFillKey,
         appBorderKey: pending.legend.appBorderKey || legendCodingRef.current.appBorderKey,
+        appTextKey:
+          pending.legend.appTextKey ||
+          pending.legend.appBorderKey ||
+          legendCodingRef.current.appTextKey,
         legendColors: pending.legend.colors ?? {},
         hideEdgeLabels: Boolean(pending.legend.hideEdgeLabels),
       };
@@ -1215,7 +1225,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
               type: 'Application',
               properties: created.nodeAttributes ?? {},
             },
-            { appFillKey, appBorderKey, colors: displayColors }
+            { appFillKey, appBorderKey, appTextKey, colors: displayColors }
           ),
           position,
         };
@@ -1319,7 +1329,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
               type: 'Application',
               properties: created.nodeAttributes ?? {},
             },
-            { appFillKey, appBorderKey, colors: displayColors }
+            { appFillKey, appBorderKey, appTextKey, colors: displayColors }
           ),
           position,
         },
@@ -1949,6 +1959,10 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                   appBorderOptions={legendAppPropertyOptions}
                   onAppBorderChange={handleAppBorderChange}
                   borderValues={legendBorderValues}
+                  appTextKey={appTextKey}
+                  appTextOptions={legendAppPropertyOptions}
+                  onAppTextChange={handleAppTextChange}
+                  textValues={legendTextValues}
                   legendColors={displayColors}
                   onValueColorChange={handleValueColorChange}
                   hideEdgeLabels={hideEdgeLabels}
@@ -2042,6 +2056,10 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                     appBorderOptions={legendAppPropertyOptions}
                     onAppBorderChange={handleAppBorderChange}
                     borderValues={legendBorderValues}
+                    appTextKey={appTextKey}
+                    appTextOptions={legendAppPropertyOptions}
+                    onAppTextChange={handleAppTextChange}
+                    textValues={legendTextValues}
                     legendColors={displayColors}
                     onValueColorChange={handleValueColorChange}
                     hideEdgeLabels={hideEdgeLabels}

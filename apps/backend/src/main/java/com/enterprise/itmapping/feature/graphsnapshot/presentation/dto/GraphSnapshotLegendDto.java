@@ -11,5 +11,6 @@ public record GraphSnapshotLegendDto(
     String edgeLabelKey,
     String appFillKey,
     String appBorderKey,
+    String appTextKey,
     Map<String, Map<String, String>> colors,
     Boolean hideEdgeLabels) {}

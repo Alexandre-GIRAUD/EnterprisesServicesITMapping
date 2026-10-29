@@ -15,6 +15,7 @@ import {
   legendLabelForColorValue,
   nodeBorderColorForValue,
   nodeFillColorForValue,
+  nodeTextColorForValue,
   strokeColorForLegendSwatch,
   type AttributeOption,
   type LegendColorMaps,
@@ -44,6 +45,10 @@ type Props = {
   appBorderOptions?: AttributeOption[];
   onAppBorderChange?: (key: string) => void;
   borderValues?: string[];
+  appTextKey?: string;
+  appTextOptions?: AttributeOption[];
+  onAppTextChange?: (key: string) => void;
+  textValues?: string[];
   legendColors?: LegendColorMaps;
   onValueColorChange?: (channel: keyof LegendColorMaps, value: string, color: string) => void;
   hideEdgeLabels?: boolean;
@@ -77,7 +82,7 @@ function ColorValueRow({
   label: string;
   color: string;
   onChange?: (color: string) => void;
-  kind: 'edge' | 'fill' | 'border' | 'app' | 'label';
+  kind: 'edge' | 'fill' | 'border' | 'app' | 'label' | 'text';
   borderColor?: string;
 }) {
   return (
@@ -88,13 +93,13 @@ function ColorValueRow({
           style={{ color }}
           aria-hidden="true"
         />
-      ) : kind === 'label' ? (
+      ) : kind === 'label' || kind === 'text' ? (
         <span
           className="graph-legend__swatch graph-legend__swatch--text-label"
           style={{ color, borderColor: `${color}55` }}
           aria-hidden="true"
         >
-          label
+          {kind === 'text' ? 'text' : 'label'}
         </span>
       ) : (
         <span
@@ -147,6 +152,10 @@ export function GraphLegend({
   appBorderOptions = [],
   onAppBorderChange,
   borderValues = [],
+  appTextKey,
+  appTextOptions = [],
+  onAppTextChange,
+  textValues = [],
   legendColors = {},
   onValueColorChange,
   hideEdgeLabels = false,
@@ -320,6 +329,25 @@ export function GraphLegend({
     }
   }
 
+  const showTextRows =
+    !simpleMode &&
+    appTextKey != null &&
+    appTextKey !== NODE_TYPE_COLOR_KEY &&
+    appTextKey !== appBorderKey;
+  if (showTextRows) {
+    for (const value of textValues) {
+      appsItems.push(
+        <ColorValueRow
+          key={`text-${value}`}
+          label={nodeValueLabel(appTextKey, value)}
+          color={nodeTextColorForValue(appTextKey, value, legendColors.appText)}
+          kind="text"
+          onChange={colorChange ? (c) => colorChange('appText', value, c) : undefined}
+        />
+      );
+    }
+  }
+
   const flowsItems: ReactNode[] = [];
   if (!showCoding && relationTypes.length > 0 && !simpleMode) {
     for (const key of relationTypes) {
@@ -418,7 +446,8 @@ export function GraphLegend({
     showCoding &&
     !simpleMode &&
     ((appFillOptions.length > 0 && appFillKey != null && onAppFillChange != null) ||
-      (appBorderOptions.length > 0 && appBorderKey != null && onAppBorderChange != null));
+      (appBorderOptions.length > 0 && appBorderKey != null && onAppBorderChange != null) ||
+      (appTextOptions.length > 0 && appTextKey != null && onAppTextChange != null));
 
   const showFlowSelects =
     isEditing && showCoding && !simpleMode && colorPropertyKey != null;
@@ -594,6 +623,23 @@ export function GraphLegend({
                     </select>
                   </label>
                 )}
+              {appTextOptions.length > 0 && appTextKey != null && onAppTextChange != null && (
+                <label className="graph-legend__control">
+                  <span className="graph-legend__title">App text</span>
+                  <select
+                    className="graph-legend__select"
+                    value={appTextKey}
+                    onChange={(event) => onAppTextChange(event.target.value)}
+                    aria-label="App property used for node text color"
+                  >
+                    {appTextOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
           )}
           {appsItems.length > 0 && <ul className="graph-legend__list">{appsItems}</ul>}

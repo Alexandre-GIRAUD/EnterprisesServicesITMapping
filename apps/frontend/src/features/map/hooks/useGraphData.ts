@@ -33,6 +33,8 @@ import {
   loadFillPropertyChosen,
   loadStoredAppBorderKey,
   loadStoredAppFillKey,
+  loadStoredAppTextKey,
+  loadTextPropertyChosen,
   loadStoredColorPropertyKey,
   loadStrokePropertyChosen,
   loadLabelPropertyChosen,
@@ -40,6 +42,7 @@ import {
   NODE_TYPE_COLOR_KEY,
   nodeBorderColor,
   nodeFillColor,
+  nodeTextColor,
   nodePropertyOptions,
   paintChannelColors,
   paintEdgeStrokeColor,
@@ -50,6 +53,8 @@ import {
   setRationalizedColorInMaps,
   storeAppBorderKey,
   storeAppFillKey,
+  storeAppTextKey,
+  storeTextPropertyChosen,
   storeBorderPropertyChosen,
   storeColorPropertyKey,
   storeFillPropertyChosen,
@@ -82,6 +87,7 @@ export const GRID = 16;
 export type NodeCodingKeys = {
   appFillKey: string;
   appBorderKey: string;
+  appTextKey?: string;
   colors?: LegendColorMaps;
 };
 
@@ -99,6 +105,15 @@ export function buildAppNode(node: GraphNodeDto, coding?: NodeCodingKeys): AppNo
             fillColor: nodeFillColor(node, coding.appFillKey, coding.colors?.appFill),
             borderColor: nodeBorderColor(
               node,
+              coding.appBorderKey,
+              coding.colors?.appBorder,
+              coding.appFillKey,
+              coding.colors?.appFill
+            ),
+            textColor: nodeTextColor(
+              node,
+              coding.appTextKey ?? coding.appBorderKey,
+              coding.colors?.appText,
               coding.appBorderKey,
               coding.colors?.appBorder,
               coding.appFillKey,
@@ -151,6 +166,15 @@ function applyNodeCoding(
         fillColor: nodeFillColor(dto, coding.appFillKey, coding.colors?.appFill),
         borderColor: nodeBorderColor(
           dto,
+          coding.appBorderKey,
+          coding.colors?.appBorder,
+          coding.appFillKey,
+          coding.colors?.appFill
+        ),
+        textColor: nodeTextColor(
+          dto,
+          coding.appTextKey ?? coding.appBorderKey,
+          coding.colors?.appText,
           coding.appBorderKey,
           coding.colors?.appBorder,
           coding.appFillKey,
@@ -211,8 +235,10 @@ export function useGraphData({
   const [labelPropertyKey, setLabelPropertyKey] = useState(loadStoredLabelPropertyKey);
   const [appFillKey, setAppFillKey] = useState(loadStoredAppFillKey);
   const [appBorderKey, setAppBorderKey] = useState(loadStoredAppBorderKey);
+  const [appTextKey, setAppTextKey] = useState(loadStoredAppTextKey);
   const fillChosenRef = useRef(loadFillPropertyChosen());
   const borderChosenRef = useRef(loadBorderPropertyChosen());
+  const textChosenRef = useRef(loadTextPropertyChosen());
   const strokeChosenRef = useRef(loadStrokePropertyChosen());
   const labelChosenRef = useRef(loadLabelPropertyChosen());
   const [legendColors, setLegendColors] = useState<LegendColorMaps>(loadLegendColorMaps);
@@ -238,6 +264,7 @@ export function useGraphData({
   const effectiveLabelKey = simpleMode ? RELATION_TYPE_COLOR_KEY : labelPropertyKey;
   const effectiveFillKey = simpleMode ? NODE_TYPE_COLOR_KEY : appFillKey;
   const effectiveBorderKey = simpleMode ? NODE_TYPE_COLOR_KEY : appBorderKey;
+  const effectiveTextKey = simpleMode ? NODE_TYPE_COLOR_KEY : appTextKey;
 
   const legendColorPropertyOptions = useMemo(
     () => colorPropertyOptions(visible.edges),
@@ -265,6 +292,10 @@ export function useGraphData({
     () => collectNodeLegendValues(visible.nodes, effectiveBorderKey),
     [visible.nodes, effectiveBorderKey]
   );
+  const legendTextValues = useMemo(
+    () => collectNodeLegendValues(visible.nodes, effectiveTextKey),
+    [visible.nodes, effectiveTextKey]
+  );
   const displayColors = useMemo(
     () =>
       paintChannelColors({
@@ -273,8 +304,20 @@ export function useGraphData({
         fillValues: legendFillValues,
         strokeKey: effectiveColorKey,
         strokeValues: legendColorValues,
+        borderKey: effectiveBorderKey,
+        textKey: effectiveTextKey,
+        textValues: legendTextValues,
       }),
-    [legendColors, effectiveFillKey, legendFillValues, effectiveColorKey, legendColorValues]
+    [
+      legendColors,
+      effectiveFillKey,
+      legendFillValues,
+      effectiveColorKey,
+      legendColorValues,
+      effectiveBorderKey,
+      effectiveTextKey,
+      legendTextValues,
+    ]
   );
 
   /** Stroke color of an edge that carries each label value (label text color = stroke). */
@@ -303,9 +346,11 @@ export function useGraphData({
       edges: visible.edges,
       fillKey: appFillKey,
       borderKey: appBorderKey,
+      textKey: appTextKey,
       strokeKey: colorPropertyKey,
       fillChosen: fillChosenRef.current,
       borderChosen: borderChosenRef.current,
+      textChosen: textChosenRef.current,
       strokeChosen: strokeChosenRef.current,
       colors: legendColorsRef.current,
     });
@@ -331,6 +376,10 @@ export function useGraphData({
       setAppBorderKey(spread.borderKey);
       storeAppBorderKey(spread.borderKey);
     }
+    if (spread.textKey !== appTextKey) {
+      setAppTextKey(spread.textKey);
+      storeAppTextKey(spread.textKey);
+    }
   }, [
     simpleMode,
     visible.edges,
@@ -339,6 +388,7 @@ export function useGraphData({
     labelPropertyKey,
     appFillKey,
     appBorderKey,
+    appTextKey,
   ]);
 
   const handleColorPropertyChange = useCallback((key: string) => {
@@ -372,6 +422,10 @@ export function useGraphData({
     if (!borderChosenRef.current) {
       setAppBorderKey(key);
       storeAppBorderKey(key);
+      if (!textChosenRef.current) {
+        setAppTextKey(key);
+        storeAppTextKey(key);
+      }
     }
   }, []);
   const handleAppBorderChange = useCallback((key: string) => {
@@ -379,6 +433,16 @@ export function useGraphData({
     storeBorderPropertyChosen();
     setAppBorderKey(key);
     storeAppBorderKey(key);
+    if (!textChosenRef.current) {
+      setAppTextKey(key);
+      storeAppTextKey(key);
+    }
+  }, []);
+  const handleAppTextChange = useCallback((key: string) => {
+    textChosenRef.current = true;
+    storeTextPropertyChosen();
+    setAppTextKey(key);
+    storeAppTextKey(key);
   }, []);
 
   const handleValueColorChange = useCallback(
@@ -407,10 +471,11 @@ export function useGraphData({
       edgeLabelKey: effectiveLabelKey,
       appFillKey: effectiveFillKey,
       appBorderKey: effectiveBorderKey,
+      appTextKey: effectiveTextKey,
       colors: legendColorsRef.current,
       hideEdgeLabels: hideEdgeLabelsRef.current,
     };
-  }, [effectiveColorKey, effectiveLabelKey, effectiveFillKey, effectiveBorderKey]);
+  }, [effectiveColorKey, effectiveLabelKey, effectiveFillKey, effectiveBorderKey, effectiveTextKey]);
 
   const applyLegendSnapshot = useCallback((legend: GraphLegendSnapshot | null | undefined) => {
     if (!legend) return;
@@ -437,6 +502,14 @@ export function useGraphData({
       storeBorderPropertyChosen();
       setAppBorderKey(legend.appBorderKey);
       storeAppBorderKey(legend.appBorderKey);
+    }
+    // Older saved legends have no text key: text follows the border attribute.
+    const textKey = legend.appTextKey || legend.appBorderKey;
+    if (textKey) {
+      textChosenRef.current = true;
+      storeTextPropertyChosen();
+      setAppTextKey(textKey);
+      storeAppTextKey(textKey);
     }
     const colors = legend.colors ?? {};
     // Sync refs before any immediate relayout/restyle that reads them.
@@ -467,6 +540,7 @@ export function useGraphData({
             edgeLabelKey: effectiveLabelKey,
             appFillKey: effectiveFillKey,
             appBorderKey: effectiveBorderKey,
+            appTextKey: effectiveTextKey,
             colors: legendColorsRef.current,
             hideEdgeLabels: hideEdgeLabelsRef.current,
           },
@@ -475,7 +549,7 @@ export function useGraphData({
         return next;
       });
     },
-    [effectiveColorKey, effectiveLabelKey, effectiveFillKey, effectiveBorderKey]
+    [effectiveColorKey, effectiveLabelKey, effectiveFillKey, effectiveBorderKey, effectiveTextKey]
   );
 
   const applyLegendSetup = useCallback((setup: LegendSetup) => {
@@ -517,10 +591,11 @@ export function useGraphData({
       return applyNodeCoding(prev, graphNodesRef.current, {
         appFillKey: effectiveFillKey,
         appBorderKey: effectiveBorderKey,
+        appTextKey: effectiveTextKey,
         colors: displayColors,
       });
     });
-  }, [effectiveFillKey, effectiveBorderKey, displayColors, status, setNodes]);
+  }, [effectiveFillKey, effectiveBorderKey, effectiveTextKey, displayColors, status, setNodes]);
 
   useEffect(() => {
     if (status !== 'ready' || layoutRevision === 0) return;
@@ -561,15 +636,18 @@ export function useGraphData({
               strokeKey: RELATION_TYPE_COLOR_KEY,
               fillKey: NODE_TYPE_COLOR_KEY,
               borderKey: NODE_TYPE_COLOR_KEY,
+              textKey: NODE_TYPE_COLOR_KEY,
             }
           : resolveSpreadColorKeys({
               nodes: data.nodes,
               edges: data.edges,
               fillKey: appFillKey,
               borderKey: appBorderKey,
+              textKey: appTextKey,
               strokeKey: colorPropertyKey,
               fillChosen: fillChosenRef.current,
               borderChosen: borderChosenRef.current,
+              textChosen: textChosenRef.current,
               strokeChosen: strokeChosenRef.current,
               colors: legendColorsRef.current,
             });
@@ -584,6 +662,7 @@ export function useGraphData({
             });
         const nextFill = spread.fillKey;
         const nextBorder = spread.borderKey;
+        const nextText = spread.textKey;
 
         if (nextColor !== colorPropertyKey) {
           setColorPropertyKey(nextColor);
@@ -601,11 +680,18 @@ export function useGraphData({
           setAppBorderKey(nextBorder);
           storeAppBorderKey(nextBorder);
         }
+        if (nextText !== appTextKey) {
+          setAppTextKey(nextText);
+          storeAppTextKey(nextText);
+        }
 
         const colors = paintChannelColors({
           colors: legendColorsRef.current,
           fillKey: nextFill,
           fillValues: collectNodeLegendValues(data.nodes, nextFill),
+          borderKey: nextBorder,
+          textKey: nextText,
+          textValues: collectNodeLegendValues(data.nodes, nextText),
           strokeKey: nextColor,
           strokeValues: collectLegendColorValues(
             edgeIds.length > 0 ? data.edges.filter((edge) => edgeIds.includes(edge.id)) : data.edges,
@@ -616,6 +702,7 @@ export function useGraphData({
         const nodeCoding: NodeCodingKeys = {
           appFillKey: nextFill,
           appBorderKey: nextBorder,
+          appTextKey: nextText,
           colors,
         };
         const baseNodes = data.nodes.map((n) => buildAppNode(n, nodeCoding));
@@ -721,12 +808,14 @@ export function useGraphData({
     labelPropertyKey: effectiveLabelKey,
     appFillKey: effectiveFillKey,
     appBorderKey: effectiveBorderKey,
+    appTextKey: effectiveTextKey,
     displayColors,
     hideEdgeLabels,
     handleColorPropertyChange,
     handleLabelPropertyChange,
     handleAppFillChange,
     handleAppBorderChange,
+    handleAppTextChange,
     handleValueColorChange,
     getLegendSnapshot,
     applyLegendSnapshot,
@@ -738,6 +827,7 @@ export function useGraphData({
     legendLabelStrokeColors,
     legendFillValues,
     legendBorderValues,
+    legendTextValues,
     legendSetups,
     saveLegendSetup,
     applyLegendSetup,
