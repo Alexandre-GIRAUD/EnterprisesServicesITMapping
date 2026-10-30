@@ -33,7 +33,7 @@ export type AppGraphNodeData = {
 
 export type AppGraphNodeType = Node<AppGraphNodeData, 'app'>;
 
-export function AppGraphNode({ data, selected }: NodeProps<AppGraphNodeType>) {
+export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
   const borderColor = data.borderColor ?? nodeColorForType(data.nodeType);
   const fillColor = data.fillColor ?? '#ffffff';
   const textColor = data.textColor ?? borderColor;
@@ -73,7 +73,7 @@ export function AppGraphNode({ data, selected }: NodeProps<AppGraphNodeType>) {
       className={`graph-node-card${data.iconKey ? ' graph-node-card--with-icon' : ''}`}
       style={{ borderColor, backgroundColor: fillColor }}
     >
-      <NodeResizer isVisible={selected} minWidth={MIN_BOX_WIDTH_PX} minHeight={MIN_BOX_HEIGHT_PX} />
+      <NodeResizer minWidth={MIN_BOX_WIDTH_PX} minHeight={MIN_BOX_HEIGHT_PX} />
       <Handle type="source" position={Position.Top} id="top-s" className="graph-node-handle" isConnectable={false} />
       <Handle type="target" position={Position.Top} id="top-t" className="graph-node-handle" isConnectable={false} />
       <Handle type="source" position={Position.Bottom} id="bottom-s" className="graph-node-handle" isConnectable={false} />

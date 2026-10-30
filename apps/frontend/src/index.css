@@ -8521,3 +8521,53 @@ html[data-theme='dark'] .graph-legend__swatch img {
   filter: none;
 }
 
+
+/* Quiet resize: no frame or squares, only a double-arrow cursor on an edge or corner of a box. */
+.graph-canvas .react-flow__resize-control.handle {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.graph-canvas .react-flow__resize-control.line {
+  border-color: transparent;
+}
+
+.graph-canvas .react-flow__resize-control.line.left,
+.graph-canvas .react-flow__resize-control.line.right {
+  width: 8px;
+}
+
+.graph-canvas .react-flow__resize-control.line.top,
+.graph-canvas .react-flow__resize-control.line.bottom {
+  height: 8px;
+}
+
+/* The concealed launcher has no width of its own, so it cannot be a size container. */
+/* Both axes are measured: the layout reacts to the legend height. */
+.graph-legend:not(.is-concealed) {
+  container-type: size;
+}
+
+/* A short legend puts the Apps and Flows controls beside their subtitle to save height. */
+@container (max-height: 26rem) and (min-width: 20rem) {
+  .graph-legend__group--apps,
+  .graph-legend__group--flows {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 1rem;
+  }
+
+  .graph-legend__group--apps > .graph-legend__title,
+  .graph-legend__group--flows > .graph-legend__title {
+    flex: 0 0 4.5rem;
+  }
+
+  .graph-legend__group--apps > :not(.graph-legend__title),
+  .graph-legend__group--flows > :not(.graph-legend__title) {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}

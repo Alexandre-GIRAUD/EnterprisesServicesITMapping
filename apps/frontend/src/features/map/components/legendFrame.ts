@@ -58,9 +58,16 @@ function clampToRange(value: number, min: number, max: number): number {
   return value;
 }
 
-/** Shorten the default height so the legend never reaches the zoom controls. */
-export function fitLegendHeight(height: number, paneHeight: number): number {
-  const room = paneHeight - LEGEND_TOP_MARGIN_PX - LEGEND_CONTROLS_CLEARANCE_PX;
+/**
+ * Shorten the height so the legend never reaches the zoom controls.
+ * `clearance` is the measured room the controls take; the default is a safe estimate.
+ */
+export function fitLegendHeight(
+  height: number,
+  paneHeight: number,
+  clearance: number = LEGEND_CONTROLS_CLEARANCE_PX,
+): number {
+  const room = paneHeight - LEGEND_TOP_MARGIN_PX - clearance;
   return Math.max(LEGEND_MIN_HEIGHT_PX, Math.min(height, room));
 }
 
