@@ -66,6 +66,9 @@ assert.deepEqual(
 assert.equal(fitLegendHeight(360, 900), 360);
 assert.equal(fitLegendHeight(360, 400), 400 - 10 - LEGEND_CONTROLS_CLEARANCE_PX);
 assert.equal(fitLegendHeight(360, 100), 80);
+// A measured clearance (the real controls height) replaces the default one.
+assert.equal(fitLegendHeight(360, 400, 200), 400 - 10 - 200);
+assert.equal(fitLegendHeight(100, 400, 200), 100);
 
 // Edit mode fills the pane, keeping a margin so the pane borders stay visible.
 assert.deepEqual(
