@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { FolderCrumbs, ViewInspectPanel, ViewsEmptyState } from './GraphViewsPanel.tsx';
+import { LibraryTable } from './graphViewsChrome.tsx';
 
 const css = readFileSync(new URL('../../../index.css', import.meta.url), 'utf8');
 const panel = readFileSync(new URL('./GraphViewsPanel.tsx', import.meta.url), 'utf8');
@@ -28,6 +29,28 @@ assert.doesNotMatch(css, /\.graph-views-item-btn:hover \{[^}]*#93c5fd/);
 assert.match(librarySource, /cx="4.5" cy="10"/);
 assert.match(librarySource, /title="Grid"/);
 assert.match(librarySource, /title="List"/);
+
+const row = (kind: 'folder' | 'view', id: string, depth: number) => ({
+  kind, id, name: id, depth, pathLabel: '', filterCount: 0, hiddenApps: 0, updatedAt: '2026-01-01T00:00:00.000Z', author: 'admin', childCount: 1,
+});
+const noop = () => undefined;
+const table = renderToStaticMarkup(
+  createElement(LibraryTable, {
+    rows: [row('folder', 'finance', 0), row('view', 'payments', 1)],
+    sortKey: 'name', sortDirection: 'asc', expandedIds: new Set(['finance']), selectedViewId: null,
+    isSearching: false, emptyLabel: '', onSort: noop, onToggle: noop, onEnter: noop, onSelect: noop,
+    onApply: noop, onPreview: noop, onPreviewEnd: noop, dropParentId: null, canDropOn: () => false,
+    onDragStart: noop, onDragEnd: noop, onDragOverFolder: noop, onDropOnFolder: noop, onContextMenu: noop,
+  }),
+);
+assert.doesNotMatch(table, /padding-left/);
+assert.match(table, /<td[^>]*><svg class="graph-views-item-mark graph-views-row-icon"/);
+assert.equal(table.match(/graph-views-row-icon/g)?.length, 2);
+assert.notEqual(
+  table.match(/graph-views-row-icon[^]*?<\/svg>/g)?.[0],
+  table.match(/graph-views-row-icon[^]*?<\/svg>/g)?.[1],
+  'folders and views get different icons',
+);
 
 const rootCrumbs = renderToStaticMarkup(
   createElement(FolderCrumbs, {

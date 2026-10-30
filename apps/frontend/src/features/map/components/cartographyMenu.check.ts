@@ -20,6 +20,16 @@ assert.match(css, /\.graph-filter-compact-btn--pin:not\(:disabled\) \{[^}]*backg
 assert.doesNotMatch(css, /\.graph-filter-compact-actions > \.graph-filter-compact-btn \{[^}]*flex: 1 1 0/);
 assert.match(css, /\.graph-filter-neighbours \{[^}]*gap: 0\.45rem[^}]*font-size: 0\.85rem[^}]*font-weight: 500[^}]*color: #334155/);
 assert.match(readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8'), /with neighbours/);
+const sideTools = readFileSync(new URL('./graphCanvasSideTools.tsx', import.meta.url), 'utf8');
+assert.doesNotMatch(sideTools, /showWithNeighbours=\{!isSandbox\}/);
+assert.match(sideTools, /initialWithNeighbours=\{isSandbox \? Boolean\(activeSandboxFilters\.withNeighbours\)/);
+assert.match(sideTools, /withNeighbours: Boolean\(nextWithNeighbours\),\s*\},\s*dirty: true/);
+assert.match(css, /\.graph-view-header-title \{[^}]*font-size: 1\.85rem[^}]*font-weight: 700[^}]*letter-spacing: -0\.03em/);
+assert.match(css, /\.graph-view-header-description \{[^}]*font-size: 0\.95rem[^}]*line-height: 1\.5/);
+assert.doesNotMatch(css, /\.graph-view-header \{[^}]*border-bottom/);
+assert.match(css, /\.map-graph-panel \.graph-display-toggle \{[^}]*border-radius: 10px[^}]*background: #fff/);
+assert.match(css, /\.map-graph-panel \.graph-display-toggle-btn\.is-active \{[^}]*background: var\(--ss-accent\)[^}]*color: #fff/);
+assert.match(css, /\.map-graph-panel \.self-service-tool-bar-btn\.is-active \{[^}]*background: var\(--ss-accent\)[^}]*color: #fff/);
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*font-size: 0\.85rem[^}]*border-radius: 8px/);
 assert.match(css, /\.graph-drawer-action-danger-solid \{[^}]*background: #ffffff/);
 assert.doesNotMatch(css, /linear-gradient\(180deg, #ef4444/);
