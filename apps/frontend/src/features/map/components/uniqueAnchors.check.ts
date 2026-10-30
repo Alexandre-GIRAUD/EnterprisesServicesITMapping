@@ -26,8 +26,13 @@ assert.ok(
   'two arrows leaving A must not share the same anchor point',
 );
 
-// Both leave the right side of A (same node side, distinct points).
-assert.ok(startA.every((point) => Math.abs(point.x - 100) < 0.5));
+// Both start on the border of A, whichever sides give the fewest bends.
+assert.ok(
+  startA.every(
+    (point) =>
+      Math.abs(point.x - 100) < 0.5 || Math.abs(point.y - 60) < 0.5 || Math.abs(point.y) < 0.5,
+  ),
+);
 assert.ok(Math.abs(startA[0].y - startA[1].y) >= 1);
 
 console.log('uniqueAnchors.check: ok');

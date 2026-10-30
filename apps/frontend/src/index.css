@@ -1887,15 +1887,15 @@ body.is-diagram-grown .layout {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2rem;
-  padding: 0.35rem 0.75rem;
+  padding: 0.5rem 1.1rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #f8fafc;
   color: #334155;
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  line-height: 1.2;
   cursor: pointer;
   transition:
     background-color 140ms ease,
@@ -2778,7 +2778,7 @@ body.is-diagram-grown .layout {
   font-size: 0.85rem;
   font-weight: 600;
   line-height: 1.2;
-  padding: 0.4rem 0.9rem;
+  padding: 0.5rem 1.1rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #ffffff;
@@ -2796,13 +2796,13 @@ body.is-diagram-grown .layout {
   color: #334155;
 }
 
-.graph-filter-compact-btn:not(.graph-filter-compact-btn--primary):not(.graph-filter-compact-btn--pin) {
+.graph-filter-compact-btn:not(.graph-filter-compact-btn--primary):not(.graph-filter-compact-btn--pin):not(.graph-filter-compact-btn--neutral) {
   border-color: #f87171;
   background: #ffffff;
   color: #b91c1c;
 }
 
-.graph-filter-compact-btn:not(.graph-filter-compact-btn--primary):not(.graph-filter-compact-btn--pin):hover:not(:disabled) {
+.graph-filter-compact-btn:not(.graph-filter-compact-btn--primary):not(.graph-filter-compact-btn--pin):not(.graph-filter-compact-btn--neutral):hover:not(:disabled) {
   border-color: #ef4444;
   background: #ffffff;
   color: #991b1b;
@@ -2958,10 +2958,16 @@ body.is-diagram-grown .layout {
   background: transparent;
 }
 
+/* Boxes start at one shared size; a resized box carries its own inline width and height. */
+.graph-canvas .react-flow__node-app {
+  width: 160px;
+}
+
 .graph-node-card {
   box-sizing: border-box;
   position: relative;
-  width: 160px;
+  width: 100%;
+  height: 100%;
   min-height: 44px;
   display: flex;
   align-items: center;
@@ -3051,6 +3057,23 @@ body.is-diagram-grown .layout {
   flex-shrink: 0;
   display: inline-flex;
   margin-right: 0.4rem;
+}
+
+/*
+ * With an icon the label stays centred in the box: the icon is pinned to the left and the
+ * same room is reserved on the right. A label too long for that room is cut with an ellipsis
+ * and starts right after the icon.
+ */
+.graph-node-card--with-icon {
+  padding-inline: calc(0.875rem + 1.5rem);
+}
+
+.graph-node-card--with-icon .graph-node-card__icon {
+  position: absolute;
+  top: 50%;
+  left: 0.875rem;
+  margin-right: 0;
+  transform: translateY(-50%);
 }
 
 .graph-node-card__label {
@@ -3706,24 +3729,6 @@ body.is-diagram-grown .layout {
 .sandbox-pane__canvas {
   flex: 1;
   min-height: 0;
-}
-
-.sandbox-pane__save {
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--ss-accent-text, #b45309);
-  background: #ffffff;
-  border: 1px solid var(--ss-accent-border, #fbbf24);
-  border-radius: 999px;
-  width: 1.75rem;
-  height: 1.75rem;
-  cursor: pointer;
-  box-shadow: 0 2px 8px var(--ss-accent-shadow, rgb(245 158 11 / 12%));
-}
-
-.sandbox-pane__save:hover {
-  background: var(--ss-accent-surface, #fffbeb);
 }
 
 .sandbox-shared-legend {
@@ -5521,18 +5526,6 @@ body.is-diagram-grown .layout {
   cursor: not-allowed;
 }
 
-.graph-legend__btn--primary {
-  color: #ffffff;
-  background: var(--ss-accent, #2563eb);
-  border-color: var(--ss-accent-dark, #1d4ed8);
-}
-
-.graph-legend__btn--primary:hover:not(:disabled) {
-  background: var(--ss-accent-dark, #1d4ed8);
-  border-color: var(--ss-accent-dark, #1d4ed8);
-  box-shadow: 0 4px 14px var(--ss-accent-shadow-strong, rgb(37 99 235 / 18%));
-}
-
 .graph-legend__btn--danger {
   color: #b91c1c;
   border-color: #f87171;
@@ -5623,25 +5616,12 @@ body.is-diagram-grown .layout {
   gap: 0.6rem;
 }
 
-.graph-legend__presets {
+.graph-legend__footer {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
+  justify-content: flex-end;
 }
 
-.graph-legend__presets .graph-legend__control-label {
-  padding-top: 0;
-}
-
-.graph-legend__presets .graph-legend__select {
-  flex: 0 1 14rem;
-  width: auto;
-  min-width: 0;
-}
-
-.graph-legend__presets .graph-legend__btn--primary {
-  margin-left: auto;
-}
+.graph-legend.is-filling > .graph-legend__footer { order: 4; }
 
 .graph-legend__chips {
   display: flex;

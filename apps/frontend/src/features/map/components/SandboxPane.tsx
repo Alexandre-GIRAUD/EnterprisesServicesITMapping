@@ -670,7 +670,7 @@ function SandboxPaneInner({
           <Panel position="bottom-right">
             <button
               type="button"
-              className="sandbox-pane__save"
+              className="graph-filter-compact-btn graph-filter-compact-btn--primary"
               aria-label="Save sandbox"
               title="Save"
               onClick={(e) => {
@@ -678,7 +678,7 @@ function SandboxPaneInner({
                 onSave();
               }}
             >
-              ✓
+              Save
             </button>
           </Panel>
         </ReactFlow>

@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LegendPresetBar } from './LegendPresetBar.tsx';
+import { LegendPresetSave } from './LegendPresetSave.tsx';
+import { LegendEditToggle } from './LegendEditToggle.tsx';
 import { LegendValueChips } from './LegendValueChips.tsx';
 import { SaveSnapshotDialog } from './SaveSnapshotDialog.tsx';
 
@@ -26,19 +28,33 @@ const bar = renderToStaticMarkup(
     setups: [setup('1', 'Risk view'), setup('2', 'Owners')],
     onApply: noop,
     onDelete: noop,
-    onSave: noop,
   }),
 );
 assert.match(bar, /aria-label="Legend presets"/);
 assert.match(bar, />Risk view</);
 assert.match(bar, />Owners</);
-assert.match(bar, /aria-label="Save legend preset"/);
+assert.match(bar, /graph-legend__control--row/);
+assert.doesNotMatch(bar, /Save legend preset/);
 assert.doesNotMatch(bar, /<input/);
-assert.doesNotMatch(bar, /Save legend</);
-assert.match(bar, />Save as new preset</);
+
+const save = renderToStaticMarkup(createElement(LegendPresetSave, { onSave: noop }));
+assert.match(save, /aria-label="Save legend preset"/);
+assert.match(save, />Save as new preset</);
+assert.doesNotMatch(save, /graph-filter-compact-btn--primary/);
+
+const editing = renderToStaticMarkup(
+  createElement(LegendEditToggle, { isEditing: true, onEdit: noop, onApply: noop }),
+);
+assert.match(editing, />Apply</);
+assert.match(editing, /graph-filter-compact-btn graph-filter-compact-btn--primary/);
+assert.doesNotMatch(editing, /✓/);
+const idle = renderToStaticMarkup(
+  createElement(LegendEditToggle, { isEditing: false, onEdit: noop, onApply: noop }),
+);
+assert.match(idle, />Edit</);
 
 const emptyBar = renderToStaticMarkup(
-  createElement(LegendPresetBar, { setups: [], onApply: noop, onDelete: noop, onSave: noop }),
+  createElement(LegendPresetBar, { setups: [], onApply: noop, onDelete: noop }),
 );
 assert.match(emptyBar, /<select[^>]*disabled/);
 

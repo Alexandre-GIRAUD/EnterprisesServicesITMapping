@@ -37,20 +37,70 @@ function sideAnchor(rect: Rect, side: Position): Point {
   }
 }
 
+const OUTWARD: Record<Position, Point> = {
+  [Position.Top]: { x: 0, y: -1 },
+  [Position.Bottom]: { x: 0, y: 1 },
+  [Position.Left]: { x: -1, y: 0 },
+  [Position.Right]: { x: 1, y: 0 },
+};
+
+/** True when the route leaves `srcSide` outward and enters `tgtSide` from outside the box. */
+function leavesAndEntersOutward(route: Point[], srcSide: Position, tgtSide: Position): boolean {
+  const first = OUTWARD[srcSide];
+  const last = OUTWARD[tgtSide];
+  const [a, b] = route;
+  const [c, d] = route.slice(-2);
+  return (
+    (b.x - a.x) * first.x + (b.y - a.y) * first.y > 0 &&
+    (d.x - c.x) * last.x + (d.y - c.y) * last.y < 0
+  );
+}
+
+/** Number of corners of a simplified orthogonal route. */
+function bendCount(route: Point[]): number {
+  return Math.max(0, simplifyRoute(route).length - 2);
+}
+
+/** Lexicographic comparison: blocked flag, then bends, then length. */
+function isBetterScore(score: number[], best: number[]): boolean {
+  for (let i = 0; i < score.length; i++) {
+    if (score[i] !== best[i]) return score[i] < best[i];
+  }
+  return false;
+}
+
+type SideContext = {
+  src: Rect;
+  tgt: Rect;
+  /** Every box, to rank pairs whose route would cross another box last. */
+  rects: Map<string, Rect>;
+  sourceId: string;
+  targetId: string;
+};
+
 /**
- * Pick the source/target side pair whose border anchors are closest, i.e. the
- * pair that minimizes the link length. Evaluates all 16 side combinations.
+ * Pick the source/target side pair with the fewest bends, then the shortest link.
+ * Pairs whose route would cross another box rank after every clear pair.
  */
-function minLengthSides(src: Rect, tgt: Rect): { srcSide: Position; tgtSide: Position } {
+function pickFewestBendSides({ src, tgt, rects, sourceId, targetId }: SideContext): {
+  srcSide: Position;
+  tgtSide: Position;
+} {
   let best = { srcSide: Position.Bottom, tgtSide: Position.Top };
-  let bestDist = Infinity;
+  let bestScore = [Infinity, Infinity, Infinity];
   for (const s of ALL_SIDES) {
     const sa = sideAnchor(src, s);
     for (const t of ALL_SIDES) {
       const ta = sideAnchor(tgt, t);
-      const dist = Math.hypot(ta.x - sa.x, ta.y - sa.y);
-      if (dist < bestDist) {
-        bestDist = dist;
+      const route = orthogonalRoute(sa, s, ta, t);
+      if (!leavesAndEntersOutward(route, s, t)) continue;
+      const score = [
+        routeIsClear(route, rects, sourceId, targetId) ? 0 : 1,
+        bendCount(route),
+        polylineLength(route),
+      ];
+      if (isBetterScore(score, bestScore)) {
+        bestScore = score;
         best = { srcSide: s, tgtSide: t };
       }
     }
@@ -221,10 +271,13 @@ function routeAvoidingNodes(
 
   let best: Point[] | null = null;
   let bestLen = Infinity;
+  let bestBends = Infinity;
   for (const candidate of candidates) {
     if (!routeIsClear(candidate, rects, skipSource, skipTarget)) continue;
+    const bends = bendCount(candidate);
     const len = polylineLength(candidate);
-    if (len < bestLen) {
+    if (bends < bestBends || (bends === bestBends && len < bestLen)) {
+      bestBends = bends;
       bestLen = len;
       best = candidate;
     }
@@ -250,7 +303,13 @@ export function buildLiveRoutes(
     const srcRect = rectById.get(e.source);
     const tgtRect = rectById.get(e.target);
     if (!srcRect || !tgtRect) continue;
-    const { srcSide, tgtSide } = minLengthSides(srcRect, tgtRect);
+    const { srcSide, tgtSide } = pickFewestBendSides({
+      src: srcRect,
+      tgt: tgtRect,
+      rects: rectById,
+      sourceId: e.source,
+      targetId: e.target,
+    });
     plans.push({ id: e.id, source: e.source, target: e.target, srcSide, tgtSide });
   }
 
