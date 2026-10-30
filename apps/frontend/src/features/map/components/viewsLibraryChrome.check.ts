@@ -37,13 +37,14 @@ const noop = () => undefined;
 const table = renderToStaticMarkup(
   createElement(LibraryTable, {
     rows: [row('folder', 'finance'), row('view', 'payments')],
-    sortKey: 'name', sortDirection: 'asc', expandedIds: new Set(['finance']), selectedViewId: null,
-    isSearching: false, emptyLabel: '', onSort: noop, onToggle: noop, onEnter: noop, onSelect: noop,
+    sortKey: 'name', sortDirection: 'asc', selectedViewId: null,
+    isSearching: false, emptyLabel: '', onSort: noop, onEnter: noop, onSelect: noop,
     onApply: noop, onPreview: noop, onPreviewEnd: noop, dropParentId: null, canDropOn: () => false,
     onDragStart: noop, onDragEnd: noop, onDragOverFolder: noop, onDropOnFolder: noop, onContextMenu: noop,
   }),
 );
 assert.doesNotMatch(table, /padding-left/);
+assert.doesNotMatch(table, /graph-views-disclose|aria-expanded|▸|▾/);
 assert.match(table, /<td[^>]*><svg class="graph-views-item-mark graph-views-row-icon"/);
 assert.equal(table.match(/graph-views-row-icon/g)?.length, 2);
 assert.notEqual(
