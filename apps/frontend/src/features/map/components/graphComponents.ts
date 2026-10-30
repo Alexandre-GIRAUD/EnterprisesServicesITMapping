@@ -108,6 +108,9 @@ const FIT_PADDING = 0.15;
 /** Frames stay apart even when the fit margin is smaller than the zone padding. */
 const MIN_ISLAND_GAP = 8;
 
+/** Row widths tried when packing islands for the fit-to-view zoom. */
+const SHELF_LIMIT_STEPS = 40;
+
 type IndexedSize = Size & { i: number; area: number };
 
 /**
@@ -124,33 +127,56 @@ export function packComponentOffsets(
   if (bounds.length === 1) return [{ x: 0, y: 0 }];
   if (!aspectRatio || aspectRatio <= 0) return shelfPack(bounds, gap);
 
-  const items = bounds.map((bound, i) => ({ ...bound, i, area: bound.width * bound.height }));
-  items.sort((a, b) => b.area - a.area || a.i - b.i);
-  const narrowest = Math.min(...bounds.map((bound) => bound.width));
+  const items = bounds
+    .map((bound, i) => ({ ...bound, i, area: bound.width * bound.height }))
+    .sort((a, b) => b.height - a.height || b.width - a.width || a.i - b.i);
 
-  let bestScore = Infinity;
+  let bestFit = -Infinity;
   let best: Pos[] = shelfPack(bounds, gap);
-  for (let columns = 1; columns <= items.length; columns += 1) {
-    const rows = rowsOf(items, columns);
+  for (const limit of shelfWidthLimits(items)) {
+    const rows = shelvesOf(items, limit);
     const gapSize = gapMatchingFit(rows, aspectRatio);
-    const placed = placeRows(rows, gapSize);
-    const score = arrangementScore(rows, gapSize, aspectRatio, narrowest);
-    if (score < bestScore) {
-      bestScore = score;
-      best = placed;
+    const fit = fitZoom(rows, gapSize, aspectRatio);
+    if (fit > bestFit) {
+      bestFit = fit;
+      best = placeRows(rows, gapSize);
     }
   }
   return best;
 }
 
-function rowsOf(items: IndexedSize[], columns: number): IndexedSize[][] {
+/** Row widths to try, from the widest island alone up to every island on one row. */
+function shelfWidthLimits(items: IndexedSize[]): number[] {
+  const framed = items.map((item) => item.width + 2 * ZONE_PADDING);
+  const widest = Math.max(...framed);
+  const total = framed.reduce((sum, width) => sum + width, 0) + MIN_ISLAND_GAP * (items.length - 1);
+  return Array.from({ length: SHELF_LIMIT_STEPS + 1 }, (_, k) => widest + ((total - widest) * k) / SHELF_LIMIT_STEPS);
+}
+
+/** Fill rows left to right, tallest island first, starting a row when the next island would not fit. */
+function shelvesOf(items: IndexedSize[], limit: number): IndexedSize[][] {
   const rows: IndexedSize[][] = [];
+  let used = 0;
   for (const item of items) {
+    const width = item.width + 2 * ZONE_PADDING;
     const row = rows[rows.length - 1];
-    if (!row || row.length >= columns) rows.push([item]);
-    else row.push(item);
+    if (row && used + MIN_ISLAND_GAP + width <= limit) {
+      row.push(item);
+      used += MIN_ISLAND_GAP + width;
+    } else {
+      rows.push([item]);
+      used = width;
+    }
   }
   return rows;
+}
+
+/** Zoom the whole drawing gets when fitted in a pane of the given aspect ratio (height 1). */
+function fitZoom(rows: IndexedSize[][], gap: number, aspectRatio: number): number {
+  const { spanX, gapsX, spanY, gapsY } = rowSpans(rows);
+  const width = spanX + gapsX * (2 * ZONE_PADDING + gap);
+  const height = spanY + gapsY * (2 * ZONE_PADDING + gap);
+  return Math.min(aspectRatio / width, 1 / height);
 }
 
 function gapMatchingFit(rows: IndexedSize[][], aspectRatio: number): number {
@@ -197,27 +223,6 @@ function placeRows(rows: IndexedSize[][], gap: number): Pos[] {
     y += rowHeight + gap;
   }
   return offsets;
-}
-
-function arrangementScore(
-  rows: IndexedSize[][],
-  gap: number,
-  aspectRatio: number,
-  narrowest: number,
-): number {
-  const { spanX, gapsX, spanY, gapsY } = rowSpans(rows);
-  const nodeW = spanX + gapsX * (2 * ZONE_PADDING + gap);
-  const nodeH = spanY + gapsY * (2 * ZONE_PADDING + gap);
-  const aspect = nodeH > 0 ? nodeW / nodeH : aspectRatio;
-  let score = Math.abs(Math.log(aspect / aspectRatio));
-  const fullSpan = spanX + gapsX * (2 * ZONE_PADDING + gap);
-  for (const row of rows) {
-    const rowSpan =
-      row.reduce((sum, item) => sum + item.width, 0) +
-      Math.max(0, row.length - 1) * (2 * ZONE_PADDING + gap);
-    if (fullSpan - rowSpan > narrowest) score += 10;
-  }
-  return score;
 }
 
 function shelfPack(bounds: Size[], gap: number): Pos[] {
