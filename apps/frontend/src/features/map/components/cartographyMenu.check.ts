@@ -85,3 +85,7 @@ const viewsMenu = menu('views');
 assert.match(viewsMenu, /M18 6/);
 
 console.log('cartographyMenu.check: ok');
+assert.doesNotMatch(css, /\.sandbox-pane__icon/);
+assert.doesNotMatch(readFileSync(new URL('./SandboxPane.tsx', import.meta.url), 'utf8'), /sandbox-pane__icon/);
+assert.match(css, /\.sandbox-pane__title \{[^}]*text-align: center/);
+assert.match(css, /\.sandbox-pane__close \{[^}]*position: absolute/);
