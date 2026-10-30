@@ -19,6 +19,7 @@ import {
 } from './flowLabel';
 import { buildLiveRoutes, type Point, type Rect } from './elkLayout';
 import { buildOrthogonalPath } from './orthogonalPath';
+import { BORDER_TOLERANCE, findStaleEdgeIds, pointRectDistance } from './staleEdges';
 import {
   arcMidpoint,
   estimateLabelSize,
@@ -71,7 +72,6 @@ export type OrientedEdgeType = Edge<OrientedEdgeData, 'oriented'>;
 
 const CORNER_RADIUS = 8;
 const HOP_RADIUS = 5;
-const BORDER_TOLERANCE = 14;
 // ---------------------------------------------------------------------------
 // Geometry helpers
 // ---------------------------------------------------------------------------
@@ -83,12 +83,6 @@ function rectOf(node: InternalNode<Node> | undefined) {
   const height = node.measured?.height ?? node.height ?? 0;
   if (!width || !height) return null;
   return { x, y, width, height };
-}
-
-function pointRectDistance(p: Point, r: { x: number; y: number; width: number; height: number }) {
-  const dx = Math.max(r.x - p.x, 0, p.x - (r.x + r.width));
-  const dy = Math.max(r.y - p.y, 0, p.y - (r.y + r.height));
-  return Math.hypot(dx, dy);
 }
 
 function endpointValid(point: Point | undefined, node: InternalNode<Node> | undefined): boolean {
@@ -252,7 +246,7 @@ function routePointsOf(
   const data = edge.data as OrientedEdgeData | undefined;
   const live = liveRoutes?.get(edge.id);
   if (live && live.length >= 2) return live;
-  if (!liveRoutes && data?.routeStart && data?.routeEnd) {
+  if (data?.routeStart && data?.routeEnd) {
     return [data.routeStart, ...(data.bendPoints ?? []), data.routeEnd];
   }
   const srcRect = rectById.get(edge.source);
@@ -327,24 +321,6 @@ function buildRectById(nodeLookup: Map<string, InternalNode<Node>>): Map<string,
   return rects;
 }
 
-/** True once any edge's stored ELK route no longer matches current positions. */
-function anyRouteStale(allEdges: Edge[], rectById: Map<string, Rect>): boolean {
-  for (const edge of allEdges) {
-    const data = edge.data as OrientedEdgeData | undefined;
-    if (!data?.routeStart || !data?.routeEnd) continue;
-    const srcRect = rectById.get(edge.source);
-    const tgtRect = rectById.get(edge.target);
-    if (!srcRect || !tgtRect) continue;
-    if (
-      pointRectDistance(data.routeStart, srcRect) > BORDER_TOLERANCE ||
-      pointRectDistance(data.routeEnd, tgtRect) > BORDER_TOLERANCE
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
 type LiveBundle = { routes: Map<string, Point[]>; jumps: Map<string, Point[]> };
 let liveCache: { key: string; bundle: LiveBundle } | null = null;
 
@@ -361,15 +337,27 @@ function liveKey(allEdges: Edge[], rectById: Map<string, Rect>): string {
   return `${edgePart}|${nodePart}`;
 }
 
-/** Memoized live routes + bridges, recomputed only when geometry changes. */
-function getLiveBundle(allEdges: Edge[], rectById: Map<string, Rect>): LiveBundle {
-  const key = liveKey(allEdges, rectById);
+/**
+ * Memoized routes + bridges for the stale arrows only; every other arrow keeps its stored
+ * route and only takes part in the bridge computation as a fixed obstacle.
+ */
+function getLiveBundle(allEdges: Edge[], rectById: Map<string, Rect>, staleIds: Set<string>): LiveBundle {
+  const key = `${liveKey(allEdges, rectById)}|${[...staleIds].sort().join(',')}`;
   if (liveCache && liveCache.key === key) return liveCache.bundle;
   const routes = spreadStackedRoutes(buildLiveRoutes(
-    allEdges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
+    allEdges
+      .filter((e) => staleIds.has(e.id))
+      .map((e) => ({ id: e.id, source: e.source, target: e.target })),
     rectById
   ));
-  const jumps = computeBridges(routes);
+  const allRoutes = new Map(routes);
+  for (const edge of allEdges) {
+    const data = edge.data as OrientedEdgeData | undefined;
+    if (!staleIds.has(edge.id) && data?.routeStart && data?.routeEnd) {
+      allRoutes.set(edge.id, [data.routeStart, ...(data.bendPoints ?? []), data.routeEnd]);
+    }
+  }
+  const jumps = computeBridges(allRoutes);
   const bundle: LiveBundle = { routes, jumps };
   liveCache = { key, bundle };
   return bundle;
@@ -421,12 +409,12 @@ export function OrientedEdge({
   const sourceNode = useInternalNode(source);
   const targetNode = useInternalNode(target);
 
-  // While any node is being dragged the stored ELK routes are stale: recompute
-  // node-avoiding routes + bridges for the whole graph so arrows never cross
-  // over nodes and hop over each other at crossings.
+  // Only the arrows attached to a moved or resized box have a stale ELK route: those
+  // get node-avoiding routes + bridges, every other arrow keeps its stored route.
   const rectById = buildRectById(nodeLookup);
-  const liveActive = anyRouteStale(allEdges, rectById);
-  const liveBundle = liveActive ? getLiveBundle(allEdges, rectById) : null;
+  const staleIds = findStaleEdgeIds(allEdges, rectById);
+  const liveActive = staleIds.has(id);
+  const liveBundle = staleIds.size > 0 ? getLiveBundle(allEdges, rectById, staleIds) : null;
   const liveRoute = liveBundle?.routes.get(id);
 
   const routeUsable =
