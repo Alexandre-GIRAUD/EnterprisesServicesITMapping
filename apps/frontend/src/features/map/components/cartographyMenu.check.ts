@@ -32,7 +32,11 @@ assert.match(css, /\.map-graph-panel \.graph-display-toggle-btn\.is-active \{[^}
 assert.match(css, /\.map-graph-panel \.self-service-tool-bar-btn\.is-active \{[^}]*background: var\(--ss-accent\)[^}]*color: #fff/);
 assert.match(css, /\.graph-canvas \{[^}]*border: 1px solid #e2e8f0[^}]*border-radius: 12px/);
 assert.match(css, /\.sandbox-pane \{[^}]*border: 1px solid #e2e8f0[^}]*border-radius: 12px/);
-assert.doesNotMatch(css, /\.sandbox-pane\.is-active \{/);
+assert.match(css, /.sandbox-pane.is-active {[^}]*border-left: 3px solid var(--ss-accent)[^}]*box-shadow: 0 8px 24px rgb(15 23 42 / 6%)/);
+assert.match(css, /.map-graph-panel:not(.is-views-mode) .graph-canvas:not(.is-sandbox) {[^}]*border-left: 3px solid var(--ss-accent)[^}]*box-shadow: 0 8px 24px rgb(15 23 42 / 6%)/);
+assert.match(css, /.sandbox-pane__title {[^}]*font-size: 0.92rem[^}]*font-weight: 700[^}]*color: #0f172a/);
+assert.match(css, /.sandbox-pane__icon {[^}]*border-radius: 999px[^}]*background: var(--ss-accent-surface)[^}]*color: var(--ss-accent)/);
+assert.match(readFileSync(new URL('./SandboxPane.tsx', import.meta.url), 'utf8'), /sandbox-pane__icon/);
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*font-size: 0\.85rem[^}]*border-radius: 8px/);
 assert.match(css, /\.graph-drawer-action-danger-solid \{[^}]*background: #ffffff/);
 assert.doesNotMatch(css, /linear-gradient\(180deg, #ef4444/);
