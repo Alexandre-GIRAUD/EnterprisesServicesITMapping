@@ -8569,23 +8569,23 @@ html[data-theme='dark'] .graph-legend__swatch img {
 }
 
 /* The concealed launcher has no width of its own, so it cannot be a size container. */
+/* Both axes are measured: the layout reacts to the legend height. */
 .graph-legend:not(.is-concealed) {
-  container-type: inline-size;
+  container-type: size;
 }
 
-/* A wide legend puts the Apps and Flows controls beside their subtitle. */
-@container (min-width: 36rem) {
+/* A short legend puts the Apps and Flows controls beside their subtitle to save height. */
+@container (max-height: 26rem) and (min-width: 20rem) {
   .graph-legend__group--apps,
   .graph-legend__group--flows {
     flex-direction: row;
-    align-items: flex-start;
+    align-items: baseline;
     gap: 1rem;
   }
 
   .graph-legend__group--apps > .graph-legend__title,
   .graph-legend__group--flows > .graph-legend__title {
     flex: 0 0 4.5rem;
-    padding-top: 0.45rem;
   }
 
   .graph-legend__group--apps > :not(.graph-legend__title),
