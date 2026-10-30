@@ -23,6 +23,8 @@ import {
 import { useLegendFrame } from './useLegendFrame';
 import { LegendIconRows } from './LegendIconRows';
 import { LegendPresetBar } from './LegendPresetBar';
+import { LegendPresetSave } from './LegendPresetSave';
+import { LegendEditToggle } from './LegendEditToggle';
 import { LegendColorPicker, LegendSwatch, type SwatchKind } from './LegendSwatch';
 import { LegendValueChips, type LegendChip } from './LegendValueChips';
 import { LegendControlRow } from './LegendControlRow';
@@ -546,15 +548,11 @@ export function GraphLegend({
             -
           </button>
           {canEdit ? (
-            <button
-              type="button"
-              className="graph-legend__toggle"
-              aria-label={isEditing ? 'Done' : 'Edit'}
-              title={isEditing ? 'Done' : 'Edit'}
-              onClick={() => setIsEditing((v) => !v)}
-            >
-              {isEditing ? '✓' : 'Edit'}
-            </button>
+            <LegendEditToggle
+              isEditing={isEditing}
+              onEdit={() => setIsEditing(true)}
+              onApply={() => setIsEditing(false)}
+            />
           ) : null}
         </div>
       </header>
@@ -564,7 +562,6 @@ export function GraphLegend({
           setups={legendSetups}
           onApply={onApplyLegendSetup}
           onDelete={onDeleteLegendSetup}
-          onSave={onSaveLegendSetup}
         />
       )}
 
@@ -731,6 +728,12 @@ export function GraphLegend({
               />
             ))}
           </ul>
+        </div>
+      )}
+
+      {isEditing && onSaveLegendSetup && (
+        <div className="graph-legend__footer">
+          <LegendPresetSave onSave={onSaveLegendSetup} />
         </div>
       )}
     </div>
