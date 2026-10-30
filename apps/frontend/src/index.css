@@ -2942,7 +2942,7 @@ body.is-diagram-grown .layout {
   width: 100%;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: none;
   overflow: hidden;
 }
@@ -3577,14 +3577,9 @@ body.is-diagram-grown .layout {
   min-height: 0;
   min-width: 0;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #f8fafc;
   overflow: hidden;
-}
-
-.sandbox-pane.is-active {
-  border-color: var(--ss-accent-border, #fbbf24);
-  box-shadow: 0 0 0 1px var(--ss-accent-border, #fbbf24);
 }
 
 .sandbox-pane__header {
@@ -4763,16 +4758,6 @@ body.is-diagram-grown .layout {
 .graph-views-row-icon {
   vertical-align: -3px;
   margin-right: 0.5rem;
-}
-
-.graph-views-disclose {
-  border: none;
-  background: transparent;
-  width: 1.1rem;
-  padding: 0;
-  margin-right: 0.15rem;
-  color: #64748b;
-  cursor: pointer;
 }
 
 .graph-view-detail h3 {

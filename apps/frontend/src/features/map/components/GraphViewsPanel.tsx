@@ -47,6 +47,9 @@ import {
   type InspectedView,
 } from './graphViewsChrome';
 
+/** The list shows one folder at a time: folders open by entering them, never inline. */
+const NO_EXPANDED_FOLDERS: ReadonlySet<string> = new Set();
+
 export { FolderCrumbs, ViewInspectPanel, ViewsEmptyState } from './graphViewsChrome';
 export type { InspectedView };
 
@@ -105,7 +108,6 @@ export function GraphViewsPanel({ onApply, onShownView, onCreateView, panelToggl
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<LibrarySortKey>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const [selectedViewId, setSelectedViewId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
@@ -181,7 +183,7 @@ export function GraphViewsPanel({ onApply, onShownView, onCreateView, panelToggl
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   const listedRows = query.trim()
     ? searchLibrary(query, libraryFolders, libraryViews, sortKey, sortDirection, authorName)
-    : flattenLibrary(libraryFolders, libraryViews, currentFolderId, expandedIds, sortKey, sortDirection, authorName);
+    : flattenLibrary(libraryFolders, libraryViews, currentFolderId, NO_EXPANDED_FOLDERS, sortKey, sortDirection, authorName);
 
   function startRename(item: DragItem, name: string) {
     setMenu(null);
@@ -383,15 +385,6 @@ export function GraphViewsPanel({ onApply, onShownView, onCreateView, panelToggl
     }
     setSortKey(key);
     setSortDirection('asc');
-  }
-
-  function toggleExpanded(folderId: string) {
-    setExpandedIds((current) => {
-      const next = new Set(current);
-      if (next.has(folderId)) next.delete(folderId);
-      else next.add(folderId);
-      return next;
-    });
   }
 
   if (library.status === 'loading') {
@@ -640,12 +633,10 @@ export function GraphViewsPanel({ onApply, onShownView, onCreateView, panelToggl
           rows={listedRows}
           sortKey={sortKey}
           sortDirection={sortDirection}
-          expandedIds={expandedIds}
           selectedViewId={selectedViewId}
           isSearching={isSearching}
           emptyLabel={emptyTitle}
           onSort={toggleSort}
-          onToggle={toggleExpanded}
           onEnter={enterFolder}
           onSelect={(id) => {
             const view = library.snapshots.find((entry) => entry.id === id);

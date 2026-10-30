@@ -346,12 +346,10 @@ export function LibraryTable({
   rows,
   sortKey,
   sortDirection,
-  expandedIds,
   selectedViewId,
   isSearching,
   emptyLabel,
   onSort,
-  onToggle,
   onEnter,
   onSelect,
   onApply,
@@ -368,12 +366,10 @@ export function LibraryTable({
   rows: LibraryRow[];
   sortKey: LibrarySortKey;
   sortDirection: 'asc' | 'desc';
-  expandedIds: ReadonlySet<string>;
   selectedViewId: string | null;
   isSearching: boolean;
   emptyLabel: string;
   onSort: (key: LibrarySortKey) => void;
-  onToggle: (folderId: string) => void;
   onEnter: (folderId: string) => void;
   onSelect: (viewId: string) => void;
   onApply: (viewId: string) => void;
@@ -436,20 +432,6 @@ export function LibraryTable({
           >
             <td>
               {row.kind === 'folder' ? <FolderMark size={ROW_MARK_SIZE} className="graph-views-row-icon" /> : <ViewMark size={ROW_MARK_SIZE} className="graph-views-row-icon" />}
-              {row.kind === 'folder' && !isSearching ? (
-                <button
-                  type="button"
-                  className="graph-views-disclose"
-                  aria-expanded={expandedIds.has(row.id)}
-                  aria-label={expandedIds.has(row.id) ? `Collapse ${row.name}` : `Expand ${row.name}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onToggle(row.id);
-                  }}
-                >
-                  {expandedIds.has(row.id) ? '▾' : '▸'}
-                </button>
-              ) : null}
               <span>{row.name}</span>
               {isSearching ? <span className="graph-views-item-meta"> {row.pathLabel}</span> : null}
             </td>
