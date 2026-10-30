@@ -3593,6 +3593,7 @@ body.is-diagram-grown .layout {
 }
 
 .sandbox-pane__header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3602,20 +3603,10 @@ body.is-diagram-grown .layout {
   border-bottom: 1px solid #e2e8f0;
 }
 
-.sandbox-pane__icon {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 1.8rem;
-  height: 1.8rem;
-  border-radius: 999px;
-  border: 1px solid var(--ss-accent-border);
-  background: var(--ss-accent-surface);
-  color: var(--ss-accent);
-}
-
 .sandbox-pane__title {
   flex: 1;
+  padding: 0 2.5rem;
+  text-align: center;
   font-size: 0.92rem;
   font-weight: 700;
   color: #0f172a;
@@ -3632,6 +3623,8 @@ body.is-diagram-grown .layout {
   font-weight: 700;
   color: #334155;
   flex: 1;
+  margin: 0 2.5rem;
+  text-align: center;
   min-width: 0;
   padding: 0.05rem 0.25rem;
   border: 1px solid #cbd5e1;
@@ -3706,6 +3699,10 @@ body.is-diagram-grown .layout {
 }
 
 .sandbox-pane__close {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;

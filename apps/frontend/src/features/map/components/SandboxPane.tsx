@@ -472,11 +472,6 @@ function SandboxPaneInner({
           setEditingTitle(true);
         }}
       >
-        <span className="sandbox-pane__icon" aria-hidden="true">
-          <svg viewBox="0 0 20 20" width="14" height="14" focusable="false">
-            <path d="M8 3h4M9 3v5.5L4.5 15a1.5 1.5 0 0 0 1.3 2.2h8.4a1.5 1.5 0 0 0 1.3-2.2L11 8.5V3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
         {editingTitle ? (
           <input
             className="sandbox-pane__title-input"
