@@ -39,4 +39,13 @@ assert.ok(Number.isFinite(maxX) && Number.isFinite(maxY));
 assert.ok(maxX < 40 * 400 * 4);
 assert.ok(maxY < 40 * 200 * 4);
 
+// One very wide island plus small ones: the small ones go under it, not beside it,
+// so the whole drawing stays as wide as the big island and fits the pane at a larger zoom.
+const bigIsland = { width: 5000, height: 1000 };
+const smallIsland = { width: 300, height: 200 };
+const islands = [bigIsland, ...Array.from({ length: 10 }, () => smallIsland)];
+const offsets = packComponentOffsets(islands, 140, 1.5);
+const rightEdge = Math.max(...offsets.map((offset, i) => offset.x + islands[i].width));
+assert.ok(rightEdge <= 5000 + 28 * 2 + 8, `right edge ${rightEdge} must not exceed the big island width`);
+
 console.log('graphComponents.check: ok');

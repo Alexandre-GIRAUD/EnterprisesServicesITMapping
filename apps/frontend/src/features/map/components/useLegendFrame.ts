@@ -25,6 +25,8 @@ const LEGEND_FILL_MARGIN_PX = 8;
 const PRIMARY_POINTER_BUTTON = 0;
 const LEGEND_CONTROL_SELECTOR = 'button, input, select, textarea, a';
 const LEGEND_DRAG_HANDLE_SELECTOR = '.graph-legend__header';
+const ZOOM_CONTROLS_SELECTOR = '.react-flow__controls';
+const ZOOM_CONTROLS_GAP_PX = 8;
 const LEGEND_PANE_SELECTOR = '.react-flow, .sandbox-stage, #graph-canvas-pane';
 
 type LegendFrameStyle = CSSProperties & { '--legend-font-scale': string };
@@ -91,10 +93,35 @@ function useFitDefaultHeight(
 ): void {
   useEffect(() => {
     const element = frameRef.current;
-    if (!element) return;
-    const paneHeight = readLegendPaneBox(element).height;
-    setSize((current) => ({ ...current, height: fitLegendHeight(current.height, paneHeight) }));
+    if (!element) return undefined;
+    const pane = findLegendPane(element);
+    const fit = () => {
+      const paneHeight = readLegendPaneBox(element).height;
+      if (paneHeight <= 0) return;
+      const clearance = readControlsClearance(pane);
+      setSize((current) => {
+        const height = fitLegendHeight(current.height, paneHeight, clearance);
+        return height === current.height ? current : { ...current, height };
+      });
+    };
+    fit();
+    const frame = window.requestAnimationFrame(fit);
+    const observer = new ResizeObserver(fit);
+    observer.observe(pane);
+    const controls = pane.querySelector(ZOOM_CONTROLS_SELECTOR);
+    if (controls) observer.observe(controls);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   }, [frameRef, setSize]);
+}
+
+/** Room the zoom controls take at the bottom of the pane, or undefined when they are not drawn yet. */
+function readControlsClearance(pane: HTMLElement): number | undefined {
+  const controls = pane.querySelector(ZOOM_CONTROLS_SELECTOR);
+  if (!controls) return undefined;
+  return pane.getBoundingClientRect().bottom - controls.getBoundingClientRect().top + ZOOM_CONTROLS_GAP_PX;
 }
 
 function useFillPane(
