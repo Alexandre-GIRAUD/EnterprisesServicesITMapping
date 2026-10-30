@@ -5526,18 +5526,6 @@ body.is-diagram-grown .layout {
   cursor: not-allowed;
 }
 
-.graph-legend__btn--primary {
-  color: #ffffff;
-  background: var(--ss-accent, #2563eb);
-  border-color: var(--ss-accent-dark, #1d4ed8);
-}
-
-.graph-legend__btn--primary:hover:not(:disabled) {
-  background: var(--ss-accent-dark, #1d4ed8);
-  border-color: var(--ss-accent-dark, #1d4ed8);
-  box-shadow: 0 4px 14px var(--ss-accent-shadow-strong, rgb(37 99 235 / 18%));
-}
-
 .graph-legend__btn--danger {
   color: #b91c1c;
   border-color: #f87171;

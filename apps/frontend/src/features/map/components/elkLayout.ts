@@ -69,17 +69,23 @@ function isBetterScore(score: number[], best: number[]): boolean {
   return false;
 }
 
+type SideContext = {
+  src: Rect;
+  tgt: Rect;
+  /** Every box, to rank pairs whose route would cross another box last. */
+  rects: Map<string, Rect>;
+  sourceId: string;
+  targetId: string;
+};
+
 /**
  * Pick the source/target side pair with the fewest bends, then the shortest link.
  * Pairs whose route would cross another box rank after every clear pair.
  */
-function minLengthSides(
-  src: Rect,
-  tgt: Rect,
-  rects: Map<string, Rect>,
-  skipSource: string,
-  skipTarget: string
-): { srcSide: Position; tgtSide: Position } {
+function pickFewestBendSides({ src, tgt, rects, sourceId, targetId }: SideContext): {
+  srcSide: Position;
+  tgtSide: Position;
+} {
   let best = { srcSide: Position.Bottom, tgtSide: Position.Top };
   let bestScore = [Infinity, Infinity, Infinity];
   for (const s of ALL_SIDES) {
@@ -89,7 +95,7 @@ function minLengthSides(
       const route = orthogonalRoute(sa, s, ta, t);
       if (!leavesAndEntersOutward(route, s, t)) continue;
       const score = [
-        routeIsClear(route, rects, skipSource, skipTarget) ? 0 : 1,
+        routeIsClear(route, rects, sourceId, targetId) ? 0 : 1,
         bendCount(route),
         polylineLength(route),
       ];
@@ -297,7 +303,13 @@ export function buildLiveRoutes(
     const srcRect = rectById.get(e.source);
     const tgtRect = rectById.get(e.target);
     if (!srcRect || !tgtRect) continue;
-    const { srcSide, tgtSide } = minLengthSides(srcRect, tgtRect, rectById, e.source, e.target);
+    const { srcSide, tgtSide } = pickFewestBendSides({
+      src: srcRect,
+      tgt: tgtRect,
+      rects: rectById,
+      sourceId: e.source,
+      targetId: e.target,
+    });
     plans.push({ id: e.id, source: e.source, target: e.target, srcSide, tgtSide });
   }
 
