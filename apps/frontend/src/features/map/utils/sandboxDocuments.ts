@@ -19,6 +19,7 @@ export type SandboxDocFilters = {
   edgeIds?: string[];
   matchNothing?: boolean;
   blankedDimensions?: string[];
+  withNeighbours?: boolean;
 };
 
 export const EMPTY_SANDBOX_FILTERS: SandboxDocFilters = {
@@ -90,15 +91,32 @@ export function isSandboxEdgeSelected(
   return hasSelectedValues(edge.properties, filters.edgeAttributes);
 }
 
-export function sandboxFilterVisibleIds(doc: {
+export type SandboxFilterScope = {
+  nodeIds: Set<string>;
+  showsEdge: (source: string, target: string) => boolean;
+};
+
+/** Nodes (and the feeds between them) a sandbox's filters leave visible; null when no filter is active. */
+export function sandboxFilterScope(doc: {
   graphNodes: GraphNodeDto[];
+  graphEdges: GraphEdgeDto[];
   filters?: SandboxDocFilters;
-}): Set<string> | null {
+}): SandboxFilterScope | null {
   const filters = doc.filters ?? EMPTY_SANDBOX_FILTERS;
   if (!sandboxFiltersActive(filters)) return null;
-  return new Set(
+  const selected = new Set(
     doc.graphNodes.filter((n) => graphNodeMatchesSandboxFilters(n, filters)).map((n) => n.id)
   );
+  if (!filters.withNeighbours) {
+    return { nodeIds: selected, showsEdge: (source, target) => selected.has(source) && selected.has(target) };
+  }
+  const nodeIds = new Set(selected);
+  for (const edge of doc.graphEdges) {
+    if (!selected.has(edge.sourceId) && !selected.has(edge.targetId)) continue;
+    nodeIds.add(edge.sourceId);
+    nodeIds.add(edge.targetId);
+  }
+  return { nodeIds, showsEdge: (source, target) => selected.has(source) || selected.has(target) };
 }
 
 export function loadRecentSandboxIcons(): string[] {

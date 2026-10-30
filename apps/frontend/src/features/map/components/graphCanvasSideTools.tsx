@@ -166,8 +166,8 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
             initialEdgeAttributes={isSandbox ? activeSandboxFilters.edgeAttributes ?? {} : edgeAttributes}
             initialEdgeIds={isSandbox ? activeSandboxFilters.edgeIds ?? [] : edgeIds}
             initialMatchNothing={isSandbox ? Boolean(activeSandboxFilters.matchNothing) : matchNothing}
-            showWithNeighbours={!isSandbox}
-            initialWithNeighbours={withNeighbours}
+            showWithNeighbours
+            initialWithNeighbours={isSandbox ? Boolean(activeSandboxFilters.withNeighbours) : withNeighbours}
             initialBlankedDimensions={
               isSandbox ? activeSandboxFilters.blankedDimensions ?? [] : blankedDimensions
             }
@@ -194,6 +194,7 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
                     edgeIds: nextEdgeIds ?? [],
                     matchNothing: Boolean(nextMatchNothing),
                     blankedDimensions: nextBlanked ?? [],
+                    withNeighbours: Boolean(nextWithNeighbours),
                   },
                   dirty: true,
                 });

@@ -1680,9 +1680,19 @@ body.is-diagram-grown .layout {
 }
 
 /* Cartography accent theming (Production / Sandbox / My views via mode class) */
+.map-graph-panel .graph-display-toggle {
+  border-radius: 10px;
+  background: #fff;
+}
+
+.map-graph-panel .graph-display-toggle-btn {
+  padding: 0.55rem 1.1rem;
+  font-size: 0.85rem;
+}
+
 .map-graph-panel .graph-display-toggle-btn.is-active {
-  color: var(--ss-accent-text);
-  box-shadow: 0 2px 8px var(--ss-accent-shadow);
+  background: var(--ss-accent);
+  color: #fff;
 }
 
 .map-graph-panel .graph-display-toggle-btn:focus-visible {
@@ -1701,13 +1711,17 @@ body.is-diagram-grown .layout {
 }
 
 .map-graph-panel .self-service-tool-bar-btn.is-active {
-  border-color: var(--ss-accent-border);
-  color: var(--ss-accent-text);
-  box-shadow: 0 2px 8px var(--ss-accent-shadow);
+  border-color: var(--ss-accent);
+  background: var(--ss-accent);
+  color: #fff;
 }
 
 .map-graph-panel .self-service-tool-bar-btn:focus-visible {
   outline-color: var(--ss-accent-focus);
+}
+
+.map-graph-panel .self-service-tool-bar-btn.is-active .self-service-tool-bar-badge {
+  color: #fff;
 }
 
 .map-graph-panel .self-service-tool-bar-badge {
@@ -1813,7 +1827,6 @@ body.is-diagram-grown .layout {
   justify-content: space-between;
   gap: 0.65rem;
   padding: 0.1rem 0 0.6rem;
-  border-bottom: 1px solid #e2e8f0;
   margin-bottom: 0.45rem;
   flex-shrink: 0;
 }
@@ -2008,16 +2021,17 @@ body.is-diagram-grown .layout {
 }
 
 .graph-view-header-title {
-  margin: 0 0 0.18rem;
-  font-size: 1rem;
+  margin: 0 0 0.35rem;
+  font-size: 1.85rem;
   font-weight: 700;
+  letter-spacing: -0.03em;
   color: #0f172a;
 }
 
 .graph-view-header-description {
   margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.45;
+  font-size: 0.95rem;
+  line-height: 1.5;
   color: #64748b;
 }
 
@@ -4744,6 +4758,11 @@ body.is-diagram-grown .layout {
 
 .graph-views-table tr {
   cursor: pointer;
+}
+
+.graph-views-row-icon {
+  vertical-align: -3px;
+  margin-right: 0.5rem;
 }
 
 .graph-views-disclose {
