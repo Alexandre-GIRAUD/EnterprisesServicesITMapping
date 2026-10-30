@@ -1,7 +1,11 @@
 ﻿import { useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
+import { Handle, NodeResizer, Position, type Node, type NodeProps } from '@xyflow/react';
 import { nodeColorForType } from './graphTheme';
 import { NodeIconGlyph } from './NodeIconGlyph';
+
+/** Smallest box the user can shrink to; text and icon keep their size. */
+const MIN_BOX_WIDTH_PX = 80;
+const MIN_BOX_HEIGHT_PX = 36;
 
 /** Matches .graph-node-card__label in index.css. */
 const LABEL_FONT_SIZE_PX = 13;
@@ -29,7 +33,7 @@ export type AppGraphNodeData = {
 
 export type AppGraphNodeType = Node<AppGraphNodeData, 'app'>;
 
-export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
+export function AppGraphNode({ data, selected }: NodeProps<AppGraphNodeType>) {
   const borderColor = data.borderColor ?? nodeColorForType(data.nodeType);
   const fillColor = data.fillColor ?? '#ffffff';
   const textColor = data.textColor ?? borderColor;
@@ -66,9 +70,10 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
 
   return (
     <div
-      className="graph-node-card"
+      className={`graph-node-card${data.iconKey ? ' graph-node-card--with-icon' : ''}`}
       style={{ borderColor, backgroundColor: fillColor }}
     >
+      <NodeResizer isVisible={selected} minWidth={MIN_BOX_WIDTH_PX} minHeight={MIN_BOX_HEIGHT_PX} />
       <Handle type="source" position={Position.Top} id="top-s" className="graph-node-handle" isConnectable={false} />
       <Handle type="target" position={Position.Top} id="top-t" className="graph-node-handle" isConnectable={false} />
       <Handle type="source" position={Position.Bottom} id="bottom-s" className="graph-node-handle" isConnectable={false} />
