@@ -3582,21 +3582,43 @@ body.is-diagram-grown .layout {
   overflow: hidden;
 }
 
+.sandbox-pane.is-active {
+  border-left: 3px solid var(--ss-accent);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 6%);
+}
+
+.map-graph-panel:not(.is-views-mode) .graph-canvas:not(.is-sandbox) {
+  border-left: 3px solid var(--ss-accent);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 6%);
+}
+
 .sandbox-pane__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.35rem;
-  padding: 0.28rem 0.45rem;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
   background: #fff;
   border-bottom: 1px solid #e2e8f0;
 }
 
+.sandbox-pane__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--ss-accent-border);
+  background: var(--ss-accent-surface);
+  color: var(--ss-accent);
+}
+
 .sandbox-pane__title {
   flex: 1;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
   cursor: text;
   min-width: 0;
   overflow: hidden;
@@ -3606,8 +3628,8 @@ body.is-diagram-grown .layout {
 
 .sandbox-pane__title-input {
   font: inherit;
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.92rem;
+  font-weight: 700;
   color: #334155;
   flex: 1;
   min-width: 0;
