@@ -54,7 +54,7 @@ export function LegendPresetBar({ setups, onApply, onDelete, onSave }: Props) {
         aria-label="Save legend preset"
         onClick={() => setIsSaving(true)}
       >
-        Save
+        Save as new preset
       </button>
       {typeof document === 'undefined'
         ? null

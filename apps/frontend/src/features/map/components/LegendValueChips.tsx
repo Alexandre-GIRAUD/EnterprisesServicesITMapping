@@ -1,11 +1,9 @@
-import { LegendColorPicker, LegendSwatch, type SwatchKind } from './LegendSwatch';
+import { LegendColorPicker } from './LegendSwatch';
 
 export type LegendChip = {
   value: string;
   label: string;
   color: string;
-  kind: SwatchKind;
-  borderColor?: string;
 };
 
 type Props = {
@@ -13,13 +11,12 @@ type Props = {
   onChange: (value: string, color: string) => void;
 };
 
-/** The values of the chosen attribute, each with its swatch and color picker, wrapping along the line. */
+/** The values of the chosen attribute, each with its color picker, wrapping along the line. */
 export function LegendValueChips({ chips, onChange }: Props) {
   return (
     <ul className="graph-legend__chips">
       {chips.map((chip) => (
         <li key={chip.value} className="graph-legend__chip">
-          <LegendSwatch color={chip.color} kind={chip.kind} borderColor={chip.borderColor} />
           <span className="graph-legend__label">{chip.label}</span>
           <LegendColorPicker
             label={chip.label}
