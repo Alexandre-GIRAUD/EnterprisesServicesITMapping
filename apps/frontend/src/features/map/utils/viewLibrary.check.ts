@@ -63,8 +63,8 @@ assert.equal(relativeModifiedLabel('2026-10-20T11:59:30.000Z', now), 'Modified j
 
 const tree = flattenLibrary(folders, views, null, new Set(['clients']), 'name', 'asc', 'Alex');
 assert.deepEqual(
-  tree.map((row) => `${row.kind}:${row.name}:${row.depth}`),
-  ['folder:Clients:0', 'folder:2025:1', 'view:Overview:0'],
+  tree.map((row) => `${row.kind}:${row.name}`),
+  ['folder:Clients', 'folder:2025', 'view:Overview'],
 );
 
 const found = searchLibrary('java', folders, views, 'name', 'asc', 'Alex');

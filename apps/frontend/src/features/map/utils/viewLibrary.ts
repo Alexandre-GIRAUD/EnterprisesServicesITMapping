@@ -31,7 +31,6 @@ export type LibraryRow = {
   kind: 'folder' | 'view';
   id: string;
   name: string;
-  depth: number;
   pathLabel: string;
   filterCount: number;
   hiddenApps: number;
@@ -137,22 +136,22 @@ export function flattenLibrary(
   author: string,
 ): LibraryRow[] {
   const rows: LibraryRow[] = [];
-  function walk(parentId: string | null, depth: number) {
+  function walk(parentId: string | null) {
     const childFolders = folders.filter((folder) => folder.parentId === parentId);
     const childViews = views.filter((view) => view.folderId === parentId);
     const folderRows = childFolders.map((folder) =>
-      toFolderRow(folder, folders, views, depth, author),
+      toFolderRow(folder, folders, views, author),
     );
-    const viewRows = childViews.map((view) => toViewRow(view, folders, depth, author));
+    const viewRows = childViews.map((view) => toViewRow(view, folders, author));
     folderRows.sort((left, right) => compareLibraryEntries(left, right, sortKey, direction));
     viewRows.sort((left, right) => compareLibraryEntries(left, right, sortKey, direction));
     for (const folder of folderRows) {
       rows.push(folder);
-      if (expandedIds.has(folder.id)) walk(folder.id, depth + 1);
+      if (expandedIds.has(folder.id)) walk(folder.id);
     }
     rows.push(...viewRows);
   }
-  walk(rootId, 0);
+  walk(rootId);
   return rows;
 }
 
@@ -168,10 +167,10 @@ export function searchLibrary(
   if (!needle) return [];
   const folderHits = folders
     .filter((folder) => folder.name.toLowerCase().includes(needle))
-    .map((folder) => toFolderRow(folder, folders, views, 0, author));
+    .map((folder) => toFolderRow(folder, folders, views, author));
   const viewHits = views
     .filter((view) => view.name.toLowerCase().includes(needle))
-    .map((view) => toViewRow(view, folders, 0, author));
+    .map((view) => toViewRow(view, folders, author));
   folderHits.sort((left, right) => compareLibraryEntries(left, right, sortKey, direction));
   viewHits.sort((left, right) => compareLibraryEntries(left, right, sortKey, direction));
   return [...folderHits, ...viewHits];
@@ -181,14 +180,12 @@ function toFolderRow(
   folder: LibraryFolder,
   folders: LibraryFolder[],
   views: LibraryView[],
-  depth: number,
   author: string,
 ): LibraryRow {
   return {
     kind: 'folder',
     id: folder.id,
     name: folder.name,
-    depth,
     pathLabel: ancestorPath(folders, folder.parentId),
     filterCount: 0,
     hiddenApps: 0,
@@ -198,12 +195,11 @@ function toFolderRow(
   };
 }
 
-function toViewRow(view: LibraryView, folders: LibraryFolder[], depth: number, author: string): LibraryRow {
+function toViewRow(view: LibraryView, folders: LibraryFolder[], author: string): LibraryRow {
   return {
     kind: 'view',
     id: view.id,
     name: view.name,
-    depth,
     pathLabel: ancestorPath(folders, view.folderId),
     filterCount: activeFilterCount(view.filters),
     hiddenApps: hiddenAppCount(view.filters),

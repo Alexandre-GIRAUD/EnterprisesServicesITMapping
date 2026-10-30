@@ -30,13 +30,13 @@ assert.match(librarySource, /cx="4.5" cy="10"/);
 assert.match(librarySource, /title="Grid"/);
 assert.match(librarySource, /title="List"/);
 
-const row = (kind: 'folder' | 'view', id: string, depth: number) => ({
-  kind, id, name: id, depth, pathLabel: '', filterCount: 0, hiddenApps: 0, updatedAt: '2026-01-01T00:00:00.000Z', author: 'admin', childCount: 1,
+const row = (kind: 'folder' | 'view', id: string) => ({
+  kind, id, name: id, pathLabel: '', filterCount: 0, hiddenApps: 0, updatedAt: '2026-01-01T00:00:00.000Z', author: 'admin', childCount: 1,
 });
 const noop = () => undefined;
 const table = renderToStaticMarkup(
   createElement(LibraryTable, {
-    rows: [row('folder', 'finance', 0), row('view', 'payments', 1)],
+    rows: [row('folder', 'finance'), row('view', 'payments')],
     sortKey: 'name', sortDirection: 'asc', expandedIds: new Set(['finance']), selectedViewId: null,
     isSearching: false, emptyLabel: '', onSort: noop, onToggle: noop, onEnter: noop, onSelect: noop,
     onApply: noop, onPreview: noop, onPreviewEnd: noop, dropParentId: null, canDropOn: () => false,
