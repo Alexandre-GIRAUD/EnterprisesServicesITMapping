@@ -23,6 +23,7 @@ assert.match(withIcon, /graph-node-card--with-icon/);
 const plain = render({ label: 'Core', nodeType: 'Application' });
 assert.doesNotMatch(plain, /graph-node-card--with-icon/);
 
-assert.match(render({ label: 'Core', nodeType: 'Application' }, true), /react-flow__resize-control/);
+// Resize handles exist on every box (invisible), so the cursor can change on any edge.
+assert.match(render({ label: 'Core', nodeType: 'Application' }), /react-flow__resize-control/);
 
 console.log('AppGraphNode.check: ok');
