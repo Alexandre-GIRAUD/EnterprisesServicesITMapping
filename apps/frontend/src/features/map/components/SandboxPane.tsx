@@ -31,7 +31,7 @@ import { SandboxIconNode } from './SandboxIconNode';
 import { SandboxTextNode } from './SandboxTextNode';
 import {
   isSandboxEdgeSelected,
-  sandboxFilterVisibleIds,
+  sandboxFilterScope,
   type SandboxDocument,
   type SandboxIcon,
   type SandboxTextBox,
@@ -203,7 +203,7 @@ function SandboxPaneInner({
 
   const hiddenIds = doc.hiddenNodeIds ?? [];
   const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
-  const filterVisibleIds = useMemo(() => sandboxFilterVisibleIds(doc), [doc]);
+  const filterScope = useMemo(() => sandboxFilterScope(doc), [doc]);
   const attributeEdgeIds = useMemo(() => {
     const filters = doc.filters;
     const attributes = filters?.edgeAttributes;
@@ -229,7 +229,7 @@ function SandboxPaneInner({
         .filter(
           (n) =>
             !hiddenSet.has(n.id) &&
-            (!filterVisibleIds || filterVisibleIds.has(n.id)) &&
+            (!filterScope || filterScope.nodeIds.has(n.id)) &&
             (!attributeEndpoints || attributeEndpoints.has(n.id))
         )
         .map((n) => ({
@@ -246,7 +246,7 @@ function SandboxPaneInner({
       doc.nodes,
       doc.nodeLabelOverrides,
       hiddenSet,
-      filterVisibleIds,
+      filterScope,
       attributeEndpoints,
       onNodeDisplayLabel,
       onHideNode,
@@ -261,8 +261,7 @@ function SandboxPaneInner({
             !hiddenSet.has(e.target) &&
             (!(doc.filters?.edgeIds?.length) || doc.filters.edgeIds.includes(e.id)) &&
             (!attributeEdgeIds || attributeEdgeIds.has(e.id)) &&
-            (!filterVisibleIds ||
-              (filterVisibleIds.has(e.source) && filterVisibleIds.has(e.target)))
+            (!filterScope || filterScope.showsEdge(e.source, e.target))
         )
         .map((e) => {
           const override = doc.edgeLabelOverrides[e.id];
@@ -280,7 +279,7 @@ function SandboxPaneInner({
             },
           };
         }),
-    [doc.edges, doc.edgeLabelOverrides, doc.filters?.edgeIds, attributeEdgeIds, hiddenSet, filterVisibleIds, onEdgeDisplayLabel, onOpenEdgeDetails]
+    [doc.edges, doc.edgeLabelOverrides, doc.filters?.edgeIds, attributeEdgeIds, hiddenSet, filterScope, onEdgeDisplayLabel, onOpenEdgeDetails]
   );
 
   const hiddenOptions = useMemo(

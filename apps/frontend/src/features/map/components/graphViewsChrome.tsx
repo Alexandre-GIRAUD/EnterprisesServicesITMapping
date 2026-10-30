@@ -33,6 +33,7 @@ export type InspectedView = {
 export type DragItem = { kind: 'view' | 'folder'; id: string };
 
 const CARD_MARK_SIZE = 18;
+const ROW_MARK_SIZE = 16;
 const EMPTY_MARK_SIZE = 32;
 const QUIET_MARK_SIZE = 22;
 
@@ -345,12 +346,10 @@ export function LibraryTable({
   rows,
   sortKey,
   sortDirection,
-  expandedIds,
   selectedViewId,
   isSearching,
   emptyLabel,
   onSort,
-  onToggle,
   onEnter,
   onSelect,
   onApply,
@@ -367,12 +366,10 @@ export function LibraryTable({
   rows: LibraryRow[];
   sortKey: LibrarySortKey;
   sortDirection: 'asc' | 'desc';
-  expandedIds: ReadonlySet<string>;
   selectedViewId: string | null;
   isSearching: boolean;
   emptyLabel: string;
   onSort: (key: LibrarySortKey) => void;
-  onToggle: (folderId: string) => void;
   onEnter: (folderId: string) => void;
   onSelect: (viewId: string) => void;
   onApply: (viewId: string) => void;
@@ -433,21 +430,8 @@ export function LibraryTable({
               if (row.kind === 'folder') onEnter(row.id);
             }}
           >
-            <td style={{ paddingLeft: `${0.7 + row.depth * 1.1}rem` }}>
-              {row.kind === 'folder' && !isSearching ? (
-                <button
-                  type="button"
-                  className="graph-views-disclose"
-                  aria-expanded={expandedIds.has(row.id)}
-                  aria-label={expandedIds.has(row.id) ? `Collapse ${row.name}` : `Expand ${row.name}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onToggle(row.id);
-                  }}
-                >
-                  {expandedIds.has(row.id) ? '▾' : '▸'}
-                </button>
-              ) : null}
+            <td>
+              {row.kind === 'folder' ? <FolderMark size={ROW_MARK_SIZE} className="graph-views-row-icon" /> : <ViewMark size={ROW_MARK_SIZE} className="graph-views-row-icon" />}
               <span>{row.name}</span>
               {isSearching ? <span className="graph-views-item-meta"> {row.pathLabel}</span> : null}
             </td>
@@ -682,7 +666,6 @@ export function folderCardRow(
     kind: 'folder',
     id: folder.id,
     name: folder.name,
-    depth: 0,
     pathLabel: folderBreadcrumb(folders, folder.parentId).map((crumb) => crumb.label).join(' / '),
     filterCount: 0,
     hiddenApps: 0,
@@ -697,7 +680,6 @@ export function viewCardRow(view: GraphSnapshotDto, folders: LibraryFolder[], au
     kind: 'view',
     id: view.id,
     name: view.name,
-    depth: 0,
     pathLabel: folderBreadcrumb(folders, view.folderId ?? null).map((crumb) => crumb.label).join(' / '),
     filterCount: viewSummaryCount(view),
     hiddenApps: view.filters.hiddenApplicationIds?.length ?? 0,
@@ -715,9 +697,9 @@ export function readStoredViewLayout(): ViewLayout {
   }
 }
 
-function FolderMark({ size }: { size: number }) {
+function FolderMark({ size, className = '' }: { size: number; className?: string }) {
   return (
-    <svg className="graph-views-item-mark" viewBox="0 0 20 20" width={size} height={size} aria-hidden="true" focusable="false">
+    <svg className={`graph-views-item-mark ${className}`.trim()} viewBox="0 0 20 20" width={size} height={size} aria-hidden="true" focusable="false">
       <path
         d="M3 6.5 A1.5 1.5 0 0 1 4.5 5 H8 L9.5 6.8 H15.5 A1.5 1.5 0 0 1 17 8.3 V14.5 A1.5 1.5 0 0 1 15.5 16 H4.5 A1.5 1.5 0 0 1 3 14.5 Z"
         fill="none"
@@ -739,9 +721,9 @@ function KebabIcon() {
   );
 }
 
-function ViewMark() {
+function ViewMark({ size = CARD_MARK_SIZE, className = '' }: { size?: number; className?: string }) {
   return (
-    <svg className="graph-views-item-mark" viewBox="0 0 20 20" width={CARD_MARK_SIZE} height={CARD_MARK_SIZE} aria-hidden="true" focusable="false">
+    <svg className={`graph-views-item-mark ${className}`.trim()} viewBox="0 0 20 20" width={size} height={size} aria-hidden="true" focusable="false">
       <rect x="3.5" y="3" width="13" height="14" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
       <path d="M6.5 7.5h7M6.5 10.5h7M6.5 13.5h4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
