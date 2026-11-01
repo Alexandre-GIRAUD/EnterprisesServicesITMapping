@@ -5,6 +5,7 @@
  */
 import assert from 'node:assert/strict';
 import type { GraphEdgeDto, GraphNodeDto } from '../../../types/api.ts';
+import type { ModuleNode } from './ModuleGraphNode.tsx';
 import {
   buildModuleNestedNodes,
   CONTAINER_HEADER_HEIGHT,
@@ -26,7 +27,7 @@ function graph(modules: Array<Partial<GraphNodeDto> & { id: string }>) {
   return { nodes, edges };
 }
 
-function size(n: { style?: Record<string, unknown> }) {
+function size(n: ModuleNode) {
   return { w: Number(n.style?.width), h: Number(n.style?.height) };
 }
 
