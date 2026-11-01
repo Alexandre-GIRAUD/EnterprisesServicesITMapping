@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ModuleGraphLoader;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeProjection;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
