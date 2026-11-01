@@ -8,12 +8,13 @@ import java.util.List;
 public record ModuleDetailsPatchRequest(
     String description,
     String owner,
-    String technology,
+    List<String> actors,
+    String trigger,
     List<String> dataIn,
     List<String> dataOut,
     AttributeChangeMetaDto changeMeta) {
 
   public ModuleDetailsPatch toPatch() {
-    return new ModuleDetailsPatch(description, owner, technology, dataIn, dataOut, changeMeta);
+    return new ModuleDetailsPatch(description, owner, actors, trigger, dataIn, dataOut, changeMeta);
   }
 }

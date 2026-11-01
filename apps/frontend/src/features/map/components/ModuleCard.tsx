@@ -2,7 +2,7 @@ import { forwardRef, type ReactNode } from 'react';
 import type { ModuleDetails } from '../utils/moduleDetails';
 import { moduleTone } from './graphTheme';
 
-export const NO_DATA_TEXT = 'No data declared.';
+const NO_DATA_TEXT = 'No data declared.';
 const NOT_SET_TEXT = 'Not set';
 const NO_DESCRIPTION_TEXT = 'No description provided.';
 
@@ -65,9 +65,10 @@ export const ModuleCard = forwardRef<HTMLLIElement, Props>(function ModuleCard(
         editor
       ) : (
         <dl className="graph-details-attribute-list">
-          <Row label="Description">{module.description || NO_DESCRIPTION_TEXT}</Row>
-          <Row label="Owner">{module.owner || NOT_SET_TEXT}</Row>
-          <Row label="Technology">{module.technology || NOT_SET_TEXT}</Row>
+          <Row label="What it does">{module.description || NO_DESCRIPTION_TEXT}</Row>
+          <Row label="Business owner">{module.owner || NOT_SET_TEXT}</Row>
+          <Row label="Who uses it">{module.actors.join(', ') || NOT_SET_TEXT}</Row>
+          <Row label="When it acts">{module.trigger || NOT_SET_TEXT}</Row>
           <Row label="Data in">
             <DataChips items={module.dataIn} />
           </Row>

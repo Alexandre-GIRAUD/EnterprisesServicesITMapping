@@ -1,18 +1,23 @@
 import type { FormEvent } from 'react';
 import type { HumanChangeReason } from '@/types/api';
 import { AttributeChangeReasonFields } from './AttributeChangeReasonFields';
+import { ObjectPicker } from './ObjectPicker';
 
 export type ModuleForm = {
   description: string;
   owner: string;
-  technology: string;
-  dataIn: string;
-  dataOut: string;
+  /** One actor per line. */
+  actors: string;
+  trigger: string;
+  dataIn: string[];
+  dataOut: string[];
 };
 
 type Props = {
   form: ModuleForm;
-  onFieldChange: (key: keyof ModuleForm, value: string) => void;
+  /** The application lexicon the data fields pick from. */
+  businessObjects: string[];
+  onFieldChange: <K extends keyof ModuleForm>(key: K, value: ModuleForm[K]) => void;
   reason: HumanChangeReason | '';
   reasonComment: string;
   onReasonChange: (reason: HumanChangeReason | '') => void;
@@ -59,9 +64,10 @@ function Field({ label, value, disabled, hint, multiline = false, onChange }: Fi
   );
 }
 
-/** Edit form of one module: its details, then the change reason that feeds the history. */
+/** Edit form of one functional module: its details, then the change reason that feeds the history. */
 export function ModuleEditForm({
   form,
+  businessObjects,
   onFieldChange,
   reason,
   reasonComment,
@@ -75,37 +81,45 @@ export function ModuleEditForm({
   return (
     <form className="graph-drawer-form" onSubmit={onSubmit}>
       <Field
-        label="Description"
+        label="What it does"
         value={form.description}
         multiline
+        hint="In business words, one or two sentences."
         disabled={isSaving}
         onChange={(value) => onFieldChange('description', value)}
       />
       <Field
-        label="Owner"
+        label="Business owner"
         value={form.owner}
         disabled={isSaving}
         onChange={(value) => onFieldChange('owner', value)}
       />
       <Field
-        label="Technology"
-        value={form.technology}
+        label="Who uses it"
+        value={form.actors}
+        multiline
+        hint="Actors or teams, one per line."
         disabled={isSaving}
-        onChange={(value) => onFieldChange('technology', value)}
+        onChange={(value) => onFieldChange('actors', value)}
       />
       <Field
-        label="Data consumed (in)"
-        value={form.dataIn}
-        multiline
-        hint="One per line or comma separated."
+        label="When it acts"
+        value={form.trigger}
+        hint="Real time, end of day, on an event..."
+        disabled={isSaving}
+        onChange={(value) => onFieldChange('trigger', value)}
+      />
+      <ObjectPicker
+        label="Business objects consumed (in)"
+        options={businessObjects}
+        selected={form.dataIn}
         disabled={isSaving}
         onChange={(value) => onFieldChange('dataIn', value)}
       />
-      <Field
-        label="Data produced (out)"
-        value={form.dataOut}
-        multiline
-        hint="A module that consumes what another produces shares its color."
+      <ObjectPicker
+        label="Business objects produced (out)"
+        options={businessObjects}
+        selected={form.dataOut}
         disabled={isSaving}
         onChange={(value) => onFieldChange('dataOut', value)}
       />

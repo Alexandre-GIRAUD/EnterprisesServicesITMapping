@@ -63,18 +63,31 @@ function size(node: ModuleNode) {
   assert.equal(appH - (ys[ys.length - 1] + cell.height), CONTAINER_PADDING);
 }
 
-// Color slots: linked modules share one, an unlinked module stays neutral.
+// Color slots: modules linked by an explicit FEEDS edge share one, an unlinked module stays neutral.
+// The FEEDS edge never changes the hierarchy.
 {
-  const { nodes, edges } = graph([
-    { id: 'a', properties: { dataOut: ['Trades'] } },
-    { id: 'b', properties: { dataIn: ['Trades'] } },
-    { id: 'c' },
-  ]);
-  const { rfNodes } = buildModuleNestedNodes(nodes, edges);
+  const { nodes, edges } = graph([{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
+  const feeds = { id: 'f1', sourceId: 'a', targetId: 'b', type: 'FEEDS', data: 'Trade' } as GraphEdgeDto;
+  const { rfNodes } = buildModuleNestedNodes(nodes, [...edges, feeds]);
   const slot = (id: string) => rfNodes.find((n) => n.id === id)!.data.colorSlot;
   assert.equal(slot('a'), slot('b'));
   assert.notEqual(slot('a'), null);
   assert.equal(slot('c'), null);
+  assert.deepEqual(
+    rfNodes.filter((n) => n.parentId === 'app').map((n) => n.id).sort(),
+    ['a', 'b', 'c'],
+  );
+}
+
+// Data names alone no longer link modules.
+{
+  const { nodes, edges } = graph([
+    { id: 'a', properties: { dataOut: ['Trades'] } },
+    { id: 'b', properties: { dataIn: ['Trades'] } },
+  ]);
+  const { rfNodes } = buildModuleNestedNodes(nodes, edges);
+  const slots = rfNodes.filter((n) => n.parentId === 'app').map((n) => n.data.colorSlot);
+  assert.deepEqual(slots, [0, 1]);
 }
 
 // No link anywhere: default palette cycles by sibling index, so boxes are not all grey.

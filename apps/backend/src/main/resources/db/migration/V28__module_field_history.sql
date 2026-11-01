@@ -1,4 +1,4 @@
--- Module details (description, owner, technology, consumed and produced data) are editable and audited.
+-- Module details (description, owner, actors, trigger, consumed and produced data) are editable and audited.
 ALTER TABLE attribute_change_events DROP CONSTRAINT chk_attribute_change_events_field_scope;
 ALTER TABLE attribute_change_events ADD CONSTRAINT chk_attribute_change_events_field_scope
     CHECK (field_scope IN ('NODE_ATTR', 'EDGE_ATTR', 'APP_FIELD', 'EDGE_LINK', 'APP_LINK', 'MODULE_LINK', 'MODULE_FIELD'));

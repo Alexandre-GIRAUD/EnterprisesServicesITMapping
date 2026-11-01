@@ -15,7 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Manual edition of a module description, owner, technology and consumed / produced data. */
+/**
+ * Manual edition of a functional module: description, business owner, actors, trigger and the
+ * business objects it consumes and produces.
+ */
 @Service
 public class ModuleDetailsPatchService {
 
@@ -50,21 +53,30 @@ public class ModuleDetailsPatchService {
 
     ModuleDetails next =
         new ModuleDetails(
-            pick(patch.description(), current.description()),
-            pick(patch.owner(), current.owner()),
-            pick(patch.technology(), current.technology()),
-            pickList(patch.dataIn(), current.dataIn()),
-            pickList(patch.dataOut(), current.dataOut()));
+            keepStoredWhenAbsent(patch.description(), current.description()),
+            keepStoredWhenAbsent(patch.owner(), current.owner()),
+            keepStoredListWhenAbsent(patch.actors(), current.actors()),
+            keepStoredWhenAbsent(patch.trigger(), current.trigger()),
+            keepStoredListWhenAbsent(patch.dataIn(), current.dataIn()),
+            keepStoredListWhenAbsent(patch.dataOut(), current.dataOut()));
 
     List<AttributeChangeRequest> events = new ArrayList<>();
-    addEvent(events, moduleId, new FieldChange("description", current.description(), next.description()), changeMeta);
-    addEvent(events, moduleId, new FieldChange("owner", current.owner(), next.owner()), changeMeta);
-    addEvent(events, moduleId, new FieldChange("technology", current.technology(), next.technology()), changeMeta);
-    addEvent(events, moduleId, new FieldChange("dataIn", join(current.dataIn()), join(next.dataIn())), changeMeta);
-    addEvent(events, moduleId, new FieldChange("dataOut", join(current.dataOut()), join(next.dataOut())), changeMeta);
+    for (FieldChange change : changesBetween(current, next)) {
+      addEvent(events, moduleId, change, changeMeta);
+    }
 
     store.write(moduleId, next);
     auditService.recordAll(events);
+  }
+
+  private static List<FieldChange> changesBetween(ModuleDetails current, ModuleDetails next) {
+    return List.of(
+        new FieldChange("description", current.description(), next.description()),
+        new FieldChange("owner", current.owner(), next.owner()),
+        new FieldChange("actors", join(current.actors()), join(next.actors())),
+        new FieldChange("trigger", current.trigger(), next.trigger()),
+        new FieldChange("dataIn", join(current.dataIn()), join(next.dataIn())),
+        new FieldChange("dataOut", join(current.dataOut()), join(next.dataOut())));
   }
 
   private static void addEvent(
@@ -88,14 +100,14 @@ public class ModuleDetailsPatchService {
   }
 
   /** Null keeps the stored value, blank clears it. */
-  private static String pick(String submitted, String stored) {
+  private static String keepStoredWhenAbsent(String submitted, String stored) {
     if (submitted == null) {
       return stored;
     }
     return StringUtils.hasText(submitted) ? submitted.trim() : null;
   }
 
-  private static List<String> pickList(List<String> submitted, List<String> stored) {
+  private static List<String> keepStoredListWhenAbsent(List<String> submitted, List<String> stored) {
     if (submitted == null) {
       return stored;
     }
