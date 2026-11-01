@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import type { AttributeChangeEventDto } from '../../../types/api.ts';
-import { linkEventSummary } from './historyEventSummary.ts';
+import { fieldEventLabel, linkEventSummary } from './historyEventSummary.ts';
 
 function linkEvent(
   fieldScope: AttributeChangeEventDto['fieldScope'],
@@ -44,6 +44,13 @@ assert.deepEqual(
   ),
   { title: 'Connection created', detail: 'DEPENDS_ON · a → b' },
 );
+
+const fieldEvent = (targetType: string, targetId: string, fieldKey: string) =>
+  ({ targetType, targetId, fieldKey, fieldScope: 'MODULE_FIELD' }) as AttributeChangeEventDto;
+const moduleNames = new Map([['m1', 'Ingest']]);
+assert.equal(fieldEventLabel(fieldEvent('MODULE', 'm1', 'dataIn'), moduleNames), 'Ingest · dataIn');
+assert.equal(fieldEventLabel(fieldEvent('MODULE', 'gone', 'owner'), moduleNames), 'owner');
+assert.equal(fieldEventLabel(fieldEvent('APPLICATION', 'a1', 'tier'), moduleNames), 'tier');
 
 const section = readFileSync(
   new URL('../components/AttributeHistorySection.tsx', import.meta.url),
