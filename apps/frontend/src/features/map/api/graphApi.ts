@@ -173,3 +173,36 @@ export async function patchGraphEdgeAttributes(
 
   return res.json();
 }
+
+export type ModuleDetailsPatch = {
+  description?: string;
+  owner?: string;
+  technology?: string;
+  dataIn?: string[];
+  dataOut?: string[];
+};
+
+/**
+ * Edits one module. Fields left out stay as they are; the reason lands in the application history.
+ * Backend: PATCH /api/applications/{id}/modules/{moduleId}. Returns the refreshed module graph.
+ */
+export async function patchModuleDetails(
+  applicationId: string,
+  moduleId: string,
+  patch: ModuleDetailsPatch,
+  changeMeta: AttributeChangeMeta
+): Promise<GraphResponseDto> {
+  const path = `/api/applications/${encodeURIComponent(applicationId)}/modules/${encodeURIComponent(moduleId)}`;
+  const res = await authenticatedFetch(resolveApiUrl(path), {
+    method: 'PATCH',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...patch, changeMeta }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Module API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+  return res.json();
+}

@@ -1797,7 +1797,11 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                 <span className="module-map-title">{moduleGraphApp.label}</span>
               </div>
               <div className="module-map-canvas">
-                <ApplicationModuleGraph applicationId={moduleGraphApp.id} />
+                <ApplicationModuleGraph
+                  applicationId={moduleGraphApp.id}
+                  applicationName={moduleGraphApp.label}
+                  isReadOnly={isReadOnly}
+                />
               </div>
               <ApplicationFunctionalDocPanel
                 applicationId={moduleGraphApp.id}
