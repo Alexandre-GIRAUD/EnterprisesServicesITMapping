@@ -6,5 +6,6 @@ public enum AuditFieldScope {
   APP_FIELD,
   EDGE_LINK,
   APP_LINK,
-  MODULE_LINK
+  MODULE_LINK,
+  MODULE_FIELD
 }

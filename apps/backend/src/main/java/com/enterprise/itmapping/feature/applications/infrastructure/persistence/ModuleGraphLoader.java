@@ -69,7 +69,8 @@ public class ModuleGraphLoader {
     return """
         MATCH (a:Application)
         WHERE a.id = $appId
-        RETURN a.id AS id, a.name AS name, a.description AS description, 'Application' AS nodeType
+        RETURN a.id AS id, a.name AS name, a.description AS description, 'Application' AS nodeType,
+               null AS owner, null AS technology, null AS dataIn, null AS dataOut
         UNION
         MATCH (a:Application)
         WHERE a.id = $appId
@@ -77,7 +78,8 @@ public class ModuleGraphLoader {
         + d
         + """
         ]->(m:Module)
-        RETURN DISTINCT m.id AS id, m.name AS name, m.description AS description, 'Module' AS nodeType
+        RETURN DISTINCT m.id AS id, m.name AS name, m.description AS description, 'Module' AS nodeType,
+               m.owner AS owner, m.technology AS technology, m.dataIn AS dataIn, m.dataOut AS dataOut
         """;
   }
 
@@ -86,7 +88,18 @@ public class ModuleGraphLoader {
         Neo4jValueMapping.asString(map.get("id")),
         Neo4jValueMapping.asString(map.get("name")),
         Neo4jValueMapping.asString(map.get("description")),
-        Neo4jValueMapping.asString(map.get("nodeType")));
+        Neo4jValueMapping.asString(map.get("nodeType")),
+        Neo4jValueMapping.asString(map.get("owner")),
+        Neo4jValueMapping.asString(map.get("technology")),
+        asStrings(map.get("dataIn")),
+        asStrings(map.get("dataOut")));
+  }
+
+  private static List<String> asStrings(Object value) {
+    if (value instanceof java.util.Collection<?> items) {
+      return items.stream().map(String::valueOf).toList();
+    }
+    return List.of();
   }
 
   public List<GraphEdgeProjection> loadEdges(String applicationId) {

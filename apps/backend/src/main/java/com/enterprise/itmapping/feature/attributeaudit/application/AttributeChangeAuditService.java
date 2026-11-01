@@ -9,6 +9,7 @@ import com.enterprise.itmapping.feature.attributeaudit.infrastructure.persistenc
 import com.enterprise.itmapping.feature.attributeaudit.infrastructure.persistence.EdgeEndpointLookup;
 import com.enterprise.itmapping.feature.attributeaudit.infrastructure.persistence.HumanFieldOverrideEntity;
 import com.enterprise.itmapping.feature.attributeaudit.infrastructure.persistence.HumanFieldOverrideRepository;
+import com.enterprise.itmapping.feature.attributeaudit.infrastructure.persistence.ModuleOwnerLookup;
 import com.enterprise.itmapping.feature.attributeaudit.presentation.dto.AttributeChangeEventResponse;
 import com.enterprise.itmapping.feature.attributeaudit.presentation.dto.AttributeChangePageResponse;
 import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
@@ -45,16 +46,19 @@ public class AttributeChangeAuditService {
   private final HumanFieldOverrideRepository overrideRepository;
   private final CurrentUserResolver currentUserResolver;
   private final EdgeEndpointLookup edgeEndpointLookup;
+  private final ModuleOwnerLookup moduleOwnerLookup;
 
   public AttributeChangeAuditService(
       AttributeChangeEventRepository eventRepository,
       HumanFieldOverrideRepository overrideRepository,
       CurrentUserResolver currentUserResolver,
-      EdgeEndpointLookup edgeEndpointLookup) {
+      EdgeEndpointLookup edgeEndpointLookup,
+      ModuleOwnerLookup moduleOwnerLookup) {
     this.eventRepository = eventRepository;
     this.overrideRepository = overrideRepository;
     this.currentUserResolver = currentUserResolver;
     this.edgeEndpointLookup = edgeEndpointLookup;
+    this.moduleOwnerLookup = moduleOwnerLookup;
   }
 
   /** Everything that happened to one application, its modules and its flows, newest first. */
@@ -241,7 +245,7 @@ public class AttributeChangeAuditService {
     return switch (targetType) {
       case APPLICATION -> List.of(targetId);
       case EDGE -> edgeEndpointLookup.applicationIds(targetId);
-      case MODULE -> List.of();
+      case MODULE -> moduleOwnerLookup.applicationIds(targetId);
     };
   }
 
