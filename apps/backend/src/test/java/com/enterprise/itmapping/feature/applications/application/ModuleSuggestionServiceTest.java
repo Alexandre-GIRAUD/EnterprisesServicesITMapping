@@ -176,6 +176,43 @@ class ModuleSuggestionServiceTest {
   }
 
   @Test
+  void githubRunKeepsOnlyFindingsCitedInObservedFiles() {
+    AiModuleEntry billing = new AiModuleEntry();
+    billing.setId("billing");
+    billing.setBusinessName("Billing");
+    billing.setSourceFiles(List.of("pom.xml"));
+    AiModuleEntry ghost = new AiModuleEntry();
+    ghost.setId("ghost");
+    ghost.setBusinessName("Ghost");
+    ghost.setSourceFiles(List.of("src/Ghost.java"));
+    AiModuleEntry catalog = new AiModuleEntry();
+    catalog.setId("catalog");
+    catalog.setBusinessName("Catalog");
+    catalog.setSourceFiles(List.of("src/Catalog.java"));
+    AiRelationshipEntry unobserved = new AiRelationshipEntry();
+    unobserved.setFromModuleId("billing");
+    unobserved.setToModuleId("catalog");
+    unobserved.setRelationshipKind("structural_contains");
+    unobserved.setSourceFiles(List.of("missing/rel.java"));
+    AiModuleSuggestionPayload payload = new AiModuleSuggestionPayload();
+    payload.setModules(List.of(billing, ghost, catalog));
+    payload.setRelationships(List.of(unobserved));
+    when(agent.discover(any(), anyString(), anyString()))
+        .thenReturn(
+            new DiscoveryResult(
+                payload, List.of("pom.xml", "src/Catalog.java"), List.of("pom.xml", "src/Catalog.java")));
+
+    SuggestModulesFromGithubResponse response =
+        service.suggestFromGithub(APP_ID, new SuggestModulesFromGithubRequest(null));
+
+    assertThat(response.created()).extracting(SuggestModulesFromGithubResponse.CreatedItem::slugId)
+        .containsExactly("billing", "catalog");
+    assertThat(response.skipped())
+        .extracting(SuggestModulesFromGithubResponse.SkippedItem::reason)
+        .containsExactly("evidence_absente", "evidence_absente");
+  }
+
+  @Test
   void documentRunSkipsAModuleWhoseQuoteIsMissing() {
     when(applicationRepository.findProjectionById(APP_ID)).thenReturn(Optional.of(named("Billing")));
     when(documentService.require(APP_ID))

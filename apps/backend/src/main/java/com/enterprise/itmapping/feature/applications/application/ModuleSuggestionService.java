@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -237,6 +238,9 @@ public class ModuleSuggestionService {
           continue;
         }
         mod.setSourceFiles(quotes);
+      } else if (!keepGroundedFiles(mod.getSourceFiles(), discovery.observedFiles(), mod::setSourceFiles)) {
+        skipped.add(new SkippedItem("module", "evidence_absente", slug));
+        continue;
       }
       acceptedBySlug.put(slug, mod);
     }
@@ -277,6 +281,13 @@ public class ModuleSuggestionService {
           continue;
         }
         r.setSourceFiles(quotes);
+      } else if (!keepGroundedFiles(r.getSourceFiles(), discovery.observedFiles(), r::setSourceFiles)) {
+        skipped.add(
+            new SkippedItem(
+                "relationship",
+                "evidence_absente",
+                r.getFromModuleId() + "->" + r.getToModuleId()));
+        continue;
       }
       relsAccepted.add(new Rel(r.getFromModuleId(), r.getToModuleId(), r.getSourceFiles()));
     }
@@ -574,6 +585,17 @@ public class ModuleSuggestionService {
     }
     color.put(n, 2);
     return false;
+  }
+
+  /** Keeps cited paths the tools actually read or grepped. False when none remain. */
+  private static boolean keepGroundedFiles(
+      List<String> cited, List<String> observed, Consumer<List<String>> writeBack) {
+    List<String> grounded = AiDecisionSourceService.ground(cited, observed);
+    if (grounded.isEmpty()) {
+      return false;
+    }
+    writeBack.accept(grounded);
+    return true;
   }
 
   private void trace(
