@@ -19,7 +19,6 @@ import type { GraphResponseDto } from '@/types/api';
 import { fetchModuleGraph } from '../api/graphApi';
 import { moduleDetailsFromNode, type ModuleDetails } from '../utils/moduleDetails';
 import { ApplicationModulesDrawer } from './ApplicationModulesDrawer';
-import { buildNodeHoverHint } from './moduleNodeCardHtml';
 import { ModuleGraphNode, type ModuleNode } from './ModuleGraphNode';
 import { NODE_TYPE_STYLES, type NodeTypeKey } from './graphTheme';
 import { GraphLegend } from './GraphLegend';
@@ -57,7 +56,6 @@ export function ApplicationModuleGraph({
   const [nodes, setNodes, onNodesChange] = useNodesState<ModuleNode>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
-  const [hoverHint, setHoverHint] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const focusedId = hoveredId ?? pinnedId;
@@ -118,7 +116,6 @@ export function ApplicationModuleGraph({
     (async () => {
       setStatus('loading');
       setMessage(null);
-      setHoverHint(null);
       try {
         const data = await fetchModuleGraph(applicationId);
         if (cancelled) return;
@@ -157,13 +154,12 @@ export function ApplicationModuleGraph({
     };
   }, [applicationId, applyGraph, reloadKey, setNodes]);
 
-  const handleNodeMouseEnter = useCallback((_: ReactMouseEvent, node: ModuleNode) => {
-    setHoverHint(buildNodeHoverHint(node.data.name ?? '', node.data.description ?? ''));
-    setHoveredId(node.id);
-  }, []);
+  const handleNodeMouseEnter = useCallback(
+    (_: ReactMouseEvent, node: ModuleNode) => setHoveredId(node.id),
+    []
+  );
 
   const handleNodeMouseLeave = useCallback(() => {
-    setHoverHint(null);
     setHoveredId(null);
   }, []);
 
@@ -174,7 +170,7 @@ export function ApplicationModuleGraph({
 
   const handlePaneClick = useCallback(() => setPinnedId(null), []);
 
-  const hintText = hoverHint ?? (status === 'ready' ? message : null);
+  const hintText = status === 'ready' ? message : null;
 
   return (
     <div className="graph-canvas-wrap module-graph-wrap">
@@ -189,7 +185,7 @@ export function ApplicationModuleGraph({
         </p>
       )}
       {hintText && status !== 'error' && (
-        <p className="graph-canvas-hint module-graph-hint" title={hoverHint ?? undefined}>
+        <p className="graph-canvas-hint module-graph-hint">
           {hintText}
         </p>
       )}
