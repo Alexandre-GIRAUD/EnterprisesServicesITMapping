@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.applications.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -38,7 +39,8 @@ class ModuleDetailsPatchServiceTest {
   @InjectMocks ModuleDetailsPatchService service;
 
   private static ModuleDetails stored() {
-    return new ModuleDetails("Old", "Team A", "Java", List.of("Trades"), List.of());
+    return new ModuleDetails(
+        "Old", "Front office", List.of("Traders"), "Daily", List.of("Trade"), List.of());
   }
 
   @Test
@@ -48,22 +50,34 @@ class ModuleDetailsPatchServiceTest {
     service.patchHuman(
         "app-1",
         "mod-1",
-        new ModuleDetailsPatch("New", null, null, List.of("Trades", "Prices"), null),
+        new ModuleDetailsPatch(
+            "New", null, List.of("Traders", "Sales"), null, List.of("Trade", "Cash"), null),
         WRONG_DATA);
 
     verify(store)
         .write(
             "mod-1",
-            new ModuleDetails("New", "Team A", "Java", List.of("Trades", "Prices"), List.of()));
+            new ModuleDetails(
+                "New",
+                "Front office",
+                List.of("Traders", "Sales"),
+                "Daily",
+                List.of("Trade", "Cash"),
+                List.of()));
 
     @SuppressWarnings("unchecked")
-    ArgumentCaptor<Collection<AttributeChangeRequest>> events = ArgumentCaptor.forClass(Collection.class);
+    ArgumentCaptor<Collection<AttributeChangeRequest>> events =
+        ArgumentCaptor.forClass(Collection.class);
     verify(auditService).recordAll(events.capture());
     assertThat(events.getValue())
-        .extracting(AttributeChangeRequest::fieldKey, AttributeChangeRequest::oldValue, AttributeChangeRequest::newValue)
+        .extracting(
+            AttributeChangeRequest::fieldKey,
+            AttributeChangeRequest::oldValue,
+            AttributeChangeRequest::newValue)
         .containsExactly(
-            org.assertj.core.groups.Tuple.tuple("description", "Old", "New"),
-            org.assertj.core.groups.Tuple.tuple("dataIn", "Trades", "Trades, Prices"));
+            tuple("description", "Old", "New"),
+            tuple("actors", "Traders", "Traders, Sales"),
+            tuple("dataIn", "Trade", "Trade, Cash"));
     assertThat(events.getValue())
         .allSatisfy(
             e -> {
@@ -78,9 +92,13 @@ class ModuleDetailsPatchServiceTest {
   void blankValueClearsTheField() {
     when(store.read("app-1", "mod-1")).thenReturn(Optional.of(stored()));
 
-    service.patchHuman("app-1", "mod-1", new ModuleDetailsPatch(null, " ", null, null, null), WRONG_DATA);
+    service.patchHuman(
+        "app-1", "mod-1", new ModuleDetailsPatch(null, " ", null, " ", null, null), WRONG_DATA);
 
-    verify(store).write("mod-1", new ModuleDetails("Old", null, "Java", List.of("Trades"), List.of()));
+    verify(store)
+        .write(
+            "mod-1",
+            new ModuleDetails("Old", null, List.of("Traders"), null, List.of("Trade"), List.of()));
   }
 
   @Test
@@ -88,7 +106,10 @@ class ModuleDetailsPatchServiceTest {
     assertThatThrownBy(
             () ->
                 service.patchHuman(
-                    "app-1", "mod-1", new ModuleDetailsPatch("x", null, null, null, null), null))
+                    "app-1",
+                    "mod-1",
+                    new ModuleDetailsPatch("x", null, null, null, null, null),
+                    null))
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("changeMeta.reason");
     verify(store, never()).write(any(), any());
@@ -101,7 +122,10 @@ class ModuleDetailsPatchServiceTest {
     assertThatThrownBy(
             () ->
                 service.patchHuman(
-                    "app-1", "other", new ModuleDetailsPatch("x", null, null, null, null), WRONG_DATA))
+                    "app-1",
+                    "other",
+                    new ModuleDetailsPatch("x", null, null, null, null, null),
+                    WRONG_DATA))
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("404");
     verify(store, never()).write(any(), any());
