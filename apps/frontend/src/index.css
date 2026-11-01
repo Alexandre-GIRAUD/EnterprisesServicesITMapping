@@ -8652,12 +8652,8 @@ html[data-theme='dark'] .graph-legend__swatch img {
   align-items: center;
 }
 
-.module-node-card__title {
-  white-space: nowrap;
-}
-
 .module-graph-canvas .react-flow__node-module:hover {
-  z-index: 1000 !important;
+  z-index: 1000 !important; /* the hovered box and its tip rise above its siblings */
 }
 
 .module-node-card:not(.module-node-card--container):hover {
@@ -8665,12 +8661,12 @@ html[data-theme='dark'] .graph-legend__swatch img {
   filter: brightness(0.97);
 }
 
-.module-node-card__tip,
+/* Above sibling boxes, below nothing else on the canvas. */
 .module-node-card__tip {
   position: absolute;
   top: calc(100% + 0.4rem);
   left: 0;
-  z-index: 5;
+  z-index: 1;
   width: max-content;
   max-width: 16rem;
   padding: 0.5rem 0.65rem;

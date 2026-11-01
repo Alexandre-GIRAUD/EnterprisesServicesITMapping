@@ -1,4 +1,4 @@
-﻿import type { NodeProps, Node } from '@xyflow/react';
+import type { NodeProps, Node } from '@xyflow/react';
 import type { CSSProperties } from 'react';
 import { moduleTone } from './graphTheme';
 
@@ -13,6 +13,15 @@ export type ModuleNodeData = {
 };
 
 export type ModuleNode = Node<ModuleNodeData, 'module'>;
+
+function HoverTip({ text }: { text: string }) {
+  if (!text) return null;
+  return (
+    <span className="module-node-card__tip" role="tooltip">
+      {text}
+    </span>
+  );
+}
 
 export function ModuleGraphNode({ data }: NodeProps<ModuleNode>) {
   const rawName = data.name.trim() || '—';
@@ -30,7 +39,7 @@ export function ModuleGraphNode({ data }: NodeProps<ModuleNode>) {
       <div className={cardClass} data-depth={data.depth} style={toneStyle}>
         <div className="module-node-card__header">
           {rawName}
-          {description && <span className="module-node-card__tip" role="tooltip">{description}</span>}
+          <HoverTip text={description} />
         </div>
         <div className="module-node-card__body" aria-hidden="true" />
       </div>
@@ -40,11 +49,7 @@ export function ModuleGraphNode({ data }: NodeProps<ModuleNode>) {
   return (
     <div className="module-node-card" style={toneStyle}>
       <div className="module-node-card__title">{rawName}</div>
-      {description && (
-        <span className="module-node-card__tip" role="tooltip">
-          {description}
-        </span>
-      )}
+      <HoverTip text={description} />
     </div>
   );
 }

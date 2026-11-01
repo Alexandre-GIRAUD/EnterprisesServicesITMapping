@@ -162,16 +162,6 @@ export function nodeColorForType(type: string): string {
     ?? NEUTRAL_NODE_COLOR;
 }
 
-/**
- * Semantic-zoom thresholds (React Flow zoom factor).
- * Node titles and flow labels stay drawn at every zoom and scale with the map.
- * Module descriptions fade out below this value.
- */
-export const ZOOM_THRESHOLDS = {
-  /** Below this, module descriptions fade out. */
-  secondaryDetail: 0.7,
-} as const;
-
 export const EDGE_TYPE_STYLES: Record<EdgeTypeKey, EdgeTypeStyle> = {
   DEPENDS_ON: { legendLabel: 'Dependency', color: '#1d4ed8' },
   CONTAINS: { legendLabel: 'Composition', color: '#c2410c', dashed: true },
