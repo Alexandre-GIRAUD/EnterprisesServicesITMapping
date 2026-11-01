@@ -50,20 +50,23 @@ public class ModuleDiscoveryAgent {
             properties.maxTreeEntries());
 
     String userMessage =
-        """
-        Analyze the repository cloned locally for "%s/%s".
+        withTree(
+            tools.listTree("", null),
+            """
+            Analyze the repository cloned locally for "%s/%s".
 
-        Explore it with your tools before concluding:
-        - Start with listTree("") and readReadme() to understand the layout.
-        - Use grep to locate manifests (pom.xml, package.json, build.gradle, etc.),
-          application entry points, domain packages and feature folders.
-        - Use readFile on the most informative files (manifests, main modules, key domain classes).
-        Be efficient: aim for at most %d tool calls in total.
+            The repository tree is already listed above. Use listTree on a folder when you need to go deeper.
+            Explore with your tools before concluding:
+            - readReadme() and the READMEs you can see in the tree.
+            - Use grep to locate manifests (pom.xml, package.json, build.gradle, etc.),
+              application entry points, domain packages and feature folders.
+            - Use readFile on the most informative files (manifests, main modules, key domain classes).
+            Be efficient: aim for at most %d tool calls in total.
 
-        Then return the final JSON describing the business modules and their
-        structural_contains relationships, following the required schema exactly.
-        """
-            .formatted(owner, repo, properties.maxToolIterations());
+            Then return the final JSON describing the business modules and their
+            structural_contains relationships, following the required schema exactly.
+            """
+                .formatted(owner, repo, properties.maxToolIterations()));
 
     log.info("Module discovery agent start repo={}/{}", owner, repo);
     AiModuleSuggestionPayload payload;
@@ -116,19 +119,21 @@ public class ModuleDiscoveryAgent {
         MultiRepoPrompt.budget(
             properties.maxToolIterations(), fullNames.size(), MultiRepoPrompt.MODULE_CALL_CAP);
     String userMessage =
-        """
-        %s
-        Explore every folder before concluding:
-        - Start with listTree("") and then list each repository folder.
-        - readFile the README inside each folder.
-        - Use grep to locate manifests, entry points, domain packages and feature folders.
-        Module ids must be unique. When two folders would use the same id, prefix that id with the folder name.
-        Be efficient: aim for at most %d tool calls in total.
+        withTree(
+            tools.listTree("", null),
+            """
+            %s
+            The repository tree is already listed above. Use listTree on a folder when you need to go deeper.
+            Explore every folder before concluding:
+            - readFile the README inside each folder.
+            - Use grep to locate manifests, entry points, domain packages and feature folders.
+            Module ids must be unique. When two folders would use the same id, prefix that id with the folder name.
+            Be efficient: aim for at most %d tool calls in total.
 
-        Then return the final JSON describing the business modules and their
-        structural_contains relationships, following the required schema exactly.
-        """
-            .formatted(MultiRepoPrompt.folderList(fullNames), budget);
+            Then return the final JSON describing the business modules and their
+            structural_contains relationships, following the required schema exactly.
+            """
+                .formatted(MultiRepoPrompt.folderList(fullNames), budget));
     log.info("Module discovery agent start repos={}", fullNames);
     AiModuleSuggestionPayload payload;
     try {
@@ -201,6 +206,10 @@ public class ModuleDiscoveryAgent {
           HttpStatus.BAD_REQUEST, "Réponse IA vide ou schéma illisible.");
     }
     return new DiscoveryResult(payload, List.of(documentTitle), List.of());
+  }
+
+  private static String withTree(String tree, String instructions) {
+    return "Repository tree:\n" + tree + "\n\n" + instructions;
   }
 
   private static String loadPrompt(ResourceLoader resourceLoader) {
