@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { HumanChangeReason } from '@/types/api';
 import { patchModuleDetails } from '../api/graphApi';
-import { changedModuleFields, parseDataList, type ModuleDetails } from '../utils/moduleDetails';
+import {
+  changedModuleFields,
+  externalData,
+  parseDataList,
+  type ApplicationModel,
+  type ModuleDetails,
+  type ModuleLink,
+} from '../utils/moduleDetails';
+import { ApplicationModelPanel } from './ApplicationModelPanel';
 import { buildChangeMeta, validateChangeMeta } from './AttributeChangeReasonFields';
 import { AttributeHistorySection } from './AttributeHistorySection';
 import { CloseIcon } from './CloseIcon';
-import { DataChips, ModuleCard } from './ModuleCard';
+import { ModuleCard } from './ModuleCard';
 import { ModuleEditForm, type ModuleForm } from './ModuleEditForm';
 
 type DrawerModule = ModuleDetails & { colorSlot: number | null };
@@ -15,6 +23,9 @@ type Props = {
   applicationId: string;
   applicationName: string;
   applicationDescription: string;
+  applicationModel: ApplicationModel;
+  /** Explicit links between the modules. */
+  links: ModuleLink[];
   /** Modules in layout order; the tone slot of each one comes from the module graph. */
   modules: DrawerModule[];
   selectedId: string | null;
@@ -30,9 +41,10 @@ function formOf(module: ModuleDetails): ModuleForm {
   return {
     description: module.description,
     owner: module.owner,
-    technology: module.technology,
-    dataIn: module.dataIn.join('\n'),
-    dataOut: module.dataOut.join('\n'),
+    actors: module.actors.join('\n'),
+    trigger: module.trigger,
+    dataIn: module.dataIn,
+    dataOut: module.dataOut,
   };
 }
 
@@ -41,26 +53,25 @@ function editedModule(module: ModuleDetails, form: ModuleForm): ModuleDetails {
     ...module,
     description: form.description.trim(),
     owner: form.owner.trim(),
-    technology: form.technology.trim(),
-    dataIn: parseDataList(form.dataIn),
-    dataOut: parseDataList(form.dataOut),
+    actors: parseDataList(form.actors),
+    trigger: form.trigger.trim(),
+    dataIn: form.dataIn,
+    dataOut: form.dataOut,
   };
 }
 
-function unionOf(lists: string[][]): string[] {
-  return parseDataList(lists.flat().join('\n'));
-}
-
 /**
- * One drawer for the whole application while its module view is shown: its description, the data
- * its modules consume and produce, then one card per module. A module is edited in place with a
- * change reason, and every change lands in the application history.
+ * One drawer for the whole application while its module view is shown: its description, its
+ * business model (journey, scope, lexicon, links between modules), then one card per functional
+ * module. Everything is edited in place with a change reason and lands in the application history.
  */
 export function ApplicationModulesDrawer({
   isOpen,
   applicationId,
   applicationName,
   applicationDescription,
+  applicationModel,
+  links,
   modules,
   selectedId,
   onSelect,
@@ -78,12 +89,11 @@ export function ApplicationModulesDrawer({
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const selectedRef = useRef<HTMLLIElement>(null);
 
-  const dataIn = useMemo(() => unionOf(modules.map((module) => module.dataIn)), [modules]);
+  const external = useMemo(() => externalData(modules), [modules]);
   const moduleNames = useMemo(
     () => new Map(modules.map((module) => [module.id, module.name])),
     [modules]
   );
-  const dataOut = useMemo(() => unionOf(modules.map((module) => module.dataOut)), [modules]);
 
   useEffect(() => {
     selectedRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
@@ -111,6 +121,12 @@ export function ApplicationModulesDrawer({
     setErrorMessage(null);
   }
 
+  function refreshAfterSave(message: string) {
+    setHistoryRefreshKey((key) => key + 1);
+    setSuccessMessage(message);
+    onSaved();
+  }
+
   async function saveModule(module: ModuleDetails, edited: ModuleDetails) {
     const reasonError = validateChangeMeta(reason, reasonComment);
     const changeMeta = buildChangeMeta(reason, reasonComment);
@@ -127,16 +143,15 @@ export function ApplicationModulesDrawer({
         {
           description: edited.description,
           owner: edited.owner,
-          technology: edited.technology,
+          actors: edited.actors,
+          trigger: edited.trigger,
           dataIn: edited.dataIn,
           dataOut: edited.dataOut,
         },
         changeMeta
       );
-      setHistoryRefreshKey((key) => key + 1);
-      setSuccessMessage(`${module.name} updated.`);
       stopEditing();
-      onSaved();
+      refreshAfterSave(`${module.name} updated.`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to save the module.');
     } finally {
@@ -160,6 +175,7 @@ export function ApplicationModulesDrawer({
     return (
       <ModuleEditForm
         form={form}
+        businessObjects={applicationModel.businessObjects}
         onFieldChange={(key, value) => setForm((prev) => (prev ? { ...prev, [key]: value } : prev))}
         reason={reason}
         reasonComment={reasonComment}
@@ -213,13 +229,16 @@ export function ApplicationModulesDrawer({
           </p>
         </section>
 
-        <section className="graph-details-section">
-          <h3 className="graph-details-section-title">Data consumed by the application</h3>
-          <p className="graph-drawer-field-label">In</p>
-          <DataChips items={dataIn} />
-          <p className="graph-drawer-field-label">Out</p>
-          <DataChips items={dataOut} />
-        </section>
+        <ApplicationModelPanel
+          applicationId={applicationId}
+          model={applicationModel}
+          links={links}
+          modules={modules}
+          externalInputs={external.inputs}
+          externalOutputs={external.outputs}
+          isReadOnly={isReadOnly}
+          onSaved={() => refreshAfterSave('Application model updated.')}
+        />
 
         <section className="graph-details-section">
           <h3 className="graph-details-section-title">Modules</h3>

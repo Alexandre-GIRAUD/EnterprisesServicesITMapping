@@ -121,7 +121,7 @@ public class ApplicationController {
   }
 
   /**
-   * Edits a module description, owner, technology and consumed / produced data. Fields left out
+   * Edits a functional module: description, business owner, actors, trigger and the business objects it consumes and produces. Fields left out
    * stay as they are; each change lands in the application history. Human edits need
    * {@code changeMeta.reason}.
    */

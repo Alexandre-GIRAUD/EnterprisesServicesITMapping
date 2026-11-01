@@ -17,6 +17,7 @@ import type {
   StoredAttribute,
 } from '@/types/api';
 import { authenticatedFetch, resolveApiUrl } from '@/config/api';
+import type { ModuleLink } from '../utils/moduleDetails';
 import { flowCreationErrorMessage } from '../utils/flowCreationMessage';
 
 function graphUrl(search: string): string {
@@ -177,9 +178,18 @@ export async function patchGraphEdgeAttributes(
 export type ModuleDetailsPatch = {
   description?: string;
   owner?: string;
-  technology?: string;
+  actors?: string[];
+  trigger?: string;
   dataIn?: string[];
   dataOut?: string[];
+};
+
+export type BusinessModelPatch = {
+  businessObjects?: string[];
+  /** Replaces every explicit link between modules. */
+  moduleLinks?: ModuleLink[];
+  mainJourney?: string;
+  scope?: string;
 };
 
 /**
@@ -202,6 +212,31 @@ export async function patchModuleDetails(
     const detail = await res.text().catch(() => '');
     throw new Error(
       `Module API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+    );
+  }
+  return res.json();
+}
+
+/**
+ * Edits the business model of an application (lexicon, explicit module links, main journey, scope).
+ * Parts left out stay as they are. Backend: PATCH /api/applications/{id}/business-model.
+ * Returns the refreshed module graph.
+ */
+export async function patchBusinessModel(
+  applicationId: string,
+  patch: BusinessModelPatch,
+  changeMeta: AttributeChangeMeta
+): Promise<GraphResponseDto> {
+  const path = `/api/applications/${encodeURIComponent(applicationId)}/business-model`;
+  const res = await authenticatedFetch(resolveApiUrl(path), {
+    method: 'PATCH',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...patch, changeMeta }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Business model API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 200)}` : ''}`
     );
   }
   return res.json();

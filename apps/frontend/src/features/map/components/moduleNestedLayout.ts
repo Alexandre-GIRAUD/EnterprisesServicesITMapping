@@ -1,5 +1,5 @@
 import type { GraphEdgeDto, GraphNodeDto } from '../../../types/api.ts';
-import { moduleDetailsFromNode, moduleLinkGroups } from '../utils/moduleDetails.ts';
+import { moduleLinkGroups, moduleLinksFromEdges } from '../utils/moduleDetails.ts';
 import type { ModuleNode } from './ModuleGraphNode.tsx';
 
 export const MODULE_NODE_WIDTH = 172;
@@ -37,6 +37,7 @@ export const CONTAINER_HEADER_HEIGHT = 40;
 export const EMPTY_APP_MIN_WIDTH = 280;
 export const EMPTY_APP_MIN_HEIGHT = 140;
 const CENTER_DIVISOR = 2;
+const CONTAINS_EDGE_TYPE = 'CONTAINS';
 
 type NodeMeta = {
   id: string;
@@ -65,9 +66,7 @@ export function buildContainsTree(
   const appNode = nodes.find((n) => n.type === 'Application');
   if (!appNode) return null;
 
-  const groups = moduleLinkGroups(
-    nodes.filter((n) => n.type !== 'Application').map(moduleDetailsFromNode)
-  );
+  const groups = moduleLinkGroups(moduleLinksFromEdges(edges));
   const nodeMeta = new Map<string, NodeMeta>();
   for (const n of nodes) {
     const name = n.label?.trim() || n.id;
@@ -84,7 +83,7 @@ export function buildContainsTree(
   const childrenByParent = new Map<string, string[]>();
   const assignedChild = new Set<string>();
 
-  for (const e of edges) {
+  for (const e of edges.filter((edge) => edge.type === CONTAINS_EDGE_TYPE)) {
     if (assignedChild.has(e.targetId)) continue;
     const children = childrenByParent.get(e.sourceId) ?? [];
     if (children.includes(e.targetId)) continue;
