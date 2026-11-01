@@ -2,7 +2,7 @@ import { forwardRef, type ReactNode } from 'react';
 import type { ModuleDetails } from '../utils/moduleDetails';
 import { moduleTone } from './graphTheme';
 
-export const NO_DATA_TEXT = 'No data declared.';
+const NO_DATA_TEXT = 'No data declared.';
 const NOT_SET_TEXT = 'Not set';
 const NO_DESCRIPTION_TEXT = 'No description provided.';
 

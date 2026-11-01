@@ -30,6 +30,8 @@ public class BusinessModelPatchService {
 
   private static final String LIST_SEPARATOR = ", ";
   private static final String LINK_SEPARATOR = "; ";
+  private static final String LINK_KEY_SEPARATOR = "|";
+  private static final String LINK_ARROW = " → ";
 
   private record PartChange(String key, String oldValue, String newValue) {}
 
@@ -116,17 +118,23 @@ public class BusinessModelPatchService {
     List<ModuleLink> links = new ArrayList<>();
     Set<String> seen = new HashSet<>();
     for (ModuleLink link : submitted) {
-      if (!moduleNames.containsKey(link.sourceId()) || !moduleNames.containsKey(link.targetId())) {
+      if (!isModuleOfApplication(link.sourceId(), moduleNames)
+          || !isModuleOfApplication(link.targetId(), moduleNames)) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "A link must join two modules of the application.");
       }
       String object = link.object() == null ? "" : link.object().trim();
-      String key = link.sourceId() + "|" + link.targetId() + "|" + object.toLowerCase(Locale.ROOT);
+      String key =
+          String.join(LINK_KEY_SEPARATOR, link.sourceId(), link.targetId(), object.toLowerCase(Locale.ROOT));
       if (!link.sourceId().equals(link.targetId()) && seen.add(key)) {
         links.add(new ModuleLink(link.sourceId(), link.targetId(), object));
       }
     }
     return links;
+  }
+
+  private static boolean isModuleOfApplication(String moduleId, Map<String, String> moduleNames) {
+    return moduleId != null && moduleNames.containsKey(moduleId);
   }
 
   private static String describeLinks(List<ModuleLink> links, Map<String, String> moduleNames) {
@@ -137,7 +145,7 @@ public class BusinessModelPatchService {
         .map(
             link ->
                 moduleNames.getOrDefault(link.sourceId(), link.sourceId())
-                    + " → "
+                    + LINK_ARROW
                     + moduleNames.getOrDefault(link.targetId(), link.targetId())
                     + (StringUtils.hasText(link.object()) ? " (" + link.object() + ")" : ""))
         .reduce((left, right) -> left + LINK_SEPARATOR + right)

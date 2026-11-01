@@ -13,10 +13,42 @@ type Props = {
 
 const NO_OBJECT_LABEL = 'No object';
 
+type ModuleSelectProps = {
+  label: string;
+  value: string;
+  modules: ModuleOption[];
+  disabled: boolean;
+  onChange: (moduleId: string) => void;
+};
+
+function ModuleSelect({ label, value, modules, disabled, onChange }: ModuleSelectProps) {
+  return (
+    <select
+      className="graph-drawer-input"
+      aria-label={label}
+      value={value}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {modules.map((module) => (
+        <option key={module.id} value={module.id}>
+          {module.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** The lexicon, plus the object already on the link when the lexicon no longer holds it. */
+function objectChoices(link: ModuleLink, businessObjects: string[]): string[] {
+  const isKnown = !link.object || businessObjects.includes(link.object);
+  return isKnown ? businessObjects : [...businessObjects, link.object];
+}
+
 /** Edit the explicit links: one row per "module feeds module through object". */
 export function ModuleLinksEditor({ links, modules, businessObjects, disabled, onChange }: Props) {
-  function updateLink(index: number, patch: Partial<ModuleLink>) {
-    onChange(links.map((link, i) => (i === index ? { ...link, ...patch } : link)));
+  function updateLink(position: number, patch: Partial<ModuleLink>) {
+    onChange(links.map((link, index) => (index === position ? { ...link, ...patch } : link)));
   }
 
   function addLink() {
@@ -27,57 +59,43 @@ export function ModuleLinksEditor({ links, modules, businessObjects, disabled, o
   return (
     <fieldset className="graph-drawer-field graph-drawer-fieldset">
       <legend className="graph-drawer-field-label">Links between modules</legend>
-      {links.map((link, index) => (
-        <div key={index} className="module-links-row">
-          <select
-            className="graph-drawer-input"
-            aria-label="Module that feeds"
+      {links.map((link, position) => (
+        <div key={position} className="module-links-row">
+          <ModuleSelect
+            label="Module that feeds"
             value={link.sourceId}
+            modules={modules}
             disabled={disabled}
-            onChange={(event) => updateLink(index, { sourceId: event.target.value })}
-          >
-            {modules.map((module) => (
-              <option key={module.id} value={module.id}>
-                {module.name}
-              </option>
-            ))}
-          </select>
+            onChange={(sourceId) => updateLink(position, { sourceId })}
+          />
           <span aria-hidden="true">→</span>
-          <select
-            className="graph-drawer-input"
-            aria-label="Module fed"
+          <ModuleSelect
+            label="Module fed"
             value={link.targetId}
+            modules={modules}
             disabled={disabled}
-            onChange={(event) => updateLink(index, { targetId: event.target.value })}
-          >
-            {modules.map((module) => (
-              <option key={module.id} value={module.id}>
-                {module.name}
-              </option>
-            ))}
-          </select>
+            onChange={(targetId) => updateLink(position, { targetId })}
+          />
           <select
             className="graph-drawer-input"
             aria-label="Business object exchanged"
             value={link.object}
             disabled={disabled}
-            onChange={(event) => updateLink(index, { object: event.target.value })}
+            onChange={(event) => updateLink(position, { object: event.target.value })}
           >
             <option value="">{NO_OBJECT_LABEL}</option>
-            {[...businessObjects, ...(businessObjects.includes(link.object) || !link.object ? [] : [link.object])].map(
-              (object) => (
-                <option key={object} value={object}>
-                  {object}
-                </option>
-              )
-            )}
+            {objectChoices(link, businessObjects).map((object) => (
+              <option key={object} value={object}>
+                {object}
+              </option>
+            ))}
           </select>
           <button
             type="button"
             className="graph-drawer-action"
             aria-label="Remove link"
             disabled={disabled}
-            onClick={() => onChange(links.filter((_, i) => i !== index))}
+            onClick={() => onChange(links.filter((_link, index) => index !== position))}
           >
             <span className="graph-drawer-action-title">Remove</span>
           </button>

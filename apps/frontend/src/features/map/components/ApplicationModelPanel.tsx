@@ -11,7 +11,7 @@ import {
   buildChangeMeta,
   validateChangeMeta,
 } from './AttributeChangeReasonFields';
-import { DataChips } from './ModuleCard';
+import { ApplicationModelView } from './ApplicationModelView';
 import { ModuleLinksEditor } from './ModuleLinksEditor';
 
 type ModuleOption = { id: string; name: string };
@@ -30,8 +30,6 @@ type Props = {
 
 type Form = { mainJourney: string; scope: string; businessObjects: string; links: ModuleLink[] };
 
-const NO_TEXT = 'Not described yet.';
-const NO_LINK_TEXT = 'No link between modules yet.';
 const TEXT_AREA_ROWS = 3;
 
 function formOf(model: ApplicationModel, links: ModuleLink[]): Form {
@@ -41,11 +39,6 @@ function formOf(model: ApplicationModel, links: ModuleLink[]): Form {
     businessObjects: model.businessObjects.join('\n'),
     links,
   };
-}
-
-function linkLabel(link: ModuleLink, modules: ModuleOption[]): string {
-  const nameOf = (id: string) => modules.find((module) => module.id === id)?.name ?? id;
-  return `${nameOf(link.sourceId)} → ${nameOf(link.targetId)}${link.object ? ` (${link.object})` : ''}`;
 }
 
 /**
@@ -188,43 +181,13 @@ export function ApplicationModelPanel({
 
   return (
     <>
-      <section className="graph-details-section">
-        <h3 className="graph-details-section-title">Main journey</h3>
-        <p className="graph-details-text">{model.mainJourney || NO_TEXT}</p>
-      </section>
-      <section className="graph-details-section">
-        <h3 className="graph-details-section-title">Scope</h3>
-        <p className="graph-details-text">{model.scope || NO_TEXT}</p>
-      </section>
-      <section className="graph-details-section">
-        <h3 className="graph-details-section-title">Business objects</h3>
-        {model.businessObjects.length === 0 ? (
-          <p className="graph-details-text">No business object yet.</p>
-        ) : (
-          <DataChips items={model.businessObjects} />
-        )}
-      </section>
-      <section className="graph-details-section">
-        <h3 className="graph-details-section-title">Links between modules</h3>
-        {links.length === 0 ? (
-          <p className="graph-details-text">{NO_LINK_TEXT}</p>
-        ) : (
-          <ul className="module-drawer-links">
-            {links.map((link) => (
-              <li key={`${link.sourceId}-${link.targetId}-${link.object}`} className="graph-details-text">
-                {linkLabel(link, modules)}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      <section className="graph-details-section">
-        <h3 className="graph-details-section-title">Crossing the application border</h3>
-        <p className="graph-drawer-field-label">Inputs</p>
-        <DataChips items={externalInputs} />
-        <p className="graph-drawer-field-label">Outputs</p>
-        <DataChips items={externalOutputs} />
-      </section>
+      <ApplicationModelView
+        model={model}
+        links={links}
+        modules={modules}
+        externalInputs={externalInputs}
+        externalOutputs={externalOutputs}
+      />
       {!isReadOnly && (
         <button type="button" className="graph-drawer-action" onClick={startEditing}>
           <span className="graph-drawer-action-title">Edit the application model</span>
