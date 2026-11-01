@@ -10,6 +10,7 @@ export const CONTAINER_PADDING = 20;
 export const CONTAINER_HEADER_HEIGHT = 40;
 export const EMPTY_APP_MIN_WIDTH = 280;
 export const EMPTY_APP_MIN_HEIGHT = 140;
+const CENTER_DIVISOR = 2;
 
 type NodeMeta = {
   id: string;
@@ -123,8 +124,8 @@ function gridColumns(count: number, cellWidth: number, cellHeight: number): numb
 function fitToCell(child: Layout, cellWidth: number, cellHeight: number): Layout {
   const [root, ...rest] = child.nodes;
   if (!root) return child;
-  const shiftX = (cellWidth - child.width) / 2;
-  const shiftY = (cellHeight - child.height) / 2;
+  const shiftX = (cellWidth - child.width) / CENTER_DIVISOR;
+  const shiftY = (cellHeight - child.height) / CENTER_DIVISOR;
   const nodes = rest.map((n) =>
     n.parentId === root.id
       ? { ...n, position: { x: n.position.x + shiftX, y: n.position.y + shiftY } }
@@ -137,11 +138,11 @@ function fitToCell(child: Layout, cellWidth: number, cellHeight: number): Layout
   };
 }
 
+type Placement = { parentId: string | null; depth: number; siblingIndex: number };
+
 function layoutSubtree(
   id: string,
-  parentId: string | null,
-  depth: number,
-  siblingIndex: number,
+  { parentId, depth, siblingIndex }: Placement,
   tree: ModuleTree,
   visited: Set<string>
 ): Layout {
@@ -181,7 +182,7 @@ function layoutSubtree(
   }
 
   const children = childIds
-    .map((childId, i) => layoutSubtree(childId, id, depth + 1, i, tree, visited))
+    .map((childId, i) => layoutSubtree(childId, { parentId: id, depth: depth + 1, siblingIndex: i }, tree, visited))
     .filter((child) => child.nodes.length > 0);
 
   // One cell size for every sibling, one gap between cells, one padding around the grid.
@@ -226,6 +227,11 @@ export function buildModuleNestedNodes(
   const tree = buildContainsTree(nodes, edges);
   if (!tree) return { rfNodes: [], tree: null };
 
-  const { nodes: rfNodes } = layoutSubtree(tree.rootId, null, 0, 0, tree, new Set());
+  const { nodes: rfNodes } = layoutSubtree(
+    tree.rootId,
+    { parentId: null, depth: 0, siblingIndex: 0 },
+    tree,
+    new Set()
+  );
   return { rfNodes, tree };
 }

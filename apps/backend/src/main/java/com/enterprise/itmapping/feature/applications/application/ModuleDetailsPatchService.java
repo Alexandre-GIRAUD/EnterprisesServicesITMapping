@@ -19,6 +19,10 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class ModuleDetailsPatchService {
 
+  private static final String DATA_LIST_SEPARATOR = ", ";
+
+  private record FieldChange(String key, String oldValue, String newValue) {}
+
   private final ModuleDetailsStore store;
   private final AttributeChangeAuditService auditService;
 
@@ -53,11 +57,11 @@ public class ModuleDetailsPatchService {
             pickList(patch.dataOut(), current.dataOut()));
 
     List<AttributeChangeRequest> events = new ArrayList<>();
-    addEvent(events, moduleId, "description", current.description(), next.description(), changeMeta);
-    addEvent(events, moduleId, "owner", current.owner(), next.owner(), changeMeta);
-    addEvent(events, moduleId, "technology", current.technology(), next.technology(), changeMeta);
-    addEvent(events, moduleId, "dataIn", join(current.dataIn()), join(next.dataIn()), changeMeta);
-    addEvent(events, moduleId, "dataOut", join(current.dataOut()), join(next.dataOut()), changeMeta);
+    addEvent(events, moduleId, new FieldChange("description", current.description(), next.description()), changeMeta);
+    addEvent(events, moduleId, new FieldChange("owner", current.owner(), next.owner()), changeMeta);
+    addEvent(events, moduleId, new FieldChange("technology", current.technology(), next.technology()), changeMeta);
+    addEvent(events, moduleId, new FieldChange("dataIn", join(current.dataIn()), join(next.dataIn())), changeMeta);
+    addEvent(events, moduleId, new FieldChange("dataOut", join(current.dataOut()), join(next.dataOut())), changeMeta);
 
     store.write(moduleId, next);
     auditService.recordAll(events);
@@ -66,11 +70,9 @@ public class ModuleDetailsPatchService {
   private static void addEvent(
       List<AttributeChangeRequest> events,
       String moduleId,
-      String key,
-      String oldValue,
-      String newValue,
+      FieldChange change,
       AttributeChangeMetaDto changeMeta) {
-    if (Objects.equals(blankToNull(oldValue), blankToNull(newValue))) {
+    if (Objects.equals(blankToNull(change.oldValue()), blankToNull(change.newValue()))) {
       return;
     }
     events.add(
@@ -78,9 +80,9 @@ public class ModuleDetailsPatchService {
             AuditTargetType.MODULE,
             moduleId,
             AuditFieldScope.MODULE_FIELD,
-            key,
-            blankToNull(oldValue),
-            blankToNull(newValue),
+            change.key(),
+            blankToNull(change.oldValue()),
+            blankToNull(change.newValue()),
             changeMeta.reason(),
             changeMeta.reasonComment()));
   }
@@ -101,7 +103,7 @@ public class ModuleDetailsPatchService {
   }
 
   private static String join(List<String> values) {
-    return values == null || values.isEmpty() ? null : String.join(", ", values);
+    return values == null || values.isEmpty() ? null : String.join(DATA_LIST_SEPARATOR, values);
   }
 
   private static String blankToNull(String value) {

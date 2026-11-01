@@ -66,6 +66,7 @@ export function ApplicationModuleGraph({
   const [drawerModules, setDrawerModules] = useState<DrawerModule[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
+  const [applicationDescription, setApplicationDescription] = useState('');
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ module: ModuleGraphNode }), []);
 
@@ -102,6 +103,9 @@ export function ApplicationModuleGraph({
           .map((n) => ({ ...moduleDetailsFromNode(n), colorSlot: slotById.get(n.id) ?? null }))
       );
 
+      setApplicationDescription(
+        data.nodes.find((n) => n.type === 'Application')?.description?.trim() ?? ''
+      );
       setNodes(rfNodes);
       setLayoutRevision((v) => v + 1);
     },
@@ -239,6 +243,7 @@ export function ApplicationModuleGraph({
         isOpen={isDrawerOpen && status === 'ready'}
         applicationId={applicationId}
         applicationName={applicationName}
+        applicationDescription={applicationDescription}
         modules={drawerModules}
         selectedId={pinnedId}
         onSelect={setPinnedId}
