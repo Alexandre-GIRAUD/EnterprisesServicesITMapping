@@ -56,4 +56,25 @@ class ModuleGraphServiceTest {
         moduleGraphService.getModuleGraph("app-1").orElseThrow().nodes().getFirst();
     assertThat(mod.description()).isNull();
   }
+
+  @Test
+  void getModuleGraphForwardsModuleDetailsAsProperties() {
+    when(moduleGraphLoader.applicationExists(any())).thenReturn(true);
+    when(moduleGraphLoader.loadNodes(any()))
+        .thenReturn(
+            List.of(
+                new ModuleGraphNodeRow(
+                    "m1", "Ingest", null, "Module", "Team A", "Kafka", List.of("Trades"), List.of("Positions")),
+                new ModuleGraphNodeRow("m2", "Bare", null, "Module")));
+    when(moduleGraphLoader.loadEdges(any())).thenReturn(List.of());
+
+    var nodes = moduleGraphService.getModuleGraph("app-1").orElseThrow().nodes();
+
+    assertThat(nodes.get(0).properties())
+        .containsEntry("owner", "Team A")
+        .containsEntry("technology", "Kafka")
+        .containsEntry("dataIn", List.of("Trades"))
+        .containsEntry("dataOut", List.of("Positions"));
+    assertThat(nodes.get(1).properties()).isEmpty();
+  }
 }
