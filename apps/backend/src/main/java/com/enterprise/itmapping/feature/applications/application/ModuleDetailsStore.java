@@ -11,7 +11,12 @@ import org.springframework.stereotype.Repository;
 public class ModuleDetailsStore {
 
   public record ModuleDetails(
-      String description, String owner, String technology, List<String> dataIn, List<String> dataOut) {}
+      String description,
+      String owner,
+      List<String> actors,
+      String trigger,
+      List<String> dataIn,
+      List<String> dataOut) {}
 
   private final Neo4jClient neo4jClient;
 
@@ -25,8 +30,8 @@ public class ModuleDetailsStore {
         .query(
             """
             MATCH (:Application {id: $appId})-[:CONTAINS*1..50]->(m:Module {id: $moduleId})
-            RETURN m.description AS description, m.owner AS owner, m.technology AS technology,
-                   m.dataIn AS dataIn, m.dataOut AS dataOut
+            RETURN m.description AS description, m.owner AS owner, m.actors AS actors,
+                   m.trigger AS trigger, m.dataIn AS dataIn, m.dataOut AS dataOut
             LIMIT 1
             """)
         .bind(applicationId)
@@ -40,7 +45,8 @@ public class ModuleDetailsStore {
                 new ModuleDetails(
                     asText(row.get("description")),
                     asText(row.get("owner")),
-                    asText(row.get("technology")),
+                    asList(row.get("actors")),
+                    asText(row.get("trigger")),
                     asList(row.get("dataIn")),
                     asList(row.get("dataOut"))));
   }
@@ -51,8 +57,8 @@ public class ModuleDetailsStore {
         .query(
             """
             MATCH (m:Module {id: $moduleId})
-            SET m.description = $description, m.owner = $owner, m.technology = $technology,
-                m.dataIn = $dataIn, m.dataOut = $dataOut
+            SET m.description = $description, m.owner = $owner, m.actors = $actors,
+                m.trigger = $trigger, m.dataIn = $dataIn, m.dataOut = $dataOut
             """)
         .bind(moduleId)
         .to("moduleId")
@@ -60,8 +66,10 @@ public class ModuleDetailsStore {
         .to("description")
         .bind(details.owner())
         .to("owner")
-        .bind(details.technology())
-        .to("technology")
+        .bind(emptyToNull(details.actors()))
+        .to("actors")
+        .bind(details.trigger())
+        .to("trigger")
         .bind(emptyToNull(details.dataIn()))
         .to("dataIn")
         .bind(emptyToNull(details.dataOut()))
