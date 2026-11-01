@@ -6,7 +6,9 @@ import com.enterprise.itmapping.feature.graph.application.dto.GraphEdgeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -49,7 +51,8 @@ public class ModuleGraphService {
                         r.id(),
                         r.name() != null && !r.name().isEmpty() ? r.name() : r.id(),
                         r.nodeType() != null ? r.nodeType() : "Module",
-                        normalizedDescription(r.description())))
+                        normalizedDescription(r.description()),
+                        moduleProperties(r)))
             .collect(Collectors.toList());
 
     List<GraphEdgeDto> edges = new ArrayList<>();
@@ -61,6 +64,27 @@ public class ModuleGraphService {
     }
 
     return Optional.of(new GraphResponseDto(nodes, edges));
+  }
+
+  private static Map<String, Object> moduleProperties(ModuleGraphNodeRow row) {
+    Map<String, Object> properties = new LinkedHashMap<>();
+    putText(properties, "owner", row.owner());
+    putText(properties, "technology", row.technology());
+    putList(properties, "dataIn", row.dataIn());
+    putList(properties, "dataOut", row.dataOut());
+    return properties;
+  }
+
+  private static void putText(Map<String, Object> properties, String key, String value) {
+    if (value != null && !value.isBlank()) {
+      properties.put(key, value.trim());
+    }
+  }
+
+  private static void putList(Map<String, Object> properties, String key, List<String> values) {
+    if (values != null && !values.isEmpty()) {
+      properties.put(key, values);
+    }
   }
 
   private static String normalizedDescription(String description) {

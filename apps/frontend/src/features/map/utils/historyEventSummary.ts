@@ -46,3 +46,11 @@ export function linkEventSummary(event: AttributeChangeEventDto): {
   return { title: `${entity} ${verb}`, detail };
 }
 
+/** Field name of a change event; a module's changes are prefixed with the module name. */
+export function fieldEventLabel(
+  event: AttributeChangeEventDto,
+  moduleNames: ReadonlyMap<string, string>
+): string {
+  const moduleName = event.targetType === 'MODULE' ? moduleNames.get(event.targetId) : undefined;
+  return moduleName ? `${moduleName} · ${event.fieldKey}` : event.fieldKey;
+}

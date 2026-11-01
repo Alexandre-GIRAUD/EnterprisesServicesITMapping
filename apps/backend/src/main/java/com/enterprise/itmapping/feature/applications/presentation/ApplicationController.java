@@ -4,6 +4,7 @@ import com.enterprise.itmapping.feature.applications.application.ApplicationConn
 import com.enterprise.itmapping.feature.applications.application.ApplicationNodeAttributePatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationNodeRefPatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
+import com.enterprise.itmapping.feature.applications.application.ModuleDetailsPatchService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationNodeAttributesPatchRequest;
@@ -12,6 +13,7 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.Applicatio
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse;
+import com.enterprise.itmapping.feature.applications.presentation.dto.ModuleDetailsPatchRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
@@ -36,6 +38,7 @@ public class ApplicationController {
 
   private final ApplicationService applicationService;
   private final ModuleGraphService moduleGraphService;
+  private final ModuleDetailsPatchService moduleDetailsPatchService;
   private final ModuleSuggestionService moduleSuggestionService;
   private final ApplicationConnectionSuggestionService connectionSuggestionService;
   private final ApplicationNodeAttributePatchService nodeAttributePatchService;
@@ -44,12 +47,14 @@ public class ApplicationController {
   public ApplicationController(
       ApplicationService applicationService,
       ModuleGraphService moduleGraphService,
+      ModuleDetailsPatchService moduleDetailsPatchService,
       ModuleSuggestionService moduleSuggestionService,
       ApplicationConnectionSuggestionService connectionSuggestionService,
       ApplicationNodeAttributePatchService nodeAttributePatchService,
       ApplicationNodeRefPatchService nodeRefPatchService) {
     this.applicationService = applicationService;
     this.moduleGraphService = moduleGraphService;
+    this.moduleDetailsPatchService = moduleDetailsPatchService;
     this.moduleSuggestionService = moduleSuggestionService;
     this.connectionSuggestionService = connectionSuggestionService;
     this.nodeAttributePatchService = nodeAttributePatchService;
@@ -104,6 +109,23 @@ public class ApplicationController {
    */
   @GetMapping("/{id}/module-graph")
   public ResponseEntity<GraphResponseDto> getModuleGraph(@PathVariable String id) {
+    return moduleGraphService
+        .getModuleGraph(id)
+        .map(ResponseEntity::ok)
+        .orElse(ResponseEntity.notFound().build());
+  }
+
+  /**
+   * Edits a module description, owner, technology and consumed / produced data. Fields left out
+   * stay as they are; each change lands in the application history. Human edits need
+   * {@code changeMeta.reason}.
+   */
+  @PatchMapping("/{id}/modules/{moduleId}")
+  public ResponseEntity<GraphResponseDto> patchModule(
+      @PathVariable String id,
+      @PathVariable String moduleId,
+      @RequestBody ModuleDetailsPatchRequest body) {
+    moduleDetailsPatchService.patchHuman(id, moduleId, body.toPatch(), body.changeMeta());
     return moduleGraphService
         .getModuleGraph(id)
         .map(ResponseEntity::ok)

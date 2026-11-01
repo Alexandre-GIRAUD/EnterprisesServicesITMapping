@@ -15,7 +15,10 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
+import type { GraphResponseDto } from '@/types/api';
 import { fetchModuleGraph } from '../api/graphApi';
+import { moduleDetailsFromNode, type ModuleDetails } from '../utils/moduleDetails';
+import { ApplicationModulesDrawer } from './ApplicationModulesDrawer';
 import { buildNodeHoverHint } from './moduleNodeCardHtml';
 import { ModuleGraphNode, type ModuleNode } from './ModuleGraphNode';
 import { NODE_TYPE_STYLES, type NodeTypeKey } from './graphTheme';
@@ -32,13 +35,22 @@ const GRID = 16;
 
 type Props = {
   applicationId: string;
+  applicationName?: string;
+  /** Past day shown: the drawer only reads. */
+  isReadOnly?: boolean;
 };
+
+type DrawerModule = ModuleDetails & { colorSlot: number | null };
 
 /**
  * Module composition view (GET …/module-graph) as nested boxes inside the
  * application container. CONTAINS edges drive hierarchy only — nothing is drawn.
  */
-export function ApplicationModuleGraph({ applicationId }: Props) {
+export function ApplicationModuleGraph({
+  applicationId,
+  applicationName = '',
+  isReadOnly = false,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rfRef = useRef<ReactFlowInstance<ModuleNode, never> | null>(null);
   const treeRef = useRef<ModuleTree | null>(null);
@@ -51,6 +63,10 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
   const focusedId = hoveredId ?? pinnedId;
   const [legendNodeTypes, setLegendNodeTypes] = useState<NodeTypeKey[]>([]);
   const [layoutRevision, setLayoutRevision] = useState(0);
+  const [drawerModules, setDrawerModules] = useState<DrawerModule[]>([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [applicationDescription, setApplicationDescription] = useState('');
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ module: ModuleGraphNode }), []);
 
@@ -72,6 +88,30 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
     fitGraphView(rfRef.current);
   }, [status, nodes.length, layoutRevision]);
 
+  const applyGraph = useCallback(
+    (data: GraphResponseDto) => {
+      const { rfNodes, tree } = buildModuleNestedNodes(data.nodes, data.edges);
+      treeRef.current = tree;
+
+      const presentNodeTypes = new Set(data.nodes.map((n) => n.type));
+      setLegendNodeTypes(KNOWN_NODE_TYPES.filter((t) => presentNodeTypes.has(t)));
+
+      const slotById = new Map(rfNodes.map((n) => [n.id, n.data.colorSlot]));
+      setDrawerModules(
+        data.nodes
+          .filter((n) => n.type !== 'Application')
+          .map((n) => ({ ...moduleDetailsFromNode(n), colorSlot: slotById.get(n.id) ?? null }))
+      );
+
+      setApplicationDescription(
+        data.nodes.find((n) => n.type === 'Application')?.description?.trim() ?? ''
+      );
+      setNodes(rfNodes);
+      setLayoutRevision((v) => v + 1);
+    },
+    [setNodes]
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -83,14 +123,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
         const data = await fetchModuleGraph(applicationId);
         if (cancelled) return;
 
-        const { rfNodes, tree } = buildModuleNestedNodes(data.nodes, data.edges);
-        treeRef.current = tree;
-
-        const presentNodeTypes = new Set(data.nodes.map((n) => n.type));
-        setLegendNodeTypes(KNOWN_NODE_TYPES.filter((t) => presentNodeTypes.has(t)));
-
-        setNodes(rfNodes);
-        if (!cancelled) setLayoutRevision((v) => v + 1);
+        applyGraph(data);
 
         setStatus('ready');
         setMessage(
@@ -103,6 +136,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
           treeRef.current = null;
           setNodes([]);
           setLegendNodeTypes([]);
+          setDrawerModules([]);
           setStatus('error');
           let msg = e instanceof Error ? e.message : 'Unable to load the module graph';
           if (msg.includes('404')) {
@@ -121,7 +155,7 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [applicationId, setNodes]);
+  }, [applicationId, applyGraph, reloadKey, setNodes]);
 
   const handleNodeMouseEnter = useCallback((_: ReactMouseEvent, node: ModuleNode) => {
     setHoverHint(buildNodeHoverHint(node.data.name ?? '', node.data.description ?? ''));
@@ -133,11 +167,10 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
     setHoveredId(null);
   }, []);
 
-  const handleNodeClick = useCallback(
-    (_: ReactMouseEvent, node: ModuleNode) =>
-      setPinnedId((prev) => (prev === node.id ? null : node.id)),
-    []
-  );
+  const handleNodeClick = useCallback((_: ReactMouseEvent, node: ModuleNode) => {
+    setPinnedId((prev) => (prev === node.id ? null : node.id));
+    setIsDrawerOpen(true);
+  }, []);
 
   const handlePaneClick = useCallback(() => setPinnedId(null), []);
 
@@ -188,6 +221,17 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
         >
           <Background color="#e2e8f0" gap={GRID} />
           <Controls showInteractive={false} />
+          {!isDrawerOpen && (
+            <Panel position="top-right">
+              <button
+                type="button"
+                className="graph-drawer-action"
+                onClick={() => setIsDrawerOpen(true)}
+              >
+                <span className="graph-drawer-action-title">Module details</span>
+              </button>
+            </Panel>
+          )}
           {legendNodeTypes.length > 0 && (
             <Panel position="top-left">
               <GraphLegend nodeTypes={legendNodeTypes} />
@@ -195,6 +239,18 @@ export function ApplicationModuleGraph({ applicationId }: Props) {
           )}
         </ReactFlow>
       </div>
+      <ApplicationModulesDrawer
+        isOpen={isDrawerOpen && status === 'ready'}
+        applicationId={applicationId}
+        applicationName={applicationName}
+        applicationDescription={applicationDescription}
+        modules={drawerModules}
+        selectedId={pinnedId}
+        onSelect={setPinnedId}
+        onClose={() => setIsDrawerOpen(false)}
+        onSaved={() => setReloadKey((k) => k + 1)}
+        isReadOnly={isReadOnly}
+      />
     </div>
   );
 }

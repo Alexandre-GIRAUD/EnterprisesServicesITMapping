@@ -7246,8 +7246,8 @@ body.is-diagram-grown .layout {
   max-width: 11.25rem;
   padding: 0.625rem 0.75rem;
   border-radius: 0.5rem;
-  background-color: #ffffff;
-  border: 1.5px solid #52525b;
+  background-color: var(--module-fill, #ffffff);
+  border: 1.5px solid var(--module-border, #52525b);
   box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
   text-align: left;
   transition: box-shadow 180ms ease, border-color 180ms ease, transform 150ms ease;
@@ -7280,9 +7280,9 @@ body.is-diagram-grown .layout {
 }
 
 .module-node-card--container-nested {
-  border-color: #94a3b8;
+  border-color: var(--module-border, #94a3b8);
   border-width: 1.5px;
-  background-color: #f8fafc;
+  background-color: color-mix(in srgb, var(--module-fill, #f8fafc) 45%, #ffffff);
 }
 
 .module-node-card__header {
@@ -8593,4 +8593,86 @@ html[data-theme='dark'] .graph-legend__swatch img {
     flex: 1 1 0;
     min-width: 0;
   }
+}
+
+/* ===== Module drawer ===== */
+.module-graph-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+.module-drawer {
+  width: min(440px, calc(100% - 1.5rem));
+}
+
+.module-drawer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.module-drawer-card {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.module-drawer-card.is-selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 15%);
+}
+
+.module-drawer-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.module-drawer-card__dot {
+  flex: 0 0 auto;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+}
+
+.module-drawer-card__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  color: #0f172a;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.module-drawer-card__edit {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0.25rem 0.7rem;
+}
+
+.module-drawer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.module-drawer-chip {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 0.75rem;
 }

@@ -229,3 +229,10 @@ export function edgeStyleForType(type: string): Pick<
     markerEnd: { type: MarkerType.ArrowClosed, color },
   };
 }
+
+/** Fill and border of a module box: its data-link group's slot, or slate when it links to nobody. */
+export function moduleTone(slot: number | null): { fill: string; border: string } {
+  if (slot === null) return { fill: '#f1f5f9', border: '#94a3b8' };
+  const i = slot % PASTEL_NODE_PALETTE.length;
+  return { fill: PASTEL_NODE_PALETTE[i], border: DARK_EDGE_PALETTE[i] };
+}
