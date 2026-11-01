@@ -10,7 +10,9 @@ import {
   buildModuleNestedNodes,
   CONTAINER_HEADER_HEIGHT,
   CONTAINER_PADDING,
+  estimateTitleWidth,
   MODULE_GAP,
+  SHORT_NODE_HEIGHT,
 } from './moduleNestedLayout.ts';
 
 function graph(modules: Array<Partial<GraphNodeDto> & { id: string }>) {
@@ -80,6 +82,27 @@ function size(n: ModuleNode) {
   const { rfNodes } = buildModuleNestedNodes(nodes, edges);
   const slots = rfNodes.filter((n) => n.parentId === 'app').map((n) => n.data.colorSlot);
   assert.deepEqual(slots, [0, 1, 2]);
+}
+
+// Title only: every module, in any container, has one size that fits the longest title in full.
+{
+  const longTitle = 'Settlement instruction matching and repair';
+  const { nodes, edges } = graph([
+    { id: 'a', label: 'Pricing', description: 'a description no longer adds height' },
+    { id: 'b', label: longTitle },
+    { id: 'c', label: 'Cash' },
+  ]);
+  const withNested = {
+    nodes: [...nodes, { id: 'n', label: 'Nested leaf', type: 'Module' } as GraphNodeDto],
+    edges: [...edges, { id: 'en', sourceId: 'c', targetId: 'n', type: 'CONTAINS' } as GraphEdgeDto],
+  };
+  const { rfNodes } = buildModuleNestedNodes(withNested.nodes, withNested.edges);
+  const leaves = rfNodes.filter((n) => !n.data.isContainer);
+  assert.equal(leaves.length, 3);
+  const first = size(leaves[0]);
+  for (const leaf of leaves) assert.deepEqual(size(leaf), first);
+  assert.equal(first.h, SHORT_NODE_HEIGHT);
+  assert.ok(first.w >= estimateTitleWidth(longTitle));
 }
 
 console.log('moduleNestedLayout.check: ok');
