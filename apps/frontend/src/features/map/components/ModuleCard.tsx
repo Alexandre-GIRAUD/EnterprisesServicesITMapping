@@ -65,9 +65,10 @@ export const ModuleCard = forwardRef<HTMLLIElement, Props>(function ModuleCard(
         editor
       ) : (
         <dl className="graph-details-attribute-list">
-          <Row label="Description">{module.description || NO_DESCRIPTION_TEXT}</Row>
-          <Row label="Owner">{module.owner || NOT_SET_TEXT}</Row>
-          <Row label="Technology">{module.technology || NOT_SET_TEXT}</Row>
+          <Row label="What it does">{module.description || NO_DESCRIPTION_TEXT}</Row>
+          <Row label="Business owner">{module.owner || NOT_SET_TEXT}</Row>
+          <Row label="Who uses it">{module.actors.join(', ') || NOT_SET_TEXT}</Row>
+          <Row label="When it acts">{module.trigger || NOT_SET_TEXT}</Row>
           <Row label="Data in">
             <DataChips items={module.dataIn} />
           </Row>

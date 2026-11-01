@@ -8688,3 +8688,22 @@ html[data-theme='dark'] .graph-legend__swatch img {
   opacity: 1;
   transform: none;
 }
+
+/* ===== Module drawer: business model ===== */
+.module-drawer-links {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.module-links-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0.35rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.module-links-row > select:nth-of-type(3),
+.module-links-row > button {
+  grid-column: 1 / -1;
+}

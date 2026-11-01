@@ -17,7 +17,14 @@ import {
 } from 'react';
 import type { GraphResponseDto } from '@/types/api';
 import { fetchModuleGraph } from '../api/graphApi';
-import { moduleDetailsFromNode, type ModuleDetails } from '../utils/moduleDetails';
+import {
+  applicationModelFromNode,
+  moduleDetailsFromNode,
+  moduleLinksFromEdges,
+  type ApplicationModel,
+  type ModuleDetails,
+  type ModuleLink,
+} from '../utils/moduleDetails';
 import { ApplicationModulesDrawer } from './ApplicationModulesDrawer';
 import { ModuleGraphNode, type ModuleNode } from './ModuleGraphNode';
 import { NODE_TYPE_STYLES, type NodeTypeKey } from './graphTheme';
@@ -40,6 +47,8 @@ type Props = {
 };
 
 type DrawerModule = ModuleDetails & { colorSlot: number | null };
+
+const EMPTY_MODEL: ApplicationModel = { businessObjects: [], mainJourney: '', scope: '' };
 
 /**
  * Module composition view (GET …/module-graph) as nested boxes inside the
@@ -65,6 +74,8 @@ export function ApplicationModuleGraph({
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
   const [applicationDescription, setApplicationDescription] = useState('');
+  const [applicationModel, setApplicationModel] = useState<ApplicationModel>(EMPTY_MODEL);
+  const [moduleLinks, setModuleLinks] = useState<ModuleLink[]>([]);
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ module: ModuleGraphNode }), []);
 
@@ -101,9 +112,10 @@ export function ApplicationModuleGraph({
           .map((n) => ({ ...moduleDetailsFromNode(n), colorSlot: slotById.get(n.id) ?? null }))
       );
 
-      setApplicationDescription(
-        data.nodes.find((n) => n.type === 'Application')?.description?.trim() ?? ''
-      );
+      const applicationNode = data.nodes.find((n) => n.type === 'Application');
+      setApplicationDescription(applicationNode?.description?.trim() ?? '');
+      setApplicationModel(applicationNode ? applicationModelFromNode(applicationNode) : EMPTY_MODEL);
+      setModuleLinks(moduleLinksFromEdges(data.edges));
       setNodes(rfNodes);
       setLayoutRevision((v) => v + 1);
     },
@@ -240,6 +252,8 @@ export function ApplicationModuleGraph({
         applicationId={applicationId}
         applicationName={applicationName}
         applicationDescription={applicationDescription}
+        applicationModel={applicationModel}
+        links={moduleLinks}
         modules={drawerModules}
         selectedId={pinnedId}
         onSelect={setPinnedId}
