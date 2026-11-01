@@ -66,25 +66,19 @@ public class ModuleGraphService {
     return Optional.of(new GraphResponseDto(nodes, edges));
   }
 
+  /** Non-blank texts and non-empty lists stored on the node, trimmed. */
   private static Map<String, Object> moduleProperties(ModuleGraphNodeRow row) {
     Map<String, Object> properties = new LinkedHashMap<>();
-    putText(properties, "owner", row.owner());
-    putText(properties, "technology", row.technology());
-    putList(properties, "dataIn", row.dataIn());
-    putList(properties, "dataOut", row.dataOut());
+    row.properties()
+        .forEach(
+            (key, value) -> {
+              if (value instanceof String text && !text.isBlank()) {
+                properties.put(key, text.trim());
+              } else if (value instanceof List<?> items && !items.isEmpty()) {
+                properties.put(key, items);
+              }
+            });
     return properties;
-  }
-
-  private static void putText(Map<String, Object> properties, String key, String value) {
-    if (value != null && !value.isBlank()) {
-      properties.put(key, value.trim());
-    }
-  }
-
-  private static void putList(Map<String, Object> properties, String key, List<String> values) {
-    if (values != null && !values.isEmpty()) {
-      properties.put(key, values);
-    }
   }
 
   private static String normalizedDescription(String description) {
