@@ -46,7 +46,7 @@ assert.deepEqual(
 );
 
 const fieldEvent = (targetType: string, targetId: string, fieldKey: string) =>
-  ({ targetType, targetId, fieldKey, fieldScope: 'MODULE_FIELD' }) as AttributeChangeEventDto;
+  ({ targetType, targetId, fieldKey, fieldScope: 'MODULE_FIELD' }) as unknown as AttributeChangeEventDto;
 const moduleNames = new Map([['m1', 'Ingest']]);
 assert.equal(fieldEventLabel(fieldEvent('MODULE', 'm1', 'dataIn'), moduleNames), 'Ingest · dataIn');
 assert.equal(fieldEventLabel(fieldEvent('MODULE', 'gone', 'owner'), moduleNames), 'owner');

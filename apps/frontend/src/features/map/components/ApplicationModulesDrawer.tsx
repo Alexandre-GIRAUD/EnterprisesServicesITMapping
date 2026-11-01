@@ -79,6 +79,10 @@ export function ApplicationModulesDrawer({
   const selectedRef = useRef<HTMLLIElement>(null);
 
   const dataIn = useMemo(() => unionOf(modules.map((module) => module.dataIn)), [modules]);
+  const moduleNames = useMemo(
+    () => new Map(modules.map((module) => [module.id, module.name])),
+    [modules]
+  );
   const dataOut = useMemo(() => unionOf(modules.map((module) => module.dataOut)), [modules]);
 
   useEffect(() => {
@@ -245,6 +249,7 @@ export function ApplicationModulesDrawer({
           targetId={applicationId}
           enabled
           refreshKey={historyRefreshKey}
+          moduleNames={moduleNames}
         />
       </div>
     </aside>

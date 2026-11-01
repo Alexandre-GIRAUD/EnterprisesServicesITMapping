@@ -5,7 +5,7 @@ import {
   fetchAttributeHistory,
   HUMAN_REASON_LABEL,
 } from '../api/attributeAuditApi';
-import { linkEventSummary } from '../utils/historyEventSummary';
+import { fieldEventLabel, linkEventSummary } from '../utils/historyEventSummary';
 
 const PAGE_SIZE = 50;
 
@@ -15,7 +15,11 @@ type AttributeHistorySectionProps = {
   enabled: boolean;
   /** Bump to reload after a successful save. */
   refreshKey?: number;
+  /** Module id → name, so a module's field changes say which module changed. */
+  moduleNames?: ReadonlyMap<string, string>;
 };
+
+const NO_MODULE_NAMES: ReadonlyMap<string, string> = new Map();
 
 function formatWhen(iso: string): string {
   const d = new Date(iso);
@@ -55,6 +59,7 @@ export function AttributeHistorySection({
   targetId,
   enabled,
   refreshKey = 0,
+  moduleNames = NO_MODULE_NAMES,
 }: AttributeHistorySectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<AttributeChangeEventDto[]>([]);
@@ -172,7 +177,7 @@ export function AttributeHistorySection({
                 ) : (
                   <>
                     <p className="attribute-history-item__field">
-                      <strong>{event.fieldKey}</strong>
+                      <strong>{fieldEventLabel(event, moduleNames)}</strong>
                     </p>
                     <p className="attribute-history-item__diff">
                       <span className="attribute-history-old">{displayValue(event.oldValue)}</span>
