@@ -138,16 +138,22 @@ export function moduleLinkGroups(links: ModuleLink[]): Map<string, number> {
   return groups;
 }
 
+/** The objects of `list` that `other` does not hold, without repeats. */
+function objectsWithout(list: string[], other: string[]): string[] {
+  const excluded = new Set(other.map(normalizeDataKey));
+  return parseDataList(list.filter((object) => !excluded.has(normalizeDataKey(object))).join('\n'));
+}
+
 /**
  * What crosses the application border: objects some module consumes that no module produces
  * (inputs), and objects some module produces that no module consumes (outputs).
  */
 export function externalData(modules: ModuleDetails[]): { inputs: string[]; outputs: string[] } {
-  const produced = new Set(modules.flatMap((m) => m.dataOut).map(normalizeDataKey));
-  const consumed = new Set(modules.flatMap((m) => m.dataIn).map(normalizeDataKey));
+  const consumed = modules.flatMap((module) => module.dataIn);
+  const produced = modules.flatMap((module) => module.dataOut);
   return {
-    inputs: parseDataList(modules.flatMap((m) => m.dataIn).filter((o) => !produced.has(normalizeDataKey(o))).join('\n')),
-    outputs: parseDataList(modules.flatMap((m) => m.dataOut).filter((o) => !consumed.has(normalizeDataKey(o))).join('\n')),
+    inputs: objectsWithout(consumed, produced),
+    outputs: objectsWithout(produced, consumed),
   };
 }
 
@@ -156,7 +162,7 @@ export function changedModuleFields(before: ModuleDetails, after: ModuleDetails)
     const a = before[field];
     const b = after[field];
     return Array.isArray(a) && Array.isArray(b)
-      ? a.length !== b.length || a.some((item, i) => item !== b[i])
+      ? a.length !== b.length || a.some((item, index) => item !== b[index])
       : a !== b;
   });
 }
