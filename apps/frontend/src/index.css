@@ -7228,10 +7228,6 @@ body.is-diagram-grown .layout {
   white-space: nowrap;
 }
 
-.module-graph-hint[title] {
-  cursor: help;
-}
-
 .module-graph-canvas .react-flow__node-module {
   width: auto;
   padding: 0;
@@ -7335,34 +7331,6 @@ body.is-diagram-grown .layout {
   color: #0f172a;
   overflow-wrap: anywhere;
   word-break: break-word;
-}
-
-.module-node-card__divider {
-  width: 80%;
-  margin: 0.375rem 0;
-  border: none;
-  border-top: 1px solid #e2e8f0;
-}
-
-.module-node-card__description {
-  margin: 0;
-  font-size: 0.6875rem;
-  font-weight: 400;
-  line-height: 1.35;
-  color: #94a3b8;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  transition: opacity 160ms ease;
-}
-
-.module-node-card__title {
-  transition: opacity 160ms ease;
-}
-
-.module-node-card__description.is-hidden {
-  opacity: 0;
 }
 
 /* ===== Auth & admin ===== */
@@ -8675,4 +8643,52 @@ html[data-theme='dark'] .graph-legend__swatch img {
   background: #eef2ff;
   color: #3730a3;
   font-size: 0.75rem;
+}
+
+/* Module boxes show the title only; the description appears on hover. */
+.module-node-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.module-node-card__title {
+  white-space: nowrap;
+}
+
+.module-graph-canvas .react-flow__node-module:hover {
+  z-index: 1000 !important;
+}
+
+.module-node-card:not(.module-node-card--container):hover {
+  box-shadow: 0 6px 18px rgb(15 23 42 / 18%);
+  filter: brightness(0.97);
+}
+
+.module-node-card__tip,
+.module-node-card__tip {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 5;
+  width: max-content;
+  max-width: 16rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.module-node-card:hover > .module-node-card__tip,
+.module-node-card__header:hover > .module-node-card__tip {
+  opacity: 1;
+  transform: none;
 }

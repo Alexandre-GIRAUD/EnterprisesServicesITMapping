@@ -3,8 +3,26 @@ import { moduleDetailsFromNode, moduleLinkGroups } from '../utils/moduleDetails.
 import type { ModuleNode } from './ModuleGraphNode.tsx';
 
 export const MODULE_NODE_WIDTH = 172;
+export const MAX_MODULE_NODE_WIDTH = 360;
 export const SHORT_NODE_HEIGHT = 56;
-export const TALL_NODE_HEIGHT = 96;
+const TITLE_CHAR_WIDTH = 8;
+const TITLE_LINE_HEIGHT = 17;
+const BOX_HORIZONTAL_PADDING = 28;
+const BOX_VERTICAL_PADDING = 22;
+
+/** Width a title needs on one line, from its length (no DOM measuring, so the layout stays pure). */
+export function estimateTitleWidth(title: string): number {
+  return title.length * TITLE_CHAR_WIDTH + BOX_HORIZONTAL_PADDING;
+}
+
+/** One size for every module: wide enough for the longest title, wrapping only past the maximum. */
+function uniformBoxSize(titles: string[]): { width: number; height: number } {
+  const longest = Math.max(0, ...titles.map(estimateTitleWidth));
+  const width = Math.min(MAX_MODULE_NODE_WIDTH, Math.max(MODULE_NODE_WIDTH, longest));
+  const lines = Math.ceil((longest - BOX_HORIZONTAL_PADDING) / (width - BOX_HORIZONTAL_PADDING)) || 1;
+  const height = Math.max(SHORT_NODE_HEIGHT, lines * TITLE_LINE_HEIGHT + BOX_VERTICAL_PADDING);
+  return { width, height };
+}
 export const MODULE_GAP = 16;
 export const CONTAINER_PADDING = 20;
 export const CONTAINER_HEADER_HEIGHT = 40;
@@ -17,7 +35,6 @@ type NodeMeta = {
   name: string;
   description: string;
   nodeType: string;
-  hasDescription: boolean;
   /** Color slot: the data-link group, or null when no color applies. */
   linkGroup: number | null;
 };
@@ -28,6 +45,8 @@ export type ModuleTree = {
   nodeMeta: Map<string, NodeMeta>;
   /** True when at least one module exchanges data with another. */
   hasLinks: boolean;
+  /** Size shared by every module box. */
+  boxSize: { width: number; height: number };
 };
 
 /** Build parent → children map from CONTAINS edges (first parent wins on cycles). */
@@ -50,7 +69,6 @@ export function buildContainsTree(
       name,
       description,
       nodeType: n.type,
-      hasDescription: description.length > 0,
       linkGroup: groups.get(n.id) ?? null,
     });
   }
@@ -76,7 +94,15 @@ export function buildContainsTree(
     childrenByParent.set(parentId, children);
   }
 
-  return { rootId: appNode.id, childrenByParent, nodeMeta, hasLinks: groups.size > 0 };
+  return {
+    rootId: appNode.id,
+    childrenByParent,
+    nodeMeta,
+    hasLinks: groups.size > 0,
+    boxSize: uniformBoxSize(
+      [...nodeMeta.values()].filter((m) => m.nodeType !== 'Application').map((m) => m.name)
+    ),
+  };
 }
 
 /** All descendants of a node (including itself). */
@@ -96,13 +122,6 @@ export function collectDescendants(
     }
   }
   return result;
-}
-
-function leafSize(meta: NodeMeta): { width: number; height: number } {
-  return {
-    width: MODULE_NODE_WIDTH,
-    height: meta.hasDescription ? TALL_NODE_HEIGHT : SHORT_NODE_HEIGHT,
-  };
 }
 
 /** Link group wins; with no link anywhere the palette cycles by sibling position instead. */
@@ -135,6 +154,33 @@ function fitToCell(child: Layout, cellWidth: number, cellHeight: number): Layout
     nodes: [{ ...root, style: { ...root.style, width: cellWidth, height: cellHeight } }, ...nodes],
     width: cellWidth,
     height: cellHeight,
+  };
+}
+
+type Grid = { nodes: ModuleNode[]; width: number; height: number; top: number };
+
+/** One cell size for the group, one gap between cells, starting `top` below the container header. */
+function placeGrid(group: Layout[], top: number): Grid {
+  if (group.length === 0) return { nodes: [], width: 0, height: 0, top };
+  const cellWidth = Math.max(...group.map((c) => c.width));
+  const cellHeight = Math.max(...group.map((c) => c.height));
+  const cols = gridColumns(group.length, cellWidth, cellHeight);
+  const rows = Math.ceil(group.length / cols);
+  const nodes: ModuleNode[] = [];
+  group.forEach((child, i) => {
+    const [root, ...rest] = fitToCell(child, cellWidth, cellHeight).nodes;
+    root.position = {
+      x: CONTAINER_PADDING + (i % cols) * (cellWidth + MODULE_GAP),
+      y:
+        CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING + top + Math.floor(i / cols) * (cellHeight + MODULE_GAP),
+    };
+    nodes.push(root, ...rest);
+  });
+  return {
+    nodes,
+    width: cols * cellWidth + (cols - 1) * MODULE_GAP,
+    height: rows * cellHeight + (rows - 1) * MODULE_GAP,
+    top,
   };
 }
 
@@ -177,7 +223,7 @@ function layoutSubtree(
   });
 
   if (!isContainer) {
-    const { width, height } = leafSize(meta);
+    const { width, height } = tree.boxSize;
     return { nodes: [nodeOf(false, width, height)], width, height };
   }
 
@@ -185,26 +231,18 @@ function layoutSubtree(
     .map((childId, i) => layoutSubtree(childId, { parentId: id, depth: depth + 1, siblingIndex: i }, tree, visited))
     .filter((child) => child.nodes.length > 0);
 
-  // One cell size for every sibling, one gap between cells, one padding around the grid.
-  const cellWidth = Math.max(0, ...children.map((c) => c.width));
-  const cellHeight = Math.max(0, ...children.map((c) => c.height));
-  const cols = gridColumns(children.length, cellWidth, cellHeight);
-  const rows = Math.ceil(children.length / cols);
+  // Module boxes keep one size; sub-containers get their own grid below them.
+  const isLeaf = (child: Layout) => !child.nodes[0].data.isContainer;
+  const leafGrid = placeGrid(children.filter(isLeaf), 0);
+  const containerGrid = placeGrid(
+    children.filter((child) => !isLeaf(child)),
+    leafGrid.height === 0 ? 0 : leafGrid.height + MODULE_GAP
+  );
+  const placed = [...leafGrid.nodes, ...containerGrid.nodes];
+  const gridWidth = Math.max(leafGrid.width, containerGrid.width);
+  const gridHeight = leafGrid.height === 0 ? containerGrid.height : containerGrid.height === 0 ? leafGrid.height : containerGrid.top + containerGrid.height;
 
-  const placed: ModuleNode[] = [];
-  children.forEach((child, i) => {
-    const fitted = fitToCell(child, cellWidth, cellHeight);
-    const [root, ...rest] = fitted.nodes;
-    root.position = {
-      x: CONTAINER_PADDING + (i % cols) * (cellWidth + MODULE_GAP),
-      y: CONTAINER_HEADER_HEIGHT + CONTAINER_PADDING + Math.floor(i / cols) * (cellHeight + MODULE_GAP),
-    };
-    placed.push(root, ...rest);
-  });
-
-  const gridWidth = children.length === 0 ? 0 : cols * cellWidth + (cols - 1) * MODULE_GAP;
-  const gridHeight = children.length === 0 ? 0 : rows * cellHeight + (rows - 1) * MODULE_GAP;
-  const minWidth = isApp && children.length === 0 ? EMPTY_APP_MIN_WIDTH : MODULE_NODE_WIDTH;
+  const minWidth = isApp && children.length === 0 ? EMPTY_APP_MIN_WIDTH : tree.boxSize.width;
   const minHeight =
     isApp && children.length === 0
       ? EMPTY_APP_MIN_HEIGHT
