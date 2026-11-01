@@ -11,6 +11,7 @@ import {
   CONTAINER_HEADER_HEIGHT,
   CONTAINER_PADDING,
   estimateTitleWidth,
+  MAX_MODULE_NODE_WIDTH,
   MODULE_GAP,
   SHORT_NODE_HEIGHT,
 } from './moduleNestedLayout.ts';
@@ -86,7 +87,7 @@ function size(n: ModuleNode) {
 
 // Title only: every module, in any container, has one size that fits the longest title in full.
 {
-  const longTitle = 'Settlement instruction matching and repair';
+  const longTitle = 'Settlement instruction matching';
   const { nodes, edges } = graph([
     { id: 'a', label: 'Pricing', description: 'a description no longer adds height' },
     { id: 'b', label: longTitle },
@@ -103,6 +104,15 @@ function size(n: ModuleNode) {
   for (const leaf of leaves) assert.deepEqual(size(leaf), first);
   assert.equal(first.h, SHORT_NODE_HEIGHT);
   assert.ok(first.w >= estimateTitleWidth(longTitle));
+}
+
+// Past the maximum width a title wraps, and every box grows to the same taller height.
+{
+  const { nodes, edges } = graph([{ id: 'a', label: 'X'.repeat(120) }, { id: 'b', label: 'Cash' }]);
+  const boxes = buildModuleNestedNodes(nodes, edges).rfNodes.filter((n) => !n.data.isContainer);
+  assert.deepEqual(size(boxes[0]), size(boxes[1]));
+  assert.equal(size(boxes[0]).w, MAX_MODULE_NODE_WIDTH);
+  assert.ok(size(boxes[0]).h > SHORT_NODE_HEIGHT);
 }
 
 console.log('moduleNestedLayout.check: ok');

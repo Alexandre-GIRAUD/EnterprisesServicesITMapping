@@ -1,6 +1,6 @@
-﻿import { useStore, type NodeProps, type Node } from '@xyflow/react';
+﻿import type { NodeProps, Node } from '@xyflow/react';
 import type { CSSProperties } from 'react';
-import { moduleTone, ZOOM_THRESHOLDS } from './graphTheme';
+import { moduleTone } from './graphTheme';
 
 export type ModuleNodeData = {
   name: string;
@@ -15,13 +15,10 @@ export type ModuleNodeData = {
 export type ModuleNode = Node<ModuleNodeData, 'module'>;
 
 export function ModuleGraphNode({ data }: NodeProps<ModuleNode>) {
-  const zoom = useStore((s) => s.transform[2]);
   const rawName = data.name.trim() || '—';
   const description = data.description?.trim() ?? '';
-  const hasDescription = description.length > 0;
   const isApp = data.nodeType === 'Application';
   const isContainer = data.isContainer;
-  const detailVisible = zoom >= ZOOM_THRESHOLDS.secondaryDetail;
   const tone = moduleTone(data.colorSlot);
   const toneStyle = (isApp ? {} : { '--module-fill': tone.fill, '--module-border': tone.border }) as CSSProperties;
 
@@ -33,6 +30,7 @@ export function ModuleGraphNode({ data }: NodeProps<ModuleNode>) {
       <div className={cardClass} data-depth={data.depth} style={toneStyle}>
         <div className="module-node-card__header">
           {rawName}
+          {description && <span className="module-node-card__tip" role="tooltip">{description}</span>}
         </div>
         <div className="module-node-card__body" aria-hidden="true" />
       </div>
@@ -41,16 +39,11 @@ export function ModuleGraphNode({ data }: NodeProps<ModuleNode>) {
 
   return (
     <div className="module-node-card" style={toneStyle}>
-      <div className="module-node-card__title">
-        {rawName}
-      </div>
-      {hasDescription && (
-        <>
-          <hr className="module-node-card__divider" aria-hidden="true" />
-          <p className={`module-node-card__description${detailVisible ? '' : ' is-hidden'}`}>
-            {description}
-          </p>
-        </>
+      <div className="module-node-card__title">{rawName}</div>
+      {description && (
+        <span className="module-node-card__tip" role="tooltip">
+          {description}
+        </span>
       )}
     </div>
   );
