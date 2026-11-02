@@ -15,6 +15,7 @@ import {
   fillLegendFrame,
   fitLegendHeight,
   isResizeGrip,
+  legendMaxHeight,
   measureLegendFontScale,
   pickShownLegendFrame,
   measureSnugLegendSize,
@@ -75,10 +76,12 @@ export function useLegendFrame(
     remembered?.size ?? { width: DEFAULT_LEGEND_WIDTH_PX, height: DEFAULT_LEGEND_HEIGHT_PX },
   );
   const [isUserSized, setIsUserSized] = useState(remembered?.isUserSized ?? false);
+  const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
   const [isConcealed, setIsConcealed] = useState(false);
   const [fill, setFill] = useState<LegendFill | null>(null);
   const sizeRef = useRef(size);
   const concealedRef = useRef(isConcealed);
+  const resizingRef = useRef(false);
   const suppressClickRef = useRef(false);
   sizeRef.current = size;
   concealedRef.current = isConcealed;
@@ -87,8 +90,14 @@ export function useLegendFrame(
   }, [offset, size, isUserSized]);
   useConcealOnSignal(concealSignal, setIsConcealed);
   useSnugFit({ frameRef, isEnabled: !isUserSized && !isConcealed && !isFilling, setSize });
-  useFitDefaultHeight(frameRef, setSize);
-  useLegendResizeObserver({ frameRef, isConcealed: isConcealed || isFilling, concealedRef, setSize });
+  useFitDefaultHeight(frameRef, setMaxHeight);
+  useLegendResizeObserver({
+    frameRef,
+    isConcealed: isConcealed || isFilling,
+    concealedRef,
+    resizingRef,
+    setSize,
+  });
   useKeepLegendInside({ frameRef, isConcealed: isConcealed || isFilling, size, setOffset });
   useFillPane(frameRef, isFilling, setFill);
 
@@ -99,6 +108,8 @@ export function useLegendFrame(
     isConcealed,
     isFilling,
     fill,
+    maxHeight,
+    resizingRef,
     sizeRef,
     concealedRef,
     suppressClickRef,
@@ -163,7 +174,7 @@ function measureLegendContent(element: HTMLElement, frame: LegendSize): LegendCo
 
 function useFitDefaultHeight(
   frameRef: RefObject<HTMLDivElement | null>,
-  setSize: (update: (current: LegendSize) => LegendSize) => void,
+  setMaxHeight: (maxHeight: number) => void,
 ): void {
   useEffect(() => {
     const element = frameRef.current;
@@ -173,10 +184,7 @@ function useFitDefaultHeight(
       const paneHeight = readLegendPaneBox(element).height;
       if (paneHeight <= 0) return;
       const clearance = readControlsClearance(pane);
-      setSize((current) => {
-        const height = fitLegendHeight(current.height, paneHeight, clearance);
-        return height === current.height ? current : { ...current, height };
-      });
+      setMaxHeight(legendMaxHeight(paneHeight, clearance));
     };
     fit();
     const frame = window.requestAnimationFrame(fit);
@@ -188,7 +196,7 @@ function useFitDefaultHeight(
       window.cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [frameRef, setSize]);
+  }, [frameRef, setMaxHeight]);
 }
 
 /** Room the zoom controls take at the bottom of the pane, or undefined when they are not drawn yet. */
@@ -221,6 +229,8 @@ type LegendResizeWatch = {
   frameRef: RefObject<HTMLDivElement | null>;
   isConcealed: boolean;
   concealedRef: { current: boolean };
+  /** True while the user holds the resize grip: only then does the observed size count. */
+  resizingRef: { current: boolean };
   setSize: (update: (current: LegendSize) => LegendSize) => void;
 };
 
@@ -231,6 +241,8 @@ type LegendFrameInput = {
   isConcealed: boolean;
   isFilling: boolean;
   fill: LegendFill | null;
+  maxHeight: number | undefined;
+  resizingRef: { current: boolean };
   sizeRef: { current: LegendSize };
   concealedRef: { current: boolean };
   suppressClickRef: { current: boolean };
@@ -255,16 +267,16 @@ function useKeepLegendInside(watch: {
 }
 
 function useLegendResizeObserver(watch: LegendResizeWatch): void {
-  const { frameRef, isConcealed, concealedRef, setSize } = watch;
+  const { frameRef, isConcealed, concealedRef, resizingRef, setSize } = watch;
   useEffect(() => {
     const element = frameRef.current;
     if (!element || isConcealed) return undefined;
     const observer = new ResizeObserver((entries) => {
-      rememberObservedSize(entries[0], concealedRef, setSize);
+      if (resizingRef.current) rememberObservedSize(entries[0], concealedRef, setSize);
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [frameRef, isConcealed, concealedRef, setSize]);
+  }, [frameRef, isConcealed, concealedRef, resizingRef, setSize]);
 }
 
 function bindLegendFrame(input: LegendFrameInput): LegendFrameBindings {
@@ -283,16 +295,26 @@ function bindLegendFrame(input: LegendFrameInput): LegendFrameBindings {
   return {
     isConcealed: input.isConcealed,
     direction: chooseLegendEntryDirection(shown.size.width, shown.size.height),
-    style: buildLegendFrameStyle(shown.offset, shown.size, input.isConcealed),
+    style: buildLegendFrameStyle(shown.offset, shown.size, input.isConcealed, input.maxHeight),
     onPointerDown: (event) => {
       event.stopPropagation();
-      if (isOnResizeGrip(event)) input.setIsUserSized(true);
+      if (isOnResizeGrip(event)) holdResizeGrip(input);
       beginLegendDrag(event, session);
     },
     onToggleClick: (event) => {
       toggleConcealedLegend(event, input.suppressClickRef, input.setIsConcealed);
     },
   };
+}
+
+function holdResizeGrip(input: LegendFrameInput): void {
+  input.setIsUserSized(true);
+  input.resizingRef.current = true;
+  const release = () => {
+    input.resizingRef.current = false;
+    window.removeEventListener('pointerup', release);
+  };
+  window.addEventListener('pointerup', release);
 }
 
 function isOnResizeGrip(event: ReactPointerEvent<HTMLDivElement>): boolean {
@@ -317,6 +339,7 @@ function buildLegendFrameStyle(
   offset: LegendOffset,
   size: LegendSize,
   isConcealed: boolean,
+  maxHeight: number | undefined,
 ): LegendFrameStyle {
   const style: LegendFrameStyle = {
     left: offset.left,
@@ -326,6 +349,7 @@ function buildLegendFrameStyle(
   if (isConcealed) return style;
   style.width = size.width;
   style.height = size.height;
+  style.maxHeight = maxHeight;
   return style;
 }
 
