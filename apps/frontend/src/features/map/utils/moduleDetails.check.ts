@@ -8,6 +8,7 @@ import {
   applicationModelFromNode,
   changedModuleFields,
   externalData,
+  filledDetailKeys,
   moduleDetailsFromNode,
   moduleLinkGroups,
   moduleLinksFromEdges,
@@ -108,6 +109,13 @@ assert.deepEqual(changedModuleFields(before, { ...before }), []);
 assert.deepEqual(
   changedModuleFields(before, { ...before, description: 'new', actors: ['Ops'], trigger: 'Daily', dataIn: ['X', 'Z'] }),
   ['description', 'actors', 'trigger', 'dataIn'],
+);
+
+// A card lists only what is filled in, besides the description.
+assert.deepEqual(filledDetailKeys(make('a', [], [])), []);
+assert.deepEqual(
+  filledDetailKeys({ ...make('a', ['X'], []), owner: 'Front office', trigger: 'Daily' }),
+  ['owner', 'trigger', 'dataIn'],
 );
 
 console.log('moduleDetails.check: ok');

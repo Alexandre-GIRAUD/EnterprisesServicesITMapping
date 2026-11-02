@@ -128,4 +128,36 @@ function size(node: ModuleNode) {
   assert.ok(size(boxes[0]).height > SHORT_NODE_HEIGHT);
 }
 
+// A nested container stays neutral by default; only module boxes cycle through the palette.
+{
+  const { nodes, edges } = graph([{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'x' }]);
+  const nested = [
+    ...edges.filter((e) => e.targetId !== 'x'),
+    { id: 'ex', sourceId: 'c', targetId: 'x', type: 'CONTAINS' } as GraphEdgeDto,
+  ];
+  const { rfNodes } = buildModuleNestedNodes(nodes, nested);
+  const slot = (id: string) => rfNodes.find((n) => n.id === id)!.data.colorSlot;
+  assert.equal(slot('c'), null);
+  assert.deepEqual([slot('a'), slot('b')], [0, 1]);
+}
+
+// Siblings follow the explicit links: a module that feeds another comes first.
+{
+  const { nodes, edges } = graph([{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
+  const feeds = { id: 'f1', sourceId: 'c', targetId: 'a', type: 'FEEDS' } as GraphEdgeDto;
+  const { rfNodes } = buildModuleNestedNodes(nodes, [...edges, feeds]);
+  const order = rfNodes
+    .filter((n) => n.parentId === 'app')
+    .sort((p, q) => p.position.y - q.position.y || p.position.x - q.position.x)
+    .map((n) => n.id);
+  assert.deepEqual(order, ['c', 'a', 'b']);
+
+  const cycle = [
+    { id: 'f1', sourceId: 'a', targetId: 'b', type: 'FEEDS' },
+    { id: 'f2', sourceId: 'b', targetId: 'a', type: 'FEEDS' },
+  ] as GraphEdgeDto[];
+  const looped = buildModuleNestedNodes(nodes, [...edges, ...cycle]).rfNodes.filter((n) => n.parentId === 'app');
+  assert.equal(looped.length, 3, 'a cycle still lays every module out');
+}
+
 console.log('moduleNestedLayout.check: ok');
