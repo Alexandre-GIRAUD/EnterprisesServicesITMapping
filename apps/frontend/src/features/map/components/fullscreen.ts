@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState, type RefObject } from 'react';
 
+/** The pane has its final size only after the browser has switched. */
+export const FULLSCREEN_REFIT_DELAY_MS = 120;
+export const FULLSCREEN_REFIT_DURATION_MS = 200;
+
 export async function toggleFullscreen(
   element: HTMLElement,
   doc: Document = document
@@ -30,7 +34,10 @@ export function useFullscreen(ref: RefObject<HTMLElement | null>, onChange: () =
   }, [ref, onChange]);
 
   const toggle = useCallback(() => {
-    if (ref.current) void toggleFullscreen(ref.current).catch(() => undefined);
+    if (!ref.current) return;
+    toggleFullscreen(ref.current).catch((error: unknown) => {
+      console.warn('Full screen was refused by the browser.', error);
+    });
   }, [ref]);
 
   return { isFullscreen, toggle };

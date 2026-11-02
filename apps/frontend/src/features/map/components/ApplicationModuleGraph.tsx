@@ -31,7 +31,7 @@ import { NODE_TYPE_STYLES, type NodeTypeKey } from './graphTheme';
 import { GraphLegend } from './GraphLegend';
 import { fitGraphView } from './fitGraphView';
 import { FullscreenControl } from './FullscreenControl';
-import { useFullscreen } from './fullscreen';
+import { FULLSCREEN_REFIT_DELAY_MS, useFullscreen } from './fullscreen';
 import { MODULE_DRAWER_WIDTH_PX, computeDrawerFitPadding } from './drawerFitPadding';
 import { computeModuleTiers, type ModuleTier } from './moduleFocus';
 import { buildModuleNestedNodes, type ModuleTree } from './moduleNestedLayout';
@@ -127,9 +127,8 @@ export function ApplicationModuleGraph({
   }, [drawerWidth]);
 
   const [fullscreenRevision, setFullscreenRevision] = useState(0);
-  // The pane has its final size only after the browser has switched.
   const refitAfterFullscreen = useCallback(() => {
-    window.setTimeout(() => setFullscreenRevision((v) => v + 1), 120);
+    window.setTimeout(() => setFullscreenRevision((v) => v + 1), FULLSCREEN_REFIT_DELAY_MS);
   }, []);
   const fullscreen = useFullscreen(wrapRef, refitAfterFullscreen);
 

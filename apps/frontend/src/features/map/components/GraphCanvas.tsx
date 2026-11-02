@@ -99,7 +99,7 @@ import { isDiagramFitGesture, resolveNextDiagramHeight } from './diagramFrame';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { GraphExportMenu } from './GraphExportMenu';
 import { FullscreenControl } from './FullscreenControl';
-import { useFullscreen } from './fullscreen';
+import { FULLSCREEN_REFIT_DELAY_MS, FULLSCREEN_REFIT_DURATION_MS, useFullscreen } from './fullscreen';
 import { HistoryDatePicker } from './HistoryDatePicker';
 import { TableExportMenu } from './TableExportMenu';
 import {
@@ -1571,7 +1571,10 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
   );
 
   const refitAfterFullscreen = useCallback(() => {
-    window.setTimeout(() => fitGraphView(rfRef.current, { duration: 200 }), 120);
+    window.setTimeout(
+      () => fitGraphView(rfRef.current, { duration: FULLSCREEN_REFIT_DURATION_MS }),
+      FULLSCREEN_REFIT_DELAY_MS
+    );
   }, []);
   const fullscreen = useFullscreen(stageRef, refitAfterFullscreen);
 
