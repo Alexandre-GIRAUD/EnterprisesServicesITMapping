@@ -30,6 +30,8 @@ import { ModuleGraphNode, type ModuleNode } from './ModuleGraphNode';
 import { NODE_TYPE_STYLES, type NodeTypeKey } from './graphTheme';
 import { GraphLegend } from './GraphLegend';
 import { fitGraphView } from './fitGraphView';
+import { FullscreenControl } from './FullscreenControl';
+import { FULLSCREEN_REFIT_DELAY_MS, useFullscreen } from './fullscreen';
 import { MODULE_DRAWER_WIDTH_PX, computeDrawerFitPadding } from './drawerFitPadding';
 import { computeModuleTiers, type ModuleTier } from './moduleFocus';
 import { buildModuleNestedNodes, type ModuleTree } from './moduleNestedLayout';
@@ -66,6 +68,7 @@ export function ApplicationModuleGraph({
   applicationName = '',
   isReadOnly = false,
 }: Props) {
+  const wrapRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const rfRef = useRef<ReactFlowInstance<ModuleNode, never> | null>(null);
   const treeRef = useRef<ModuleTree | null>(null);
@@ -123,6 +126,12 @@ export function ApplicationModuleGraph({
     return () => window.clearTimeout(timer);
   }, [drawerWidth]);
 
+  const [fullscreenRevision, setFullscreenRevision] = useState(0);
+  const refitAfterFullscreen = useCallback(() => {
+    window.setTimeout(() => setFullscreenRevision((v) => v + 1), FULLSCREEN_REFIT_DELAY_MS);
+  }, []);
+  const fullscreen = useFullscreen(wrapRef, refitAfterFullscreen);
+
   useEffect(() => {
     if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
     const paneWidth = containerRef.current?.clientWidth;
@@ -134,7 +143,7 @@ export function ApplicationModuleGraph({
       nodeIds: fitNodeIds,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fitNodeKey stands for fitNodeIds
-  }, [status, nodes.length, layoutRevision, isDrawerOpen, debouncedDrawerWidth, fitNodeKey]);
+  }, [status, nodes.length, layoutRevision, isDrawerOpen, debouncedDrawerWidth, fitNodeKey, fullscreenRevision]);
 
   const applyGraph = useCallback(
     (data: GraphResponseDto) => {
@@ -228,7 +237,7 @@ export function ApplicationModuleGraph({
   const hintText = status === 'ready' ? message : null;
 
   return (
-    <div className="graph-canvas-wrap module-graph-wrap">
+    <div ref={wrapRef} className="graph-canvas-wrap module-graph-wrap">
       {status === 'loading' && (
         <p className="graph-canvas-status" role="status">
           Loading modules…
@@ -270,7 +279,9 @@ export function ApplicationModuleGraph({
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#e2e8f0" gap={GRID} />
-          <Controls showInteractive={false} />
+          <Controls showInteractive={false}>
+            <FullscreenControl isFullscreen={fullscreen.isFullscreen} onToggle={fullscreen.toggle} />
+          </Controls>
           {!isDrawerOpen && (
             <Panel position="top-right">
               <button

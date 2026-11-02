@@ -98,6 +98,8 @@ import { SaveSnapshotDialog } from './SaveSnapshotDialog';
 import { isDiagramFitGesture, resolveNextDiagramHeight } from './diagramFrame';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { GraphExportMenu } from './GraphExportMenu';
+import { FullscreenControl } from './FullscreenControl';
+import { FULLSCREEN_REFIT_DELAY_MS, FULLSCREEN_REFIT_DURATION_MS, useFullscreen } from './fullscreen';
 import { HistoryDatePicker } from './HistoryDatePicker';
 import { TableExportMenu } from './TableExportMenu';
 import {
@@ -160,6 +162,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
   const location = useLocation();
   const { refreshSnapshots } = useGraphSnapshotsRefresh();
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const rfRef = useRef<ReactFlowInstance<AppNode, Edge> | null>(null);
   const nodeClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastNodeClickRef = useRef<{ nodeId: string; time: number } | null>(null);
@@ -1567,6 +1570,14 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     [tableContent, tableGrid, tableView, customExport],
   );
 
+  const refitAfterFullscreen = useCallback(() => {
+    window.setTimeout(
+      () => fitGraphView(rfRef.current, { duration: FULLSCREEN_REFIT_DURATION_MS }),
+      FULLSCREEN_REFIT_DELAY_MS
+    );
+  }, []);
+  const fullscreen = useFullscreen(stageRef, refitAfterFullscreen);
+
   const handleSideMenuToggle = useCallback(() => {
     setIsSideMenuOpen((open) => !open);
   }, []);
@@ -1812,6 +1823,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
 
         <div className="map-graph-body">
           <div
+            ref={stageRef}
             className={`graph-stage${isDiagramGrown ? ' is-grown' : ''}`}
             style={isDiagramGrown ? ({ '--diagram-height': `${diagramHeight}px` } as CSSProperties) : undefined}
           >
@@ -2127,7 +2139,11 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
               >
                 <Background color="#e2e8f0" gap={GRID} />
                 <ComponentZoneOverlay nodes={displayNodes} edges={displayEdges} />
-                <Controls showInteractive={false} />
+                <Controls showInteractive={false}>
+                  {isSandbox ? null : (
+                    <FullscreenControl isFullscreen={fullscreen.isFullscreen} onToggle={fullscreen.toggle} />
+                  )}
+                </Controls>
                 <Panel position="top-left">
                   <GraphLegend
                     nodeTypes={['Application']}
