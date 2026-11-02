@@ -1,7 +1,7 @@
 ﻿import type { ELK as ElkInstance, ElkNode } from 'elkjs/lib/elk-api';
 import { Position, type Edge, type Node } from '@xyflow/react';
 import { alignPositionsForStraighterEdges } from './alignNodes';
-import { routeAroundBoxes, routeConflicts } from './arrowRouter';
+import { routeAroundBoxes, routeConflicts, STUB } from './arrowRouter';
 import {
   COMPONENT_GAP,
   findConnectedComponents,
@@ -248,7 +248,6 @@ function routeAvoidingNodes(
   }
   if (directClear) return direct;
 
-  const STUB = 18;
   const ps = outwardStub(sa, srcSide, STUB);
   const pt = outwardStub(ta, tgtSide, STUB);
 

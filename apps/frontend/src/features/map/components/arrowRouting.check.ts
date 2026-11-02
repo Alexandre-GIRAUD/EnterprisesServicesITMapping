@@ -38,7 +38,6 @@ for (let round = 0; round < 40; round++) {
     const route = routes.get(edge.id);
     if (!route) continue;
     const problems = routeProblems(route, edge.source, edge.target, rects);
-    if (problems.length) console.log(JSON.stringify({ route, s: rects.get(edge.source), t: rects.get(edge.target), others: [...rects.values()] }));
     assert.deepEqual(problems, [], `round ${round} ${edge.id}`);
   }
 }

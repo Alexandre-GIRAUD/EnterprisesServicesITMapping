@@ -2,8 +2,12 @@ import type { Point, Rect } from './elkLayout';
 
 /** Free space kept between an arrow and every box it passes. */
 const CLEARANCE = 4;
+/** Grid lines run just outside the clearance so a route can hug a box. */
+const GRID_MARGIN = CLEARANCE + 2;
+/** Gaps narrower than this get no extra channel line. */
+const MIN_CHANNEL_GAP = 12;
 /** Distance an arrow keeps straight when it leaves or enters a box. */
-const STUB = 18;
+export const STUB = 18;
 /** Boxes farther than this from the two ends are ignored on the first search. */
 const WINDOW = 400;
 
@@ -111,7 +115,7 @@ class MinHeap {
   }
 }
 
-function search(
+function searchGrid(
   from: Point,
   fromDir: Dir,
   to: Point,
@@ -119,10 +123,10 @@ function search(
   rects: Rect[],
   fixed: Point[][],
 ): Point[] | null {
-  const xs = sorted([from.x, to.x, ...rects.flatMap((r) => [r.x - CLEARANCE - 2, r.x + r.width + CLEARANCE + 2])]);
-  const ys = sorted([from.y, to.y, ...rects.flatMap((r) => [r.y - CLEARANCE - 2, r.y + r.height + CLEARANCE + 2])]);
+  const xs = sorted([from.x, to.x, ...rects.flatMap((r) => [r.x - GRID_MARGIN, r.x + r.width + GRID_MARGIN])]);
+  const ys = sorted([from.y, to.y, ...rects.flatMap((r) => [r.y + r.height + GRID_MARGIN, r.y - GRID_MARGIN])]);
   const midpoints = (values: number[]) =>
-    values.slice(1).map((v, i) => (v + values[i]) / 2).filter((_, i) => values[i + 1] - values[i] >= 12);
+    values.slice(1).map((v, i) => (v + values[i]) / 2).filter((_, i) => values[i + 1] - values[i] >= MIN_CHANNEL_GAP);
   const gx = sorted([...xs, ...midpoints(xs)]);
   const gy = sorted([...ys, ...midpoints(ys)]);
   const nx = gx.length;
@@ -198,7 +202,7 @@ function directionOf(from: Point, to: Point): Dir {
 
 /**
  * Orthogonal route from `start` (on a box border, leaving along `outward`) to `end` (on a box
- * border, entered against `inward`) that never touches a box and crosses as few of the `fixed`
+ * border, entered against `endOutward`) that never touches a box and crosses as few of the `fixed`
  * arrows as it can. Returns null when no such route exists.
  */
 export function routeAroundBoxes(
@@ -219,7 +223,7 @@ export function routeAroundBoxes(
   const all = [...rects.values()];
   const near = all.filter((r) => r.x < hi.x && r.x + r.width > lo.x && r.y < hi.y && r.y + r.height > lo.y);
   const clear = (path: Point[]) => path.every((p, i) => i === 0 || !hitsBox(path[i - 1], p, all));
-  let path = search(from, fromDir, to, toDir, near, fixed);
-  if (near.length < all.length && (!path || !clear(path))) path = search(from, fromDir, to, toDir, all, fixed);
+  let path = searchGrid(from, fromDir, to, toDir, near, fixed);
+  if (near.length < all.length && (!path || !clear(path))) path = searchGrid(from, fromDir, to, toDir, all, fixed);
   return path && [start, ...path, end];
 }
