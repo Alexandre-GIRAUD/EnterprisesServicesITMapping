@@ -78,7 +78,8 @@ import { snapDraggedNodeForStraighterEdges } from './alignNodes';
 import { GraphLegend } from './GraphLegend';
 import { AppGraphNode } from './AppGraphNode';
 import { OrientedEdge } from './OrientedEdge';
-import { computeFocus } from './graphFocus';
+import { computeFocus, focusTier, tierClassName, type FocusTier } from './graphFocus';
+import { DETAILS_DRAWER_WIDTH_PX, drawerFitPadding } from './drawerFitPadding';
 import { applicationResponseFromGraphNode, isSandboxId } from '../utils/sandboxGraph';
 import { ApplicationModuleGraph } from './ApplicationModuleGraph';
 import { ApplicationFunctionalDocPanel } from './ApplicationFunctionalDocPanel';
@@ -126,6 +127,19 @@ type GraphCanvasProps = {
   viewingDay?: string | null;
   onViewingDayChange?: (day: string | null) => void;
 };
+
+/** Room kept between the details drawer and the pane edges. */
+const DRAWER_PANE_MARGIN_PX = 24;
+
+/** The hovered or open node and its neighbors stand out; the ends of the active edge count as neighbors. */
+function nodeClassName(
+  base: string | undefined,
+  tier: FocusTier | null,
+  isActiveEdgeEnd: boolean | undefined
+): string | undefined {
+  const className = tierClassName(tier) ?? (isActiveEdgeEnd ? 'is-focus' : undefined);
+  return className ? `graph-node ${className}` : base;
+}
 
 function formatViewingDay(day: string): string {
   const date = new Date(`${day}T00:00:00`);
@@ -179,8 +193,9 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
-  // Hover takes priority; if no hover, the pinned node keeps the highlight.
-  const focusedId = hoveredId ?? pinnedId;
+  // The node open in the drawer keeps the highlight while it is open; otherwise the cursor decides.
+  const focusedId = pinnedId ?? hoveredId;
+  const [legendConcealSignal, setLegendConcealSignal] = useState(0);
   const [graphReloadNonce, setGraphReloadNonce] = useState(0);
   const [pendingSandboxFilterHint, setPendingSandboxFilterHint] = useState(false);
   const [isSaveSnapshotOpen, setIsSaveSnapshotOpen] = useState(false);
@@ -894,6 +909,13 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     onIconChange: nodeIcons.changeIcon,
   };
 
+  // The two ends of the hovered edge, or of the edge open in the drawer.
+  const activeEdgeEndpoints = useMemo(() => {
+    const activeId = hoveredEdgeId ?? (isEdgeDetailsDrawerOpen ? selectedEdge?.id : undefined);
+    const active = activeId ? edges.find((e) => e.id === activeId) : undefined;
+    return active ? new Set([active.source, active.target]) : null;
+  }, [edges, hoveredEdgeId, isEdgeDetailsDrawerOpen, selectedEdge?.id]);
+
   const displayNodes = useMemo(() => {
     return nodes.map((n) => {
       const source = iconSourceById.get(n.id);
@@ -908,12 +930,10 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
               ? () => collapseHandlersRef.current.hideNode(n.id)
               : undefined,
         },
-        className: focus
-          ? `graph-node ${focus.nodeIds.has(n.id) ? 'is-focus' : 'is-faded'}`
-          : n.className,
+        className: nodeClassName(n.className, focusTier(focus, focusedId, n.id), activeEdgeEndpoints?.has(n.id)),
       };
     });
-  }, [nodes, focus, iconSourceById, nodeIcons.iconKeyOf, nodeIcons.labelScale]);
+  }, [nodes, focus, focusedId, activeEdgeEndpoints, iconSourceById, nodeIcons.iconKeyOf, nodeIcons.labelScale]);
 
   const labelById = useMemo(() => {
     const map = new Map<string, string>();
@@ -979,8 +999,22 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     [isSandbox, sandboxes, setEdges, setGraphEdges]
   );
 
+  // Zoom on these nodes in the part of the pane the drawer leaves free.
+  const fitBesideDrawer = useCallback((nodeIds: string[]) => {
+    const paneWidth = containerRef.current?.clientWidth;
+    const drawerWidth = Math.min(DETAILS_DRAWER_WIDTH_PX, (paneWidth ?? Infinity) - DRAWER_PANE_MARGIN_PX);
+    fitGraphView(rfRef.current, {
+      padding: drawerFitPadding(true, paneWidth, drawerWidth),
+      nodeIds,
+      duration: 300,
+    });
+  }, []);
+  const edgesRef = useRef(edges);
+  edgesRef.current = edges;
+
   const closeApplicationDetails = useCallback(() => {
     setIsDetailsDrawerOpen(false);
+    setPinnedId(null);
     setSelectedApplication(null);
     setMenuEditKind((kind) => (kind === 'application' ? null : kind));
   }, []);
@@ -990,7 +1024,11 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     setMenuEditKind(isFromMenu ? 'application' : null);
     setSelectedApplication({ id, label });
     setIsDetailsDrawerOpen(true);
-  }, [closeEdgeDetails]);
+    setPinnedId(id);
+    if (isFromMenu) return;
+    setLegendConcealSignal((signal) => signal + 1);
+    fitBesideDrawer([...computeFocus(edgesRef.current, id).nodeIds]);
+  }, [closeEdgeDetails, fitBesideDrawer]);
 
   const openEdgeDetails = useCallback((details: SelectedEdgeDetails, isFromMenu = false) => {
     setIsDetailsDrawerOpen(false);
@@ -998,7 +1036,11 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     setMenuEditKind(isFromMenu ? 'flow' : null);
     setSelectedEdge(details);
     setIsEdgeDetailsDrawerOpen(true);
-  }, []);
+    setPinnedId(null);
+    if (isFromMenu) return;
+    setLegendConcealSignal((signal) => signal + 1);
+    fitBesideDrawer([details.sourceId, details.targetId]);
+  }, [fitBesideDrawer]);
 
   const openEdgeByIdRef = useRef<(edgeId: string) => void>(() => undefined);
 
@@ -1116,9 +1158,10 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         nodeClickTimeoutRef.current = null;
         if (lastNodeClickRef.current?.nodeId !== node.id) return;
         lastNodeClickRef.current = null;
-        setPinnedId((prev) => (prev === node.id ? null : node.id));
         if (node.data.nodeType === 'Application') {
           openApplicationDetails(node.id, node.data.label ?? node.id);
+        } else {
+          setPinnedId((prev) => (prev === node.id ? null : node.id));
         }
       }, 350);
     },
@@ -1183,7 +1226,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     const selectedId = isEdgeDetailsDrawerOpen ? selectedEdge?.id : null;
     return edges.map((e) => {
       const focused = focus ? focus.edgeIds.has(e.id) : true;
-      const hovered = hoveredEdgeId === e.id;
+      const hovered = hoveredEdgeId === e.id || selectedId === e.id;
       const className = [
         focus ? (focused ? 'is-focus' : 'is-faded') : undefined,
         selectedId === e.id ? 'is-selected' : undefined,
@@ -1199,6 +1242,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         data: {
           ...data,
           hovered: hovered && !data?.indirect,
+          tier: focus ? (focused ? 'focus' : 'faded') : undefined,
           onSelect: data?.indirect
             ? undefined
             : () => openEdgeByIdRef.current(e.id),
@@ -2009,6 +2053,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                   onAppTextChange={handleAppTextChange}
                   textValues={legendTextValues}
                   {...legendIconProps}
+                  concealSignal={legendConcealSignal}
                   legendColors={displayColors}
                   onValueColorChange={handleValueColorChange}
                   hideEdgeLabels={hideEdgeLabels}
@@ -2107,6 +2152,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                     onAppTextChange={handleAppTextChange}
                     textValues={legendTextValues}
                     {...legendIconProps}
+                  concealSignal={legendConcealSignal}
                     legendColors={displayColors}
                     onValueColorChange={handleValueColorChange}
                     hideEdgeLabels={hideEdgeLabels}

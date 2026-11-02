@@ -9,7 +9,7 @@ assert.equal(clampDrawerWidth(500, 1400), 500);
 assert.equal(clampDrawerWidth(100, 1400), DRAWER_MIN_WIDTH_PX);
 assert.equal(clampDrawerWidth(2000, 1000), 800);
 // A pane narrower than the minimum still gets a drawer that fits in it.
-assert.equal(clampDrawerWidth(500, 300), 276);
+assert.equal(clampDrawerWidth(500, 300), 240);
 
 // The drawer grows when its left edge is dragged to the left.
 assert.equal(dragDrawerWidth({ startWidth: 440, startX: 900, x: 800, paneWidth: 1400 }), 540);

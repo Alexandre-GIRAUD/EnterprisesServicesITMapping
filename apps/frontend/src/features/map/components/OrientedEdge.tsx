@@ -62,6 +62,8 @@ export type OrientedEdgeData = {
   onExpand?: () => void;
   /** Highlight this edge (GraphCanvas hover). */
   hovered?: boolean;
+  /** Neighborhood of the hovered or open node: the label follows its edge. */
+  tier?: 'focus' | 'faded';
   bendPoints?: Point[];
   routeStart?: Point;
   routeEnd?: Point;
@@ -665,7 +667,7 @@ export function OrientedEdge({
             <div
               className={`oriented-edge-label nodrag nopan${canEditLabel ? ' is-editable' : ''}${
                 data?.onSelect ? ' is-selectable' : ''
-              }`}
+              }${isHovered ? ' is-hovered' : ''}${data?.tier ? ` is-${data.tier}` : ''}`}
               style={{
                 transform: labelTransform,
                 fontSize: APPLICATION_TITLE_FONT_SIZE_PX,

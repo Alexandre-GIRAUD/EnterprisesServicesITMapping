@@ -1,5 +1,5 @@
 import { NODE_HEIGHT, NODE_WIDTH } from '../hooks/useGraphData';
-import type { FitViewPadding } from './moduleFitPadding';
+import type { FitViewPadding } from './drawerFitPadding';
 
 export const FIT_VIEW_PADDING = 0.15;
 
@@ -21,7 +21,7 @@ type ViewportInstance = {
     maxZoom?: number;
     minZoom?: number;
     includeHiddenNodes?: boolean;
-    nodes?: NodeLike[];
+    nodes?: Array<{ id: string }>;
   }) => Promise<boolean> | void;
   getNodes: () => NodeLike[];
   flowToScreenPosition: (position: { x: number; y: number }) => { x: number; y: number };
@@ -31,6 +31,8 @@ type FitOptions = {
   padding?: FitViewPadding;
   duration?: number;
   maxZoom?: number;
+  /** Fit only these nodes instead of the whole graph. */
+  nodeIds?: readonly string[];
 };
 
 type EnsureVisibleOptions = {
@@ -56,11 +58,12 @@ export function fitGraphView(
   options: FitOptions = {}
 ): void {
   if (!instance) return;
-  const { padding = FIT_VIEW_PADDING, duration = 250, maxZoom = 1.5 } = options;
+  const { padding = FIT_VIEW_PADDING, duration = 250, maxZoom = 1.5, nodeIds } = options;
+  const nodes = nodeIds?.map((id) => ({ id }));
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      void instance.fitView({ padding, duration, maxZoom, includeHiddenNodes: false });
+      void instance.fitView({ padding, duration, maxZoom, includeHiddenNodes: false, nodes });
     });
   });
 }

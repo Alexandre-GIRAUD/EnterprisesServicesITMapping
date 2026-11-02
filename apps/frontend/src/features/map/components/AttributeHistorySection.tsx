@@ -17,6 +17,8 @@ type AttributeHistorySectionProps = {
   refreshKey?: number;
   /** Module id → name, so a module's field changes say which module changed. */
   moduleNames?: ReadonlyMap<string, string>;
+  /** Keep only the changes of this module. */
+  onlyModuleId?: string;
 };
 
 const NO_MODULE_NAMES: ReadonlyMap<string, string> = new Map();
@@ -60,6 +62,7 @@ export function AttributeHistorySection({
   enabled,
   refreshKey = 0,
   moduleNames = NO_MODULE_NAMES,
+  onlyModuleId,
 }: AttributeHistorySectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [items, setItems] = useState<AttributeChangeEventDto[]>([]);
@@ -67,6 +70,9 @@ export function AttributeHistorySection({
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const isApplication = targetType === 'APPLICATION';
+  const shownItems = onlyModuleId
+    ? items.filter((event) => event.targetType === 'MODULE' && event.targetId === onlyModuleId)
+    : items;
 
   function fetchPage(id: string, pageIndex: number) {
     return isApplication
@@ -133,7 +139,7 @@ export function AttributeHistorySection({
           onClick={() => setIsOpen((open) => !open)}
         >
           <span className={`attribute-history-chevron${isOpen ? ' is-open' : ''}`} aria-hidden="true" />
-          History{isOpen && total > 0 ? ` (${total})` : ''}
+          History{isOpen && shownItems.length > 0 ? ` (${onlyModuleId ? shownItems.length : total})` : ''}
         </button>
       </h3>
 
@@ -141,18 +147,18 @@ export function AttributeHistorySection({
         <p className="graph-details-text attribute-history-section__disabled">
           History is not recorded in sandbox.
         </p>
-      ) : status === 'loading' && items.length === 0 ? (
+      ) : status === 'loading' && shownItems.length === 0 ? (
         <p className="graph-details-text">Loading history…</p>
-      ) : status === 'error' && items.length === 0 ? (
+      ) : status === 'error' && shownItems.length === 0 ? (
         <p className="graph-details-text graph-details-text-error">
           {errorMessage ?? 'Unable to load history.'}
         </p>
-      ) : items.length === 0 ? (
+      ) : shownItems.length === 0 ? (
         <p className="graph-details-text">No changes recorded.</p>
       ) : (
         <>
           <ul className="attribute-history-list">
-            {items.map((event) => {
+            {shownItems.map((event) => {
               const isLink = event.fieldKey === '__link__';
               const link = isLink ? linkEventSummary(event) : null;
               return (
