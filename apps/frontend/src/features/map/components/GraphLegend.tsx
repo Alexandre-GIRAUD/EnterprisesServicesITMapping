@@ -75,6 +75,8 @@ type Props = {
   /** Sandbox icons shown in a shared legend section. */
   sandboxIcons?: Array<{ id: string; iconKey: string; legendLabel: string }>;
   onSandboxIconLabelChange?: (id: string, label: string) => void;
+  /** A new value folds the legend into its launcher (a drawer was opened). */
+  concealSignal?: number;
 };
 
 function nodeValueLabel(propertyKey: string, value: string): string {
@@ -153,10 +155,11 @@ export function GraphLegend({
   showIndirectFlow = false,
   sandboxIcons = [],
   onSandboxIconLabelChange,
+  concealSignal = 0,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const frameRef = useRef<HTMLDivElement>(null);
-  const frame = useLegendFrame(frameRef, isEditing);
+  const frame = useLegendFrame(frameRef, isEditing, concealSignal);
 
   const showCoding =
     colorPropertyOptions.length > 0 &&

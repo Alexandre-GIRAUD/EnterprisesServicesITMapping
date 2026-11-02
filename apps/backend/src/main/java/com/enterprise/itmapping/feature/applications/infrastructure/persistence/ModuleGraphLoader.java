@@ -3,6 +3,8 @@ package com.enterprise.itmapping.feature.applications.infrastructure.persistence
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphNodeRow;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeProjection;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.Neo4jValueMapping;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +26,17 @@ public class ModuleGraphLoader {
       WHERE a.id = $appId
       RETURN count(a) AS cnt
       """;
+
+  private static final List<String> DETAIL_KEYS =
+      List.of(
+          "owner",
+          "actors",
+          "trigger",
+          "dataIn",
+          "dataOut",
+          "businessObjects",
+          "mainJourney",
+          "scope");
 
   private final Neo4jClient neo4jClient;
   private final int maxDepth;
@@ -70,7 +83,8 @@ public class ModuleGraphLoader {
         MATCH (a:Application)
         WHERE a.id = $appId
         RETURN a.id AS id, a.name AS name, a.description AS description, 'Application' AS nodeType,
-               null AS owner, null AS technology, null AS dataIn, null AS dataOut
+               null AS owner, null AS actors, null AS trigger, null AS dataIn, null AS dataOut,
+               a.businessObjects AS businessObjects, a.mainJourney AS mainJourney, a.scope AS scope
         UNION
         MATCH (a:Application)
         WHERE a.id = $appId
@@ -79,27 +93,28 @@ public class ModuleGraphLoader {
         + """
         ]->(m:Module)
         RETURN DISTINCT m.id AS id, m.name AS name, m.description AS description, 'Module' AS nodeType,
-               m.owner AS owner, m.technology AS technology, m.dataIn AS dataIn, m.dataOut AS dataOut
+               m.owner AS owner, m.actors AS actors, m.trigger AS trigger,
+               m.dataIn AS dataIn, m.dataOut AS dataOut,
+               null AS businessObjects, null AS mainJourney, null AS scope
         """;
   }
 
   private static ModuleGraphNodeRow mapNodeRow(Map<String, Object> map) {
+    Map<String, Object> properties = new LinkedHashMap<>();
+    for (String key : DETAIL_KEYS) {
+      Object value = map.get(key);
+      if (value instanceof Collection<?> items) {
+        properties.put(key, items.stream().map(String::valueOf).toList());
+      } else if (value != null) {
+        properties.put(key, String.valueOf(value));
+      }
+    }
     return new ModuleGraphNodeRow(
         Neo4jValueMapping.asString(map.get("id")),
         Neo4jValueMapping.asString(map.get("name")),
         Neo4jValueMapping.asString(map.get("description")),
         Neo4jValueMapping.asString(map.get("nodeType")),
-        Neo4jValueMapping.asString(map.get("owner")),
-        Neo4jValueMapping.asString(map.get("technology")),
-        asStrings(map.get("dataIn")),
-        asStrings(map.get("dataOut")));
-  }
-
-  private static List<String> asStrings(Object value) {
-    if (value instanceof java.util.Collection<?> items) {
-      return items.stream().map(String::valueOf).toList();
-    }
-    return List.of();
+        properties);
   }
 
   public List<GraphEdgeProjection> loadEdges(String applicationId) {
@@ -116,10 +131,14 @@ public class ModuleGraphLoader {
                 new GraphEdgeProjection(
                     Neo4jValueMapping.asString(map.get("sourceId")),
                     Neo4jValueMapping.asString(map.get("targetId")),
-                    Neo4jValueMapping.asString(map.get("relType"))))
+                    Neo4jValueMapping.asString(map.get("relType")),
+                    Neo4jValueMapping.asString(map.get("object")),
+                    null,
+                    Map.of()))
         .toList();
   }
 
+  /** CONTAINS edges give the hierarchy; FEEDS edges are the explicit links between its modules. */
   private String buildEdgesCypher() {
     int d = maxDepth;
     return """
@@ -130,7 +149,20 @@ public class ModuleGraphLoader {
         + """
         ]->(m:Module)
         UNWIND relationships(path) AS r
-        RETURN DISTINCT startNode(r).id AS sourceId, endNode(r).id AS targetId, type(r) AS relType
+        RETURN DISTINCT startNode(r).id AS sourceId, endNode(r).id AS targetId, type(r) AS relType,
+               null AS object
+        UNION
+        MATCH (a:Application)
+        WHERE a.id = $appId
+        MATCH (a)-[:CONTAINS*1.."""
+        + d
+        + """
+        ]->(s:Module)-[f:FEEDS]->(t:Module)
+        MATCH (a)-[:CONTAINS*1.."""
+        + d
+        + """
+        ]->(t)
+        RETURN DISTINCT s.id AS sourceId, t.id AS targetId, 'FEEDS' AS relType, f.object AS object
         """;
   }
 }
