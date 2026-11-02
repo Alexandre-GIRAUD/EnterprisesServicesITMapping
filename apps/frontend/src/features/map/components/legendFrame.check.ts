@@ -12,6 +12,10 @@ import {
   fitLegendHeight,
   measureLegendFontScale,
   pickShownLegendFrame,
+  LEGEND_MIN_HEIGHT_PX,
+  LEGEND_MIN_WIDTH_PX,
+  isResizeGrip,
+  snugLegendSize,
 } from './legendFrame.ts';
 
 assert.equal(DEFAULT_LEGEND_WIDTH_PX, 220);
@@ -86,5 +90,32 @@ const staleFill = { offset: { left: 8, top: 8 }, size: { width: 784, height: 584
 assert.deepEqual(pickShownLegendFrame(true, staleFill, ownFrame), staleFill);
 assert.deepEqual(pickShownLegendFrame(false, staleFill, ownFrame), ownFrame);
 assert.deepEqual(pickShownLegendFrame(true, null, ownFrame), ownFrame);
+
+// The default frame is the snuggest one: narrowest that cuts nothing, then shortest at that width.
+{
+  const content = { width: 150, height: 200 };
+  const measure = (frame: { width: number; height: number }) => ({
+    scrollWidth: Math.max(frame.width, content.width),
+    scrollHeight: Math.max(frame.height, content.height),
+  });
+  assert.deepEqual(snugLegendSize(measure, { width: 800, height: 600 }), { width: 150, height: 200 });
+  assert.deepEqual(snugLegendSize(measure, { width: 140, height: 150 }), { width: 140, height: 150 });
+  // Content smaller than the minimum frame keeps the minimum.
+  assert.deepEqual(snugLegendSize(() => ({ scrollWidth: 10, scrollHeight: 10 }), { width: 800, height: 600 }), {
+    width: LEGEND_MIN_WIDTH_PX,
+    height: LEGEND_MIN_HEIGHT_PX,
+  });
+  // A layout that gets taller once the frame is taller grows the frame until nothing is cut.
+  const reflowing = (frame: { width: number; height: number }) => ({
+    scrollWidth: Math.max(frame.width, 150),
+    scrollHeight: Math.max(frame.height, frame.height < 100 ? 90 : 300),
+  });
+  assert.deepEqual(snugLegendSize(reflowing, { width: 800, height: 600 }), { width: 150, height: 300 });
+}
+
+// Only the bottom-right corner is the native resize grip.
+assert.equal(isResizeGrip({ right: 400, bottom: 300 }, 395, 295), true);
+assert.equal(isResizeGrip({ right: 400, bottom: 300 }, 300, 295), false);
+assert.equal(isResizeGrip({ right: 400, bottom: 300 }, 395, 100), false);
 
 console.log('legendFrame.check: ok');
