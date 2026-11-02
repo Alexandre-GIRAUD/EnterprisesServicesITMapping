@@ -30,6 +30,7 @@ import { ModuleGraphNode, type ModuleNode } from './ModuleGraphNode';
 import { NODE_TYPE_STYLES, type NodeTypeKey } from './graphTheme';
 import { GraphLegend } from './GraphLegend';
 import { fitGraphView } from './fitGraphView';
+import { moduleFitPadding } from './moduleFitPadding';
 import {
   buildModuleNestedNodes,
   collectDescendants,
@@ -94,8 +95,8 @@ export function ApplicationModuleGraph({
 
   useEffect(() => {
     if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
-    fitGraphView(rfRef.current);
-  }, [status, nodes.length, layoutRevision]);
+    fitGraphView(rfRef.current, { padding: moduleFitPadding(isDrawerOpen) });
+  }, [status, nodes.length, layoutRevision, isDrawerOpen]);
 
   const applyGraph = useCallback(
     (data: GraphResponseDto) => {

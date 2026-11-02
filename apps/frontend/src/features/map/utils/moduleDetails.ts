@@ -51,6 +51,16 @@ export type ModuleLink = { sourceId: string; targetId: string; object: string };
 const FEEDS_EDGE_TYPE = 'FEEDS';
 const DATA_LIST_SEPARATOR = /[\n,;]/;
 
+const DETAIL_ROW_FIELDS: ModuleDetailsField[] = ['owner', 'actors', 'trigger', 'dataIn', 'dataOut'];
+
+/** The detail rows of a module that hold something, besides its description. */
+export function filledDetailKeys(module: ModuleDetails): ModuleDetailsField[] {
+  return DETAIL_ROW_FIELDS.filter((field) => {
+    const value = module[field];
+    return Array.isArray(value) ? value.length > 0 : Boolean(value);
+  });
+}
+
 function normalizeDataKey(value: string): string {
   return value.trim().toLowerCase();
 }

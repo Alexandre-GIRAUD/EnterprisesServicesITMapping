@@ -1,4 +1,5 @@
 import { NODE_HEIGHT, NODE_WIDTH } from '../hooks/useGraphData';
+import type { FitViewPadding } from './moduleFitPadding';
 
 export const FIT_VIEW_PADDING = 0.15;
 
@@ -15,7 +16,7 @@ type NodeLike = {
 
 type ViewportInstance = {
   fitView: (options?: {
-    padding?: number;
+    padding?: FitViewPadding;
     duration?: number;
     maxZoom?: number;
     minZoom?: number;
@@ -27,7 +28,7 @@ type ViewportInstance = {
 };
 
 type FitOptions = {
-  padding?: number;
+  padding?: FitViewPadding;
   duration?: number;
   maxZoom?: number;
 };

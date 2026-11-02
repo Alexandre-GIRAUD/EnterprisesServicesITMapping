@@ -1,10 +1,19 @@
 import { forwardRef, type ReactNode } from 'react';
-import type { ModuleDetails } from '../utils/moduleDetails';
+import { filledDetailKeys, type ModuleDetails, type ModuleDetailsField } from '../utils/moduleDetails';
 import { moduleTone } from './graphTheme';
 
 const NO_DATA_TEXT = 'No data declared.';
-const NOT_SET_TEXT = 'Not set';
 const NO_DESCRIPTION_TEXT = 'No description provided.';
+const NO_OTHER_DETAIL_TEXT = 'No other detail yet. Use Edit to add them.';
+
+const ROW_LABELS: Record<ModuleDetailsField, string> = {
+  description: 'What it does',
+  owner: 'Business owner',
+  actors: 'Who uses it',
+  trigger: 'When it acts',
+  dataIn: 'Data in',
+  dataOut: 'Data out',
+};
 
 export function DataChips({ items }: { items: string[] }) {
   if (items.length === 0) return <p className="graph-details-text">{NO_DATA_TEXT}</p>;
@@ -28,6 +37,12 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+function detailValue(module: ModuleDetails, field: ModuleDetailsField): ReactNode {
+  if (field === 'dataIn' || field === 'dataOut') return <DataChips items={module[field]} />;
+  if (field === 'actors') return module.actors.join(', ');
+  return module[field];
+}
+
 type Props = {
   module: ModuleDetails & { colorSlot: number | null };
   isSelected: boolean;
@@ -39,11 +54,12 @@ type Props = {
   editor: ReactNode;
 };
 
-/** One module in the drawer: color dot, name, details and an Edit button. */
+/** One module in the drawer: color dot, name, what is filled in, and an Edit button. */
 export const ModuleCard = forwardRef<HTMLLIElement, Props>(function ModuleCard(
   { module, isSelected, isEditing, canEdit, onToggleSelect, onEdit, editor },
   ref
 ) {
+  const filled = filledDetailKeys(module);
   return (
     <li ref={ref} className={`module-drawer-card${isSelected ? ' is-selected' : ''}`}>
       <div className="module-drawer-card__head">
@@ -65,16 +81,13 @@ export const ModuleCard = forwardRef<HTMLLIElement, Props>(function ModuleCard(
         editor
       ) : (
         <dl className="graph-details-attribute-list">
-          <Row label="What it does">{module.description || NO_DESCRIPTION_TEXT}</Row>
-          <Row label="Business owner">{module.owner || NOT_SET_TEXT}</Row>
-          <Row label="Who uses it">{module.actors.join(', ') || NOT_SET_TEXT}</Row>
-          <Row label="When it acts">{module.trigger || NOT_SET_TEXT}</Row>
-          <Row label="Data in">
-            <DataChips items={module.dataIn} />
-          </Row>
-          <Row label="Data out">
-            <DataChips items={module.dataOut} />
-          </Row>
+          <Row label={ROW_LABELS.description}>{module.description || NO_DESCRIPTION_TEXT}</Row>
+          {filled.map((field) => (
+            <Row key={field} label={ROW_LABELS[field]}>
+              {detailValue(module, field)}
+            </Row>
+          ))}
+          {filled.length === 0 && <p className="graph-details-text module-drawer-card__empty">{NO_OTHER_DETAIL_TEXT}</p>}
         </dl>
       )}
     </li>

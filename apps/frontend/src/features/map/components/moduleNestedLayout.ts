@@ -1,5 +1,5 @@
 import type { GraphEdgeDto, GraphNodeDto } from '../../../types/api.ts';
-import { moduleLinkGroups, moduleLinksFromEdges } from '../utils/moduleDetails.ts';
+import { moduleLinkGroups, moduleLinksFromEdges, type ModuleLink } from '../utils/moduleDetails.ts';
 import type { ModuleNode } from './ModuleGraphNode.tsx';
 
 export const MODULE_NODE_WIDTH = 172;
@@ -58,6 +58,29 @@ export type ModuleTree = {
   boxSize: { width: number; height: number };
 };
 
+/**
+ * Siblings in flow order: a module that feeds a sibling comes right before it. Everything else, and
+ * a cycle, keeps the incoming (alphabetical) order.
+ */
+function orderAlongLinks(siblings: string[], links: ModuleLink[]): string[] {
+  const feedersOf = new Map<string, string[]>();
+  for (const link of links) {
+    if (link.sourceId === link.targetId) continue;
+    if (!siblings.includes(link.sourceId) || !siblings.includes(link.targetId)) continue;
+    feedersOf.set(link.targetId, [...(feedersOf.get(link.targetId) ?? []), link.sourceId]);
+  }
+  const ordered: string[] = [];
+  const visited = new Set<string>();
+  const visit = (id: string) => {
+    if (visited.has(id)) return;
+    visited.add(id);
+    for (const feeder of feedersOf.get(id) ?? []) visit(feeder);
+    ordered.push(id);
+  };
+  siblings.forEach(visit);
+  return ordered;
+}
+
 /** Build parent → children map from CONTAINS edges (first parent wins on cycles). */
 export function buildContainsTree(
   nodes: GraphNodeDto[],
@@ -66,7 +89,8 @@ export function buildContainsTree(
   const appNode = nodes.find((n) => n.type === 'Application');
   if (!appNode) return null;
 
-  const groups = moduleLinkGroups(moduleLinksFromEdges(edges));
+  const links = moduleLinksFromEdges(edges);
+  const groups = moduleLinkGroups(links);
   const nodeMeta = new Map<string, NodeMeta>();
   for (const n of nodes) {
     const name = n.label?.trim() || n.id;
@@ -98,7 +122,7 @@ export function buildContainsTree(
       const nameB = nodeMeta.get(b)?.name ?? b;
       return nameA.localeCompare(nameB);
     });
-    childrenByParent.set(parentId, children);
+    childrenByParent.set(parentId, orderAlongLinks(children, links));
   }
 
   return {
@@ -132,10 +156,16 @@ export function collectDescendants(
 }
 
 /** Link group wins; with no link anywhere the palette cycles by sibling position instead. */
-function colorSlotOf(meta: NodeMeta, siblingIndex: number, tree: ModuleTree): number | null {
+function colorSlotOf(
+  meta: NodeMeta,
+  siblingIndex: number,
+  tree: ModuleTree,
+  isContainer: boolean
+): number | null {
   if (meta.nodeType === 'Application') return null;
   if (meta.linkGroup !== null) return meta.linkGroup;
-  return tree.hasLinks ? null : siblingIndex;
+  // A container only takes a color from a link group, so it never looks like its first child.
+  return tree.hasLinks || isContainer ? null : siblingIndex;
 }
 
 type Layout = { nodes: ModuleNode[]; width: number; height: number };
@@ -216,7 +246,7 @@ function layoutSubtree(
   const childIds = tree.childrenByParent.get(id) ?? [];
   const isApp = meta.nodeType === 'Application';
   const isContainer = isApp || childIds.length > 0;
-  const colorSlot = colorSlotOf(meta, siblingIndex, tree);
+  const colorSlot = colorSlotOf(meta, siblingIndex, tree, isContainer);
 
   const nodeOf = (isContainerNode: boolean, width: number, height: number): ModuleNode => ({
     id,
