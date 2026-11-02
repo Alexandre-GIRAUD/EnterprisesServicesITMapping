@@ -76,6 +76,11 @@ export function fitLegendHeight(
   return Math.max(LEGEND_MIN_HEIGHT_PX, Math.min(height, room));
 }
 
+/** The tallest the legend may be shown in this pane; the size the user chose is kept as it is. */
+export function legendMaxHeight(paneHeight: number, clearance?: number): number {
+  return fitLegendHeight(Number.MAX_SAFE_INTEGER, paneHeight, clearance);
+}
+
 /** Frame covering the whole pane, margin kept so the pane borders stay visible. */
 export function fillLegendFrame(
   pane: LegendPane,

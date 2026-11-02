@@ -10,6 +10,7 @@ import {
   clampLegendOffset,
   fillLegendFrame,
   fitLegendHeight,
+  legendMaxHeight,
   measureLegendFontScale,
   pickShownLegendFrame,
   LEGEND_MIN_HEIGHT_PX,
@@ -117,5 +118,10 @@ assert.deepEqual(pickShownLegendFrame(true, null, ownFrame), ownFrame);
 assert.equal(isResizeGrip({ right: 400, bottom: 300 }, 395, 295), true);
 assert.equal(isResizeGrip({ right: 400, bottom: 300 }, 300, 295), false);
 assert.equal(isResizeGrip({ right: 400, bottom: 300 }, 395, 100), false);
+
+// A short pane caps the shown height without touching the size the user chose.
+assert.equal(legendMaxHeight(900), 900 - 10 - LEGEND_CONTROLS_CLEARANCE_PX);
+assert.equal(legendMaxHeight(400, 200), 400 - 10 - 200);
+assert.equal(legendMaxHeight(100), 80);
 
 console.log('legendFrame.check: ok');
