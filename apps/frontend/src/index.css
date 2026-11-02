@@ -2431,6 +2431,13 @@ body.is-diagram-grown .layout {
   height: var(--diagram-height);
 }
 
+.graph-stage:fullscreen,
+.module-graph-wrap:fullscreen {
+  height: 100%;
+  padding: 0.75rem;
+  background: #ffffff;
+}
+
 .diagram-resize-handle {
   position: absolute;
   left: 0;
