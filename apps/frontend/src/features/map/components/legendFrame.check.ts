@@ -105,12 +105,12 @@ assert.deepEqual(pickShownLegendFrame(true, null, ownFrame), ownFrame);
     width: LEGEND_MIN_WIDTH_PX,
     height: LEGEND_MIN_HEIGHT_PX,
   });
-  // A layout that gets taller once the frame is taller grows the frame until nothing is cut.
+  // A layout that needs more width once the frame is taller grows the frame until nothing is cut.
   const reflowing = (frame: { width: number; height: number }) => ({
-    scrollWidth: Math.max(frame.width, 150),
-    scrollHeight: Math.max(frame.height, frame.height < 100 ? 90 : 300),
+    scrollWidth: Math.max(frame.width, frame.height > 120 ? 180 : 150),
+    scrollHeight: Math.max(frame.height, 200),
   });
-  assert.deepEqual(snugLegendSize(reflowing, { width: 800, height: 600 }), { width: 150, height: 300 });
+  assert.deepEqual(snugLegendSize(reflowing, { width: 800, height: 600 }), { width: 180, height: 200 });
 }
 
 // Only the bottom-right corner is the native resize grip.

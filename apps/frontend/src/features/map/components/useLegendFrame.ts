@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -13,15 +14,21 @@ import {
   clampLegendOffset,
   fillLegendFrame,
   fitLegendHeight,
+  isResizeGrip,
   measureLegendFontScale,
   pickShownLegendFrame,
+  snugLegendSize,
+  type LegendContentSize,
   type LegendOffset,
   type LegendPane,
   type LegendSize,
 } from './legendFrame.ts';
+import { recallLegend, rememberLegend } from './legendMemory.ts';
 
 const DRAG_START_THRESHOLD_PX = 4;
 const LEGEND_FILL_MARGIN_PX = 8;
+/** Room kept between a snug legend and the pane's right edge. */
+const LEGEND_SNUG_RIGHT_MARGIN_PX = 24;
 const PRIMARY_POINTER_BUTTON = 0;
 const LEGEND_CONTROL_SELECTOR = 'button, input, select, textarea, a';
 const LEGEND_DRAG_HANDLE_SELECTOR = '.graph-legend__header';
@@ -50,16 +57,22 @@ type LegendFrameBindings = {
 
 type LegendFill = ReturnType<typeof fillLegendFrame>;
 
-/** `isFilling` stretches the legend over the whole pane (edit mode), then restores its own frame. */
+/**
+ * `isFilling` stretches the legend over the whole pane (edit mode), then restores its own frame.
+ * The frame is the snuggest one until the user drags the resize grip, and it outlives the component.
+ * A new `concealSignal` value folds the legend into its launcher.
+ */
 export function useLegendFrame(
   frameRef: RefObject<HTMLDivElement | null>,
   isFilling = false,
+  concealSignal = 0,
 ): LegendFrameBindings {
-  const [offset, setOffset] = useState<LegendOffset>({ left: 0, top: 0 });
-  const [size, setSize] = useState<LegendSize>({
-    width: DEFAULT_LEGEND_WIDTH_PX,
-    height: DEFAULT_LEGEND_HEIGHT_PX,
-  });
+  const [remembered] = useState(recallLegend);
+  const [offset, setOffset] = useState<LegendOffset>(remembered?.offset ?? { left: 0, top: 0 });
+  const [size, setSize] = useState<LegendSize>(
+    remembered?.size ?? { width: DEFAULT_LEGEND_WIDTH_PX, height: DEFAULT_LEGEND_HEIGHT_PX },
+  );
+  const [isUserSized, setIsUserSized] = useState(remembered?.isUserSized ?? false);
   const [isConcealed, setIsConcealed] = useState(false);
   const [fill, setFill] = useState<LegendFill | null>(null);
   const sizeRef = useRef(size);
@@ -67,6 +80,11 @@ export function useLegendFrame(
   const suppressClickRef = useRef(false);
   sizeRef.current = size;
   concealedRef.current = isConcealed;
+  useEffect(() => {
+    rememberLegend({ offset, size, isUserSized });
+  }, [offset, size, isUserSized]);
+  useConcealOnSignal(concealSignal, setIsConcealed);
+  useSnugFit({ frameRef, isEnabled: !isUserSized && !isConcealed && !isFilling, setSize });
   useFitDefaultHeight(frameRef, setSize);
   useLegendResizeObserver({ frameRef, isConcealed: isConcealed || isFilling, concealedRef, setSize });
   useKeepLegendInside({ frameRef, isConcealed: isConcealed || isFilling, size, setOffset });
@@ -84,7 +102,61 @@ export function useLegendFrame(
     suppressClickRef,
     setOffset,
     setIsConcealed,
+    setIsUserSized,
   });
+}
+
+function useConcealOnSignal(
+  signal: number,
+  setIsConcealed: (update: (value: boolean) => boolean) => void,
+): void {
+  const seenSignal = useRef(signal);
+  useEffect(() => {
+    if (signal === seenSignal.current) return;
+    seenSignal.current = signal;
+    setIsConcealed(() => true);
+  }, [signal, setIsConcealed]);
+}
+
+type SnugFitWatch = {
+  frameRef: RefObject<HTMLDivElement | null>;
+  isEnabled: boolean;
+  setSize: (size: LegendSize) => void;
+};
+
+/** Refit the frame to its content whenever the text inside changes, until the user sizes it by hand. */
+function useSnugFit({ frameRef, isEnabled, setSize }: SnugFitWatch): void {
+  const fittedContent = useRef('');
+  useLayoutEffect(() => {
+    const element = frameRef.current;
+    if (!element || !isEnabled) {
+      fittedContent.current = '';
+      return;
+    }
+    const content = element.textContent ?? '';
+    const pane = readLegendPaneBox(element);
+    if (content === fittedContent.current || pane.width <= 0 || pane.height <= 0) return;
+    fittedContent.current = content;
+    const limit = {
+      width: pane.width - LEGEND_SNUG_RIGHT_MARGIN_PX,
+      height: fitLegendHeight(Number.MAX_SAFE_INTEGER, pane.height, readControlsClearance(findLegendPane(element))),
+    };
+    const snug = snugLegendSize((frame) => measureLegendContent(element, frame), limit);
+    applyLegendFrame(element, snug);
+    setSize(snug);
+  });
+}
+
+function applyLegendFrame(element: HTMLElement, frame: LegendSize): void {
+  element.style.width = `${frame.width}px`;
+  element.style.height = `${frame.height}px`;
+  element.style.setProperty('--legend-font-scale', String(measureLegendFontScale(frame.width, frame.height)));
+}
+
+/** Lay the legend out in `frame` and read how much room its content needs. */
+function measureLegendContent(element: HTMLElement, frame: LegendSize): LegendContentSize {
+  applyLegendFrame(element, frame);
+  return { scrollWidth: element.scrollWidth, scrollHeight: element.scrollHeight };
 }
 
 function useFitDefaultHeight(
@@ -162,6 +234,7 @@ type LegendFrameInput = {
   suppressClickRef: { current: boolean };
   setOffset: (offset: LegendOffset) => void;
   setIsConcealed: (update: (value: boolean) => boolean) => void;
+  setIsUserSized: (isUserSized: boolean) => void;
 };
 
 function useKeepLegendInside(watch: {
@@ -211,12 +284,18 @@ function bindLegendFrame(input: LegendFrameInput): LegendFrameBindings {
     style: buildLegendFrameStyle(shown.offset, shown.size, input.isConcealed),
     onPointerDown: (event) => {
       event.stopPropagation();
+      if (isOnResizeGrip(event)) input.setIsUserSized(true);
       beginLegendDrag(event, session);
     },
     onToggleClick: (event) => {
       toggleConcealedLegend(event, input.suppressClickRef, input.setIsConcealed);
     },
   };
+}
+
+function isOnResizeGrip(event: ReactPointerEvent<HTMLDivElement>): boolean {
+  if (event.target !== event.currentTarget) return false;
+  return isResizeGrip(event.currentTarget.getBoundingClientRect(), event.clientX, event.clientY);
 }
 
 function toggleConcealedLegend(
