@@ -17,23 +17,30 @@ import {
 } from 'react';
 import type { GraphResponseDto } from '@/types/api';
 import { fetchModuleGraph } from '../api/graphApi';
-import { moduleDetailsFromNode, type ModuleDetails } from '../utils/moduleDetails';
+import {
+  applicationModelFromNode,
+  moduleDetailsFromNode,
+  moduleLinksFromEdges,
+  type ApplicationModel,
+  type ModuleDetails,
+  type ModuleLink,
+} from '../utils/moduleDetails';
 import { ApplicationModulesDrawer } from './ApplicationModulesDrawer';
-import { buildNodeHoverHint } from './moduleNodeCardHtml';
 import { ModuleGraphNode, type ModuleNode } from './ModuleGraphNode';
 import { NODE_TYPE_STYLES, type NodeTypeKey } from './graphTheme';
 import { GraphLegend } from './GraphLegend';
 import { fitGraphView } from './fitGraphView';
 import { FullscreenControl } from './FullscreenControl';
 import { useFullscreen } from './fullscreen';
-import {
-  buildModuleNestedNodes,
-  collectDescendants,
-  type ModuleTree,
-} from './moduleNestedLayout';
+import { MODULE_DRAWER_WIDTH_PX, computeDrawerFitPadding } from './drawerFitPadding';
+import { computeModuleTiers, type ModuleTier } from './moduleFocus';
+import { buildModuleNestedNodes, type ModuleTree } from './moduleNestedLayout';
+import { tierClassName, type FocusTier } from './graphFocus';
 
 const KNOWN_NODE_TYPES = Object.keys(NODE_TYPE_STYLES) as NodeTypeKey[];
 const GRID = 16;
+/** The drawer is resized by hand: refit once it has stopped moving. */
+const REFIT_DEBOUNCE_MS = 200;
 
 type Props = {
   applicationId: string;
@@ -43,6 +50,14 @@ type Props = {
 };
 
 type DrawerModule = ModuleDetails & { colorSlot: number | null };
+
+/** The module tiers map onto the main graph's: an enclosing box keeps its normal look. */
+function toFocusTier(tier: ModuleTier | undefined): FocusTier | null {
+  if (!tier || tier === 'context') return null;
+  return tier;
+}
+
+const EMPTY_MODEL: ApplicationModel = { businessObjects: [], mainJourney: '', scope: '' };
 
 /**
  * Module composition view (GET …/module-graph) as nested boxes inside the
@@ -60,41 +75,76 @@ export function ApplicationModuleGraph({
   const [nodes, setNodes, onNodesChange] = useNodesState<ModuleNode>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
-  const [hoverHint, setHoverHint] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
-  const focusedId = hoveredId ?? pinnedId;
+  // The module open in the drawer keeps the highlight; otherwise the cursor decides.
+  const focusedId = pinnedId ?? hoveredId;
   const [legendNodeTypes, setLegendNodeTypes] = useState<NodeTypeKey[]>([]);
   const [layoutRevision, setLayoutRevision] = useState(0);
   const [drawerModules, setDrawerModules] = useState<DrawerModule[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+  const [drawerWidth, setDrawerWidth] = useState(MODULE_DRAWER_WIDTH_PX);
+  const [debouncedDrawerWidth, setDebouncedDrawerWidth] = useState(MODULE_DRAWER_WIDTH_PX);
+  const [concealSignal, setConcealSignal] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
   const [applicationDescription, setApplicationDescription] = useState('');
+  const [applicationModel, setApplicationModel] = useState<ApplicationModel>(EMPTY_MODEL);
+  const [moduleLinks, setModuleLinks] = useState<ModuleLink[]>([]);
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ module: ModuleGraphNode }), []);
 
-  const focusNodeIds = useMemo(() => {
+  const tiers = useMemo(() => {
     if (!focusedId || !treeRef.current) return null;
-    return collectDescendants(focusedId, treeRef.current.childrenByParent);
-  }, [focusedId]);
+    return computeModuleTiers({
+      focusId: focusedId,
+      nodeIds: nodes.map((n) => n.id),
+      childrenByParent: treeRef.current.childrenByParent,
+      links: moduleLinks,
+    });
+  }, [focusedId, nodes, moduleLinks]);
 
   const displayNodes = useMemo(() => {
-    if (!focusNodeIds) return nodes;
-    return nodes.map((n) => ({
-      ...n,
-      className: focusNodeIds.has(n.id) ? 'is-focus' : 'is-faded',
-    }));
-  }, [nodes, focusNodeIds]);
+    if (!tiers) return nodes;
+    return nodes.map((n) => ({ ...n, className: tierClassName(toFocusTier(tiers.get(n.id))) }));
+  }, [nodes, tiers]);
+
+  // The module open in the drawer and its neighbors; undefined fits the whole graph.
+  const fitNodeIds = useMemo(() => {
+    if (!isDrawerOpen || !pinnedId || !treeRef.current || pinnedId === treeRef.current.rootId) return undefined;
+    const pinnedTiers = computeModuleTiers({
+      focusId: pinnedId,
+      nodeIds: [...treeRef.current.nodeMeta.keys()],
+      childrenByParent: treeRef.current.childrenByParent,
+      links: moduleLinks,
+    });
+    return [...pinnedTiers].filter(([, tier]) => tier === 'self' || tier === 'neighbor').map(([id]) => id);
+  }, [isDrawerOpen, pinnedId, moduleLinks]);
+  const fitNodeKey = fitNodeIds?.join('|');
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedDrawerWidth(drawerWidth), REFIT_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [drawerWidth]);
+
+  const [fullscreenRevision, setFullscreenRevision] = useState(0);
+  // The pane has its final size only after the browser has switched.
+  const refitAfterFullscreen = useCallback(() => {
+    window.setTimeout(() => setFullscreenRevision((v) => v + 1), 120);
+  }, []);
+  const fullscreen = useFullscreen(wrapRef, refitAfterFullscreen);
 
   useEffect(() => {
     if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
-    fitGraphView(rfRef.current);
-  }, [status, nodes.length, layoutRevision]);
-
-  const refitAfterFullscreen = useCallback(() => {
-    window.setTimeout(() => fitGraphView(rfRef.current, { duration: 200 }), 120);
-  }, []);
-  const fullscreen = useFullscreen(wrapRef, refitAfterFullscreen);
+    const paneWidth = containerRef.current?.clientWidth;
+    fitGraphView(rfRef.current, {
+      padding: computeDrawerFitPadding(isDrawerOpen, {
+        paneWidthPx: paneWidth,
+        drawerWidthPx: debouncedDrawerWidth,
+      }),
+      nodeIds: fitNodeIds,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fitNodeKey stands for fitNodeIds
+  }, [status, nodes.length, layoutRevision, isDrawerOpen, debouncedDrawerWidth, fitNodeKey, fullscreenRevision]);
 
   const applyGraph = useCallback(
     (data: GraphResponseDto) => {
@@ -111,9 +161,10 @@ export function ApplicationModuleGraph({
           .map((n) => ({ ...moduleDetailsFromNode(n), colorSlot: slotById.get(n.id) ?? null }))
       );
 
-      setApplicationDescription(
-        data.nodes.find((n) => n.type === 'Application')?.description?.trim() ?? ''
-      );
+      const applicationNode = data.nodes.find((n) => n.type === 'Application');
+      setApplicationDescription(applicationNode?.description?.trim() ?? '');
+      setApplicationModel(applicationNode ? applicationModelFromNode(applicationNode) : EMPTY_MODEL);
+      setModuleLinks(moduleLinksFromEdges(data.edges));
       setNodes(rfNodes);
       setLayoutRevision((v) => v + 1);
     },
@@ -126,7 +177,6 @@ export function ApplicationModuleGraph({
     (async () => {
       setStatus('loading');
       setMessage(null);
-      setHoverHint(null);
       try {
         const data = await fetchModuleGraph(applicationId);
         if (cancelled) return;
@@ -165,24 +215,27 @@ export function ApplicationModuleGraph({
     };
   }, [applicationId, applyGraph, reloadKey, setNodes]);
 
-  const handleNodeMouseEnter = useCallback((_: ReactMouseEvent, node: ModuleNode) => {
-    setHoverHint(buildNodeHoverHint(node.data.name ?? '', node.data.description ?? ''));
-    setHoveredId(node.id);
-  }, []);
+  const handleNodeMouseEnter = useCallback(
+    (_: ReactMouseEvent, node: ModuleNode) => setHoveredId(node.id),
+    []
+  );
 
   const handleNodeMouseLeave = useCallback(() => {
-    setHoverHint(null);
     setHoveredId(null);
   }, []);
 
   const handleNodeClick = useCallback((_: ReactMouseEvent, node: ModuleNode) => {
-    setPinnedId((prev) => (prev === node.id ? null : node.id));
+    setPinnedId(node.id);
     setIsDrawerOpen(true);
+    setConcealSignal((signal) => signal + 1);
   }, []);
 
-  const handlePaneClick = useCallback(() => setPinnedId(null), []);
+  const handleDrawerClose = useCallback(() => {
+    setIsDrawerOpen(false);
+    setPinnedId(null);
+  }, []);
 
-  const hintText = hoverHint ?? (status === 'ready' ? message : null);
+  const hintText = status === 'ready' ? message : null;
 
   return (
     <div ref={wrapRef} className="graph-canvas-wrap module-graph-wrap">
@@ -197,7 +250,7 @@ export function ApplicationModuleGraph({
         </p>
       )}
       {hintText && status !== 'error' && (
-        <p className="graph-canvas-hint module-graph-hint" title={hoverHint ?? undefined}>
+        <p className="graph-canvas-hint module-graph-hint">
           {hintText}
         </p>
       )}
@@ -218,7 +271,6 @@ export function ApplicationModuleGraph({
           onNodeClick={handleNodeClick}
           onNodeMouseEnter={handleNodeMouseEnter}
           onNodeMouseLeave={handleNodeMouseLeave}
-          onPaneClick={handlePaneClick}
           nodesDraggable
           nodesConnectable={false}
           snapToGrid
@@ -244,7 +296,7 @@ export function ApplicationModuleGraph({
           )}
           {legendNodeTypes.length > 0 && (
             <Panel position="top-left">
-              <GraphLegend nodeTypes={legendNodeTypes} />
+              <GraphLegend nodeTypes={legendNodeTypes} concealSignal={concealSignal} />
             </Panel>
           )}
         </ReactFlow>
@@ -254,10 +306,14 @@ export function ApplicationModuleGraph({
         applicationId={applicationId}
         applicationName={applicationName}
         applicationDescription={applicationDescription}
+        applicationModel={applicationModel}
+        links={moduleLinks}
         modules={drawerModules}
         selectedId={pinnedId}
         onSelect={setPinnedId}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={handleDrawerClose}
+        width={drawerWidth}
+        onWidthChange={setDrawerWidth}
         onSaved={() => setReloadKey((k) => k + 1)}
         isReadOnly={isReadOnly}
       />

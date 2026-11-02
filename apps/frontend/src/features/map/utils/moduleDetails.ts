@@ -1,21 +1,65 @@
-import type { GraphNodeDto } from '../../../types/api.ts';
+import type { GraphEdgeDto, GraphNodeDto } from '../../../types/api.ts';
 
-/** Editable facts about one module, as the module drawer shows them. */
+/** Functional facts about one module, as the module drawer shows them. */
 export type ModuleDetails = {
   id: string;
   name: string;
+  /** What the module does, in business words. */
   description: string;
+  /** Business owner. */
   owner: string;
-  technology: string;
-  /** Data the module consumes. */
+  /** Who uses the module. */
+  actors: string[];
+  /** When the module acts: real time, end of day, on an event... */
+  trigger: string;
+  /** Business objects the module consumes. */
   dataIn: string[];
-  /** Data the module produces. */
+  /** Business objects the module produces. */
   dataOut: string[];
 };
 
-export type ModuleDetailsField = 'description' | 'owner' | 'technology' | 'dataIn' | 'dataOut';
+export type ModuleDetailsField =
+  | 'description'
+  | 'owner'
+  | 'actors'
+  | 'trigger'
+  | 'dataIn'
+  | 'dataOut';
 
-const MODULE_DETAILS_FIELDS: ModuleDetailsField[] = ['description', 'owner', 'technology', 'dataIn', 'dataOut'];
+const MODULE_DETAILS_FIELDS: ModuleDetailsField[] = [
+  'description',
+  'owner',
+  'actors',
+  'trigger',
+  'dataIn',
+  'dataOut',
+];
+
+/** Facts about the application as a whole, shown outside any single module. */
+export type ApplicationModel = {
+  /** Lexicon of business objects the modules pick their data from. */
+  businessObjects: string[];
+  /** How the modules chain end to end, in a few sentences. */
+  mainJourney: string;
+  /** What the application covers and what it does not. */
+  scope: string;
+};
+
+/** One module feeds another, through a business object (empty when unspecified). */
+export type ModuleLink = { sourceId: string; targetId: string; object: string };
+
+const FEEDS_EDGE_TYPE = 'FEEDS';
+const DATA_LIST_SEPARATOR = /[\n,;]/;
+
+const DETAIL_ROW_FIELDS: ModuleDetailsField[] = ['owner', 'actors', 'trigger', 'dataIn', 'dataOut'];
+
+/** The detail rows of a module that hold something, besides its description. */
+export function filledDetailKeys(module: ModuleDetails): ModuleDetailsField[] {
+  return DETAIL_ROW_FIELDS.filter((field) => {
+    const value = module[field];
+    return Array.isArray(value) ? value.length > 0 : Boolean(value);
+  });
+}
 
 function normalizeDataKey(value: string): string {
   return value.trim().toLowerCase();
@@ -25,7 +69,7 @@ function normalizeDataKey(value: string): string {
 export function parseDataList(text: string): string[] {
   const seen = new Set<string>();
   const items: string[] = [];
-  for (const part of text.split(/[\n,;]/)) {
+  for (const part of text.split(DATA_LIST_SEPARATOR)) {
     const item = part.trim();
     if (!item || seen.has(normalizeDataKey(item))) continue;
     seen.add(normalizeDataKey(item));
@@ -51,61 +95,76 @@ export function moduleDetailsFromNode(node: GraphNodeDto): ModuleDetails {
     name: node.label?.trim() || node.id,
     description: node.description?.trim() ?? '',
     owner: textOf(properties.owner),
-    technology: textOf(properties.technology),
+    actors: listOf(properties.actors),
+    trigger: textOf(properties.trigger),
     dataIn: listOf(properties.dataIn),
     dataOut: listOf(properties.dataOut),
   };
 }
 
-/** Every [producer, consumer] pair where the consumer takes in something the producer puts out. */
-function exchangePairs(modules: ModuleDetails[]): Array<[string, string]> {
-  const producers = new Map<string, string[]>();
-  for (const module of modules) {
-    for (const item of module.dataOut) {
-      const key = normalizeDataKey(item);
-      producers.set(key, [...(producers.get(key) ?? []), module.id]);
-    }
-  }
-  const pairs: Array<[string, string]> = [];
-  for (const consumer of modules) {
-    for (const item of consumer.dataIn) {
-      for (const producerId of producers.get(normalizeDataKey(item)) ?? []) {
-        if (producerId !== consumer.id) pairs.push([producerId, consumer.id]);
-      }
-    }
-  }
-  return pairs;
+export function applicationModelFromNode(node: GraphNodeDto): ApplicationModel {
+  const properties = node.properties ?? {};
+  return {
+    businessObjects: listOf(properties.businessObjects),
+    mainJourney: textOf(properties.mainJourney),
+    scope: textOf(properties.scope),
+  };
+}
+
+/** The explicit links between modules: FEEDS edges, the label of the edge being the object. */
+export function moduleLinksFromEdges(edges: GraphEdgeDto[]): ModuleLink[] {
+  return edges
+    .filter((edge) => edge.type === FEEDS_EDGE_TYPE)
+    .map((edge) => ({ sourceId: edge.sourceId, targetId: edge.targetId, object: edge.data ?? '' }));
 }
 
 /**
- * Group modules that exchange data: B consumes something A produces. Returns module id → group
- * index (in order of first appearance); modules linked to nobody are left out.
+ * Group modules joined by explicit links. Returns module id → group index (in order of first
+ * appearance); modules linked to nobody are left out.
  */
-export function moduleLinkGroups(modules: ModuleDetails[]): Map<string, number> {
-  const parent = new Map(modules.map((m) => [m.id, m.id]));
+export function moduleLinkGroups(links: ModuleLink[]): Map<string, number> {
+  const parent = new Map<string, string>();
   const find = (id: string): string => {
+    if (!parent.has(id)) parent.set(id, id);
     let root = id;
     while (parent.get(root) !== root) root = parent.get(root)!;
     parent.set(id, root);
     return root;
   };
 
-  const linked = new Set<string>();
-  for (const [producerId, consumerId] of exchangePairs(modules)) {
-    parent.set(find(producerId), find(consumerId));
-    linked.add(producerId);
-    linked.add(consumerId);
+  for (const link of links) {
+    parent.set(find(link.sourceId), find(link.targetId));
   }
 
   const groupOfRoot = new Map<string, number>();
   const groups = new Map<string, number>();
-  for (const m of modules) {
-    if (!linked.has(m.id)) continue;
-    const root = find(m.id);
-    if (!groupOfRoot.has(root)) groupOfRoot.set(root, groupOfRoot.size);
-    groups.set(m.id, groupOfRoot.get(root)!);
+  for (const link of links) {
+    for (const id of [link.sourceId, link.targetId]) {
+      const root = find(id);
+      if (!groupOfRoot.has(root)) groupOfRoot.set(root, groupOfRoot.size);
+      groups.set(id, groupOfRoot.get(root)!);
+    }
   }
   return groups;
+}
+
+/** The objects of `list` that `other` does not hold, without repeats. */
+function objectsWithout(list: string[], other: string[]): string[] {
+  const excluded = new Set(other.map(normalizeDataKey));
+  return parseDataList(list.filter((object) => !excluded.has(normalizeDataKey(object))).join('\n'));
+}
+
+/**
+ * What crosses the application border: objects some module consumes that no module produces
+ * (inputs), and objects some module produces that no module consumes (outputs).
+ */
+export function externalData(modules: ModuleDetails[]): { inputs: string[]; outputs: string[] } {
+  const consumed = modules.flatMap((module) => module.dataIn);
+  const produced = modules.flatMap((module) => module.dataOut);
+  return {
+    inputs: objectsWithout(consumed, produced),
+    outputs: objectsWithout(produced, consumed),
+  };
 }
 
 export function changedModuleFields(before: ModuleDetails, after: ModuleDetails): ModuleDetailsField[] {
@@ -113,7 +172,7 @@ export function changedModuleFields(before: ModuleDetails, after: ModuleDetails)
     const a = before[field];
     const b = after[field];
     return Array.isArray(a) && Array.isArray(b)
-      ? a.length !== b.length || a.some((item, i) => item !== b[i])
+      ? a.length !== b.length || a.some((item, index) => item !== b[index])
       : a !== b;
   });
 }

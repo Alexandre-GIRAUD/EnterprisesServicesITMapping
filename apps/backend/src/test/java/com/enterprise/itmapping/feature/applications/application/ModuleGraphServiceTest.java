@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ModuleGraphLoader;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeProjection;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -58,23 +59,62 @@ class ModuleGraphServiceTest {
   }
 
   @Test
-  void getModuleGraphForwardsModuleDetailsAsProperties() {
+  void getModuleGraphForwardsModuleAndApplicationDetailsAsProperties() {
     when(moduleGraphLoader.applicationExists(any())).thenReturn(true);
     when(moduleGraphLoader.loadNodes(any()))
         .thenReturn(
             List.of(
                 new ModuleGraphNodeRow(
-                    "m1", "Ingest", null, "Module", "Team A", "Kafka", List.of("Trades"), List.of("Positions")),
+                    "app-1",
+                    "Booking",
+                    null,
+                    "Application",
+                    Map.of(
+                        "businessObjects", List.of("Trade"),
+                        "mainJourney", "Capture then value",
+                        "scope", " ")),
+                new ModuleGraphNodeRow(
+                    "m1",
+                    "Ingest",
+                    null,
+                    "Module",
+                    Map.of(
+                        "owner", "Front office",
+                        "actors", List.of("Traders"),
+                        "trigger", "On each deal",
+                        "dataIn", List.of("Order"),
+                        "dataOut", List.of("Trade"))),
                 new ModuleGraphNodeRow("m2", "Bare", null, "Module")));
     when(moduleGraphLoader.loadEdges(any())).thenReturn(List.of());
 
     var nodes = moduleGraphService.getModuleGraph("app-1").orElseThrow().nodes();
 
     assertThat(nodes.get(0).properties())
-        .containsEntry("owner", "Team A")
-        .containsEntry("technology", "Kafka")
-        .containsEntry("dataIn", List.of("Trades"))
-        .containsEntry("dataOut", List.of("Positions"));
-    assertThat(nodes.get(1).properties()).isEmpty();
+        .containsEntry("businessObjects", List.of("Trade"))
+        .containsEntry("mainJourney", "Capture then value")
+        .doesNotContainKey("scope");
+    assertThat(nodes.get(1).properties())
+        .containsEntry("owner", "Front office")
+        .containsEntry("actors", List.of("Traders"))
+        .containsEntry("trigger", "On each deal")
+        .containsEntry("dataIn", List.of("Order"))
+        .containsEntry("dataOut", List.of("Trade"));
+    assertThat(nodes.get(2).properties()).isEmpty();
+  }
+
+  @Test
+  void getModuleGraphKeepsFeedsLinksWithTheirBusinessObject() {
+    when(moduleGraphLoader.applicationExists(any())).thenReturn(true);
+    when(moduleGraphLoader.loadNodes(any())).thenReturn(List.of());
+    when(moduleGraphLoader.loadEdges(any()))
+        .thenReturn(
+            List.of(
+                new GraphEdgeProjection("app-1", "a", "CONTAINS"),
+                new GraphEdgeProjection("a", "b", "FEEDS", "Trade", null, Map.of())));
+
+    var edges = moduleGraphService.getModuleGraph("app-1").orElseThrow().edges();
+
+    assertThat(edges).extracting(e -> e.type()).containsExactly("CONTAINS", "FEEDS");
+    assertThat(edges.get(1).data()).isEqualTo("Trade");
   }
 }
