@@ -4,7 +4,14 @@ import { collectDescendants } from './moduleNestedLayout';
 /** self: the module and what it holds; neighbor: linked by data; context: holds the module. */
 export type ModuleTier = 'self' | 'neighbor' | 'context' | 'faded';
 
-function ancestorsOf(id: string, childrenByParent: Map<string, string[]>): Set<string> {
+type ModuleTierInput = {
+  focusId: string;
+  nodeIds: string[];
+  childrenByParent: Map<string, string[]>;
+  links: ModuleLink[];
+};
+
+function collectAncestors(id: string, childrenByParent: Map<string, string[]>): Set<string> {
   const parentById = new Map<string, string>();
   for (const [parent, children] of childrenByParent) {
     for (const child of children) parentById.set(child, parent);
@@ -14,26 +21,27 @@ function ancestorsOf(id: string, childrenByParent: Map<string, string[]>): Set<s
   return ancestors;
 }
 
-export function moduleTiers(
-  focusId: string,
-  nodeIds: string[],
-  childrenByParent: Map<string, string[]>,
-  links: ModuleLink[]
-): Map<string, ModuleTier> {
-  const self = collectDescendants(focusId, childrenByParent);
-  const neighbors = new Set<string>();
-  for (const link of links) {
-    if (self.has(link.sourceId)) collectDescendants(link.targetId, childrenByParent).forEach((id) => neighbors.add(id));
-    if (self.has(link.targetId)) collectDescendants(link.sourceId, childrenByParent).forEach((id) => neighbors.add(id));
+/** The modules, with what they hold, that exchange data with the focused module. */
+function collectLinkedModules(self: Set<string>, input: ModuleTierInput): Set<string> {
+  const linked = new Set<string>();
+  const addWithChildren = (id: string) =>
+    collectDescendants(id, input.childrenByParent).forEach((member) => linked.add(member));
+  for (const link of input.links) {
+    if (self.has(link.sourceId)) addWithChildren(link.targetId);
+    if (self.has(link.targetId)) addWithChildren(link.sourceId);
   }
-  const context = ancestorsOf(focusId, childrenByParent);
+  return linked;
+}
 
-  const tiers = new Map<string, ModuleTier>();
-  for (const id of nodeIds) {
-    if (self.has(id)) tiers.set(id, 'self');
-    else if (neighbors.has(id)) tiers.set(id, 'neighbor');
-    else if (context.has(id)) tiers.set(id, 'context');
-    else tiers.set(id, 'faded');
-  }
-  return tiers;
+export function computeModuleTiers(input: ModuleTierInput): Map<string, ModuleTier> {
+  const self = collectDescendants(input.focusId, input.childrenByParent);
+  const neighbors = collectLinkedModules(self, input);
+  const context = collectAncestors(input.focusId, input.childrenByParent);
+
+  const tierOf = (id: string): ModuleTier => {
+    if (self.has(id)) return 'self';
+    if (neighbors.has(id)) return 'neighbor';
+    return context.has(id) ? 'context' : 'faded';
+  };
+  return new Map(input.nodeIds.map((id) => [id, tierOf(id)]));
 }

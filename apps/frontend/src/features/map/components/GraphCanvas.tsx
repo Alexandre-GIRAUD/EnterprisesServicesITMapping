@@ -79,7 +79,7 @@ import { GraphLegend } from './GraphLegend';
 import { AppGraphNode } from './AppGraphNode';
 import { OrientedEdge } from './OrientedEdge';
 import { computeFocus, focusTier, tierClassName, type FocusTier } from './graphFocus';
-import { DETAILS_DRAWER_WIDTH_PX, drawerFitPadding } from './drawerFitPadding';
+import { DETAILS_DRAWER_WIDTH_PX, computeDrawerFitPadding } from './drawerFitPadding';
 import { applicationResponseFromGraphNode, isSandboxId } from '../utils/sandboxGraph';
 import { ApplicationModuleGraph } from './ApplicationModuleGraph';
 import { ApplicationFunctionalDocPanel } from './ApplicationFunctionalDocPanel';
@@ -128,8 +128,7 @@ type GraphCanvasProps = {
   onViewingDayChange?: (day: string | null) => void;
 };
 
-/** Room kept between the details drawer and the pane edges. */
-const DRAWER_PANE_MARGIN_PX = 24;
+const DRAWER_FIT_DURATION_MS = 300;
 
 /** The hovered or open node and its neighbors stand out; the ends of the active edge count as neighbors. */
 function nodeClassName(
@@ -194,7 +193,8 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   // The node open in the drawer keeps the highlight while it is open; otherwise the cursor decides.
-  const focusedId = pinnedId ?? hoveredId;
+  const isDrawerOpen = isDetailsDrawerOpen || isEdgeDetailsDrawerOpen;
+  const focusedId = isDrawerOpen ? (pinnedId ?? hoveredId) : (hoveredId ?? pinnedId);
   const [legendConcealSignal, setLegendConcealSignal] = useState(0);
   const [graphReloadNonce, setGraphReloadNonce] = useState(0);
   const [pendingSandboxFilterHint, setPendingSandboxFilterHint] = useState(false);
@@ -1002,11 +1002,13 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
   // Zoom on these nodes in the part of the pane the drawer leaves free.
   const fitBesideDrawer = useCallback((nodeIds: string[]) => {
     const paneWidth = containerRef.current?.clientWidth;
-    const drawerWidth = Math.min(DETAILS_DRAWER_WIDTH_PX, (paneWidth ?? Infinity) - DRAWER_PANE_MARGIN_PX);
     fitGraphView(rfRef.current, {
-      padding: drawerFitPadding(true, paneWidth, drawerWidth),
+      padding: computeDrawerFitPadding(true, {
+        paneWidthPx: paneWidth,
+        drawerWidthPx: DETAILS_DRAWER_WIDTH_PX,
+      }),
       nodeIds,
-      duration: 300,
+      duration: DRAWER_FIT_DURATION_MS,
     });
   }, []);
   const edgesRef = useRef(edges);
@@ -1225,12 +1227,12 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
   const displayEdges = useMemo(() => {
     const selectedId = isEdgeDetailsDrawerOpen ? selectedEdge?.id : null;
     return edges.map((e) => {
-      const focused = focus ? focus.edgeIds.has(e.id) : true;
-      const hovered = hoveredEdgeId === e.id || selectedId === e.id;
+      const isFocused = focus ? focus.edgeIds.has(e.id) : true;
+      const isHovered = hoveredEdgeId === e.id || selectedId === e.id;
       const className = [
-        focus ? (focused ? 'is-focus' : 'is-faded') : undefined,
+        focus ? (isFocused ? 'is-focus' : 'is-faded') : undefined,
         selectedId === e.id ? 'is-selected' : undefined,
-        hovered ? 'is-hovered' : undefined,
+        isHovered ? 'is-hovered' : undefined,
       ]
         .filter(Boolean)
         .join(' ');
@@ -1241,8 +1243,8 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         className: className || e.className,
         data: {
           ...data,
-          hovered: hovered && !data?.indirect,
-          tier: focus ? (focused ? 'focus' : 'faded') : undefined,
+          hovered: isHovered && !data?.indirect,
+          tier: focus ? (isFocused ? 'focus' : 'faded') : undefined,
           onSelect: data?.indirect
             ? undefined
             : () => openEdgeByIdRef.current(e.id),

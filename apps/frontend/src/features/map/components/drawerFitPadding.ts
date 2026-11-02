@@ -15,10 +15,11 @@ export const DRAWER_FIT_GAP_PX = 30;
 const MAX_DRAWER_SHARE = 0.6;
 
 /** Fit the graph beside the drawer when it is open, so the drawer never hides a box. */
-export function drawerFitPadding(
+type DrawerFit = { paneWidthPx?: number; drawerWidthPx?: number };
+
+export function computeDrawerFitPadding(
   isDrawerOpen: boolean,
-  paneWidthPx?: number,
-  drawerWidthPx: number = MODULE_DRAWER_WIDTH_PX
+  { paneWidthPx, drawerWidthPx = MODULE_DRAWER_WIDTH_PX }: DrawerFit = {}
 ): FitViewPadding {
   if (!isDrawerOpen) return FIT_RATIO;
   const insetPx = drawerWidthPx + DRAWER_FIT_GAP_PX;

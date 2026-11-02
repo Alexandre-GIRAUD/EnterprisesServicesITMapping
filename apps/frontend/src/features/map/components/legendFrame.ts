@@ -107,7 +107,7 @@ function clampBetween(value: number, min: number, max: number): number {
  * at that width. `measure` lays the legend out in the given frame and reports how much room its
  * content needs; the layout can change with the frame, so the frame grows until nothing is cut.
  */
-export function snugLegendSize(
+export function measureSnugLegendSize(
   measure: (frame: LegendSize) => LegendContentSize,
   limit: LegendSize,
 ): LegendSize {

@@ -15,7 +15,7 @@ import {
   LEGEND_MIN_HEIGHT_PX,
   LEGEND_MIN_WIDTH_PX,
   isResizeGrip,
-  snugLegendSize,
+  measureSnugLegendSize,
 } from './legendFrame.ts';
 
 assert.equal(DEFAULT_LEGEND_WIDTH_PX, 220);
@@ -98,10 +98,10 @@ assert.deepEqual(pickShownLegendFrame(true, null, ownFrame), ownFrame);
     scrollWidth: Math.max(frame.width, content.width),
     scrollHeight: Math.max(frame.height, content.height),
   });
-  assert.deepEqual(snugLegendSize(measure, { width: 800, height: 600 }), { width: 150, height: 200 });
-  assert.deepEqual(snugLegendSize(measure, { width: 140, height: 150 }), { width: 140, height: 150 });
+  assert.deepEqual(measureSnugLegendSize(measure, { width: 800, height: 600 }), { width: 150, height: 200 });
+  assert.deepEqual(measureSnugLegendSize(measure, { width: 140, height: 150 }), { width: 140, height: 150 });
   // Content smaller than the minimum frame keeps the minimum.
-  assert.deepEqual(snugLegendSize(() => ({ scrollWidth: 10, scrollHeight: 10 }), { width: 800, height: 600 }), {
+  assert.deepEqual(measureSnugLegendSize(() => ({ scrollWidth: 10, scrollHeight: 10 }), { width: 800, height: 600 }), {
     width: LEGEND_MIN_WIDTH_PX,
     height: LEGEND_MIN_HEIGHT_PX,
   });
@@ -110,7 +110,7 @@ assert.deepEqual(pickShownLegendFrame(true, null, ownFrame), ownFrame);
     scrollWidth: Math.max(frame.width, frame.height > 120 ? 180 : 150),
     scrollHeight: Math.max(frame.height, 200),
   });
-  assert.deepEqual(snugLegendSize(reflowing, { width: 800, height: 600 }), { width: 180, height: 200 });
+  assert.deepEqual(measureSnugLegendSize(reflowing, { width: 800, height: 600 }), { width: 180, height: 200 });
 }
 
 // Only the bottom-right corner is the native resize grip.

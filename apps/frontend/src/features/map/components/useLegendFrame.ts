@@ -17,7 +17,7 @@ import {
   isResizeGrip,
   measureLegendFontScale,
   pickShownLegendFrame,
-  snugLegendSize,
+  measureSnugLegendSize,
   type LegendContentSize,
   type LegendOffset,
   type LegendPane,
@@ -29,6 +29,8 @@ const DRAG_START_THRESHOLD_PX = 4;
 const LEGEND_FILL_MARGIN_PX = 8;
 /** Room kept between a snug legend and the pane's right edge. */
 const LEGEND_SNUG_RIGHT_MARGIN_PX = 24;
+/** The snug height has no limit of its own: only the pane limits it. */
+const NO_HEIGHT_LIMIT_PX = Number.MAX_SAFE_INTEGER;
 const PRIMARY_POINTER_BUTTON = 0;
 const LEGEND_CONTROL_SELECTOR = 'button, input, select, textarea, a';
 const LEGEND_DRAG_HANDLE_SELECTOR = '.graph-legend__header';
@@ -139,9 +141,9 @@ function useSnugFit({ frameRef, isEnabled, setSize }: SnugFitWatch): void {
     fittedContent.current = content;
     const limit = {
       width: pane.width - LEGEND_SNUG_RIGHT_MARGIN_PX,
-      height: fitLegendHeight(Number.MAX_SAFE_INTEGER, pane.height, readControlsClearance(findLegendPane(element))),
+      height: fitLegendHeight(NO_HEIGHT_LIMIT_PX, pane.height, readControlsClearance(findLegendPane(element))),
     };
-    const snug = snugLegendSize((frame) => measureLegendContent(element, frame), limit);
+    const snug = measureSnugLegendSize((frame) => measureLegendContent(element, frame), limit);
     applyLegendFrame(element, snug);
     setSize(snug);
   });
