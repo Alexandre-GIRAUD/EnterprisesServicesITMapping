@@ -20,7 +20,8 @@ import { fetchGraph } from '../api/graphApi';
 import { withNeighbours as addNeighbours } from '../utils/graphNeighbours';
 import { layoutGraph } from '../components/graphLayout';
 import { placeApplicationGraph } from '../components/graphvizLayout';
-import { computeBridges, spreadStackedRoutes } from '../components/bridges';
+import { computeBridges } from '../components/bridges';
+import { rectsOfNodes, settleRoutes } from '../components/settleRoutes';
 import {
   collectLegendColorValues,
   collectNodeLegendValues,
@@ -731,7 +732,7 @@ export function useGraphData({
             aspectRatio,
           });
           if (isCancelled) return;
-          const separated = spreadStackedRoutes(routes);
+          const separated = settleRoutes(builtEdges, routes, rectsOfNodes(laidOut, NODE_WIDTH, NODE_HEIGHT));
           const jumps = computeBridges(separated);
           setNodes(laidOut);
           setEdges(builtEdges.map((e) => attachRoute(e, separated.get(e.id), jumps.get(e.id))));

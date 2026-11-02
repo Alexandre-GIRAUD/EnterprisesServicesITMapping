@@ -1,6 +1,7 @@
 ﻿import type { ELK as ElkInstance, ElkNode } from 'elkjs/lib/elk-api';
 import { Position, type Edge, type Node } from '@xyflow/react';
 import { alignPositionsForStraighterEdges } from './alignNodes';
+import { routeAroundBoxes, routeConflicts } from './arrowRouter';
 import {
   COMPONENT_GAP,
   findConnectedComponents,
@@ -44,6 +45,9 @@ const OUTWARD: Record<Position, Point> = {
   [Position.Right]: { x: 1, y: 0 },
 };
 
+/** An arrow runs at least this far straight out of its source and into its target, so the head has room. */
+const MIN_LEAD = 10;
+
 /** True when the route leaves `srcSide` outward and enters `tgtSide` from outside the box. */
 function leavesAndEntersOutward(route: Point[], srcSide: Position, tgtSide: Position): boolean {
   const first = OUTWARD[srcSide];
@@ -51,8 +55,8 @@ function leavesAndEntersOutward(route: Point[], srcSide: Position, tgtSide: Posi
   const [a, b] = route;
   const [c, d] = route.slice(-2);
   return (
-    (b.x - a.x) * first.x + (b.y - a.y) * first.y > 0 &&
-    (d.x - c.x) * last.x + (d.y - c.y) * last.y < 0
+    (b.x - a.x) * first.x + (b.y - a.y) * first.y > MIN_LEAD &&
+    (d.x - c.x) * last.x + (d.y - c.y) * last.y < -MIN_LEAD
   );
 }
 
@@ -61,7 +65,7 @@ function bendCount(route: Point[]): number {
   return Math.max(0, simplifyRoute(route).length - 2);
 }
 
-/** Lexicographic comparison: blocked flag, then bends, then length. */
+/** Lexicographic comparison: blocked flag, crossings, bends, then length. */
 function isBetterScore(score: number[], best: number[]): boolean {
   for (let i = 0; i < score.length; i++) {
     if (score[i] !== best[i]) return score[i] < best[i];
@@ -76,18 +80,20 @@ type SideContext = {
   rects: Map<string, Rect>;
   sourceId: string;
   targetId: string;
+  /** Arrows that keep their route; a pair that crosses fewer of them ranks first. */
+  fixed: Point[][];
 };
 
 /**
  * Pick the source/target side pair with the fewest bends, then the shortest link.
  * Pairs whose route would cross another box rank after every clear pair.
  */
-function pickFewestBendSides({ src, tgt, rects, sourceId, targetId }: SideContext): {
+function pickFewestBendSides({ src, tgt, rects, sourceId, targetId, fixed }: SideContext): {
   srcSide: Position;
   tgtSide: Position;
 } {
   let best = { srcSide: Position.Bottom, tgtSide: Position.Top };
-  let bestScore = [Infinity, Infinity, Infinity];
+  let bestScore = [Infinity, Infinity, Infinity, Infinity];
   for (const s of ALL_SIDES) {
     const sa = sideAnchor(src, s);
     for (const t of ALL_SIDES) {
@@ -96,6 +102,7 @@ function pickFewestBendSides({ src, tgt, rects, sourceId, targetId }: SideContex
       if (!leavesAndEntersOutward(route, s, t)) continue;
       const score = [
         routeIsClear(route, rects, sourceId, targetId) ? 0 : 1,
+        routeConflicts(route, fixed),
         bendCount(route),
         polylineLength(route),
       ];
@@ -225,10 +232,21 @@ function routeAvoidingNodes(
   tgtSide: Position,
   rects: Map<string, Rect>,
   skipSource: string,
-  skipTarget: string
+  skipTarget: string,
+  fixed: Point[][]
 ): Point[] {
   const direct = orthogonalRoute(sa, srcSide, ta, tgtSide);
-  if (routeIsClear(direct, rects, skipSource, skipTarget)) return direct;
+  const directClear =
+    leavesAndEntersOutward(direct, srcSide, tgtSide) && routeIsClear(direct, rects, skipSource, skipTarget);
+  const directConflicts = routeConflicts(direct, fixed);
+  if (directClear && directConflicts === 0) return direct;
+
+  const around = routeAroundBoxes(sa, OUTWARD[srcSide], ta, OUTWARD[tgtSide], rects, fixed);
+  if (around) {
+    const route = simplifyRoute(around);
+    if (!directClear || routeConflicts(route, fixed) < directConflicts) return route;
+  }
+  if (directClear) return direct;
 
   const STUB = 18;
   const ps = outwardStub(sa, srcSide, STUB);
@@ -293,7 +311,8 @@ function routeAvoidingNodes(
  */
 export function buildLiveRoutes(
   edges: { id: string; source: string; target: string }[],
-  rectById: Map<string, Rect>
+  rectById: Map<string, Rect>,
+  fixedRoutes: Point[][] = []
 ): Map<string, Point[]> {
   type Plan = { id: string; source: string; target: string; srcSide: Position; tgtSide: Position };
   type Slot = { id: string; role: 'src' | 'tgt'; nodeId: string; side: Position };
@@ -309,6 +328,7 @@ export function buildLiveRoutes(
       rects: rectById,
       sourceId: e.source,
       targetId: e.target,
+      fixed: fixedRoutes,
     });
     plans.push({ id: e.id, source: e.source, target: e.target, srcSide, tgtSide });
   }
@@ -414,6 +434,7 @@ export function buildLiveRoutes(
   }
 
   const routes = new Map<string, Point[]>();
+  const placed = [...fixedRoutes];
   for (const plan of plans) {
     const srcRect = rectById.get(plan.source);
     const tgtRect = rectById.get(plan.target);
@@ -423,8 +444,11 @@ export function buildLiveRoutes(
     if (sOff === undefined || tOff === undefined) continue;
     const sa = anchorAtOffset(srcRect, plan.srcSide, sOff);
     const ta = anchorAtOffset(tgtRect, plan.tgtSide, tOff);
-    const route = routeAvoidingNodes(sa, plan.srcSide, ta, plan.tgtSide, rectById, plan.source, plan.target);
-    routes.set(plan.id, simplifyRoute(route));
+    const route = simplifyRoute(
+      routeAvoidingNodes(sa, plan.srcSide, ta, plan.tgtSide, rectById, plan.source, plan.target, placed)
+    );
+    routes.set(plan.id, route);
+    placed.push(route);
   }
   return routes;
 }
