@@ -5,6 +5,7 @@ import { moduleTone } from './graphTheme';
 const NO_DATA_TEXT = 'No data declared.';
 const NO_DESCRIPTION_TEXT = 'No description provided.';
 const NO_OTHER_DETAIL_TEXT = 'No other detail yet. Use Edit to add them.';
+const ACTOR_SEPARATOR = ', ';
 
 const ROW_LABELS: Record<ModuleDetailsField, string> = {
   description: 'What it does',
@@ -37,9 +38,13 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function detailValue(module: ModuleDetails, field: ModuleDetailsField): ReactNode {
-  if (field === 'dataIn' || field === 'dataOut') return <DataChips items={module[field]} />;
-  if (field === 'actors') return module.actors.join(', ');
+function isDataListField(field: ModuleDetailsField): field is 'dataIn' | 'dataOut' {
+  return field === 'dataIn' || field === 'dataOut';
+}
+
+function renderDetailValue(module: ModuleDetails, field: ModuleDetailsField): ReactNode {
+  if (isDataListField(field)) return <DataChips items={module[field]} />;
+  if (field === 'actors') return module.actors.join(ACTOR_SEPARATOR);
   return module[field];
 }
 
@@ -84,7 +89,7 @@ export const ModuleCard = forwardRef<HTMLLIElement, Props>(function ModuleCard(
           <Row label={ROW_LABELS.description}>{module.description || NO_DESCRIPTION_TEXT}</Row>
           {filled.map((field) => (
             <Row key={field} label={ROW_LABELS[field]}>
-              {detailValue(module, field)}
+              {renderDetailValue(module, field)}
             </Row>
           ))}
           {filled.length === 0 && <p className="graph-details-text module-drawer-card__empty">{NO_OTHER_DETAIL_TEXT}</p>}

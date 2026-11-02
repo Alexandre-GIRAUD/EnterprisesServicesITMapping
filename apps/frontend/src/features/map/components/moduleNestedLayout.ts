@@ -59,16 +59,22 @@ export type ModuleTree = {
 };
 
 /**
- * Siblings in flow order: a module that feeds a sibling comes right before it. Everything else, and
- * a cycle, keeps the incoming (alphabetical) order.
+
+ * Siblings in flow order: a module that feeds a sibling comes right before it. A module no link
+ * touches keeps its alphabetical place; inside a cycle the walk starts at the first one reached.
  */
-function orderAlongLinks(siblings: string[], links: ModuleLink[]): string[] {
+function groupFeedersByTarget(siblings: string[], links: ModuleLink[]): Map<string, string[]> {
   const feedersOf = new Map<string, string[]>();
   for (const link of links) {
     if (link.sourceId === link.targetId) continue;
     if (!siblings.includes(link.sourceId) || !siblings.includes(link.targetId)) continue;
     feedersOf.set(link.targetId, [...(feedersOf.get(link.targetId) ?? []), link.sourceId]);
   }
+  return feedersOf;
+}
+
+function orderAlongLinks(siblings: string[], links: ModuleLink[]): string[] {
+  const feedersOf = groupFeedersByTarget(siblings, links);
   const ordered: string[] = [];
   const visited = new Set<string>();
   const visit = (id: string) => {
@@ -156,16 +162,14 @@ export function collectDescendants(
 }
 
 /** Link group wins; with no link anywhere the palette cycles by sibling position instead. */
-function colorSlotOf(
-  meta: NodeMeta,
-  siblingIndex: number,
-  tree: ModuleTree,
-  isContainer: boolean
-): number | null {
+type SlotContext = { meta: NodeMeta; siblingIndex: number; isContainer: boolean };
+
+function colorSlotOf({ meta, siblingIndex, isContainer }: SlotContext, tree: ModuleTree): number | null {
   if (meta.nodeType === 'Application') return null;
   if (meta.linkGroup !== null) return meta.linkGroup;
   // A container only takes a color from a link group, so it never looks like its first child.
-  return tree.hasLinks || isContainer ? null : siblingIndex;
+  const isNeutral = tree.hasLinks || isContainer;
+  return isNeutral ? null : siblingIndex;
 }
 
 type Layout = { nodes: ModuleNode[]; width: number; height: number };
@@ -246,7 +250,7 @@ function layoutSubtree(
   const childIds = tree.childrenByParent.get(id) ?? [];
   const isApp = meta.nodeType === 'Application';
   const isContainer = isApp || childIds.length > 0;
-  const colorSlot = colorSlotOf(meta, siblingIndex, tree, isContainer);
+  const colorSlot = colorSlotOf({ meta, siblingIndex, isContainer }, tree);
 
   const nodeOf = (isContainerNode: boolean, width: number, height: number): ModuleNode => ({
     id,

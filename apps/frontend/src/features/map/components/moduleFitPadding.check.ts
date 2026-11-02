@@ -11,4 +11,8 @@ assert.equal(typeof open, 'object');
 assert.equal((open as { right: string }).right, `${DRAWER_FIT_INSET_PX}px`);
 assert.ok(DRAWER_FIT_INSET_PX >= 452, 'wider than the 440px drawer plus its margin');
 
+// A narrow pane keeps room for the graph.
+assert.equal((moduleFitPadding(true, 500) as { right: string }).right, '300px');
+assert.equal((moduleFitPadding(true, 2000) as { right: string }).right, `${DRAWER_FIT_INSET_PX}px`);
+
 console.log('moduleFitPadding.check: ok');

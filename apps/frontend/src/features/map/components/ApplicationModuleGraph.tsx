@@ -95,7 +95,8 @@ export function ApplicationModuleGraph({
 
   useEffect(() => {
     if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
-    fitGraphView(rfRef.current, { padding: moduleFitPadding(isDrawerOpen) });
+    const paneWidth = containerRef.current?.clientWidth;
+    fitGraphView(rfRef.current, { padding: moduleFitPadding(isDrawerOpen, paneWidth) });
   }, [status, nodes.length, layoutRevision, isDrawerOpen]);
 
   const applyGraph = useCallback(
