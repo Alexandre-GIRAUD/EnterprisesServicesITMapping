@@ -44,7 +44,7 @@ function pointsIntoBox(from: Point, tip: Point, rect: Rect): boolean {
   });
 }
 
-export type RouteProblem = 'start-off-outline' | 'end-off-outline' | 'crosses-box' | 'head-away-from-target' | 'tail-into-source';
+type RouteProblem = 'start-off-outline' | 'end-off-outline' | 'crosses-box' | 'head-away-from-target' | 'tail-into-source';
 
 /**
  * Rules every arrow follows: both ends touch the outline of their boxes, the line

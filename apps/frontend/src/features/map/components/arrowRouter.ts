@@ -42,7 +42,7 @@ function hitsBox(a: Point, b: Point, rects: Rect[]): boolean {
 }
 
 /** Crossings (transversal) and shared stretches between one segment and the other arrows. */
-export function segmentConflicts(a: Point, b: Point, fixed: Point[][]): { crossings: number; overlaps: number } {
+function segmentConflicts(a: Point, b: Point, fixed: Point[][]): { crossings: number; overlaps: number } {
   let crossings = 0;
   let overlaps = 0;
   const horizontal = Math.abs(a.y - b.y) < 0.5;
