@@ -1,4 +1,5 @@
 import type { GraphEdgeDto, GraphNodeDto } from '@/types/api';
+import { isHiddenEdgeAttribute } from '../utils/hiddenEdgeAttributes';
 import { storedAttributeText } from '../utils/attributeValue';
 import {
   DARK_EDGE_PALETTE,
@@ -568,7 +569,7 @@ function orderKeys(keys: string[]): string[] {
 }
 
 export function discoverColorPropertyKeys(edges: GraphEdgeDto[]): string[] {
-  return orderKeys([...presentKeysFromProps(edges)]);
+  return orderKeys([...presentKeysFromProps(edges)].filter((key) => !isHiddenEdgeAttribute(key)));
 }
 
 export function colorPropertyOptions(edges: GraphEdgeDto[]): AttributeOption[] {

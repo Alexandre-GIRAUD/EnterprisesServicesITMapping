@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { isHiddenEdgeAttribute, withoutHiddenEdgeAttributes } from '../utils/hiddenEdgeAttributes';
 import type { DataModelFieldDto, HumanChangeReason } from '@/types/api';
 import { getDataModelRequest } from '@/features/datamodel/api/dataModelApi';
 import { patchGraphEdgeAttributes, deleteGraphEdge } from '../api/graphApi';
@@ -111,7 +112,7 @@ export function EdgeDetailsDrawer({
     void getDataModelRequest()
       .then((data) => {
         if (cancelled) return;
-        setEdgeFields(data.fields.filter((f) => f.target === 'EDGE'));
+        setEdgeFields(withoutHiddenEdgeAttributes(data.fields.filter((f) => f.target === 'EDGE')));
       })
       .catch(() => {
         if (!cancelled) setEdgeFields([]);
@@ -163,7 +164,7 @@ export function EdgeDetailsDrawer({
     }));
     const known = new Set(edgeFields.map((f) => f.key));
     for (const [key, value] of Object.entries(stored)) {
-      if (!known.has(key) && key !== 'data') {
+      if (!known.has(key) && key !== 'data' && !isHiddenEdgeAttribute(key)) {
         rows.push({ key, label: key, value: storedAttributeText(value) });
       }
     }

@@ -1,4 +1,5 @@
 import type { GraphNodeFilterDto } from '@/types/api';
+import { withoutHiddenEdgeAttributes } from './hiddenEdgeAttributes';
 
 export type TableContentKind = 'apps' | 'flows';
 
@@ -59,7 +60,7 @@ export function buildAppsColumnCatalog(filters: GraphNodeFilterDto[]): TableColu
 /** Catalogue for Flows: structural + Data Model EDGE only. */
 export function buildFlowsColumnCatalog(filters: GraphNodeFilterDto[]): TableColumnDef[] {
   const structural = FLOWS_STRUCTURAL.map((c) => ({ ...c, table: 'flows' as const }));
-  const attrs = filters.filter(isFlowsFilter).map((dimension) => ({
+  const attrs = withoutHiddenEdgeAttributes(filters.filter(isFlowsFilter)).map((dimension) => ({
     id: attributeColumnId(dimension.key),
     kind: 'attribute' as const,
     key: dimension.key,
