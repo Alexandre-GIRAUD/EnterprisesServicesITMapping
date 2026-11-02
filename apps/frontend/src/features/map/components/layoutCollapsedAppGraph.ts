@@ -8,8 +8,10 @@ import {
   type NodeCodingKeys,
 } from '../hooks/useGraphData';
 import type { LegendColorMaps } from './edgeColorProperty';
-import { computeBridges, spreadStackedRoutes } from './bridges';
+import { computeBridges } from './bridges';
+import { rectsOfNodes, settleRoutes } from './settleRoutes';
 import { projectCollapsedGraph } from './collapseGraph';
+import { clearNewNodesOfOtherIslands } from './graphComponents';
 import { placeApplicationGraph } from './graphvizLayout';
 import { layoutGraph } from './graphLayout';
 import { attachRoute, buildOrientedEdge } from './orientedEdgeBuilders';
@@ -254,9 +256,14 @@ export async function layoutCollapsedAppGraph(params: {
       graphEdges,
       nodePositions
     );
+    const newIds = projected.visibleNodeIds.filter((id) => !nodePositions[id]);
+    const cleared = clearNewNodesOfOtherIslands(resolved, newIds, builtEdges, {
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
+    });
     const positioned = baseNodes.map((n) => ({
       ...n,
-      position: resolved[n.id] ?? { x: 0, y: 0 },
+      position: cleared[n.id] ?? { x: 0, y: 0 },
     }));
     return { nodes: positioned, edges: builtEdges };
   }
@@ -273,7 +280,7 @@ export async function layoutCollapsedAppGraph(params: {
       aspectRatio,
     });
     positioned = laidOut;
-    const separated = spreadStackedRoutes(routes);
+    const separated = settleRoutes(builtEdges, routes, rectsOfNodes(laidOut, NODE_WIDTH, NODE_HEIGHT));
     const jumps = computeBridges(separated);
     routedEdges = builtEdges.map((e) => attachRoute(e, separated.get(e.id), jumps.get(e.id)));
   } catch {

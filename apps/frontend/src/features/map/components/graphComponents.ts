@@ -320,3 +320,72 @@ export function translateComponentLayout(
     );
   }
 }
+
+type IslandFrame = { x0: number; y0: number; x1: number; y1: number };
+
+function framesOverlap(a: IslandFrame, b: IslandFrame): boolean {
+  return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+}
+
+function islandFrame(ids: readonly string[], positions: Record<string, Pos>, size: Size): IslandFrame | null {
+  const placed = ids.map((id) => positions[id]).filter((p): p is Pos => p !== undefined);
+  if (placed.length === 0) return null;
+  return {
+    x0: Math.min(...placed.map((p) => p.x)) - ZONE_PADDING,
+    y0: Math.min(...placed.map((p) => p.y)) - ZONE_PADDING,
+    x1: Math.max(...placed.map((p) => p.x)) + size.width + ZONE_PADDING,
+    y1: Math.max(...placed.map((p) => p.y)) + size.height + ZONE_PADDING,
+  };
+}
+
+const CLEAR_STEP = 24;
+const CLEAR_RINGS = 120;
+const CLEAR_DIRECTIONS: Pos[] = [
+  { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 0, y: -1 },
+  { x: 1, y: 1 }, { x: -1, y: 1 }, { x: -1, y: -1 }, { x: 1, y: -1 },
+];
+
+/**
+ * Move each node the automatic layout just added (`newIds`) to the nearest spot where its
+ * island frame overlaps no island frame it did not already overlap. Every other position,
+ * including a node the user dragged onto another island, stays where it is.
+ */
+export function clearNewNodesOfOtherIslands(
+  positions: Record<string, Pos>,
+  newIds: readonly string[],
+  edges: readonly { source: string; target: string }[],
+  size: Size,
+): Record<string, Pos> {
+  const result = { ...positions };
+  const ids = Object.keys(result);
+  const components = findConnectedComponents(ids, edges);
+  const fresh = new Set(newIds);
+  const overlapCount = (candidate: Record<string, Pos>, island: string[], others: string[][]): number => {
+    const frame = islandFrame(island, candidate, size);
+    if (!frame) return 0;
+    return others.filter((other) => {
+      const otherFrame = islandFrame(other, candidate, size);
+      return otherFrame !== null && framesOverlap(frame, otherFrame);
+    }).length;
+  };
+
+  for (const id of newIds) {
+    const island = components.find((component) => component.includes(id));
+    if (!island || !result[id]) continue;
+    const others = components.filter((component) => component !== island);
+    const baseline = overlapCount(result, island.filter((member) => !fresh.has(member)), others);
+    const origin = result[id];
+    let moved: Pos | null = null;
+    for (let ring = 0; ring <= CLEAR_RINGS && !moved; ring++) {
+      for (const direction of ring === 0 ? [{ x: 0, y: 0 }] : CLEAR_DIRECTIONS) {
+        const candidate = { x: origin.x + direction.x * ring * CLEAR_STEP, y: origin.y + direction.y * ring * CLEAR_STEP };
+        if (overlapCount({ ...result, [id]: candidate }, island, others) <= baseline) {
+          moved = candidate;
+          break;
+        }
+      }
+    }
+    if (moved) result[id] = moved;
+  }
+  return result;
+}

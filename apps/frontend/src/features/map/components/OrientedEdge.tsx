@@ -26,7 +26,8 @@ import {
   placeEdgeLabels,
   type LabelRequest,
 } from './labelPlacement';
-import { computeBridges, spreadStackedRoutes } from './bridges';
+import { computeBridges } from './bridges';
+import { settleRoutes } from './settleRoutes';
 import { notifyEdgeDetailsOpen } from '../utils/edgeDetailsSelection';
 
 export type OrientedEdgeData = {
@@ -346,19 +347,19 @@ function liveKey(allEdges: Edge[], rectById: Map<string, Rect>): string {
 function getLiveBundle(allEdges: Edge[], rectById: Map<string, Rect>, staleIds: Set<string>): LiveBundle {
   const key = `${liveKey(allEdges, rectById)}|${[...staleIds].sort().join(',')}`;
   if (liveCache && liveCache.key === key) return liveCache.bundle;
-  const routes = spreadStackedRoutes(buildLiveRoutes(
-    allEdges
-      .filter((e) => staleIds.has(e.id))
-      .map((e) => ({ id: e.id, source: e.source, target: e.target })),
-    rectById
-  ));
-  const allRoutes = new Map(routes);
+  const keptRoutes = new Map<string, Point[]>();
   for (const edge of allEdges) {
     const data = edge.data as OrientedEdgeData | undefined;
     if (!staleIds.has(edge.id) && data?.routeStart && data?.routeEnd) {
-      allRoutes.set(edge.id, [data.routeStart, ...(data.bendPoints ?? []), data.routeEnd]);
+      keptRoutes.set(edge.id, [data.routeStart, ...(data.bendPoints ?? []), data.routeEnd]);
     }
   }
+  const staleEdges = allEdges
+    .filter((e) => staleIds.has(e.id))
+    .map((e) => ({ id: e.id, source: e.source, target: e.target }));
+  const keptList = [...keptRoutes.values()];
+  const routes = settleRoutes(staleEdges, buildLiveRoutes(staleEdges, rectById, keptList), rectById, keptList);
+  const allRoutes = new Map([...keptRoutes, ...routes]);
   const jumps = computeBridges(allRoutes);
   const bundle: LiveBundle = { routes, jumps };
   liveCache = { key, bundle };
