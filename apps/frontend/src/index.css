@@ -293,6 +293,7 @@ body.is-diagram-grown .layout {
 
 /* ===== Map pages ===== */
 .map-page {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -8825,3 +8826,4 @@ html[data-theme='dark'] .graph-legend__swatch img {
 .source-mapping { margin: 12px 0; }
 .source-mapping-table { width: 100%; border-collapse: collapse; }
 .source-mapping-table th, .source-mapping-table td { text-align: left; padding: 4px 8px; }
+.map-page .source-mapping-alert { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 20; max-width: 90%; }

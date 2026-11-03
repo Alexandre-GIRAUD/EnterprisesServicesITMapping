@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import type { ApplicationResponse, BitbucketRepoDto, GitHubRepoDto } from '@/types/api';
 import {
@@ -95,6 +95,7 @@ function BitbucketMark() {
 
 export function GitHubImportPage() {
   const { isAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [githubRepos, setGithubRepos] = useState<ListedRepo[]>([]);
   const [bitbucketRepos, setBitbucketRepos] = useState<ListedRepo[]>([]);
@@ -108,7 +109,9 @@ export function GitHubImportPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
-  const [sourceMode, setSourceMode] = useState<'github' | 'bitbucket' | 'third-party' | 'data-sources'>('github');
+  const [sourceMode, setSourceMode] = useState<'github' | 'bitbucket' | 'third-party' | 'data-sources'>(
+    searchParams.get('tab') === 'data-sources' ? 'data-sources' : 'github',
+  );
   const [targetApplicationId, setTargetApplicationId] = useState('');
   const [groupName, setGroupName] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -426,7 +429,7 @@ export function GitHubImportPage() {
 
       <div className="github-import-panel">
       {sourceMode === 'data-sources' ? (
-        <DataSourcesPanel isAdmin={isAdmin} />
+        <DataSourcesPanel isAdmin={isAdmin} initialMappingId={searchParams.get('mapping')} />
       ) : sourceMode === 'third-party' ? (
         <ThirdPartySources onChanged={async () => setApplications(await fetchApplications())} />
       ) : (

@@ -28,15 +28,15 @@ const EMPTY: SourceDraft = {
   secret: '',
 };
 
-type DataSourcesPanelProps = { isAdmin: boolean };
+type DataSourcesPanelProps = { isAdmin: boolean; initialMappingId?: string | null };
 
-export function DataSourcesPanel({ isAdmin }: DataSourcesPanelProps) {
+export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourcesPanelProps) {
   const [sources, setSources] = useState<DataSourceDto[]>([]);
   const [nodeFields, setNodeFields] = useState<DataModelFieldDto[]>([]);
   const [draft, setDraft] = useState<SourceDraft | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [columns, setColumns] = useState<string[]>([]);
-  const [mappingId, setMappingId] = useState<string | null>(null);
+  const [mappingId, setMappingId] = useState<string | null>(initialMappingId);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
