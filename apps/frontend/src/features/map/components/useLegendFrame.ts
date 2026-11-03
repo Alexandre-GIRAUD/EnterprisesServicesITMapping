@@ -164,6 +164,8 @@ function applyLegendFrame(element: HTMLElement, frame: LegendSize): void {
   element.style.width = `${frame.width}px`;
   element.style.height = `${frame.height}px`;
   element.style.setProperty('--legend-font-scale', String(measureLegendFontScale(frame.width, frame.height)));
+  // The layout is React state, so a frame measured before rendering needs it set by hand.
+  element.dataset.layout = chooseLegendEntryDirection(frame.width, frame.height);
 }
 
 /** Lay the legend out in `frame` and read how much room its content needs. */
