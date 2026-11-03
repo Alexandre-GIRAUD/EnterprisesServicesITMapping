@@ -22,7 +22,7 @@ function linkLabel(link: ModuleLink, modules: ModuleOption[]): string {
   return `${nameOf(link.sourceId)} → ${nameOf(link.targetId)}${link.object ? ` (${link.object})` : ''}`;
 }
 
-/** Read view of the application level: journey, scope, lexicon, links and border crossings. */
+/** Read view of the application level: scope, workflows, lexicon, links and border crossings. */
 export function ApplicationModelView({
   model,
   links,
@@ -33,12 +33,12 @@ export function ApplicationModelView({
   return (
     <>
       <section className="graph-details-section">
-        <h3 className="graph-details-section-title">Main journey</h3>
-        <p className="graph-details-text">{model.mainJourney || NO_TEXT}</p>
-      </section>
-      <section className="graph-details-section">
         <h3 className="graph-details-section-title">Scope</h3>
         <p className="graph-details-text">{model.scope || NO_TEXT}</p>
+      </section>
+      <section className="graph-details-section">
+        <h3 className="graph-details-section-title">Workflows</h3>
+        <p className="graph-details-text">{model.mainJourney || NO_TEXT}</p>
       </section>
       <section className="graph-details-section">
         <h3 className="graph-details-section-title">Business objects</h3>
