@@ -26,7 +26,7 @@ class SourceRowsFetcherTest {
 
   @BeforeEach
   void startServer() throws IOException {
-    server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
     server.start();
   }
 
@@ -106,7 +106,7 @@ class SourceRowsFetcherTest {
   @Test
   void refusesLinkLocalAddressesAndNonHttpSchemes() {
     DataSourceEntity metadata = source(SourceKind.API, "/");
-    metadata.setEndpoint("http://169.254.169.254/latest/meta-data");
+    metadata.setEndpoint("http://[fe80::1]/latest/meta-data");
     DataSourceEntity file = source(SourceKind.API, "/");
     file.setEndpoint("file:///etc/passwd");
 
