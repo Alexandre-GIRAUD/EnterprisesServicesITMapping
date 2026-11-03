@@ -11,6 +11,7 @@ import {
   type AttributeRowChange,
 } from '@/features/datamodel/components/DataModelAttributeRow';
 import { DataModelIcon } from '@/features/datamodel/components/DataModelIcons';
+import { listSourceNames } from '@/features/sources/api/sourcesApi';
 import { DataModelToolbar } from '@/features/datamodel/components/DataModelToolbar';
 import {
   applySavedFields,
@@ -68,6 +69,7 @@ export function DataModelPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [promptPreview, setPromptPreview] = useState('');
+  const [sources, setSources] = useState<{ id: string; name: string }[]>([]);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
@@ -79,6 +81,7 @@ export function DataModelPage() {
     setRows(rowsFromFields(data.fields));
     setUpdatedAt(data.updatedAt);
     setPromptPreview(await getDataModelPromptPreviewRequest());
+    setSources(await listSourceNames());
   }, []);
 
   useEffect(() => {
@@ -259,6 +262,7 @@ export function DataModelPage() {
             row={row}
             rowError={validateRow(row, rows)}
             surface={surface}
+            sources={sources}
             isExpanded={expandedIds.has(row.id)}
             isAdmin={isAdmin}
             isBusy={busy !== null}

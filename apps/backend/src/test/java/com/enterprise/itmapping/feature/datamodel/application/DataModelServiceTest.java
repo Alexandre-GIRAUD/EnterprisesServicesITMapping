@@ -12,6 +12,7 @@ import com.enterprise.itmapping.feature.datamodel.infrastructure.persistence.Dat
 import com.enterprise.itmapping.feature.datamodel.infrastructure.persistence.DataModelRepository;
 import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelFieldDto;
 import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelPutRequest;
+import com.enterprise.itmapping.feature.sources.infrastructure.persistence.DataSourceRepository;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ class DataModelServiceTest {
   @Mock DataModelPromptBuilder promptBuilder;
   @Mock CurrentUserResolver currentUserResolver;
   @Mock DataModelRefSyncService refSyncService;
+  @Mock DataSourceRepository dataSources;
   @Mock UserEntity user;
 
   @InjectMocks DataModelService dataModelService;
@@ -45,7 +47,7 @@ class DataModelServiceTest {
             new ResponseStatusException(
                 org.springframework.http.HttpStatus.BAD_REQUEST, "Cle Data Model reservee: connection_kind"))
         .when(validator)
-        .validatePut(any());
+        .validatePut(any(), any());
 
     assertThatThrownBy(() -> dataModelService.replace(request))
         .isInstanceOf(ResponseStatusException.class)
@@ -77,7 +79,7 @@ class DataModelServiceTest {
 
     dataModelService.replace(request);
 
-    verify(validator).validatePut(any());
+    verify(validator).validatePut(any(), any());
     verify(dataModelRepository).save(entity);
     verify(refSyncService).sync(any());
   }

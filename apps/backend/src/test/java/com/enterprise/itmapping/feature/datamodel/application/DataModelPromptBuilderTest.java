@@ -283,4 +283,27 @@ class DataModelPromptBuilderTest {
   private static DataModelField field(String key, String label) {
     return new DataModelField(key, label, "", "", List.of(), false, false);
   }
+
+  @Test
+  void neverListsFieldsFedByAnExternalSource() {
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "region", "Region", "", "", List.of(), false, false,
+                    DataModelDetection.MANUAL, DataModelTarget.NODE, false, "s1")));
+
+    assertThat(builder.buildPromptSection(config)).isEmpty();
+  }
+
+  @Test
+  void aSourceForcesManualDetectionEvenWhenAutomaticIsSent() {
+    DataModelField field =
+        new DataModelField(
+            "region", "Region", "", "", List.of(), false, false,
+            DataModelDetection.AUTOMATIC_DETECTION, DataModelTarget.NODE, false, "s1");
+
+    assertThat(field.detection()).isEqualTo(DataModelDetection.MANUAL);
+    assertThat(builder.buildPromptSection(new DataModelConfig(List.of(field)))).isEmpty();
+  }
 }

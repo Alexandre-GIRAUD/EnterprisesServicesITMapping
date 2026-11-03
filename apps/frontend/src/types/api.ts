@@ -403,6 +403,8 @@ export type DataModelFieldDto = {
   target?: DataModelTarget;
   /** NODE_REF only: allow several CLASSIFIED_AS links. Defaults to false. */
   multiple?: boolean;
+  /** NODE only: id of the added source feeding this field (detection is then MANUAL). */
+  sourceId?: string;
 };
 
 /** {@code GET/PUT /api/data-model} */
@@ -491,4 +493,51 @@ export type FunctionalDocumentationDto = {
   analyzedFiles: string[];
   generatedAt: string | null;
   errorMessage: string | null;
+};
+
+/** Data sources that fill Data Model application attributes ({@code /api/sources}). */
+export type SourceKind = 'API' | 'MCP';
+export type SourceAuthType = 'NONE' | 'BEARER' | 'API_KEY' | 'BASIC';
+
+export type DataSourceDto = {
+  id: string;
+  name: string;
+  kind: SourceKind;
+  endpoint: string;
+  toolName: string | null;
+  itemsPath: string | null;
+  authType: SourceAuthType;
+  authHeaderName: string | null;
+  authUsername: string | null;
+  /** The secret is never returned: only whether one is stored. */
+  secretSet: boolean;
+  keyColumn: string | null;
+  columnMap: Record<string, string>;
+};
+
+/** Blank {@code secret} on update keeps the stored one. */
+export type DataSourceRequest = Omit<DataSourceDto, 'id' | 'secretSet'> & { secret?: string };
+
+export type SourceMappingEntryDto = { applicationId: string; sourceKey: string | null; noMatch: boolean };
+
+export type SourceMappingResponse = {
+  sourceKeys: string[];
+  applications: { id: string; name: string }[];
+  entries: SourceMappingEntryDto[];
+  suggestions: Record<string, string>;
+};
+
+export type SourceNameDto = { id: string; name: string; kind: SourceKind };
+
+export type SourceSyncResponse = {
+  updatedApplications: number;
+  failedApplications: number;
+  missingKeyApplications: number;
+  fieldsWithoutColumn: string[];
+};
+
+export type SourceMappingAlertDto = {
+  sourceId: string;
+  sourceName: string;
+  applications: { id: string; name: string }[];
 };

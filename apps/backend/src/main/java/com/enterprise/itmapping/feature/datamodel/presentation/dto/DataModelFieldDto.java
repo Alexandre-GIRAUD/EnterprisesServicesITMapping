@@ -21,11 +21,38 @@ public record DataModelFieldDto(
     boolean required,
     DataModelDetection detection,
     DataModelTarget target,
-    boolean multiple) {
+    boolean multiple,
+    @Size(max = 64) String sourceId) {
 
   public DataModelFieldDto {
     detection = DataModelDetection.orDefault(detection);
     target = DataModelTarget.orDefault(target);
+  }
+
+  /** Backward-compatible constructor without an external source. */
+  public DataModelFieldDto(
+      String key,
+      String label,
+      String description,
+      String promptHint,
+      List<String> allowedValues,
+      boolean enforceEnum,
+      boolean required,
+      DataModelDetection detection,
+      DataModelTarget target,
+      boolean multiple) {
+    this(
+        key,
+        label,
+        description,
+        promptHint,
+        allowedValues,
+        enforceEnum,
+        required,
+        detection,
+        target,
+        multiple,
+        null);
   }
 
   /** Backward-compatible constructor (automatic + EDGE). */
@@ -47,7 +74,8 @@ public record DataModelFieldDto(
         required,
         DataModelDetection.AUTOMATIC_DETECTION,
         DataModelTarget.EDGE,
-        false);
+        false,
+        null);
   }
 
   /** Backward-compatible constructor with detection (EDGE target). */
@@ -70,7 +98,8 @@ public record DataModelFieldDto(
         required,
         detection,
         DataModelTarget.EDGE,
-        false);
+        false,
+        null);
   }
 
   /** Backward-compatible constructor with detection + target. */
@@ -94,7 +123,8 @@ public record DataModelFieldDto(
         required,
         detection,
         target,
-        false);
+        false,
+        null);
   }
 
   public DataModelField toDomain() {
@@ -112,7 +142,8 @@ public record DataModelFieldDto(
         required,
         detection,
         target,
-        multiple);
+        multiple,
+        sourceId);
   }
 
   public static DataModelFieldDto fromDomain(DataModelField field) {
@@ -126,6 +157,7 @@ public record DataModelFieldDto(
         field.required(),
         field.detection(),
         field.target(),
-        field.multiple());
+        field.multiple(),
+        field.sourceId());
   }
 }

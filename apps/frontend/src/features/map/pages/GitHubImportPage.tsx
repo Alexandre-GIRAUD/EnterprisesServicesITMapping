@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import type { ApplicationResponse, BitbucketRepoDto, GitHubRepoDto } from '@/types/api';
 import {
   createApplication,
@@ -12,6 +13,7 @@ import { generateFunctionalDocumentation } from '../api/functionalDocumentationA
 import { fetchBitbucketRepos } from '../api/integrationsBitbucketApi';
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
 import { ThirdPartySources } from '../components/ThirdPartySources';
+import { DataSourcesPanel } from '@/features/sources/components/DataSourcesPanel';
 import {
   applicationDescriptionForBitbucketRepo,
   applicationDescriptionForBitbucketRepos,
@@ -92,6 +94,8 @@ function BitbucketMark() {
 }
 
 export function GitHubImportPage() {
+  const { isAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [githubRepos, setGithubRepos] = useState<ListedRepo[]>([]);
   const [bitbucketRepos, setBitbucketRepos] = useState<ListedRepo[]>([]);
@@ -105,11 +109,14 @@ export function GitHubImportPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
-  const [sourceMode, setSourceMode] = useState<'github' | 'bitbucket' | 'third-party'>('github');
+  const [sourceMode, setSourceMode] = useState<'github' | 'bitbucket' | 'third-party' | 'data-sources'>(
+    searchParams.get('tab') === 'data-sources' ? 'data-sources' : 'github',
+  );
   const [targetApplicationId, setTargetApplicationId] = useState('');
   const [groupName, setGroupName] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
 
+  const isHostMode = sourceMode === 'github' || sourceMode === 'bitbucket';
   const repos = sourceMode === 'bitbucket' ? bitbucketRepos : githubRepos;
   const hostError = sourceMode === 'bitbucket' ? bitbucketError : githubError;
 
@@ -117,7 +124,7 @@ export function GitHubImportPage() {
     return applicationForRepo(repo) != null;
   }
 
-  function selectHost(next: 'github' | 'bitbucket' | 'third-party') {
+  function selectHost(next: 'github' | 'bitbucket' | 'third-party' | 'data-sources') {
     setSourceMode(next);
     setSelected(new Set());
     setTargetApplicationId('');
@@ -403,16 +410,27 @@ export function GitHubImportPage() {
           </svg>
           Third party
         </button>
+        <button
+          type="button"
+          className={`github-import-tab${sourceMode === 'data-sources' ? ' is-active' : ''}`}
+          role="tab"
+          aria-selected={sourceMode === 'data-sources'}
+          onClick={() => selectHost('data-sources')}
+        >
+          Data sources
+        </button>
       </div>
 
-      {(errorMessage || (sourceMode !== 'third-party' && hostError)) && (
+      {(errorMessage || (isHostMode && hostError)) && (
         <p className="github-import-state github-import-state-error" role="alert">
-          {sourceMode !== 'third-party' && hostError ? hostError : errorMessage}
+          {isHostMode && hostError ? hostError : errorMessage}
         </p>
       )}
 
       <div className="github-import-panel">
-      {sourceMode === 'third-party' ? (
+      {sourceMode === 'data-sources' ? (
+        <DataSourcesPanel isAdmin={isAdmin} initialMappingId={searchParams.get('mapping')} />
+      ) : sourceMode === 'third-party' ? (
         <ThirdPartySources onChanged={async () => setApplications(await fetchApplications())} />
       ) : (
         <>

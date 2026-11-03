@@ -9,7 +9,9 @@ import com.enterprise.itmapping.feature.datamodel.infrastructure.persistence.Dat
 import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelFieldDto;
 import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelPutRequest;
 import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelResponse;
+import com.enterprise.itmapping.feature.sources.infrastructure.persistence.DataSourceRepository;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,18 +23,21 @@ public class DataModelService {
   private final DataModelPromptBuilder promptBuilder;
   private final CurrentUserResolver currentUserResolver;
   private final DataModelRefSyncService refSyncService;
+  private final DataSourceRepository dataSources;
 
   public DataModelService(
       DataModelRepository dataModelRepository,
       DataModelValidator validator,
       DataModelPromptBuilder promptBuilder,
       CurrentUserResolver currentUserResolver,
-      DataModelRefSyncService refSyncService) {
+      DataModelRefSyncService refSyncService,
+      DataSourceRepository dataSources) {
     this.dataModelRepository = dataModelRepository;
     this.validator = validator;
     this.promptBuilder = promptBuilder;
     this.currentUserResolver = currentUserResolver;
     this.refSyncService = refSyncService;
+    this.dataSources = dataSources;
   }
 
   @Transactional(readOnly = true)
@@ -54,7 +59,11 @@ public class DataModelService {
   public DataModelResponse replace(DataModelPutRequest request) {
     List<DataModelField> fields =
         request.fields().stream().map(DataModelFieldDto::toDomain).toList();
-    validator.validatePut(fields);
+    validator.validatePut(
+        fields,
+        dataSources.findAll().stream()
+            .map(source -> source.getId().toString())
+            .collect(Collectors.toSet()));
     DataModelConfig config = validator.normalize(fields);
 
     DataModelEntity entity = loadEntity();
