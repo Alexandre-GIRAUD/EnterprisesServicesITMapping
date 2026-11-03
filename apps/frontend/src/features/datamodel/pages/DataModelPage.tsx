@@ -6,6 +6,8 @@ import {
   getDataModelRequest,
   putDataModelRequest,
 } from '@/features/datamodel/api/dataModelApi';
+import { bindReferentialAttribute, listReferentials } from '@/features/map/api/referentialApi';
+import type { ReferentialView } from '@/types/api';
 import {
   DataModelAttributeRow,
   type AttributeRowChange,
@@ -68,6 +70,7 @@ export function DataModelPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [promptPreview, setPromptPreview] = useState('');
+  const [referentials, setReferentials] = useState<ReferentialView[]>([]);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
@@ -78,6 +81,11 @@ export function DataModelPage() {
     const data = await getDataModelRequest();
     setRows(rowsFromFields(data.fields));
     setUpdatedAt(data.updatedAt);
+    try {
+      setReferentials(await listReferentials());
+    } catch {
+      setReferentials([]);
+    }
     setPromptPreview(await getDataModelPromptPreviewRequest());
   }, []);
 
@@ -117,6 +125,30 @@ export function DataModelPage() {
     getDataModelPromptPreviewRequest()
       .then(setPromptPreview)
       .catch(() => setStatus({ isError: true, text: 'Saved, but the prompt preview could not be refreshed.' }));
+  }
+
+  function bindingFor(fieldKey: string) {
+    for (const referential of referentials) {
+      const mapping = referential.mappings.find((item) => item.fieldKey === fieldKey);
+      if (mapping) {
+        return { referentialId: referential.id, referentialName: referential.name, path: mapping.path };
+      }
+    }
+    return null;
+  }
+
+  async function bindAttribute(fieldKey: string, referentialId: string | null, path: string) {
+    setBusy('bind');
+    setStatus(null);
+    try {
+      setReferentials(await bindReferentialAttribute({ fieldKey, referentialId, path }));
+      setPromptPreview(await getDataModelPromptPreviewRequest());
+      setStatus({ isError: false, text: referentialId ? 'Referential linked.' : 'Referential unlinked.' });
+    } catch (error) {
+      setStatus({ isError: true, text: error instanceof Error ? error.message : 'Could not update the referential.' });
+    } finally {
+      setBusy(null);
+    }
   }
 
   function changeRow(rowId: string, change: AttributeRowChange) {
@@ -271,6 +303,9 @@ export function DataModelPage() {
             onDragStart={() => setDraggedId(row.id)}
             onDragEnter={() => setDropTargetId(row.id)}
             onDrop={() => dropRow(row.id)}
+            binding={bindingFor(row.draft.key)}
+            referentialOptions={referentials.map((referential) => ({ id: referential.id, name: referential.name }))}
+            onBind={(referentialId, path) => void bindAttribute(row.draft.key, referentialId, path)}
           />
         ))}
         {isAdmin ? (
@@ -284,9 +319,9 @@ export function DataModelPage() {
       <details className="data-model-panel">
         <summary>Prompt preview</summary>
         <p className="data-model-lead">
-          Section(s) injected into the connection-discovery prompt for AI-detected attributes (manual
-          attributes are excluded). Edge, Application (node) and Application (reference) attributes appear in
-          separate sections.
+          Section(s) injected into the connection-discovery prompt for AI-detected attributes. Manual attributes
+          and attributes filled by a referential are excluded. Edge, Application (node) and Application (reference)
+          attributes appear in separate sections.
         </p>
         <pre className="data-model-preview">{promptPreview.trim() || '(empty — topology-only mode)'}</pre>
       </details>

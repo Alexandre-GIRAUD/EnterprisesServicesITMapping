@@ -27,3 +27,15 @@ _Avoid_: shared junction, merged endpoint, shared tip
 **Node side**:
 One of the four borders of a box (top, right, bottom, left) that arrows may touch.
 _Avoid_: edge of the node (ambiguous with graph edge/flow)
+
+**Referential**:
+An external HTTPS API that holds attribute values for Applications. Each Application is called with its external key.
+_Avoid_: source, connector
+
+**External key**:
+The identifier of one Application inside one referential. The call uses this key.
+_Avoid_: alias, foreign name
+
+**Field mapping**:
+The path of a field in a referential response that fills one Data Model attribute on the Application.
+_Avoid_: column map, binding

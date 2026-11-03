@@ -1,4 +1,5 @@
 import type { DragEvent } from 'react';
+import { useEffect, useState } from 'react';
 import type { DataModelDetection, DataModelFieldDto, DataModelTarget } from '@/types/api';
 import {
   isControlledField,
@@ -11,6 +12,10 @@ import { normalizeDataModelTarget, type DataModelSurface } from '../dataModelSur
 import { DataModelIcon } from './DataModelIcons';
 
 export type AttributeRowChange = { draft?: Partial<DataModelFieldDto>; allowedValuesText?: string };
+
+export type ReferentialOption = { id: string; name: string };
+
+export type ReferentialBinding = { referentialId: string; referentialName: string; path: string };
 
 type DataModelAttributeRowProps = {
   row: AttributeRow;
@@ -28,6 +33,9 @@ type DataModelAttributeRowProps = {
   onDragStart: () => void;
   onDragEnter: () => void;
   onDrop: () => void;
+  binding?: ReferentialBinding | null;
+  referentialOptions?: ReferentialOption[];
+  onBind?: (referentialId: string | null, path: string) => void;
 };
 
 const TARGET_HINTS: Partial<Record<DataModelTarget, string>> = {
@@ -36,7 +44,10 @@ const TARGET_HINTS: Partial<Record<DataModelTarget, string>> = {
     'Allowed values become catalogue entries linked with CLASSIFIED_AS. AI and the details drawer can only pick from them.',
 };
 
-function DetectionBadge({ detection }: { detection?: DataModelDetection }) {
+function DetectionBadge({ detection, referentialName }: { detection?: DataModelDetection; referentialName?: string }) {
+  if (referentialName) {
+    return <span className="data-model-badge is-referential">{referentialName}</span>;
+  }
   const isManual = normalizeDetection(detection) === 'MANUAL';
   return (
     <span className={`data-model-badge ${isManual ? 'is-manual' : 'is-ai'}`}>
@@ -108,7 +119,7 @@ function RowHeader(props: DataModelAttributeRowProps) {
       </span>
       <span className="data-model-row-key">{row.draft.key || 'New attribute'}</span>
       <span className="data-model-row-label">{row.draft.label}</span>
-      <DetectionBadge detection={row.draft.detection} />
+      <DetectionBadge detection={row.draft.detection} referentialName={props.binding?.referentialName} />
       <span className="data-model-row-spacer" />
       {isExpanded && isAdmin ? (
         <>
@@ -298,7 +309,86 @@ function AttributeForm(props: DataModelAttributeRowProps) {
         {allowedValuesError ? <span className="data-model-error">{allowedValuesError}</span> : null}
       </label>
       <AttributeOptions {...props} />
+      {normalizeDataModelTarget(row.draft.target) === 'NODE' && props.referentialOptions ? (
+        <ReferentialFill
+          fieldKey={row.draft.key}
+          binding={props.binding ?? null}
+          options={props.referentialOptions}
+          isAdmin={isAdmin}
+          isBusy={props.isBusy}
+          onBind={props.onBind}
+        />
+      ) : null}
       {formError ? <p className="data-model-error">{formError}</p> : null}
+    </div>
+  );
+}
+
+function ReferentialFill({
+  fieldKey,
+  binding,
+  options,
+  isAdmin,
+  isBusy,
+  onBind,
+}: {
+  fieldKey: string;
+  binding: ReferentialBinding | null;
+  options: ReferentialOption[];
+  isAdmin: boolean;
+  isBusy: boolean;
+  onBind?: (referentialId: string | null, path: string) => void;
+}) {
+  const [referentialId, setReferentialId] = useState(binding?.referentialId ?? '');
+  const [path, setPath] = useState(binding?.path ?? '');
+
+  useEffect(() => {
+    setReferentialId(binding?.referentialId ?? '');
+    setPath(binding?.path ?? '');
+  }, [binding?.referentialId, binding?.path]);
+
+  const canSave = isAdmin && !isBusy && Boolean(fieldKey) && (!referentialId || path.trim().length > 0);
+
+  return (
+    <div className="data-model-field-row">
+      <label className="data-model-label">
+        Referential
+        <select
+          className="data-model-input"
+          value={referentialId}
+          disabled={!isAdmin || isBusy || !fieldKey}
+          onChange={(event) => setReferentialId(event.target.value)}
+        >
+          <option value="">Not linked</option>
+          {options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {referentialId ? (
+        <label className="data-model-label">
+          Response path
+          <input
+            className="data-model-input"
+            value={path}
+            disabled={!isAdmin || isBusy}
+            placeholder="owner or team.lead"
+            onChange={(event) => setPath(event.target.value)}
+          />
+        </label>
+      ) : null}
+      {isAdmin && onBind ? (
+        <button
+          type="button"
+          className="data-model-primary-btn"
+          disabled={!canSave}
+          onClick={() => onBind(referentialId || null, path.trim())}
+        >
+          Save referential
+        </button>
+      ) : null}
     </div>
   );
 }

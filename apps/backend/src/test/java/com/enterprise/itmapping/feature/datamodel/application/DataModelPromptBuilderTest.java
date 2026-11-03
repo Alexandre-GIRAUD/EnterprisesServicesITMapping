@@ -7,6 +7,7 @@ import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class DataModelPromptBuilderTest {
@@ -278,6 +279,30 @@ class DataModelPromptBuilderTest {
     assertThat(section).contains("multiple allowed");
     assertThat(section).contains("JSON array of zero or more");
     assertThat(section).contains("Free text, multiple allowed");
+  }
+
+  @Test
+  void boundNodeAttributeIsLeftOutOfThePrompt() {
+    DataModelPromptBuilder filtering = new DataModelPromptBuilder(() -> Set.of("business_owner"));
+    DataModelConfig config =
+        new DataModelConfig(
+            List.of(
+                new DataModelField(
+                    "business_owner",
+                    "Owner",
+                    "",
+                    "",
+                    List.of(),
+                    false,
+                    false,
+                    DataModelDetection.AUTOMATIC_DETECTION,
+                    DataModelTarget.NODE),
+                field("channel", "Channel")));
+
+    String section = filtering.buildPromptSection(config);
+
+    assertThat(section).doesNotContain("business_owner");
+    assertThat(section).contains("channel");
   }
 
   private static DataModelField field(String key, String label) {

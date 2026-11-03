@@ -415,6 +415,34 @@ export type DataModelPutRequest = {
   fields: DataModelFieldDto[];
 };
 
+export type ReferentialIdentityDto = {
+  applicationId: string;
+  externalKey: string;
+};
+
+export type ReferentialMappingDto = {
+  path: string;
+  fieldKey: string;
+};
+
+export type ReferentialSyncStatus = 'WRITTEN' | 'UNCHANGED' | 'MISSING' | 'INVALID' | 'BLOCKED';
+
+export type ReferentialView = {
+  id: string;
+  name: string;
+  urlTemplate: string;
+  headerName: string;
+  secretConfigured: boolean;
+  identities: ReferentialIdentityDto[];
+  mappings: ReferentialMappingDto[];
+  samplePreview: string;
+};
+
+export type ReferentialSyncResult = {
+  results: Array<{ applicationId: string; fieldKey: string; status: ReferentialSyncStatus }>;
+  errors: string[];
+};
+
 /** {@code GET/POST/PATCH/DELETE /api/comments} — notes on applications or edges. */
 export type CommentTargetType = 'APPLICATION' | 'EDGE';
 
