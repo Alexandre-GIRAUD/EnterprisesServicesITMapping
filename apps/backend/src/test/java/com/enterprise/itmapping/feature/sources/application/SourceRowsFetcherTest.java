@@ -127,7 +127,7 @@ class SourceRowsFetcherTest {
   private DataSourceEntity source(SourceKind kind, String path) {
     DataSourceEntity source = new DataSourceEntity();
     source.setKind(kind);
-    source.setEndpoint("http://127.0.0.1:" + server.getAddress().getPort() + path);
+    source.setEndpoint("http://localhost:" + server.getAddress().getPort() + path);
     return source;
   }
 

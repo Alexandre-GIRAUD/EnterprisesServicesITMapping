@@ -60,7 +60,7 @@ class SourceServiceTest {
     ReflectionTestUtils.setField(source, "id", sourceId);
     source.setName("Referential");
     source.setKind(SourceKind.API);
-    source.setEndpoint("https://ref.example.com/apps");
+    source.setEndpoint("https://example.com/apps");
     source.setKeyColumn("ref");
     source.setColumnMap(Map.of("region", "reg"));
     when(sources.findById(sourceId)).thenReturn(java.util.Optional.of(source));
@@ -131,7 +131,7 @@ class SourceServiceTest {
     source.setAuthType(SourceAuthType.BEARER);
     source.setSecretEncrypted("cipher-text");
 
-    service.update(sourceId, request("https://other.example.com/apps", ""));
+    service.update(sourceId, request("https://example.com/other", ""));
 
     assertThat(source.getSecretEncrypted()).isNull();
   }
