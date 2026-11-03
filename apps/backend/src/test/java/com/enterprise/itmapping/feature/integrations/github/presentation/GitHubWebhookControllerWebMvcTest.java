@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.enterprise.itmapping.feature.changedetection.application.ChangeDetectionService;
+import com.enterprise.itmapping.feature.history.application.PastSystemView;
 import com.enterprise.itmapping.feature.integrations.github.GitHubIntegrationProperties;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubWebhookSignatureVerifier;
 import java.nio.charset.StandardCharsets;
@@ -26,6 +27,9 @@ import org.springframework.test.web.servlet.MockMvc;
     controllers = GitHubWebhookController.class,
     excludeAutoConfiguration = SecurityAutoConfiguration.class)
 class GitHubWebhookControllerWebMvcTest {
+
+  /** The as-of filter is part of every MVC slice; the tests never read a past view. */
+  @MockBean PastSystemView pastSystemView;
 
   @Autowired MockMvc mockMvc;
 

@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.enterprise.itmapping.feature.auth.application.AuthService;
 import com.enterprise.itmapping.feature.auth.presentation.dto.LoginRequest;
 import com.enterprise.itmapping.feature.auth.presentation.dto.LoginResponse;
+import com.enterprise.itmapping.feature.history.application.PastSystemView;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = AuthController.class, excludeAutoConfiguration = SecurityAutoConfiguration.class)
 class AuthControllerWebMvcTest {
+
+  /** The as-of filter is part of every MVC slice; the tests never read a past view. */
+  @MockBean PastSystemView pastSystemView;
 
   @Autowired MockMvc mockMvc;
 

@@ -10,6 +10,7 @@ import com.enterprise.itmapping.feature.chat.application.MappingChatService;
 import com.enterprise.itmapping.feature.chat.domain.ChatCitationType;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskResponse;
 import com.enterprise.itmapping.feature.chat.presentation.dto.ChatAskResponse.ChatCitationDto;
+import com.enterprise.itmapping.feature.history.application.PastSystemView;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,9 @@ import org.springframework.test.web.servlet.MockMvc;
     controllers = MappingChatController.class,
     excludeAutoConfiguration = SecurityAutoConfiguration.class)
 class MappingChatControllerWebMvcTest {
+
+  /** The as-of filter is part of every MVC slice; the tests never read a past view. */
+  @MockBean PastSystemView pastSystemView;
 
   @Autowired MockMvc mockMvc;
 

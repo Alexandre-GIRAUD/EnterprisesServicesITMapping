@@ -11,11 +11,14 @@ import com.enterprise.itmapping.feature.applications.application.ApplicationConn
 import com.enterprise.itmapping.feature.applications.application.ApplicationNodeAttributePatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationNodeRefPatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
+import com.enterprise.itmapping.feature.applications.application.BusinessModelPatchService;
+import com.enterprise.itmapping.feature.applications.application.ModuleDetailsPatchService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse.CreatedConnectionItem;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestConnectionsFromGithubResponse.SkippedItem;
+import com.enterprise.itmapping.feature.history.application.PastSystemView;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -30,6 +33,13 @@ import org.springframework.test.web.servlet.MockMvc;
     controllers = ApplicationController.class,
     excludeAutoConfiguration = SecurityAutoConfiguration.class)
 class SuggestConnectionsFromGithubWebMvcTest {
+
+  /** The as-of filter is part of every MVC slice; the tests never read a past view. */
+  @MockBean PastSystemView pastSystemView;
+
+  @MockBean ModuleDetailsPatchService moduleDetailsPatchService;
+
+  @MockBean BusinessModelPatchService businessModelPatchService;
 
   @Autowired MockMvc mockMvc;
 

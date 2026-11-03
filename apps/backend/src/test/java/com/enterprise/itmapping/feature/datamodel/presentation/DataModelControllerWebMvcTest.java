@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelFieldDto;
 import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelResponse;
+import com.enterprise.itmapping.feature.history.application.PastSystemView;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = DataModelController.class, excludeAutoConfiguration = SecurityAutoConfiguration.class)
 class DataModelControllerWebMvcTest {
+
+  /** The as-of filter is part of every MVC slice; the tests never read a past view. */
+  @MockBean PastSystemView pastSystemView;
 
   @Autowired MockMvc mockMvc;
 
