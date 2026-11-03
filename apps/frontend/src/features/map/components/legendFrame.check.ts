@@ -17,6 +17,7 @@ import {
   LEGEND_MIN_WIDTH_PX,
   isResizeGrip,
   measureSnugLegendSize,
+  LEGEND_WIDE_ASPECT,
 } from './legendFrame.ts';
 
 assert.equal(DEFAULT_LEGEND_WIDTH_PX, 220);
@@ -112,6 +113,13 @@ assert.deepEqual(pickShownLegendFrame(true, null, ownFrame), ownFrame);
     scrollHeight: Math.max(frame.height, 200),
   });
   assert.deepEqual(measureSnugLegendSize(reflowing, { width: 800, height: 600 }), { width: 180, height: 200 });
+  // Content taller than the pane reflows into rows once the frame is wide enough: widen, do not scroll.
+  const flowing = (frame: { width: number; height: number }) => {
+    const columns = frame.width / frame.height >= LEGEND_WIDE_ASPECT ? 4 : 1;
+    return { scrollWidth: frame.width, scrollHeight: Math.max(frame.height, 1600 / columns) };
+  };
+  const wide = measureSnugLegendSize(flowing, { width: 800, height: 500 });
+  assert.ok(wide.width >= 400 && wide.height <= 500);
 }
 
 // Only the bottom-right corner is the native resize grip.

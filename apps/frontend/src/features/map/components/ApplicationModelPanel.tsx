@@ -42,7 +42,7 @@ function formOf(model: ApplicationModel, links: ModuleLink[]): Form {
 }
 
 /**
- * The application level of the module drawer: main journey, scope, the lexicon of business
+ * The application level of the module drawer: scope, workflows (stored as the main journey), the lexicon of business
  * objects, the explicit links between modules, and what crosses the application border.
  */
 export function ApplicationModelPanel({
@@ -105,17 +105,6 @@ export function ApplicationModelPanel({
     return (
       <form className="graph-drawer-form" onSubmit={(event) => void onSubmit(event)}>
         <label className="graph-drawer-field">
-          <span className="graph-drawer-field-label">Main journey</span>
-          <textarea
-            className="graph-drawer-input graph-drawer-textarea"
-            rows={TEXT_AREA_ROWS}
-            value={form.mainJourney}
-            disabled={isSaving}
-            onChange={(event) => setForm({ ...form, mainJourney: event.target.value })}
-          />
-          <span className="graph-drawer-field-hint">How the modules chain, from start to end.</span>
-        </label>
-        <label className="graph-drawer-field">
           <span className="graph-drawer-field-label">Scope</span>
           <textarea
             className="graph-drawer-input graph-drawer-textarea"
@@ -125,6 +114,17 @@ export function ApplicationModelPanel({
             onChange={(event) => setForm({ ...form, scope: event.target.value })}
           />
           <span className="graph-drawer-field-hint">What the application covers and what it does not.</span>
+        </label>
+        <label className="graph-drawer-field">
+          <span className="graph-drawer-field-label">Workflows</span>
+          <textarea
+            className="graph-drawer-input graph-drawer-textarea"
+            rows={TEXT_AREA_ROWS}
+            value={form.mainJourney}
+            disabled={isSaving}
+            onChange={(event) => setForm({ ...form, mainJourney: event.target.value })}
+          />
+          <span className="graph-drawer-field-hint">Which module triggers which, and how the functions chain.</span>
         </label>
         <label className="graph-drawer-field">
           <span className="graph-drawer-field-label">Business objects</span>

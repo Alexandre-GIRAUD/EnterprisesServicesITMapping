@@ -15,6 +15,11 @@ export const LEGEND_MIN_HEIGHT_PX = 80;
 /** The native resize grip is the bottom-right corner of the frame. */
 const RESIZE_GRIP_PX = 18;
 const MAX_SNUG_GROW_PASSES = 4;
+/** A legend taller than its pane widens by this share per pass, so the entries flow in rows. */
+const WIDEN_STEP_RATIO = 0.15;
+const MAX_WIDEN_PASSES = 40;
+/** Sub-pixel rounding of the content height would otherwise bring a scrollbar back. */
+const HEIGHT_SLACK_PX = 2;
 
 export type LegendOffset = { left: number; top: number };
 export type LegendSize = { width: number; height: number };
@@ -128,7 +133,44 @@ export function measureSnugLegendSize(
     width = grownWidth;
     height = grownHeight;
   }
-  return { width, height };
+  return widenUntilFits(measure, { width, height }, limit);
+}
+
+/** The shortest height holding the content at `width`; labels grow with the frame, so it is checked again. */
+function settleHeight(
+  measure: (frame: LegendSize) => LegendContentSize,
+  width: number,
+  maxHeight: number,
+): number {
+  let height = clampBetween(measure({ width, height: LEGEND_MIN_HEIGHT_PX }).scrollHeight, LEGEND_MIN_HEIGHT_PX, maxHeight);
+  for (let pass = 0; pass < MAX_SNUG_GROW_PASSES; pass += 1) {
+    const grown = clampBetween(measure({ width, height }).scrollHeight, height, maxHeight);
+    if (grown === height) break;
+    height = grown;
+  }
+  return height;
+}
+
+/**
+ * When the content is taller than the pane allows, widen the frame until it fits without scrolling
+ * (the entries then flow in rows), then take the shortest height that holds it.
+ */
+function widenUntilFits(
+  measure: (frame: LegendSize) => LegendContentSize,
+  start: LegendSize,
+  limit: LegendSize,
+): LegendSize {
+  if (measure({ width: start.width, height: limit.height }).scrollHeight <= limit.height) return start;
+  let { width } = start;
+  for (let pass = 0; pass < MAX_WIDEN_PASSES; pass += 1) {
+    // Measured at the tallest frame that still lays the entries out in rows.
+    const rowHeight = clampBetween(Math.floor(width / LEGEND_WIDE_ASPECT), LEGEND_MIN_HEIGHT_PX, limit.height);
+    const seen = measure({ width, height: rowHeight });
+    if (seen.scrollHeight <= rowHeight || width >= limit.width) break;
+    width = Math.min(limit.width, Math.ceil(width * (1 + WIDEN_STEP_RATIO)));
+  }
+  const height = settleHeight(measure, width, limit.height);
+  return { width, height: Math.min(height + HEIGHT_SLACK_PX, limit.height) };
 }
 
 /** True when the pointer is on the native resize grip of a frame whose box ends at `right`/`bottom`. */

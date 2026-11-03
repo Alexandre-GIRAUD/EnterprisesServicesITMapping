@@ -89,6 +89,9 @@ import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle'
 import { TableContentToggle, type TableContentMode, type TableViewMode } from './TableContentToggle';
 import { CreateTablePanel, type CreateTableExportState } from './CreateTablePanel';
 import { fitGraphView, ensureNodesVisible } from './fitGraphView';
+import { CenterGraphControl } from './CenterGraphControl';
+
+const CENTER_ANIMATION_MS = 200;
 import { downloadTableFile, tableToCsv, tableToExcelXml, type TableGrid } from '../utils/tableFile';
 import { customTableExportFormats } from '../utils/customTable';
 import { GraphViewsPanel, ViewInspectPanel, type InspectedView, type ViewLibraryActions } from './GraphViewsPanel';
@@ -1852,7 +1855,6 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                 >
                   ← Back to graph
                 </button>
-                <span className="module-map-title">{moduleGraphApp.label}</span>
               </div>
               <div className="module-map-canvas">
                 <ApplicationModuleGraph
@@ -2139,7 +2141,10 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
               >
                 <Background color="#e2e8f0" gap={GRID} />
                 <ComponentZoneOverlay nodes={displayNodes} edges={displayEdges} />
-                <Controls showInteractive={false}>
+                <Controls showInteractive={false} showFitView={isSandbox}>
+                  {isSandbox ? null : (
+                    <CenterGraphControl onCenter={() => fitGraphView(rfRef.current, { duration: CENTER_ANIMATION_MS })} />
+                  )}
                   {isSandbox ? null : (
                     <FullscreenControl isFullscreen={fullscreen.isFullscreen} onToggle={fullscreen.toggle} />
                   )}

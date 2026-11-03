@@ -16,16 +16,21 @@ assert.equal(frames.length, 2);
 assert.deepEqual(frames[0], { x: -28, y: -18, width: 216, height: 104 });
 assert.deepEqual(frames[1], { x: 372, y: -18, width: 216, height: 104 });
 
+/** Frames of two islands stay at least this far apart (zone padding excluded). */
+const MIN_ISLAND_GAP = 24;
+const ZONE_PADDING = 28;
+const CROWD_SIZE = 40;
+const CROWD_ASPECT = 1.6;
 const box = { width: 200, height: 100 };
 assert.deepEqual(packComponentOffsets([box], 140, 2), [{ x: 0, y: 0 }]);
 
 const wide = packComponentOffsets([box, box], 140, 3);
 assert.equal(wide[0]?.y, wide[1]?.y);
-assert.ok((wide[1]?.x ?? 0) >= box.width + 28 * 2 + 8);
+assert.ok((wide[1]?.x ?? 0) >= box.width + 2 * ZONE_PADDING + MIN_ISLAND_GAP);
 
 const tall = packComponentOffsets([box, box], 140, 0.25);
 assert.equal(tall[0]?.x, tall[1]?.x);
-assert.ok((tall[1]?.y ?? 0) >= box.height + 28 * 2 + 8);
+assert.ok((tall[1]?.y ?? 0) >= box.height + 2 * ZONE_PADDING + MIN_ISLAND_GAP);
 
 const square = packComponentOffsets([box, box, box], 140, 1);
 const rows = new Set(square.map((offset) => offset.y));
@@ -46,6 +51,17 @@ const smallIsland = { width: 300, height: 200 };
 const islands = [bigIsland, ...Array.from({ length: 10 }, () => smallIsland)];
 const offsets = packComponentOffsets(islands, 140, 1.5);
 const rightEdge = Math.max(...offsets.map((offset, i) => offset.x + islands[i].width));
-assert.ok(rightEdge <= 5000 + 28 * 2 + 8, `right edge ${rightEdge} must not exceed the big island width`);
+assert.ok(rightEdge <= 5000 + 2 * ZONE_PADDING + MIN_ISLAND_GAP, `right edge ${rightEdge} must not exceed the big island width`);
+
+// A crowded graph (many islands) keeps its dashed frames visibly apart, not 8px apart.
+const crowd = Array.from({ length: CROWD_SIZE }, () => box);
+const crowdOffsets = packComponentOffsets(crowd, 140, CROWD_ASPECT);
+const crowdRows = new Map<number, number[]>();
+crowdOffsets.forEach((offset) => crowdRows.set(offset.y, [...(crowdRows.get(offset.y) ?? []), offset.x].sort((a, b) => a - b)));
+for (const rowXPositions of crowdRows.values()) {
+  for (let index = 1; index < rowXPositions.length; index += 1) {
+    assert.ok(rowXPositions[index] - rowXPositions[index - 1] >= box.width + 2 * ZONE_PADDING + MIN_ISLAND_GAP, 'neighbour frames keep the island gap');
+  }
+}
 
 console.log('graphComponents.check: ok');
