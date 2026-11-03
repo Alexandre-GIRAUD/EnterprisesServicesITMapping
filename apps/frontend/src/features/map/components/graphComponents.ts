@@ -106,7 +106,7 @@ export function normalizeComponentLayout(
 const FIT_PADDING = 0.15;
 
 /** Frames stay apart even when the fit margin is smaller than the zone padding. */
-const MIN_ISLAND_GAP = 8;
+const MIN_ISLAND_GAP = 24;
 
 /** Row widths tried when packing islands for the fit-to-view zoom. */
 const SHELF_LIMIT_STEPS = 40;
