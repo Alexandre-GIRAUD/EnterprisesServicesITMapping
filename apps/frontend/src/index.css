@@ -8738,8 +8738,15 @@ html[data-theme='dark'] .graph-legend__swatch img {
   justify-content: center;
 }
 
-.module-graph-canvas .react-flow__node-module:hover {
-  z-index: 1000 !important; /* the hovered box and its tip rise above its siblings */
+/* Deeper modules stay above their parents. Hover only rises within the spare slot of that level. */
+.module-graph-canvas.graph-canvas .react-flow__node-module,
+.module-graph-canvas.graph-canvas .react-flow__node-module.is-focus,
+.module-graph-canvas.graph-canvas .react-flow__node-module.is-focus-self {
+  z-index: calc(var(--module-depth, 0) * 10) !important;
+}
+
+.module-graph-canvas.graph-canvas .react-flow__node-module:hover {
+  z-index: calc(var(--module-depth, 0) * 10 + 1) !important;
 }
 
 .module-node-card:not(.module-node-card--container):hover {

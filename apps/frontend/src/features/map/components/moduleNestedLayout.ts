@@ -3,6 +3,8 @@ import { moduleLinkGroups, moduleLinksFromEdges, type ModuleLink } from '../util
 import type { ModuleNode } from './ModuleGraphNode.tsx';
 
 export const MODULE_NODE_WIDTH = 172;
+/** Each deeper module paints above its parent, with one spare slot for a same-level hover. */
+const MODULE_LAYER_STEP = 10;
 export const MAX_MODULE_NODE_WIDTH = 360;
 export const SHORT_NODE_HEIGHT = 56;
 const TITLE_CHAR_WIDTH = 8;
@@ -266,7 +268,8 @@ function layoutSubtree(
       depth,
       colorSlot,
     },
-    style: { width, height },
+    zIndex: depth * MODULE_LAYER_STEP,
+    style: { width, height, '--module-depth': String(depth) } as ModuleNode['style'],
   });
 
   if (!isContainer) {

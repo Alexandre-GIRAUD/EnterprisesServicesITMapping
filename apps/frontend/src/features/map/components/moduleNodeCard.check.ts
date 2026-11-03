@@ -27,5 +27,8 @@ assert.match(rule('.module-node-card'), /justify-content:\s*center/);
 // Hovered boxes and their neighbors use the same two-level emphasis as the main graph.
 assert.match(node, /moduleTone/);
 assert.match(css, /\.module-graph-canvas \.react-flow__node\.is-focus-self \.module-node-card/);
+const hoverLift = rule('.module-graph-canvas.graph-canvas .react-flow__node-module:hover');
+assert.match(hoverLift, /--module-depth/);
+assert.doesNotMatch(hoverLift, /z-index:\s*1000/);
 
 console.log('moduleNodeCard.check: ok');
