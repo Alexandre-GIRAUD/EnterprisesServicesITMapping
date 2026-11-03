@@ -113,6 +113,9 @@ function size(node: ModuleNode) {
   const { rfNodes } = buildModuleNestedNodes(withNested.nodes, withNested.edges);
   const leaves = rfNodes.filter((n) => !n.data.isContainer);
   assert.equal(leaves.length, 3);
+  const layer = (id: string) => rfNodes.find((n) => n.id === id)!.zIndex ?? 0;
+  assert.ok(layer('n') > layer('c'));
+  assert.ok(layer('c') > layer('app'));
   const first = size(leaves[0]);
   for (const leaf of leaves) assert.deepEqual(size(leaf), first);
   assert.equal(first.height, SHORT_NODE_HEIGHT);

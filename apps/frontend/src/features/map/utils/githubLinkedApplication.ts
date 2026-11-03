@@ -1,5 +1,5 @@
 /**
- * When to show "Suggest modules (AI)" for an application.
+ * When an application is linked to a GitHub repository, so Rescan can run.
  * Aligns with {@code GithubRepoIdentityResolver} on the backend:
  * - Older imports used {@code name === owner/repo}.
  * - Current imports store the repo name and keep {@code GitHub: https://github.com/owner/repo} in the description.
