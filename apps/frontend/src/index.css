@@ -4783,10 +4783,18 @@ body.is-diagram-grown .layout {
   white-space: nowrap;
 }
 
-.graph-views-item--view.is-selected .graph-views-item-btn,
-.graph-views-table tr.is-selected {
+.graph-views-item--view.is-selected .graph-views-item-btn {
   border-color: #16a34a;
   box-shadow: inset 0 0 0 1px #16a34a;
+}
+
+.graph-views-table tr:hover,
+.graph-views-table tr.is-selected {
+  background: #f8fafc;
+}
+
+.graph-views-table tr.is-selected td:first-child {
+  box-shadow: inset 3px 0 0 #16a34a;
 }
 
 .graph-views-table {
@@ -7110,15 +7118,6 @@ body.is-diagram-grown .layout {
   color: #991b1b;
 }
 
-.module-map-title {
-  font-size: 0.9rem;
-  color: #475569;
-}
-
-.module-map-title code {
-  font-size: 0.85em;
-}
-
 .graph-module-drilldown {
   flex: 1;
   min-height: 0;
@@ -7162,8 +7161,9 @@ body.is-diagram-grown .layout {
 
 .functional-doc-panel__title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1.35rem;
   font-weight: 700;
+  letter-spacing: -0.02em;
   color: #0f172a;
 }
 
@@ -7189,43 +7189,56 @@ body.is-diagram-grown .layout {
   color: #64748b;
 }
 
+.functional-doc-body {
+  padding-top: 0.9rem;
+  border-top: 1px solid #e2e8f0;
+}
+
 .functional-doc-heading {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.35rem;
   font-size: 1.05rem;
-  font-weight: 700;
-  color: #1e293b;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .functional-doc-summary {
-  margin: 0 0 0.85rem;
+  margin: 0 0 0.5rem;
   font-size: 0.9rem;
-  line-height: 1.45;
-  color: #334155;
+  line-height: 1.5;
+  color: #64748b;
 }
 
 .functional-doc-block {
-  margin-top: 0.75rem;
+  margin-top: 1rem;
 }
 
 .functional-doc-block__title {
-  margin: 0 0 0.3rem;
-  font-size: 0.8rem;
+  margin: 0 0 0.45rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: #475569;
+  color: #2563eb;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
 }
 
 .functional-doc-list {
   margin: 0;
   padding-left: 1.1rem;
   font-size: 0.86rem;
-  color: #475569;
-  line-height: 1.4;
+  font-weight: 400;
+  color: #64748b;
+  line-height: 1.45;
 }
 
 .functional-doc-list li + li {
-  margin-top: 0.25rem;
+  margin-top: 0.3rem;
+}
+
+.functional-doc-list strong {
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .functional-doc-list--sources {
