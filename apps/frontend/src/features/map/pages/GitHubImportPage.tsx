@@ -4,11 +4,9 @@ import type { ApplicationResponse, BitbucketRepoDto, GitHubRepoDto } from '@/typ
 import {
   createApplication,
   fetchApplications,
-  suggestConnectionsFromGithub,
-  suggestModulesFromGithub,
   updateApplicationById,
 } from '../api/applicationsApi';
-import { generateFunctionalDocumentation } from '../api/functionalDocumentationApi';
+import { rescanLinkedApplication } from '../utils/rescanLinkedApplication';
 import { fetchBitbucketRepos } from '../api/integrationsBitbucketApi';
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
 import { ThirdPartySources } from '../components/ThirdPartySources';
@@ -325,21 +323,7 @@ export function GitHubImportPage() {
   }
 
   async function rescanApplication(applicationId: string, errors: string[]) {
-    try {
-      await generateFunctionalDocumentation(applicationId);
-    } catch (e) {
-      errors.push(e instanceof Error ? e.message : 'Functional documentation failed to start.');
-    }
-    try {
-      await suggestModulesFromGithub(applicationId, { replaceExisting: true });
-    } catch (e) {
-      errors.push(e instanceof Error ? e.message : 'Module scan failed.');
-    }
-    try {
-      await suggestConnectionsFromGithub(applicationId);
-    } catch (e) {
-      errors.push(e instanceof Error ? e.message : 'Scan connections and attributes failed.');
-    }
+    errors.push(...(await rescanLinkedApplication(applicationId)));
   }
 
   function applicationForRepo(repo: ListedRepo): ApplicationResponse | undefined {

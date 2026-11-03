@@ -6160,6 +6160,32 @@ body.is-diagram-grown .layout {
   font-weight: 600;
 }
 
+.graph-drawer-rescan-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.graph-drawer-rescan-icon {
+  flex: none;
+}
+
+.graph-drawer-action[aria-busy='true'] .graph-drawer-rescan-icon {
+  animation: graph-drawer-rescan-spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph-drawer-action[aria-busy='true'] .graph-drawer-rescan-icon {
+    animation: none;
+  }
+}
+
+@keyframes graph-drawer-rescan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .graph-drawer-action-meta {
   font-size: 0.74rem;
   font-weight: 700;
@@ -6331,6 +6357,19 @@ body.is-diagram-grown .layout {
   flex-direction: column;
   gap: 0.6rem;
   padding-top: 0.2rem;
+}
+
+.graph-details-action-row {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.graph-details-action-row .graph-drawer-action {
+  width: auto;
+  flex: 1 1 0;
+  justify-content: center;
+  padding: 0.5rem 0.4rem;
+  text-align: center;
 }
 
 .graph-details-id {

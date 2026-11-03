@@ -195,6 +195,10 @@ export function EdgeDetailsDrawer({
     setChangeReason('');
     setChangeReasonComment('');
     setFormErrorMessage(null);
+    setShowDeleteConfirm(false);
+    setDeleteErrorMessage(null);
+    setDeleteReason('');
+    setDeleteReasonComment('');
     setIsEditing(false);
   }
 
@@ -424,7 +428,7 @@ export function EdgeDetailsDrawer({
                         key={field.key}
                         field={field}
                         value={attributeForm[field.key] ?? (field.multiple ? [] : '')}
-                        disabled={isSaving}
+                        disabled={isSaving || isDeleting}
                         onChange={(next) =>
                           setAttributeForm((prev) => ({ ...prev, [field.key]: next }))
                         }
@@ -447,7 +451,7 @@ export function EdgeDetailsDrawer({
                     reasonComment={changeReasonComment}
                     onReasonChange={setChangeReason}
                     onCommentChange={setChangeReasonComment}
-                    disabled={isSaving}
+                    disabled={isSaving || isDeleting}
                     required
                   />
                 ) : null}
@@ -463,7 +467,7 @@ export function EdgeDetailsDrawer({
                     <button
                       type="submit"
                       className="graph-drawer-action graph-drawer-action-primary"
-                      disabled={isSaving}
+                      disabled={isSaving || isDeleting}
                     >
                       <span className="graph-drawer-action-title">
                         {isSaving ? 'Saving…' : 'Save'}
@@ -474,11 +478,87 @@ export function EdgeDetailsDrawer({
                     type="button"
                     className="graph-drawer-action"
                     onClick={onCancelEdit}
-                    disabled={isSaving}
+                    disabled={isSaving || isDeleting}
                   >
                     <span className="graph-drawer-action-title">Cancel</span>
                   </button>
                 </div>
+                {!showDeleteConfirm ? (
+                  <button
+                    type="button"
+                    className="graph-drawer-action graph-drawer-action-danger"
+                    disabled={isDeleting || isSaving}
+                    onClick={() => {
+                      setDeleteErrorMessage(null);
+                      setDeleteReason('');
+                      setDeleteReasonComment('');
+                      setShowDeleteConfirm(true);
+                    }}
+                  >
+                    <span className="graph-drawer-action-title">Delete</span>
+                    {sandbox ? (
+                      <span className="graph-drawer-action-meta" aria-hidden="true">
+                        Local
+                      </span>
+                    ) : null}
+                  </button>
+                ) : (
+                  <div
+                    className="graph-details-delete-confirm"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="graph-edge-delete-confirm-title"
+                  >
+                    <p
+                      id="graph-edge-delete-confirm-title"
+                      className="graph-details-delete-confirm-title"
+                    >
+                      {sandbox
+                        ? 'Remove this connection from the sandbox graph? No database data will be changed.'
+                        : 'Delete this connection permanently from Neo4j?'}
+                    </p>
+                    {!sandbox ? (
+                      <AttributeChangeReasonFields
+                        reason={deleteReason}
+                        reasonComment={deleteReasonComment}
+                        onReasonChange={setDeleteReason}
+                        onCommentChange={setDeleteReasonComment}
+                        disabled={isDeleting}
+                        required
+                      />
+                    ) : null}
+                    {deleteErrorMessage ? (
+                      <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
+                        {deleteErrorMessage}
+                      </p>
+                    ) : null}
+                    <div className="graph-details-delete-confirm-actions">
+                      <button
+                        type="button"
+                        className="graph-drawer-action graph-drawer-action-danger-solid"
+                        disabled={isDeleting}
+                        onClick={() => void onConfirmDelete()}
+                      >
+                        <span className="graph-drawer-action-title">
+                          {isDeleting ? 'Deleting…' : 'Confirm deletion'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="graph-drawer-action"
+                        disabled={isDeleting}
+                        onClick={() => {
+                          setShowDeleteConfirm(false);
+                          setDeleteErrorMessage(null);
+                          setDeleteReason('');
+                          setDeleteReasonComment('');
+                        }}
+                      >
+                        <span className="graph-drawer-action-title">Cancel</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </form>
             )}
 
@@ -496,94 +576,16 @@ export function EdgeDetailsDrawer({
         )}
       </div>
 
-      {edge && !isReadOnly ? (
+      {edge && !isReadOnly && !isEditing ? (
         <div className="graph-details-actions">
-          {!isEditing ? (
-            <button
-              type="button"
-              className="graph-drawer-action"
-              onClick={startEditing}
-              disabled={isDeleting}
-            >
-              <span className="graph-drawer-action-title">Edit</span>
-            </button>
-          ) : null}
-          {!showDeleteConfirm ? (
-            <button
-              type="button"
-              className="graph-drawer-action graph-drawer-action-danger"
-              disabled={isDeleting || isSaving}
-              onClick={() => {
-                setDeleteErrorMessage(null);
-                setDeleteReason('');
-                setDeleteReasonComment('');
-                setShowDeleteConfirm(true);
-              }}
-            >
-              <span className="graph-drawer-action-title">Delete</span>
-              {sandbox ? (
-                <span className="graph-drawer-action-meta" aria-hidden="true">
-                  Local
-                </span>
-              ) : null}
-            </button>
-          ) : (
-            <div
-              className="graph-details-delete-confirm"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="graph-edge-delete-confirm-title"
-            >
-              <p
-                id="graph-edge-delete-confirm-title"
-                className="graph-details-delete-confirm-title"
-              >
-                {sandbox
-                  ? 'Remove this connection from the sandbox graph? No database data will be changed.'
-                  : 'Delete this connection permanently from Neo4j?'}
-              </p>
-              {!sandbox ? (
-                <AttributeChangeReasonFields
-                  reason={deleteReason}
-                  reasonComment={deleteReasonComment}
-                  onReasonChange={setDeleteReason}
-                  onCommentChange={setDeleteReasonComment}
-                  disabled={isDeleting}
-                  required
-                />
-              ) : null}
-              {deleteErrorMessage ? (
-                <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
-                  {deleteErrorMessage}
-                </p>
-              ) : null}
-              <div className="graph-details-delete-confirm-actions">
-                <button
-                  type="button"
-                  className="graph-drawer-action graph-drawer-action-danger-solid"
-                  disabled={isDeleting}
-                  onClick={() => void onConfirmDelete()}
-                >
-                  <span className="graph-drawer-action-title">
-                    {isDeleting ? 'Deleting…' : 'Confirm deletion'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="graph-drawer-action"
-                  disabled={isDeleting}
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    setDeleteErrorMessage(null);
-                    setDeleteReason('');
-                    setDeleteReasonComment('');
-                  }}
-                >
-                  <span className="graph-drawer-action-title">Cancel</span>
-                </button>
-              </div>
-            </div>
-          )}
+          <button
+            type="button"
+            className="graph-drawer-action"
+            onClick={startEditing}
+            disabled={isDeleting}
+          >
+            <span className="graph-drawer-action-title">Edit</span>
+          </button>
         </div>
       ) : null}
     </aside>

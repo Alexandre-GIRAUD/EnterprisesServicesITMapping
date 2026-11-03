@@ -1,5 +1,4 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import type {
   ApplicationRequest,
   ApplicationResponse,
@@ -12,12 +11,10 @@ import {
   fetchApplicationById,
   patchApplicationNodeAttributes,
   patchApplicationNodeRefs,
-  suggestConnectionsFromGithub,
-  suggestModulesFromGithub,
   updateApplicationById,
 } from '../api/applicationsApi';
 import { fetchGraphNodeFilters } from '../api/graphApi';
-import { moduleGraphMapState } from '../utils/mapNavigation';
+import { rescanLinkedApplication } from '../utils/rescanLinkedApplication';
 import { isBitbucketLinkedApplication } from '../utils/bitbucketLinkedApplication';
 import { gitHubFullNamesInText, isGitHubLinkedApplication } from '../utils/githubLinkedApplication';
 import { isSandboxId } from '../utils/sandboxGraph';
@@ -132,9 +129,6 @@ export function ApplicationDetailsDrawer({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [suggestBusy, setSuggestBusy] = useState(false);
-  const [suggestErrorMessage, setSuggestErrorMessage] = useState<string | null>(null);
-  const [suggestSuccessMessage, setSuggestSuccessMessage] = useState<string | null>(null);
   const [connBusy, setConnBusy] = useState(false);
   const [connErrorMessage, setConnErrorMessage] = useState<string | null>(null);
   const [connSuccessMessage, setConnSuccessMessage] = useState<string | null>(null);
@@ -183,8 +177,6 @@ export function ApplicationDetailsDrawer({
     setErrorMessage(null);
     setSaveSuccessMessage(null);
     setFormErrorMessage(null);
-    setSuggestErrorMessage(null);
-    setSuggestSuccessMessage(null);
     setConnErrorMessage(null);
     setConnSuccessMessage(null);
 
@@ -234,9 +226,6 @@ export function ApplicationDetailsDrawer({
       setShowDeleteConfirm(false);
       setDeleteErrorMessage(null);
       setIsDeleting(false);
-      setSuggestBusy(false);
-      setSuggestErrorMessage(null);
-      setSuggestSuccessMessage(null);
       setConnBusy(false);
       setConnErrorMessage(null);
       setConnSuccessMessage(null);
@@ -427,25 +416,6 @@ export function ApplicationDetailsDrawer({
     setIsEditing(false);
   }
 
-  async function onSuggestModulesFromGithub() {
-    const id = application?.id;
-    if (!id || !details) return;
-    setSuggestErrorMessage(null);
-    setSuggestSuccessMessage(null);
-    try {
-      setSuggestBusy(true);
-      const res = await suggestModulesFromGithub(id);
-      setDetails(await fetchApplicationById(id));
-      setSuggestSuccessMessage(
-        `${res.created.length} module(s) created. ${res.skipped.length} entry(ies) skipped.`
-      );
-    } catch (e) {
-      setSuggestErrorMessage(e instanceof Error ? e.message : 'AI module suggestion failed.');
-    } finally {
-      setSuggestBusy(false);
-    }
-  }
-
   async function onSuggestConnectionsFromGithub() {
     const id = application?.id;
     if (!id || !details) return;
@@ -453,15 +423,15 @@ export function ApplicationDetailsDrawer({
     setConnSuccessMessage(null);
     try {
       setConnBusy(true);
-      const res = await suggestConnectionsFromGithub(id);
-      const outbound = res.created.filter((c) => c.direction === 'outbound').length;
-      const inbound = res.created.length - outbound;
-      setConnSuccessMessage(
-        `${res.created.length} connexion(s) créée(s) (${outbound} sortante(s), ${inbound} entrante(s)). ${res.skipped.length} ignorée(s).`
-      );
+      const errors = await rescanLinkedApplication(id);
       setDetails(await fetchApplicationById(id));
+      if (errors.length > 0) {
+        setConnErrorMessage(errors.join(' '));
+        return;
+      }
+      setConnSuccessMessage('Rescan finished.');
     } catch (e) {
-      setConnErrorMessage(e instanceof Error ? e.message : 'Scan connections and attributes failed.');
+      setConnErrorMessage(e instanceof Error ? e.message : 'Rescan failed.');
     } finally {
       setConnBusy(false);
     }
@@ -846,57 +816,6 @@ export function ApplicationDetailsDrawer({
       </div>
 
       <div className="graph-details-actions">
-        {suggestErrorMessage && (
-          <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
-            {suggestErrorMessage}
-          </p>
-        )}
-        {suggestSuccessMessage && (
-          <p
-            className="graph-drawer-feedback graph-drawer-feedback-success"
-            role="status"
-            aria-live="polite"
-          >
-            {suggestSuccessMessage}{' '}
-            {application?.id ? (
-              <Link
-                className="github-import-inline-link"
-                to="/map"
-                state={moduleGraphMapState(application.id, details?.name ?? application.label)}
-              >
-                View module graph
-              </Link>
-            ) : null}
-          </p>
-        )}
-        {application?.id &&
-          status === 'ready' &&
-          !isEditing &&
-          details &&
-          !sandboxMode &&
-          !isReadOnly &&
-          (isGitHubLinkedApplication(details) || isBitbucketLinkedApplication(details)) && (
-            <button
-              type="button"
-              className="graph-drawer-action"
-              disabled={suggestBusy || isDeleting || Boolean(details.hasModuleSubtree)}
-              title={
-                details.hasModuleSubtree
-                  ? 'Modules are already linked to this application. AI suggestion cannot be run again.'
-                  : undefined
-              }
-              aria-busy={suggestBusy}
-              onClick={() => void onSuggestModulesFromGithub()}
-            >
-              <span className="graph-drawer-action-title">
-                {suggestBusy
-                  ? 'AI analysis…'
-                  : details.hasModuleSubtree
-                    ? 'Modules already in place'
-                    : 'Suggest modules (AI)'}
-              </span>
-            </button>
-          )}
         {connErrorMessage && (
           <p className="graph-drawer-feedback graph-drawer-feedback-error" role="alert">
             {connErrorMessage}
@@ -911,48 +830,68 @@ export function ApplicationDetailsDrawer({
             {connSuccessMessage}
           </p>
         )}
-        {application?.id &&
-          status === 'ready' &&
-          !isEditing &&
-          details &&
-          !sandboxMode &&
-          !isReadOnly &&
-          (isGitHubLinkedApplication(details) || isBitbucketLinkedApplication(details)) && (
+        <div className="graph-details-action-row">
+          {application?.id && (
+            <button
+              type="button"
+              className="graph-drawer-action graph-drawer-action-primary"
+              disabled={sandboxMode}
+              title={sandboxMode ? 'Unavailable in sandbox' : 'Open module graph'}
+              onClick={() => onOpenModuleGraph(application.id)}
+            >
+              <span className="graph-drawer-action-title">Open</span>
+            </button>
+          )}
+          {status === 'ready' && !isEditing && !isReadOnly && (
             <button
               type="button"
               className="graph-drawer-action"
-              disabled={connBusy || suggestBusy || isDeleting}
-              aria-busy={connBusy}
-              onClick={() => void onSuggestConnectionsFromGithub()}
+              onClick={() => {
+                if (!details) return;
+                startEditing(details);
+              }}
             >
-              <span className="graph-drawer-action-title">
-                {connBusy ? 'Scanning connections and attributes…' : 'Scan connections and attributes'}
-              </span>
+              <span className="graph-drawer-action-title">Edit</span>
             </button>
           )}
-        {application?.id && (
-          <button
-            type="button"
-            className="graph-drawer-action graph-drawer-action-primary"
-            disabled={sandboxMode}
-            title={sandboxMode ? 'Unavailable in sandbox' : undefined}
-            onClick={() => onOpenModuleGraph(application.id)}
-          >
-            <span className="graph-drawer-action-title">Open module graph</span>
-          </button>
-        )}
-        {status === 'ready' && !isEditing && !isReadOnly && (
-          <button
-            type="button"
-            className="graph-drawer-action"
-            onClick={() => {
-              if (!details) return;
-              startEditing(details);
-            }}
-          >
-            <span className="graph-drawer-action-title">Edit</span>
-          </button>
-        )}
+          {application?.id &&
+            status === 'ready' &&
+            !isEditing &&
+            details &&
+            !sandboxMode &&
+            !isReadOnly &&
+            (isGitHubLinkedApplication(details) || isBitbucketLinkedApplication(details)) && (
+              <button
+                type="button"
+                className="graph-drawer-action"
+                disabled={connBusy || isDeleting}
+                aria-busy={connBusy}
+                onClick={() => void onSuggestConnectionsFromGithub()}
+              >
+                <span className="graph-drawer-action-title graph-drawer-rescan-title">
+                  <svg
+                    className="graph-drawer-rescan-icon"
+                    viewBox="0 0 16 16"
+                    width="16"
+                    height="16"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13.2 8a5.2 5.2 0 1 1-1.4-3.5"
+                    />
+                    <path fill="currentColor" d="M12.2 1.6v3.4H8.8z" />
+                  </svg>
+                  Rescan
+                </span>
+              </button>
+            )}
+        </div>
       </div>
     </aside>
   );
