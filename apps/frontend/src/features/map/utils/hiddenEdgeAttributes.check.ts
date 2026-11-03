@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { isHiddenEdgeAttribute, withoutHiddenEdgeAttributes } from './hiddenEdgeAttributes.ts';
 import { buildFlowsColumnCatalog } from './tableColumns.ts';
-import { colorPropertyOptions } from '../components/edgeColorProperty.ts';
+import { colorPropertyOptions, edgeColorValue, edgeLabelText } from '../components/edgeColorProperty.ts';
 import type { GraphEdgeDto, GraphNodeFilterDto } from '../../../types/api.ts';
 
 for (const key of ['depends-on', 'depends_on', 'dependsOn', 'Depends On', 'DEPENDS_ON']) {
@@ -43,5 +43,10 @@ assert.deepEqual(
   colorPropertyOptions([edge]).map((o) => o.key),
   ['frequency', '__relation__']
 );
+
+// A saved view or legend preset may still name the hidden attribute: it draws nothing.
+assert.equal(edgeColorValue(edge, 'depends-on'), null);
+assert.equal(edgeColorValue(edge, 'frequency'), 'daily');
+assert.notEqual(edgeLabelText(edge, 'depends-on'), 'x');
 
 console.log('hiddenEdgeAttributes.check: ok');
