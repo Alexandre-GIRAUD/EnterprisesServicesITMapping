@@ -21,6 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 class SourceRowsFetcherTest {
 
+  private static final String LINK_LOCAL_HOST = "[fe80::1]";
+
   private final SourceRowsFetcher fetcher = new SourceRowsFetcher(new ObjectMapper());
   private HttpServer server;
 
@@ -106,7 +108,7 @@ class SourceRowsFetcherTest {
   @Test
   void refusesLinkLocalAddressesAndNonHttpSchemes() {
     DataSourceEntity metadata = source(SourceKind.API, "/");
-    metadata.setEndpoint("http://[fe80::1]/latest/meta-data");
+    metadata.setEndpoint("http://" + LINK_LOCAL_HOST + "/latest/meta-data");
     DataSourceEntity file = source(SourceKind.API, "/");
     file.setEndpoint("file:///etc/passwd");
 
