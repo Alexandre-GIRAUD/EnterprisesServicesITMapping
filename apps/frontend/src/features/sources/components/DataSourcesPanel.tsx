@@ -148,16 +148,16 @@ export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourc
             <strong>{source.name}</strong> <span className="source-hint">{source.kind}</span>
             {isAdmin ? (
               <span className="source-actions">
-                <button type="button" className="github-import-btn-secondary" onClick={() => startEdit(source.id)}>
+                <button type="button" className="github-import-text-button" onClick={() => startEdit(source.id)}>
                   Edit
                 </button>
-                <button type="button" className="github-import-btn-secondary" onClick={() => setMappingId(source.id)}>
+                <button type="button" className="github-import-text-button" onClick={() => setMappingId(source.id)}>
                   Mapping
                 </button>
-                <button type="button" className="github-import-btn-secondary" onClick={() => void syncNow(source.id)}>
+                <button type="button" className="github-import-text-button" onClick={() => void syncNow(source.id)}>
                   Sync
                 </button>
-                <button type="button" className="github-import-btn-secondary" onClick={() => void removeSource(source.id)}>
+                <button type="button" className="github-import-text-button" onClick={() => void removeSource(source.id)}>
                   Delete
                 </button>
               </span>
@@ -168,7 +168,7 @@ export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourc
       </ul>
 
       {isAdmin && !draft ? (
-        <button type="button" className="github-import-btn" onClick={() => startEdit(null)}>
+        <button type="button" className="github-import-primary" onClick={() => startEdit(null)}>
           Add a source
         </button>
       ) : null}

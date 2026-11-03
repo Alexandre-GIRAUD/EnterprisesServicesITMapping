@@ -100,10 +100,10 @@ export function SourceMappingEditor({ sourceId, sourceName, onClose, onSaved }: 
         </tbody>
       </table>
       <div className="source-actions">
-        <button type="button" className="github-import-btn" disabled={isBusy} onClick={() => void save()}>
+        <button type="button" className="github-import-primary" disabled={isBusy} onClick={() => void save()}>
           {isBusy ? 'Saving…' : 'Save and sync'}
         </button>
-        <button type="button" className="github-import-btn-secondary" onClick={onClose}>
+        <button type="button" className="github-import-text-button" onClick={onClose}>
           Cancel
         </button>
       </div>

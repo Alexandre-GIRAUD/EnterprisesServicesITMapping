@@ -155,13 +155,13 @@ export function SourceForm({
         />
       ))}
       <div className="source-actions">
-        <button type="submit" className="github-import-btn">
+        <button type="submit" className="github-import-primary">
           Save
         </button>
-        <button type="button" className="github-import-btn-secondary" disabled={!editingSource} onClick={onTest}>
+        <button type="button" className="github-import-text-button" disabled={!editingSource} onClick={onTest}>
           Test connection
         </button>
-        <button type="button" className="github-import-btn-secondary" onClick={onClose}>
+        <button type="button" className="github-import-text-button" onClick={onClose}>
           Close
         </button>
       </div>
