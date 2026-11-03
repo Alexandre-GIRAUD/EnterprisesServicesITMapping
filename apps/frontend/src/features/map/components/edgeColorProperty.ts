@@ -543,6 +543,8 @@ export function edgeColorValue(edge: GraphEdgeDto, propertyKey: string): string 
   if (propertyKey === RELATION_TYPE_COLOR_KEY) {
     return edge.type?.trim() || null;
   }
+  // A saved view or legend preset may still name an attribute that is never displayed.
+  if (isHiddenEdgeAttribute(propertyKey)) return null;
   return storedAttributeText(edge.properties?.[propertyKey]) || null;
 }
 
