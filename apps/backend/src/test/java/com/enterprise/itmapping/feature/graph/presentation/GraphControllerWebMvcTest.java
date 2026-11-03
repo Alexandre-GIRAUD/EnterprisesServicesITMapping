@@ -15,6 +15,7 @@ import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetSe
 import com.enterprise.itmapping.feature.graph.application.GraphService;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeFilterDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
+import com.enterprise.itmapping.feature.history.application.PastSystemView;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = GraphController.class, excludeAutoConfiguration = SecurityAutoConfiguration.class)
 class GraphControllerWebMvcTest {
+
+  /** The as-of filter is part of every MVC slice; the tests never read a past view. */
+  @MockBean PastSystemView pastSystemView;
 
   @Autowired MockMvc mockMvc;
 

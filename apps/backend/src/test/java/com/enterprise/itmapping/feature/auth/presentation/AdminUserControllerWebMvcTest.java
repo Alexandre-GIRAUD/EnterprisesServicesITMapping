@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.enterprise.itmapping.feature.auth.application.UserAdminService;
 import com.enterprise.itmapping.feature.auth.presentation.dto.CreateUserRequest;
 import com.enterprise.itmapping.feature.auth.presentation.dto.UserSummaryResponse;
+import com.enterprise.itmapping.feature.history.application.PastSystemView;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -23,6 +24,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = AdminUserController.class, excludeAutoConfiguration = SecurityAutoConfiguration.class)
 class AdminUserControllerWebMvcTest {
+
+  /** The as-of filter is part of every MVC slice; the tests never read a past view. */
+  @MockBean PastSystemView pastSystemView;
 
   @Autowired MockMvc mockMvc;
 

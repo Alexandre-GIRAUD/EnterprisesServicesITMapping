@@ -14,6 +14,7 @@ import com.enterprise.itmapping.feature.graphsnapshot.application.ShareLibrarySe
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotFiltersDto;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotResponse;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.NodePositionDto;
+import com.enterprise.itmapping.feature.history.application.PastSystemView;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = GraphSnapshotController.class, excludeAutoConfiguration = SecurityAutoConfiguration.class)
 class GraphSnapshotControllerWebMvcTest {
+
+  /** The as-of filter is part of every MVC slice; the tests never read a past view. */
+  @MockBean PastSystemView pastSystemView;
 
   @Autowired MockMvc mockMvc;
 

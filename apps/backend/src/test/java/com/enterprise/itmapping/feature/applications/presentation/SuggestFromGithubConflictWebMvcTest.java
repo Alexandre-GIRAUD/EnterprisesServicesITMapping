@@ -10,8 +10,11 @@ import com.enterprise.itmapping.feature.applications.application.ApplicationConn
 import com.enterprise.itmapping.feature.applications.application.ApplicationNodeAttributePatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationNodeRefPatchService;
 import com.enterprise.itmapping.feature.applications.application.ApplicationService;
+import com.enterprise.itmapping.feature.applications.application.BusinessModelPatchService;
+import com.enterprise.itmapping.feature.applications.application.ModuleDetailsPatchService;
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphService;
 import com.enterprise.itmapping.feature.applications.application.ModuleSuggestionService;
+import com.enterprise.itmapping.feature.history.application.PastSystemView;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +28,13 @@ import org.springframework.web.server.ResponseStatusException;
 
 @WebMvcTest(controllers = ApplicationController.class, excludeAutoConfiguration = SecurityAutoConfiguration.class)
 class SuggestFromGithubConflictWebMvcTest {
+
+  /** The as-of filter is part of every MVC slice; the tests never read a past view. */
+  @MockBean PastSystemView pastSystemView;
+
+  @MockBean ModuleDetailsPatchService moduleDetailsPatchService;
+
+  @MockBean BusinessModelPatchService businessModelPatchService;
 
   @Autowired MockMvc mockMvc;
 
