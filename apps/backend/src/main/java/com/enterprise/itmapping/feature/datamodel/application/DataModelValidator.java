@@ -33,6 +33,10 @@ public class DataModelValidator {
           "discovered_from_application_id");
 
   public void validatePut(List<DataModelField> fields) {
+    validatePut(fields, Set.of());
+  }
+
+  public void validatePut(List<DataModelField> fields, Set<String> knownSourceIds) {
     if (fields == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fields requis.");
     }
@@ -62,6 +66,16 @@ public class DataModelValidator {
       if (field.target() == null) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "target manquant pour la cle: " + key);
+      }
+      if (field.hasExternalSource()) {
+        if (field.target() != DataModelTarget.NODE) {
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "source reservee aux attributs application (NODE): " + key);
+        }
+        if (!knownSourceIds.contains(field.sourceId())) {
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "source inconnue pour la cle: " + key);
+        }
       }
       List<String> allowed = field.allowedValues() != null ? field.allowedValues() : List.of();
       boolean isNodeRef = field.target() == DataModelTarget.NODE_REF;
@@ -105,7 +119,8 @@ public class DataModelValidator {
                       f.required(),
                       DataModelDetection.orDefault(f.detection()),
                       target,
-                      multiple);
+                      multiple,
+                      f.sourceId());
                 })
             .toList();
     return new DataModelConfig(normalized);

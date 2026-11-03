@@ -16,7 +16,9 @@ public record DataModelField(
     DataModelDetection detection,
     DataModelTarget target,
     /** When true, the field stores several values: a list property for NODE and EDGE, several catalogue links for NODE_REF. */
-    boolean multiple) {
+    boolean multiple,
+    /** Id of the external source feeding a NODE field; null for Code (automatic) and Manual. */
+    String sourceId) {
 
   public DataModelField {
     description = description != null ? description : "";
@@ -24,6 +26,33 @@ public record DataModelField(
     allowedValues = allowedValues != null ? List.copyOf(allowedValues) : List.of();
     detection = DataModelDetection.orDefault(detection);
     target = DataModelTarget.orDefault(target);
+    sourceId = sourceId != null && !sourceId.isBlank() ? sourceId.trim() : null;
+  }
+
+  /** Convenience — no external source. */
+  public DataModelField(
+      String key,
+      String label,
+      String description,
+      String promptHint,
+      List<String> allowedValues,
+      boolean enforceEnum,
+      boolean required,
+      DataModelDetection detection,
+      DataModelTarget target,
+      boolean multiple) {
+    this(
+        key,
+        label,
+        description,
+        promptHint,
+        allowedValues,
+        enforceEnum,
+        required,
+        detection,
+        target,
+        multiple,
+        null);
   }
 
   /** Convenience — automatic detection, EDGE target, not multiple. */
@@ -97,6 +126,10 @@ public record DataModelField(
 
   public boolean isAutomaticDetection() {
     return detection != DataModelDetection.MANUAL;
+  }
+
+  public boolean hasExternalSource() {
+    return sourceId != null;
   }
 
   public boolean isEdgeTarget() {
