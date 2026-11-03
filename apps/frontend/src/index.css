@@ -8806,3 +8806,22 @@ html[data-theme='dark'] .graph-legend__swatch img {
 .module-links-row > button {
   grid-column: 1 / -1;
 }
+
+/* Data sources (Sources page) */
+.source-mapping-alert {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid #d9a441;
+  border-radius: 8px;
+  background: #fff7e6;
+  color: #5c3d00;
+}
+.source-mapping-alert p { margin: 2px 0; }
+.source-link-btn { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
+.source-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.source-item { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.source-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.source-hint { font-size: 12px; opacity: 0.7; }
+.source-mapping { margin: 12px 0; }
+.source-mapping-table { width: 100%; border-collapse: collapse; }
+.source-mapping-table th, .source-mapping-table td { text-align: left; padding: 4px 8px; }

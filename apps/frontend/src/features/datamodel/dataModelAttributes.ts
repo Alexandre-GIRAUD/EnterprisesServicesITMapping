@@ -70,6 +70,7 @@ function normalizeField(field: DataModelFieldDto): DataModelFieldDto {
     detection: normalizeDetection(field.detection),
     target,
     multiple: Boolean(field.multiple),
+    sourceId: field.sourceId || undefined,
   };
 }
 

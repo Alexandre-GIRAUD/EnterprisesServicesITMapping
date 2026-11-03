@@ -1,5 +1,5 @@
 import type { DragEvent } from 'react';
-import type { DataModelDetection, DataModelFieldDto, DataModelTarget } from '@/types/api';
+import type { DataModelFieldDto, DataModelTarget } from '@/types/api';
 import {
   isControlledField,
   isRowDirty,
@@ -9,6 +9,7 @@ import {
 } from '../dataModelAttributes';
 import { normalizeDataModelTarget, type DataModelSurface } from '../dataModelSurface';
 import { DataModelIcon } from './DataModelIcons';
+import { fieldSourceChoice, sourceChoiceOptions, sourceChoicePatch } from '../dataModelSource';
 
 export type AttributeRowChange = { draft?: Partial<DataModelFieldDto>; allowedValuesText?: string };
 
@@ -16,6 +17,7 @@ type DataModelAttributeRowProps = {
   row: AttributeRow;
   rowError: string | null;
   surface: DataModelSurface;
+  sources: { id: string; name: string }[];
   isExpanded: boolean;
   isAdmin: boolean;
   isBusy: boolean;
@@ -36,12 +38,13 @@ const TARGET_HINTS: Partial<Record<DataModelTarget, string>> = {
     'Allowed values become catalogue entries linked with CLASSIFIED_AS. AI and the details drawer can only pick from them.',
 };
 
-function DetectionBadge({ detection }: { detection?: DataModelDetection }) {
-  const isManual = normalizeDetection(detection) === 'MANUAL';
+function SourceBadge({ field, sources }: { field: DataModelFieldDto; sources: { id: string; name: string }[] }) {
+  const choice = fieldSourceChoice(field);
+  const label = sourceChoiceOptions(sources, true).find((option) => option.value === choice)?.label ?? 'Unknown source';
   return (
-    <span className={`data-model-badge ${isManual ? 'is-manual' : 'is-ai'}`}>
-      {isManual ? null : <DataModelIcon name="sparkle" size={12} />}
-      {isManual ? 'Manual' : 'AI detection'}
+    <span className={`data-model-badge ${choice === 'code' ? 'is-ai' : 'is-manual'}`}>
+      {choice === 'code' ? <DataModelIcon name="sparkle" size={12} /> : null}
+      {label}
     </span>
   );
 }
@@ -89,7 +92,7 @@ function RowMenu({ row, onDiscard, onDelete }: Pick<DataModelAttributeRowProps, 
 }
 
 function RowHeader(props: DataModelAttributeRowProps) {
-  const { row, rowError, isExpanded, isAdmin, isBusy, onToggle, onSave, onDragStart } = props;
+  const { row, rowError, sources, isExpanded, isAdmin, isBusy, onToggle, onSave, onDragStart } = props;
   const canSave = isAdmin && !isBusy && !rowError && isRowDirty(row);
   const startDrag = (event: DragEvent) => {
     event.dataTransfer.effectAllowed = 'move';
@@ -108,7 +111,7 @@ function RowHeader(props: DataModelAttributeRowProps) {
       </span>
       <span className="data-model-row-key">{row.draft.key || 'New attribute'}</span>
       <span className="data-model-row-label">{row.draft.label}</span>
-      <DetectionBadge detection={row.draft.detection} />
+      <SourceBadge field={row.draft} sources={sources} />
       <span className="data-model-row-spacer" />
       {isExpanded && isAdmin ? (
         <>
@@ -141,7 +144,7 @@ function RowHeader(props: DataModelAttributeRowProps) {
   );
 }
 
-function DetectionAndTargetFields({ row, surface, isAdmin, onChange }: DataModelAttributeRowProps) {
+function DetectionAndTargetFields({ row, surface, sources, isAdmin, onChange }: DataModelAttributeRowProps) {
   const isManual = normalizeDetection(row.draft.detection) === 'MANUAL';
   const target = normalizeDataModelTarget(row.draft.target);
   const targetHint = TARGET_HINTS[target];
@@ -149,20 +152,23 @@ function DetectionAndTargetFields({ row, surface, isAdmin, onChange }: DataModel
   return (
     <>
       <label className="data-model-label">
-        Detection mode
+        Source
         <select
           className="data-model-input"
-          value={normalizeDetection(row.draft.detection)}
-          onChange={(event) => onChange({ draft: { detection: event.target.value as DataModelDetection } })}
+          value={fieldSourceChoice(row.draft)}
+          onChange={(event) => onChange({ draft: sourceChoicePatch(event.target.value) })}
           disabled={!isAdmin}
         >
-          <option value="AUTOMATIC_DETECTION">AI detection</option>
-          <option value="MANUAL">Manual</option>
+          {sourceChoiceOptions(sources, target === 'NODE').map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
         {isManual ? (
           <span className="data-model-field-hint">
             <DataModelIcon name="alert" size={14} />
-            Not analyzed by AI suggestions in manual mode.
+            The scan does not look for this attribute: only Code attributes are detected.
           </span>
         ) : null}
       </label>
@@ -172,7 +178,12 @@ function DetectionAndTargetFields({ row, surface, isAdmin, onChange }: DataModel
           <select
             className="data-model-input"
             value={target}
-            onChange={(event) => onChange({ draft: { target: event.target.value as DataModelTarget } })}
+            onChange={(event) => onChange({
+                draft: {
+                  target: event.target.value as DataModelTarget,
+                  ...(row.draft.sourceId ? sourceChoicePatch('manual') : {}),
+                },
+              })}
             disabled={!isAdmin}
           >
             <option value="NODE">Application (node)</option>
