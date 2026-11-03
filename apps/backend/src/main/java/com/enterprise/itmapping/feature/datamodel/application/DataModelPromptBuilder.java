@@ -2,44 +2,20 @@ package com.enterprise.itmapping.feature.datamodel.application;
 
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
-import com.enterprise.itmapping.feature.referential.application.ReferentialBoundKeys;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.function.Supplier;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
  * Builds the dynamic Active Data Model section(s) for the connection-discovery user prompt.
  * Returns empty when there are no automatic EDGE, NODE or NODE_REF fields. Manual fields are never
- * listed. NODE fields filled by a referential are left out the same way.
+ * listed.
  */
 @Component
 public class DataModelPromptBuilder {
 
-  private final Supplier<Set<String>> boundNodeKeys;
-
-  public DataModelPromptBuilder() {
-    this(Set::of);
-  }
-
-  @Autowired
-  public DataModelPromptBuilder(ReferentialBoundKeys boundKeys) {
-    this(boundKeys::nodeAttributeKeys);
-  }
-
-  DataModelPromptBuilder(Supplier<Set<String>> boundNodeKeys) {
-    this.boundNodeKeys = boundNodeKeys == null ? Set::of : boundNodeKeys;
-  }
-
   public String buildPromptSection(DataModelConfig config) {
-    if (config == null) {
-      return "";
-    }
-    config = withoutBoundNodeFields(config);
-    if (!config.hasAutomaticFields()) {
+    if (config == null || !config.hasAutomaticFields()) {
       return "";
     }
     StringBuilder sb = new StringBuilder();
@@ -63,21 +39,6 @@ public class DataModelPromptBuilder {
       appendNodeRefSection(sb, nodeRefFields);
     }
     return sb.toString().trim();
-  }
-
-  private DataModelConfig withoutBoundNodeFields(DataModelConfig config) {
-    Set<String> bound = boundNodeKeys.get();
-    if (bound == null || bound.isEmpty()) {
-      return config;
-    }
-    List<DataModelField> remaining = new ArrayList<>();
-    for (DataModelField field : config.fields()) {
-      if (field.isNodeTarget() && bound.contains(field.key())) {
-        continue;
-      }
-      remaining.add(field);
-    }
-    return new DataModelConfig(remaining);
   }
 
   private static void appendEdgeSection(StringBuilder sb, List<DataModelField> fields) {

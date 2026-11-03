@@ -12,7 +12,6 @@ import { generateFunctionalDocumentation } from '../api/functionalDocumentationA
 import { fetchBitbucketRepos } from '../api/integrationsBitbucketApi';
 import { fetchGitHubRepos } from '../api/integrationsGithubApi';
 import { ThirdPartySources } from '../components/ThirdPartySources';
-import { ReferentialSources } from '../components/ReferentialSources';
 import {
   applicationDescriptionForBitbucketRepo,
   applicationDescriptionForBitbucketRepos,
@@ -106,7 +105,7 @@ export function GitHubImportPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
-  const [sourceMode, setSourceMode] = useState<'github' | 'bitbucket' | 'third-party' | 'referential'>('github');
+  const [sourceMode, setSourceMode] = useState<'github' | 'bitbucket' | 'third-party'>('github');
   const [targetApplicationId, setTargetApplicationId] = useState('');
   const [groupName, setGroupName] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -118,7 +117,7 @@ export function GitHubImportPage() {
     return applicationForRepo(repo) != null;
   }
 
-  function selectHost(next: 'github' | 'bitbucket' | 'third-party' | 'referential') {
+  function selectHost(next: 'github' | 'bitbucket' | 'third-party') {
     setSourceMode(next);
     setSelected(new Set());
     setTargetApplicationId('');
@@ -404,28 +403,17 @@ export function GitHubImportPage() {
           </svg>
           Third party
         </button>
-        <button
-          type="button"
-          className={`github-import-tab${sourceMode === 'referential' ? ' is-active' : ''}`}
-          role="tab"
-          aria-selected={sourceMode === 'referential'}
-          onClick={() => selectHost('referential')}
-        >
-          Referential
-        </button>
       </div>
 
-      {(errorMessage || (sourceMode !== 'third-party' && sourceMode !== 'referential' && hostError)) && (
+      {(errorMessage || (sourceMode !== 'third-party' && hostError)) && (
         <p className="github-import-state github-import-state-error" role="alert">
-          {sourceMode !== 'third-party' && sourceMode !== 'referential' && hostError ? hostError : errorMessage}
+          {sourceMode !== 'third-party' && hostError ? hostError : errorMessage}
         </p>
       )}
 
       <div className="github-import-panel">
       {sourceMode === 'third-party' ? (
         <ThirdPartySources onChanged={async () => setApplications(await fetchApplications())} />
-      ) : sourceMode === 'referential' ? (
-        <ReferentialSources applications={applications} />
       ) : (
         <>
 
