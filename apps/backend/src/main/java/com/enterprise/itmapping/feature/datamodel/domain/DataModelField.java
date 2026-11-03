@@ -27,6 +27,9 @@ public record DataModelField(
     detection = DataModelDetection.orDefault(detection);
     target = DataModelTarget.orDefault(target);
     sourceId = sourceId != null && !sourceId.isBlank() ? sourceId.trim() : null;
+    if (sourceId != null) {
+      detection = DataModelDetection.MANUAL;
+    }
   }
 
   /** Convenience — no external source. */

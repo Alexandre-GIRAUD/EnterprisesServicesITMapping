@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -28,11 +29,23 @@ import org.springframework.web.server.ResponseStatusException;
 public class SourceRowsFetcher {
 
   private static final Duration TIMEOUT = Duration.ofSeconds(20);
+  private static final int HTTP_REDIRECT_STATUS = 300;
   private static final String MCP_PROTOCOL = "2025-03-26";
+  private static final String MCP_SESSION_HEADER = "Mcp-Session-Id";
+  private static final String DEFAULT_API_KEY_HEADER = "X-API-Key";
+  private static final String JSON = "application/json";
+  private static final String JSON_OR_EVENTS = "application/json, text/event-stream";
+  private static final String DATA_PREFIX = "data:";
+  private static final String EVENT_PREFIX = "event:";
+  private static final int INITIALIZE_ID = 1;
+  private static final int CALL_ID = 2;
 
   private final ObjectMapper mapper;
   private final HttpClient http =
-      HttpClient.newBuilder().connectTimeout(TIMEOUT).followRedirects(HttpClient.Redirect.NEVER).build();
+      HttpClient.newBuilder()
+          .connectTimeout(TIMEOUT)
+          .followRedirects(HttpClient.Redirect.NEVER)
+          .build();
 
   public SourceRowsFetcher(ObjectMapper mapper) {
     this.mapper = mapper;
@@ -42,18 +55,18 @@ public class SourceRowsFetcher {
     try {
       JsonNode root =
           source.getKind() == SourceKind.MCP ? callMcpTool(source, secret) : getJson(source, secret);
-      return rows(navigate(root, source.getItemsPath()));
+      return toRows(navigate(root, source.getItemsPath()));
     } catch (IOException e) {
       throw badGateway("Source unreachable: " + e.getMessage());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw badGateway("Source call interrupted.");
+      throw badGateway("The call to the source was interrupted.");
     }
   }
 
   private JsonNode getJson(DataSourceEntity source, String secret)
       throws IOException, InterruptedException {
-    HttpRequest.Builder request = request(source).GET().header("Accept", "application/json");
+    HttpRequest.Builder request = newRequest(source).GET().header("Accept", JSON);
     authHeaders(source, secret).forEach(request::header);
     return mapper.readTree(send(request.build()).body());
   }
@@ -65,32 +78,28 @@ public class SourceRowsFetcher {
     }
     Map<String, String> auth = authHeaders(source, secret);
     HttpResponse<String> init =
-        send(mcpPost(source, auth, null, rpc(1, "initialize", initParams())));
-    String session = init.headers().firstValue("Mcp-Session-Id").orElse(null);
+        send(mcpPost(source, auth, null, rpc(INITIALIZE_ID, "initialize", initializeParams())));
+    String session = init.headers().firstValue(MCP_SESSION_HEADER).orElse(null);
     send(mcpPost(source, auth, session, rpc(null, "notifications/initialized", Map.of())));
-    JsonNode reply =
-        rpcResult(
-            send(
-                mcpPost(
-                    source,
-                    auth,
-                    session,
-                    rpc(
-                        2,
-                        "tools/call",
-                        Map.of("name", source.getToolName(), "arguments", Map.of())))));
-    JsonNode structured = reply.get("structuredContent");
+    Map<String, Object> call =
+        rpc(CALL_ID, "tools/call", Map.of("name", source.getToolName(), "arguments", Map.of()));
+    JsonNode result = rpcResult(send(mcpPost(source, auth, session, call)));
+    return toolOutput(result);
+  }
+
+  private JsonNode toolOutput(JsonNode result) throws IOException {
+    JsonNode structured = result.get("structuredContent");
     if (structured != null) {
       return structured;
     }
-    JsonNode text = reply.path("content").path(0).path("text");
+    JsonNode text = result.path("content").path(0).path("text");
     if (text.isMissingNode()) {
       throw badGateway("The MCP tool returned no content.");
     }
     return mapper.readTree(text.asText());
   }
 
-  private Map<String, Object> initParams() {
+  private Map<String, Object> initializeParams() {
     return Map.of(
         "protocolVersion", MCP_PROTOCOL,
         "capabilities", Map.of(),
@@ -112,47 +121,64 @@ public class SourceRowsFetcher {
       DataSourceEntity source, Map<String, String> auth, String session, Map<String, Object> body)
       throws IOException {
     HttpRequest.Builder request =
-        request(source)
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json, text/event-stream")
+        newRequest(source)
+            .header("Content-Type", JSON)
+            .header("Accept", JSON_OR_EVENTS)
             .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
     auth.forEach(request::header);
     if (session != null) {
-      request.header("Mcp-Session-Id", session);
+      request.header(MCP_SESSION_HEADER, session);
     }
     return request.build();
   }
 
   /** The reply is plain JSON or a server-sent event stream carrying one JSON-RPC message. */
   private JsonNode rpcResult(HttpResponse<String> response) throws IOException {
-    String body = response.body();
-    String payload = body;
-    if (body.stripLeading().startsWith("event:") || body.stripLeading().startsWith("data:")) {
-      payload =
-          body.lines()
-              .filter(line -> line.startsWith("data:"))
-              .reduce((first, second) -> second)
-              .map(line -> line.substring(5).trim())
-              .orElse("{}");
-    }
-    JsonNode message = mapper.readTree(payload);
+    JsonNode message = mapper.readTree(jsonPayload(response.body()));
     if (message.has("error")) {
       throw badGateway("MCP error: " + message.path("error").path("message").asText("unknown"));
     }
     return message.path("result");
   }
 
-  private HttpRequest.Builder request(DataSourceEntity source) {
-    URI uri = URI.create(source.getEndpoint().trim());
-    if (!"http".equals(uri.getScheme()) && !"https".equals(uri.getScheme())) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The endpoint must be http(s).");
+  private static String jsonPayload(String body) {
+    String trimmed = body.stripLeading();
+    boolean isEventStream = trimmed.startsWith(EVENT_PREFIX) || trimmed.startsWith(DATA_PREFIX);
+    if (!isEventStream) {
+      return body;
     }
+    return trimmed
+        .lines()
+        .filter(line -> line.startsWith(DATA_PREFIX))
+        .reduce((first, second) -> second)
+        .map(line -> line.substring(DATA_PREFIX.length()).trim())
+        .orElse("{}");
+  }
+
+  private HttpRequest.Builder newRequest(DataSourceEntity source) {
+    URI uri = URI.create(source.getEndpoint().trim());
+    boolean isHttp = "http".equals(uri.getScheme()) || "https".equals(uri.getScheme());
+    if (!isHttp || uri.getHost() == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The endpoint must be an http(s) URL.");
+    }
+    rejectLinkLocal(uri.getHost());
     return HttpRequest.newBuilder(uri).timeout(TIMEOUT);
+  }
+
+  /** Cloud metadata services live on link-local addresses: never a legitimate source. */
+  private static void rejectLinkLocal(String host) {
+    try {
+      if (InetAddress.getByName(host).isLinkLocalAddress()) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This address is not allowed.");
+      }
+    } catch (java.net.UnknownHostException e) {
+      throw badGateway("Unknown host: " + host);
+    }
   }
 
   private HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {
     HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
-    if (response.statusCode() >= 300) {
+    if (response.statusCode() >= HTTP_REDIRECT_STATUS) {
       throw badGateway("Source answered HTTP " + response.statusCode() + ".");
     }
     return response;
@@ -165,22 +191,22 @@ public class SourceRowsFetcher {
     }
     return switch (type) {
       case BEARER -> Map.of("Authorization", "Bearer " + secret);
-      case API_KEY ->
-          Map.of(
-              StringUtils.hasText(source.getAuthHeaderName()) ? source.getAuthHeaderName() : "X-API-Key",
-              secret);
-      case BASIC ->
-          Map.of(
-              "Authorization",
-              "Basic "
-                  + Base64.getEncoder()
-                      .encodeToString(
-                          ((source.getAuthUsername() != null ? source.getAuthUsername() : "")
-                                  + ":"
-                                  + secret)
-                              .getBytes(StandardCharsets.UTF_8)));
+      case API_KEY -> Map.of(apiKeyHeader(source), secret);
+      case BASIC -> Map.of("Authorization", basicCredentials(source, secret));
       case NONE -> Map.of();
     };
+  }
+
+  private static String apiKeyHeader(DataSourceEntity source) {
+    return StringUtils.hasText(source.getAuthHeaderName())
+        ? source.getAuthHeaderName()
+        : DEFAULT_API_KEY_HEADER;
+  }
+
+  private static String basicCredentials(DataSourceEntity source, String secret) {
+    String username = source.getAuthUsername() != null ? source.getAuthUsername() : "";
+    byte[] raw = (username + ":" + secret).getBytes(StandardCharsets.UTF_8);
+    return "Basic " + Base64.getEncoder().encodeToString(raw);
   }
 
   private static JsonNode navigate(JsonNode root, String path) {
@@ -193,7 +219,7 @@ public class SourceRowsFetcher {
     return node;
   }
 
-  private List<Map<String, Object>> rows(JsonNode array) {
+  private List<Map<String, Object>> toRows(JsonNode array) {
     if (!array.isArray()) {
       throw badGateway("The source did not return a list of rows.");
     }

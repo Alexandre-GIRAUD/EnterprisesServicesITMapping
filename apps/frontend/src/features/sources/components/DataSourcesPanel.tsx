@@ -1,20 +1,20 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { DataModelFieldDto, DataSourceDto, DataSourceRequest } from '@/types/api';
+import { useCallback, useEffect, useState } from 'react';
+import type { DataModelFieldDto, DataSourceDto, SourceNameDto, SourceSyncResponse } from '@/types/api';
 import { getDataModelRequest } from '@/features/datamodel/api/dataModelApi';
 import {
   createSource,
   deleteSource,
+  listSourceNames,
   listSources,
   previewSource,
   syncSource,
   updateSource,
 } from '../api/sourcesApi';
+import { SourceForm, type SourceDraft } from './SourceForm';
 import { SourceMappingAlert } from './SourceMappingAlert';
 import { SourceMappingEditor } from './SourceMappingEditor';
 
-type SourceDraft = DataSourceRequest & { secret: string };
-
-const EMPTY: SourceDraft = {
+const EMPTY_DRAFT: SourceDraft = {
   name: '',
   kind: 'API',
   endpoint: '',
@@ -28,10 +28,21 @@ const EMPTY: SourceDraft = {
   secret: '',
 };
 
+const FALLBACK_ERROR = 'Request failed.';
+
+function describeSync(result: SourceSyncResponse): string {
+  const parts = [`Synced ${result.updatedApplications} applications`];
+  if (result.failedApplications) parts.push(`${result.failedApplications} rejected values`);
+  if (result.missingKeyApplications) parts.push(`${result.missingKeyApplications} keys not found in the source`);
+  if (result.fieldsWithoutColumn.length) parts.push(`column not defined: ${result.fieldsWithoutColumn.join(', ')}`);
+  return `${parts.join(', ')}.`;
+}
+
 type DataSourcesPanelProps = { isAdmin: boolean; initialMappingId?: string | null };
 
 export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourcesPanelProps) {
-  const [sources, setSources] = useState<DataSourceDto[]>([]);
+  const [sources, setSources] = useState<SourceNameDto[]>([]);
+  const [definitions, setDefinitions] = useState<DataSourceDto[]>([]);
   const [nodeFields, setNodeFields] = useState<DataModelFieldDto[]>([]);
   const [draft, setDraft] = useState<SourceDraft | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -39,17 +50,20 @@ export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourc
   const [mappingId, setMappingId] = useState<string | null>(initialMappingId);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [refresh, setRefresh] = useState(0);
+  const [alertVersion, setAlertVersion] = useState(0);
 
   const reload = useCallback(async () => {
-    setSources(await listSources());
-    const model = await getDataModelRequest();
-    setNodeFields(model.fields.filter((field) => field.target === 'NODE'));
-    setRefresh((n) => n + 1);
-  }, []);
+    setSources(await listSourceNames());
+    if (isAdmin) {
+      setDefinitions(await listSources());
+      const model = await getDataModelRequest();
+      setNodeFields(model.fields.filter((field) => field.target === 'NODE'));
+    }
+    setAlertVersion((version) => version + 1);
+  }, [isAdmin]);
 
   useEffect(() => {
-    reload().catch((e: unknown) => setError(e instanceof Error ? e.message : 'Unable to load sources.'));
+    reload().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'Unable to load sources.'));
   }, [reload]);
 
   async function run(action: () => Promise<void>) {
@@ -57,29 +71,29 @@ export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourc
     setMessage(null);
     try {
       await action();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Request failed.');
+    } catch (cause: unknown) {
+      setError(cause instanceof Error ? cause.message : FALLBACK_ERROR);
     }
   }
 
-  function startEdit(source: DataSourceDto | null) {
+  function startEdit(id: string | null) {
+    const definition = definitions.find((item) => item.id === id);
     setColumns([]);
-    setEditingId(source?.id ?? null);
-    setDraft(source ? { ...source, secret: '' } : { ...EMPTY });
+    setEditingId(definition?.id ?? null);
+    setDraft(definition ? { ...definition, secret: '' } : { ...EMPTY_DRAFT });
   }
 
-  function patch(change: Partial<SourceDraft>) {
+  function changeDraft(change: Partial<SourceDraft>) {
     setDraft((current) => (current ? { ...current, ...change } : current));
   }
 
-  function patchColumn(fieldKey: string, column: string) {
+  function changeColumn(fieldKey: string, column: string) {
     setDraft((current) =>
       current ? { ...current, columnMap: { ...current.columnMap, [fieldKey]: column } } : current,
     );
   }
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function saveDraft() {
     if (!draft) return;
     await run(async () => {
       const saved = editingId ? await updateSource(editingId, draft) : await createSource(draft);
@@ -90,7 +104,7 @@ export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourc
     });
   }
 
-  async function onTest() {
+  async function testConnection() {
     if (!editingId) return;
     await run(async () => {
       const result = await previewSource(editingId);
@@ -99,18 +113,11 @@ export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourc
     });
   }
 
-  async function onSync(id: string) {
-    await run(async () => {
-      const result = await syncSource(id);
-      const rejected = result.failedApplications ? `, ${result.failedApplications} rejected values` : '';
-      const missing = result.fieldsWithoutColumn.length
-        ? `. Column not defined: ${result.fieldsWithoutColumn.join(', ')}`
-        : '.';
-      setMessage(`Synced ${result.updatedApplications} applications${rejected}${missing}`);
-    });
+  async function syncNow(id: string) {
+    await run(async () => setMessage(describeSync(await syncSource(id))));
   }
 
-  async function onDelete(id: string) {
+  async function removeSource(id: string) {
     await run(async () => {
       await deleteSource(id);
       if (editingId === id) setDraft(null);
@@ -119,11 +126,11 @@ export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourc
   }
 
   const mappingSource = sources.find((source) => source.id === mappingId) ?? null;
-  const editingSource = sources.find((source) => source.id === editingId) ?? null;
+  const editingSource = definitions.find((source) => source.id === editingId) ?? null;
 
   return (
     <div className="data-sources">
-      <SourceMappingAlert refreshKey={refresh} onOpenMapping={setMappingId} />
+      <SourceMappingAlert refreshKey={alertVersion} onOpenMapping={setMappingId} />
       {error ? (
         <p className="github-import-state github-import-state-error" role="alert">
           {error}
@@ -141,16 +148,16 @@ export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourc
             <strong>{source.name}</strong> <span className="source-hint">{source.kind}</span>
             {isAdmin ? (
               <span className="source-actions">
-                <button type="button" className="github-import-btn-secondary" onClick={() => startEdit(source)}>
+                <button type="button" className="github-import-btn-secondary" onClick={() => startEdit(source.id)}>
                   Edit
                 </button>
                 <button type="button" className="github-import-btn-secondary" onClick={() => setMappingId(source.id)}>
                   Mapping
                 </button>
-                <button type="button" className="github-import-btn-secondary" onClick={() => void onSync(source.id)}>
+                <button type="button" className="github-import-btn-secondary" onClick={() => void syncNow(source.id)}>
                   Sync
                 </button>
-                <button type="button" className="github-import-btn-secondary" onClick={() => void onDelete(source.id)}>
+                <button type="button" className="github-import-btn-secondary" onClick={() => void removeSource(source.id)}>
                   Delete
                 </button>
               </span>
@@ -166,7 +173,7 @@ export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourc
         </button>
       ) : null}
 
-      {mappingSource ? (
+      {isAdmin && mappingSource ? (
         <SourceMappingEditor
           sourceId={mappingSource.id}
           sourceName={mappingSource.name}
@@ -176,146 +183,17 @@ export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourc
       ) : null}
 
       {draft ? (
-        <form className="github-import-third-party-form" onSubmit={(event) => void onSubmit(event)}>
-          <label className="github-import-search-label">
-            <span className="github-import-search-span">Name</span>
-            <input
-              className="github-import-search-input"
-              required
-              value={draft.name}
-              onChange={(e) => patch({ name: e.target.value })}
-            />
-          </label>
-          <label className="github-import-search-label">
-            <span className="github-import-search-span">Type</span>
-            <select
-              className="github-import-search-input"
-              value={draft.kind}
-              onChange={(e) => patch({ kind: e.target.value as SourceDraft['kind'] })}
-            >
-              <option value="API">API (GET, JSON list)</option>
-              <option value="MCP">MCP server</option>
-            </select>
-          </label>
-          <label className="github-import-search-label">
-            <span className="github-import-search-span">{draft.kind === 'MCP' ? 'Server URL' : 'Endpoint'}</span>
-            <input
-              className="github-import-search-input"
-              required
-              type="url"
-              value={draft.endpoint}
-              onChange={(e) => patch({ endpoint: e.target.value })}
-            />
-          </label>
-          {draft.kind === 'MCP' ? (
-            <label className="github-import-search-label">
-              <span className="github-import-search-span">Tool name</span>
-              <input
-                className="github-import-search-input"
-                required
-                value={draft.toolName ?? ''}
-                onChange={(e) => patch({ toolName: e.target.value })}
-              />
-            </label>
-          ) : null}
-          <label className="github-import-search-label">
-            <span className="github-import-search-span">Path to the list (optional, e.g. data.items)</span>
-            <input
-              className="github-import-search-input"
-              value={draft.itemsPath ?? ''}
-              onChange={(e) => patch({ itemsPath: e.target.value })}
-            />
-          </label>
-          <label className="github-import-search-label">
-            <span className="github-import-search-span">Authentication</span>
-            <select
-              className="github-import-search-input"
-              value={draft.authType}
-              onChange={(e) => patch({ authType: e.target.value as SourceDraft['authType'] })}
-            >
-              <option value="NONE">None</option>
-              <option value="BEARER">Bearer token</option>
-              <option value="API_KEY">API key header</option>
-              <option value="BASIC">Basic</option>
-            </select>
-          </label>
-          {draft.authType === 'API_KEY' ? (
-            <label className="github-import-search-label">
-              <span className="github-import-search-span">Header name</span>
-              <input
-                className="github-import-search-input"
-                value={draft.authHeaderName ?? ''}
-                onChange={(e) => patch({ authHeaderName: e.target.value })}
-              />
-            </label>
-          ) : null}
-          {draft.authType === 'BASIC' ? (
-            <label className="github-import-search-label">
-              <span className="github-import-search-span">Username</span>
-              <input
-                className="github-import-search-input"
-                value={draft.authUsername ?? ''}
-                onChange={(e) => patch({ authUsername: e.target.value })}
-              />
-            </label>
-          ) : null}
-          {draft.authType !== 'NONE' ? (
-            <label className="github-import-search-label">
-              <span className="github-import-search-span">
-                Secret{editingSource?.secretSet ? ' (set, leave blank to keep)' : ''}
-              </span>
-              <input
-                className="github-import-search-input"
-                type="password"
-                autoComplete="new-password"
-                value={draft.secret}
-                onChange={(e) => patch({ secret: e.target.value })}
-              />
-            </label>
-          ) : null}
-          <label className="github-import-search-label">
-            <span className="github-import-search-span">Key column (the application identifier in the source)</span>
-            <input
-              className="github-import-search-input"
-              list="source-columns"
-              value={draft.keyColumn ?? ''}
-              onChange={(e) => patch({ keyColumn: e.target.value })}
-            />
-          </label>
-          <datalist id="source-columns">
-            {columns.map((column) => (
-              <option key={column} value={column} />
-            ))}
-          </datalist>
-          {nodeFields.length > 0 ? <p className="source-hint">Column feeding each application attribute</p> : null}
-          {nodeFields.map((field) => (
-            <label key={field.key} className="github-import-search-label">
-              <span className="github-import-search-span">{field.label}</span>
-              <input
-                className="github-import-search-input"
-                list="source-columns"
-                value={draft.columnMap[field.key] ?? ''}
-                onChange={(e) => patchColumn(field.key, e.target.value)}
-              />
-            </label>
-          ))}
-          <div className="source-actions">
-            <button type="submit" className="github-import-btn">
-              Save
-            </button>
-            <button
-              type="button"
-              className="github-import-btn-secondary"
-              disabled={!editingId}
-              onClick={() => void onTest()}
-            >
-              Test connection
-            </button>
-            <button type="button" className="github-import-btn-secondary" onClick={() => setDraft(null)}>
-              Close
-            </button>
-          </div>
-        </form>
+        <SourceForm
+          draft={draft}
+          editingSource={editingSource}
+          nodeFields={nodeFields}
+          columns={columns}
+          onChange={changeDraft}
+          onColumnChange={changeColumn}
+          onSubmit={() => void saveDraft()}
+          onTest={() => void testConnection()}
+          onClose={() => setDraft(null)}
+        />
       ) : null}
     </div>
   );

@@ -70,11 +70,11 @@ public class DataModelValidator {
       if (field.hasExternalSource()) {
         if (field.target() != DataModelTarget.NODE) {
           throw new ResponseStatusException(
-              HttpStatus.BAD_REQUEST, "source reservee aux attributs application (NODE): " + key);
+              HttpStatus.BAD_REQUEST, "A source can only feed application (NODE) attributes: " + key);
         }
         if (!knownSourceIds.contains(field.sourceId())) {
           throw new ResponseStatusException(
-              HttpStatus.BAD_REQUEST, "source inconnue pour la cle: " + key);
+              HttpStatus.BAD_REQUEST, "Unknown source for key: " + key);
         }
       }
       List<String> allowed = field.allowedValues() != null ? field.allowedValues() : List.of();

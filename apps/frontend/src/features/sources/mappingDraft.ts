@@ -14,21 +14,21 @@ export function mappingRows(
   saved: SourceMappingEntryDto[],
   suggestions: Record<string, string>,
 ): MappingRow[] {
-  return applications.map((app) => {
-    const entry = saved.find((item) => item.applicationId === app.id);
+  return applications.map((application) => {
+    const entry = saved.find((item) => item.applicationId === application.id);
     if (entry) {
       return {
-        applicationId: app.id,
-        name: app.name,
+        applicationId: application.id,
+        name: application.name,
         sourceKey: entry.sourceKey ?? '',
         noMatch: entry.noMatch,
         suggested: false,
       };
     }
-    const suggestion = suggestions[app.id];
+    const suggestion = suggestions[application.id];
     return {
-      applicationId: app.id,
-      name: app.name,
+      applicationId: application.id,
+      name: application.name,
       sourceKey: suggestion ?? '',
       noMatch: false,
       suggested: suggestion !== undefined,

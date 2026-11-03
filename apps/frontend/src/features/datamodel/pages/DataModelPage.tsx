@@ -11,7 +11,7 @@ import {
   type AttributeRowChange,
 } from '@/features/datamodel/components/DataModelAttributeRow';
 import { DataModelIcon } from '@/features/datamodel/components/DataModelIcons';
-import { listSources } from '@/features/sources/api/sourcesApi';
+import { listSourceNames } from '@/features/sources/api/sourcesApi';
 import { DataModelToolbar } from '@/features/datamodel/components/DataModelToolbar';
 import {
   applySavedFields,
@@ -81,7 +81,7 @@ export function DataModelPage() {
     setRows(rowsFromFields(data.fields));
     setUpdatedAt(data.updatedAt);
     setPromptPreview(await getDataModelPromptPreviewRequest());
-    setSources(await listSources());
+    setSources(await listSourceNames());
   }, []);
 
   useEffect(() => {

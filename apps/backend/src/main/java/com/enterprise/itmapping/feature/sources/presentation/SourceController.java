@@ -4,6 +4,7 @@ import com.enterprise.itmapping.feature.sources.application.SourceService;
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.MappingAlertDto;
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.MappingPutRequest;
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.MappingResponse;
+import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.SourceNameDto;
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.SourcePreviewResponse;
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.SourceRequest;
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.SourceResponse;
@@ -33,8 +34,14 @@ public class SourceController {
   }
 
   @GetMapping
+  @PreAuthorize("hasRole('ADMIN')")
   public List<SourceResponse> list() {
     return service.list();
+  }
+
+  @GetMapping("/names")
+  public List<SourceNameDto> names() {
+    return service.listNames();
   }
 
   @GetMapping("/alerts")
@@ -76,7 +83,8 @@ public class SourceController {
   @PreAuthorize("hasRole('ADMIN')")
   public SyncResponse saveMapping(
       @PathVariable UUID id, @Valid @RequestBody MappingPutRequest request) {
-    return service.saveMapping(id, request.entries());
+    service.saveMapping(id, request.entries());
+    return service.sync(id);
   }
 
   @PostMapping("/{id}/sync")

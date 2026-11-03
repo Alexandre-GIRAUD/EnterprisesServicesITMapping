@@ -527,9 +527,12 @@ export type SourceMappingResponse = {
   suggestions: Record<string, string>;
 };
 
+export type SourceNameDto = { id: string; name: string; kind: SourceKind };
+
 export type SourceSyncResponse = {
   updatedApplications: number;
   failedApplications: number;
+  missingKeyApplications: number;
   fieldsWithoutColumn: string[];
 };
 

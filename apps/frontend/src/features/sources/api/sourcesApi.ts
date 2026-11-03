@@ -4,6 +4,7 @@ import type {
   DataSourceRequest,
   SourceMappingAlertDto,
   SourceMappingEntryDto,
+  SourceNameDto,
   SourceMappingResponse,
   SourceSyncResponse,
 } from '@/types/api';
@@ -26,6 +27,7 @@ const send = (method: string, body?: unknown): RequestInit => ({
   body: body === undefined ? undefined : JSON.stringify(body),
 });
 
+export const listSourceNames = () => call<SourceNameDto[]>('/names');
 export const listSources = () => call<DataSourceDto[]>('');
 export const createSource = (body: DataSourceRequest) => call<DataSourceDto>('', send('POST', body));
 export const updateSource = (id: string, body: DataSourceRequest) =>

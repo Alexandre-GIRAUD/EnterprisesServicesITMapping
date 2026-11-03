@@ -13,7 +13,7 @@ export function SourceMappingEditor({ sourceId, sourceName, onClose, onSaved }: 
   const [rows, setRows] = useState<MappingRow[]>([]);
   const [keys, setKeys] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +38,7 @@ export function SourceMappingEditor({ sourceId, sourceName, onClose, onSaved }: 
   }
 
   async function save() {
-    setBusy(true);
+    setIsBusy(true);
     setError(null);
     try {
       await saveSourceMapping(sourceId, toMappingPayload(rows));
@@ -47,7 +47,7 @@ export function SourceMappingEditor({ sourceId, sourceName, onClose, onSaved }: 
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unable to save the mapping.');
     } finally {
-      setBusy(false);
+      setIsBusy(false);
     }
   }
 
@@ -100,8 +100,8 @@ export function SourceMappingEditor({ sourceId, sourceName, onClose, onSaved }: 
         </tbody>
       </table>
       <div className="source-actions">
-        <button type="button" className="github-import-btn" disabled={busy} onClick={() => void save()}>
-          {busy ? 'Saving…' : 'Save and sync'}
+        <button type="button" className="github-import-btn" disabled={isBusy} onClick={() => void save()}>
+          {isBusy ? 'Saving…' : 'Save and sync'}
         </button>
         <button type="button" className="github-import-btn-secondary" onClick={onClose}>
           Cancel

@@ -16,12 +16,12 @@ import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.Appl
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.MappingAlertDto;
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.MappingEntryDto;
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.MappingResponse;
+import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.SourceNameDto;
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.SourcePreviewResponse;
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.SourceRequest;
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.SourceResponse;
 import com.enterprise.itmapping.feature.sources.presentation.dto.SourceDtos.SyncResponse;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -41,12 +41,16 @@ import org.springframework.web.server.ResponseStatusException;
 /**
  * Data sources that fill Data Model NODE attributes: definition, application mapping, sync and the
  * alert listing applications still waiting for a mapping decision.
+ *
+ * <p>Calls to a source are network round trips, so they never run inside a database transaction.
  */
 @Service
 public class SourceService {
 
   private static final Logger log = LoggerFactory.getLogger(SourceService.class);
-  private static final String WRITER = "SOURCE";
+  private static final String ATTRIBUTE_WRITER = "SOURCE";
+  /** Loads every application: no id is excluded. */
+  private static final String NO_EXCLUDED_APPLICATION = "";
 
   private final DataSourceRepository sources;
   private final SourceMappingRepository mappings;
@@ -78,6 +82,14 @@ public class SourceService {
     return sources.findAll().stream().map(SourceService::toResponse).toList();
   }
 
+  /** Names only: safe to show to every user. */
+  @Transactional(readOnly = true)
+  public List<SourceNameDto> listNames() {
+    return sources.findAll().stream()
+        .map(source -> new SourceNameDto(source.getId().toString(), source.getName(), source.getKind()))
+        .toList();
+  }
+
   @Transactional
   public SourceResponse create(SourceRequest request) {
     DataSourceEntity entity = new DataSourceEntity();
@@ -95,157 +107,184 @@ public class SourceService {
   @Transactional
   public void delete(UUID id) {
     require(id);
-    boolean used =
-        dataModel.loadConfig().nodeFields().stream()
-            .anyMatch(field -> id.toString().equals(field.sourceId()));
-    if (used) {
+    if (!fieldsFedBy(id).isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Data Model attributes still use this source.");
     }
     sources.deleteById(id);
   }
 
-  @Transactional(readOnly = true)
   public SourcePreviewResponse preview(UUID id) {
-    List<Map<String, Object>> rows = rows(require(id));
+    List<Map<String, Object>> rows = fetchRows(require(id));
     Set<String> columns = new LinkedHashSet<>();
     rows.forEach(row -> columns.addAll(row.keySet()));
     return new SourcePreviewResponse(List.copyOf(columns), rows.size());
   }
 
-  @Transactional(readOnly = true)
   public MappingResponse mapping(UUID id) {
     DataSourceEntity source = require(id);
-    List<CatalogRow> apps = catalog.loadExcluding("");
-    List<String> keys = keys(rows(source), source.getKeyColumn());
+    List<CatalogRow> applications = catalog.loadExcluding(NO_EXCLUDED_APPLICATION);
+    List<String> keys = extractKeys(fetchRows(source), source.getKeyColumn());
     Map<String, String> names = new LinkedHashMap<>();
-    apps.forEach(app -> names.put(app.id(), app.name()));
-    List<MappingEntryDto> saved =
-        mappings.findBySourceId(id).stream()
-            .map(m -> new MappingEntryDto(m.getApplicationId(), m.getSourceKey(), m.isNoMatch()))
-            .toList();
+    applications.forEach(application -> names.put(application.id(), application.name()));
     return new MappingResponse(
         keys,
-        apps.stream().map(app -> new ApplicationRef(app.id(), app.name())).toList(),
-        saved,
+        applications.stream()
+            .map(application -> new ApplicationRef(application.id(), application.name()))
+            .toList(),
+        savedEntries(id),
         SourceNameMatcher.suggest(names, keys));
   }
 
-  /** Replaces the mapping of this source, then fills the attributes from it. */
+  /** Replaces the mapping of this source. Call {@link #sync} afterwards to fill the attributes. */
   @Transactional
-  public SyncResponse saveMapping(UUID id, List<MappingEntryDto> entries) {
+  public void saveMapping(UUID id, List<MappingEntryDto> entries) {
     require(id);
     mappings.deleteBySourceId(id);
     mappings.flush();
-    for (MappingEntryDto entry : entries) {
-      boolean hasKey = StringUtils.hasText(entry.sourceKey());
-      if (!hasKey && !entry.noMatch()) {
-        continue;
-      }
-      SourceMappingEntity row = new SourceMappingEntity();
-      row.setSourceId(id);
-      row.setApplicationId(entry.applicationId());
-      row.setSourceKey(hasKey && !entry.noMatch() ? entry.sourceKey().trim() : null);
-      row.setNoMatch(entry.noMatch());
-      mappings.save(row);
-    }
-    return sync(id);
+    entries.stream().filter(SourceService::isDecision).forEach(entry -> mappings.save(toRow(id, entry)));
   }
 
-  @Transactional
   public SyncResponse sync(UUID id) {
     DataSourceEntity source = require(id);
-    List<DataModelField> fields =
-        dataModel.loadConfig().nodeFields().stream()
-            .filter(field -> id.toString().equals(field.sourceId()))
-            .toList();
-    Map<String, String> columns = new LinkedHashMap<>();
-    List<String> withoutColumn = new ArrayList<>();
-    for (DataModelField field : fields) {
-      String column = source.getColumnMap().get(field.key());
-      if (StringUtils.hasText(column)) {
-        columns.put(field.key(), column);
-      } else {
-        withoutColumn.add(field.key());
-      }
-    }
-    int updated = 0;
-    int failed = 0;
+    List<DataModelField> fields = fieldsFedBy(id);
+    Map<String, String> columns = columnsByField(source, fields);
+    List<String> fieldsWithoutColumn =
+        fields.stream().map(DataModelField::key).filter(key -> !columns.containsKey(key)).toList();
+    SyncCounters counters = new SyncCounters();
     if (!columns.isEmpty()) {
-      List<Map<String, Object>> rows = rows(source);
-      for (SourceMappingEntity mapping : mappings.findBySourceId(id)) {
-        if (mapping.isNoMatch() || !StringUtils.hasText(mapping.getSourceKey())) {
-          continue;
-        }
-        Map<String, Object> values =
-            SourceRowValues.extract(
-                SourceRowValues.findRow(rows, source.getKeyColumn(), mapping.getSourceKey()),
-                columns);
-        if (values.isEmpty()) {
-          continue;
-        }
-        try {
-          attributes.patchAi(mapping.getApplicationId(), values, WRITER);
-          updated++;
-        } catch (ResponseStatusException e) {
-          log.warn("Source {} value rejected for application {}: {}", id, mapping.getApplicationId(), e.getReason());
-          failed++;
-        }
-      }
+      List<Map<String, Object>> rows = fetchRows(source);
+      mappings.findBySourceId(id).stream()
+          .filter(mapping -> !mapping.isNoMatch() && StringUtils.hasText(mapping.getSourceKey()))
+          .forEach(mapping -> syncApplication(source, rows, columns, mapping, counters));
     }
-    return new SyncResponse(updated, failed, withoutColumn);
+    return new SyncResponse(
+        counters.updated, counters.failed, counters.missingKey, fieldsWithoutColumn);
   }
 
   /** Applications without any mapping decision, per source that feeds an attribute. */
   @Transactional(readOnly = true)
   public List<MappingAlertDto> alerts() {
-    Set<String> used =
+    Set<String> usedSourceIds =
         dataModel.loadConfig().nodeFields().stream()
             .filter(DataModelField::hasExternalSource)
             .map(DataModelField::sourceId)
             .collect(Collectors.toSet());
-    if (used.isEmpty()) {
+    if (usedSourceIds.isEmpty()) {
       return List.of();
     }
-    List<CatalogRow> apps = catalog.loadExcluding("");
+    List<CatalogRow> applications = catalog.loadExcluding(NO_EXCLUDED_APPLICATION);
+    Map<String, List<String>> pending =
+        SourceMappingAlerts.compute(
+            usedSourceIds,
+            applications.stream().map(CatalogRow::id).toList(),
+            decidedApplications(usedSourceIds));
     Map<String, String> names = new HashMap<>();
-    apps.forEach(app -> names.put(app.id(), app.name()));
+    applications.forEach(application -> names.put(application.id(), application.name()));
+    List<MappingAlertDto> alerts = new ArrayList<>();
+    pending.forEach(
+        (sourceId, applicationIds) ->
+            sources
+                .findById(UUID.fromString(sourceId))
+                .ifPresent(
+                    source -> alerts.add(toAlert(source, applicationIds, names))));
+    return alerts;
+  }
+
+  private static MappingAlertDto toAlert(
+      DataSourceEntity source, List<String> applicationIds, Map<String, String> names) {
+    return new MappingAlertDto(
+        source.getId().toString(),
+        source.getName(),
+        applicationIds.stream().map(id -> new ApplicationRef(id, names.get(id))).toList());
+  }
+
+  private Map<String, Set<String>> decidedApplications(Set<String> sourceIds) {
     Map<String, Set<String>> decided = new HashMap<>();
-    for (String sourceId : used) {
+    for (String sourceId : sourceIds) {
       decided.put(
           sourceId,
           mappings.findBySourceId(UUID.fromString(sourceId)).stream()
               .map(SourceMappingEntity::getApplicationId)
               .collect(Collectors.toSet()));
     }
-    Map<String, List<String>> pending =
-        SourceMappingAlerts.compute(used, apps.stream().map(CatalogRow::id).toList(), decided);
-    List<MappingAlertDto> alerts = new ArrayList<>();
-    pending.forEach(
-        (sourceId, appIds) ->
-            sources
-                .findById(UUID.fromString(sourceId))
-                .ifPresent(
-                    source ->
-                        alerts.add(
-                            new MappingAlertDto(
-                                sourceId,
-                                source.getName(),
-                                appIds.stream()
-                                    .map(appId -> new ApplicationRef(appId, names.get(appId)))
-                                    .toList()))));
-    return alerts;
+    return decided;
   }
 
-  public Set<String> knownIds() {
-    return sources.findAll().stream().map(s -> s.getId().toString()).collect(Collectors.toSet());
+  private void syncApplication(
+      DataSourceEntity source,
+      List<Map<String, Object>> rows,
+      Map<String, String> columns,
+      SourceMappingEntity mapping,
+      SyncCounters counters) {
+    Map<String, Object> row =
+        SourceRowValues.findRow(rows, source.getKeyColumn(), mapping.getSourceKey());
+    if (row.isEmpty()) {
+      counters.missingKey++;
+      return;
+    }
+    Map<String, Object> values = SourceRowValues.extract(row, columns);
+    if (values.isEmpty()) {
+      return;
+    }
+    try {
+      attributes.patchAi(mapping.getApplicationId(), values, ATTRIBUTE_WRITER);
+      counters.updated++;
+    } catch (RuntimeException e) {
+      log.warn(
+          "Source {} value rejected for application {}: {}",
+          source.getId(),
+          mapping.getApplicationId(),
+          e.getMessage());
+      counters.failed++;
+    }
   }
 
-  private List<Map<String, Object>> rows(DataSourceEntity source) {
+  private List<DataModelField> fieldsFedBy(UUID sourceId) {
+    return dataModel.loadConfig().nodeFields().stream()
+        .filter(field -> sourceId.toString().equals(field.sourceId()))
+        .toList();
+  }
+
+  private static Map<String, String> columnsByField(
+      DataSourceEntity source, List<DataModelField> fields) {
+    Map<String, String> columns = new LinkedHashMap<>();
+    for (DataModelField field : fields) {
+      String column = source.getColumnMap().get(field.key());
+      if (StringUtils.hasText(column)) {
+        columns.put(field.key(), column);
+      }
+    }
+    return columns;
+  }
+
+  private List<MappingEntryDto> savedEntries(UUID sourceId) {
+    return mappings.findBySourceId(sourceId).stream()
+        .map(
+            mapping ->
+                new MappingEntryDto(
+                    mapping.getApplicationId(), mapping.getSourceKey(), mapping.isNoMatch()))
+        .toList();
+  }
+
+  private static boolean isDecision(MappingEntryDto entry) {
+    return entry.noMatch() || StringUtils.hasText(entry.sourceKey());
+  }
+
+  private static SourceMappingEntity toRow(UUID sourceId, MappingEntryDto entry) {
+    SourceMappingEntity row = new SourceMappingEntity();
+    row.setSourceId(sourceId);
+    row.setApplicationId(entry.applicationId());
+    row.setSourceKey(entry.noMatch() ? null : entry.sourceKey().trim());
+    row.setNoMatch(entry.noMatch());
+    return row;
+  }
+
+  private List<Map<String, Object>> fetchRows(DataSourceEntity source) {
     return fetcher.fetch(source, decryptedSecret(source));
   }
 
-  private static List<String> keys(List<Map<String, Object>> rows, String keyColumn) {
+  private static List<String> extractKeys(List<Map<String, Object>> rows, String keyColumn) {
     if (!StringUtils.hasText(keyColumn)) {
       return List.of();
     }
@@ -264,9 +303,11 @@ public class SourceService {
   }
 
   private void apply(DataSourceEntity entity, SourceRequest request) {
+    String endpoint = request.endpoint().trim();
+    boolean isEndpointChanged = entity.getEndpoint() != null && !entity.getEndpoint().equals(endpoint);
     entity.setName(request.name().trim());
     entity.setKind(request.kind());
-    entity.setEndpoint(request.endpoint().trim());
+    entity.setEndpoint(endpoint);
     entity.setToolName(blankToNull(request.toolName()));
     entity.setItemsPath(blankToNull(request.itemsPath()));
     entity.setAuthType(request.authType() != null ? request.authType() : SourceAuthType.NONE);
@@ -274,11 +315,18 @@ public class SourceService {
     entity.setAuthUsername(blankToNull(request.authUsername()));
     entity.setKeyColumn(blankToNull(request.keyColumn()));
     entity.setColumnMap(cleanColumns(request.columnMap()));
+    applySecret(entity, request.secret(), isEndpointChanged);
+  }
+
+  /** A stored secret is never sent to a new endpoint: changing it requires typing a secret again. */
+  private void applySecret(DataSourceEntity entity, String secret, boolean isEndpointChanged) {
     if (entity.getAuthType() == SourceAuthType.NONE) {
       entity.setSecretEncrypted(null);
-    } else if (StringUtils.hasText(request.secret())) {
+    } else if (StringUtils.hasText(secret)) {
       requireEncryptionKey();
-      entity.setSecretEncrypted(GitHubTokenCipher.encrypt(request.secret(), jwt.secret()));
+      entity.setSecretEncrypted(GitHubTokenCipher.encrypt(secret, jwt.secret()));
+    } else if (isEndpointChanged) {
+      entity.setSecretEncrypted(null);
     }
   }
 
@@ -314,19 +362,26 @@ public class SourceService {
     return StringUtils.hasText(value) ? value.trim() : null;
   }
 
-  private static SourceResponse toResponse(DataSourceEntity e) {
+  private static SourceResponse toResponse(DataSourceEntity entity) {
     return new SourceResponse(
-        e.getId().toString(),
-        e.getName(),
-        e.getKind(),
-        e.getEndpoint(),
-        e.getToolName(),
-        e.getItemsPath(),
-        e.getAuthType(),
-        e.getAuthHeaderName(),
-        e.getAuthUsername(),
-        StringUtils.hasText(e.getSecretEncrypted()),
-        e.getKeyColumn(),
-        e.getColumnMap());
+        entity.getId().toString(),
+        entity.getName(),
+        entity.getKind(),
+        entity.getEndpoint(),
+        entity.getToolName(),
+        entity.getItemsPath(),
+        entity.getAuthType(),
+        entity.getAuthHeaderName(),
+        entity.getAuthUsername(),
+        StringUtils.hasText(entity.getSecretEncrypted()),
+        entity.getKeyColumn(),
+        entity.getColumnMap());
+  }
+
+  /** Mutable tally of one sync run. */
+  private static final class SyncCounters {
+    int updated;
+    int failed;
+    int missingKey;
   }
 }

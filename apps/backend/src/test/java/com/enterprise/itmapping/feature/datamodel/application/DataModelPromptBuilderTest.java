@@ -295,4 +295,15 @@ class DataModelPromptBuilderTest {
 
     assertThat(builder.buildPromptSection(config)).isEmpty();
   }
+
+  @Test
+  void aSourceForcesManualDetectionEvenWhenAutomaticIsSent() {
+    DataModelField field =
+        new DataModelField(
+            "region", "Region", "", "", List.of(), false, false,
+            DataModelDetection.AUTOMATIC_DETECTION, DataModelTarget.NODE, false, "s1");
+
+    assertThat(field.detection()).isEqualTo(DataModelDetection.MANUAL);
+    assertThat(builder.buildPromptSection(new DataModelConfig(List.of(field)))).isEmpty();
+  }
 }
