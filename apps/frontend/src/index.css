@@ -2360,8 +2360,8 @@ body.is-diagram-grown .layout {
   gap: 0.55rem;
 }
 
-/* My views keeps the solid docked menu. Bubbles stay on Cartography and Sandbox. */
-.map-graph-panel.is-views-mode.is-menu-open .self-service-side-menu-shell {
+/* My views and Sandbox use the solid docked menu. Bubbles stay on Cartography. */
+.map-graph-panel:is(.is-views-mode, .is-sandbox-mode).is-menu-open .self-service-side-menu-shell {
   position: relative;
   top: auto;
   right: auto;
@@ -2373,7 +2373,7 @@ body.is-diagram-grown .layout {
   pointer-events: auto;
 }
 
-.map-graph-panel.is-views-mode .self-service-side-menu {
+.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-side-menu {
   gap: 0;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -2383,25 +2383,25 @@ body.is-diagram-grown .layout {
   pointer-events: auto;
 }
 
-.map-graph-panel.is-views-mode .self-service-side-menu-header,
-.map-graph-panel.is-views-mode .self-service-tool-detail > :not(.graph-filter-drawer) {
+.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-side-menu-header,
+.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-tool-detail > :not(.graph-filter-drawer) {
   background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
 }
 
-.map-graph-panel.is-views-mode .self-service-side-menu-header {
+.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-side-menu-header {
   padding: 0.45rem 0.7rem 0.3rem;
 }
 
-.map-graph-panel.is-views-mode .self-service-side-menu-body {
+.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-side-menu-body {
   gap: 0;
   overflow: hidden;
   padding: 0 0.65rem 0.55rem;
 }
 
-.map-graph-panel.is-views-mode .self-service-tool-detail {
+.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-tool-detail {
   flex: 1;
   gap: 0.35rem;
   margin-top: 0.4rem;
@@ -2409,14 +2409,14 @@ body.is-diagram-grown .layout {
   overscroll-behavior: contain;
 }
 
-.map-graph-panel.is-views-mode .self-service-burger {
+.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-burger {
   border: 1px solid #e2e8f0;
   background: #ffffff;
   box-shadow: none;
 }
 
-.map-graph-panel.is-views-mode .self-service-burger:hover,
-.map-graph-panel.is-views-mode .self-service-burger.is-open {
+.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-burger:hover,
+.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-burger.is-open {
   border-color: #cbd5e1;
   background: #f8fafc;
   color: #334155;
@@ -3995,7 +3995,7 @@ body.is-diagram-grown .layout {
 
 .sandbox-shared-legend {
   position: absolute;
-  top: 0.65rem;
+  top: 3.6rem;
   left: 0.65rem;
   z-index: 5;
   pointer-events: none;
