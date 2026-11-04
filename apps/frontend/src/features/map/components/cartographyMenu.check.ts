@@ -74,7 +74,8 @@ assert.match(css, /\.map-graph-panel \.self-service-side-menu-body \{[^}]*paddin
 assert.equal((readFileSync(new URL('./GraphCanvas.tsx', import.meta.url), 'utf8').match(/<SelfServiceBurger/g) ?? []).length, 1);
 // My views is indented like the Data Model page.
 assert.match(css, /\.map-graph-panel\.is-views-mode \.graph-views-pane \{[^}]*padding-left: 1\.5rem[^}]*padding-right: 1\.5rem/);
-assert.match(css, /\.map-graph-panel\.is-views-mode \.graph-view-header \{[^}]*padding-left: 1\.5rem/);
+// The title text carries 0.65rem of its own padding: the header gives the rest so title and list share one edge.
+assert.match(css, /\.map-graph-panel\.is-views-mode \.graph-view-header \{[^}]*padding-left: calc\(1\.5rem - 0\.65rem\)/);
 assert.match(css, /\.graph-views-item-btn \{[^}]*border: 1px solid #e2e8f0[^}]*border-radius: 12px/);
 assert.match(css, /\.sandbox-pane__title \{[^}]*font-size: 0\.92rem[^}]*font-weight: 700[^}]*color: #0f172a/);
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*font-size: 0\.85rem[^}]*border-radius: 999px/);

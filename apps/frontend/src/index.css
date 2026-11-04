@@ -1864,7 +1864,7 @@ body.is-diagram-grown .layout {
 }
 
 .map-graph-panel.is-views-mode .graph-view-header {
-  padding-left: 1.5rem;
+  padding-left: calc(1.5rem - 0.65rem);
 }
 
 .map-graph-panel.is-views-mode .graph-views-item--view .graph-views-item-btn:hover,
