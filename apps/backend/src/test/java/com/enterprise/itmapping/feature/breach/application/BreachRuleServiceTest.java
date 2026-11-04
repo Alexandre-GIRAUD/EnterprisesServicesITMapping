@@ -7,6 +7,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
+import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
+import com.enterprise.itmapping.feature.breach.presentation.dto.BreachRuleRequest;
+import com.enterprise.itmapping.feature.breach.presentation.dto.BreachRuleResponse;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
+import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
+import org.hibernate.LazyInitializationException;
 import com.enterprise.itmapping.feature.breach.domain.BreachCombinator;
 import com.enterprise.itmapping.feature.breach.domain.BreachCondition;
 import com.enterprise.itmapping.feature.breach.domain.BreachDefinition;
@@ -42,14 +50,16 @@ class BreachRuleServiceTest {
 
   private final BreachRuleRepository repository = mock(BreachRuleRepository.class);
   private final GraphService graphService = mock(GraphService.class);
+  private final DataModelService dataModelService = mock(DataModelService.class);
+  private final CurrentUserResolver currentUserResolver = mock(CurrentUserResolver.class);
   private final BreachRuleService service =
       new BreachRuleService(
           repository,
           new BreachRuleValidator(),
           new BreachEvaluator(),
-          mock(DataModelService.class),
+          dataModelService,
           graphService,
-          mock(CurrentUserResolver.class));
+          currentUserResolver);
 
   private BreachRuleEntity expensiveApps;
   private BreachRuleEntity ftpFlows;
@@ -110,6 +120,42 @@ class BreachRuleServiceTest {
 
     assertThat(nodeIds(narrowed)).containsExactly("billing", "crm", "ledger");
     assertThat(narrowed.edges()).extracting(GraphEdgeDto::id).containsExactly("crm-ledger");
+  }
+
+  /**
+   * Regression: the saved copy returned by {@code merge} holds a lazy editor that cannot be read
+   * once the repository call's session is closed ("Could not initialize proxy ... no session").
+   */
+  @Test
+  void createdRuleNamesItsEditorWithoutReadingTheSavedCopysLazyEditor() {
+    UserEntity admin = new UserEntity();
+    admin.setUsername("admin");
+    UserEntity detachedProxy = mock(UserEntity.class);
+    when(detachedProxy.getUsername()).thenThrow(new LazyInitializationException("no session"));
+    when(currentUserResolver.requireCurrentUser()).thenReturn(admin);
+    when(dataModelService.loadConfig())
+        .thenReturn(
+            new DataModelConfig(
+                List.of(
+                    new DataModelField(
+                        "cost", "Cost", "", "", List.of(), false, false, DataModelDetection.MANUAL, DataModelTarget.NODE, false))));
+    when(repository.save(any()))
+        .thenAnswer(
+            invocation -> {
+              BreachRuleEntity merged = new BreachRuleEntity(((BreachRuleEntity) invocation.getArgument(0)).getId());
+              BreachRuleEntity submitted = invocation.getArgument(0);
+              merged.setName(submitted.getName());
+              merged.setSubject(submitted.getSubject());
+              merged.setDefinition(submitted.getDefinition());
+              merged.setUpdatedBy(detachedProxy);
+              return merged;
+            });
+
+    BreachRuleResponse created =
+        service.create(new BreachRuleRequest("Over budget", BreachSubject.APPLICATION, expensiveApps.getDefinition()));
+
+    assertThat(created.updatedBy()).isEqualTo("admin");
+    assertThat(created.breachCount()).isEqualTo(1);
   }
 
   @Test

@@ -57,7 +57,7 @@ public class BreachRuleService {
   public List<BreachRuleResponse> list() {
     GraphResponseDto graph = loadLiveGraph();
     return repository.findAllByOrderByNameAsc().stream()
-        .map(entity -> toResponse(entity, evaluator.evaluate(entity.toDomain(), graph)))
+        .map(entity -> toResponse(entity, evaluator.evaluate(entity.toDomain(), graph), editorName(entity)))
         .toList();
   }
 
@@ -140,9 +140,18 @@ public class BreachRuleService {
     entity.setName(request.name().trim());
     entity.setSubject(request.subject());
     entity.setDefinition(request.definition());
-    entity.setUpdatedBy(currentUserResolver.requireCurrentUser());
+    UserEntity editor = currentUserResolver.requireCurrentUser();
+    entity.setUpdatedBy(editor);
+    // The id is assigned up front, so save() merges: the returned copy holds a lazy editor that
+    // cannot be read once the repository session is closed. Name the editor from the loaded user.
     BreachRuleEntity saved = repository.save(entity);
-    return toResponse(saved, evaluator.evaluate(saved.toDomain(), loadLiveGraph()));
+    return toResponse(saved, evaluator.evaluate(saved.toDomain(), loadLiveGraph()), editor.getUsername());
+  }
+
+  /** Only for entities loaded with their editor (see {@link BreachRuleRepository#findAllByOrderByNameAsc}). */
+  private static String editorName(BreachRuleEntity entity) {
+    UserEntity editor = entity.getUpdatedBy();
+    return editor != null ? editor.getUsername() : null;
   }
 
   private BreachRuleEntity find(UUID id) {
@@ -151,8 +160,7 @@ public class BreachRuleService {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Breach rule not found."));
   }
 
-  private static BreachRuleResponse toResponse(BreachRuleEntity entity, BreachResult result) {
-    UserEntity updatedBy = entity.getUpdatedBy();
+  private static BreachRuleResponse toResponse(BreachRuleEntity entity, BreachResult result, String editorName) {
     return new BreachRuleResponse(
         entity.getId(),
         entity.getName(),
@@ -161,6 +169,6 @@ public class BreachRuleService {
         result.breaches().size(),
         result.unknown().size(),
         entity.getUpdatedAt(),
-        updatedBy != null ? updatedBy.getUsername() : null);
+        editorName);
   }
 }
