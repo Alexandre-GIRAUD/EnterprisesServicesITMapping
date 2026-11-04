@@ -34,7 +34,7 @@ const layout = readFileSync(new URL('./Layout.tsx', import.meta.url), 'utf8');
 assert.match(layout, /SidebarCollapseButton/);
 assert.match(layout, /storedSidebarCollapsed/);
 assert.match(layout, /is-collapsed/);
-assert.match(layout, /!isCollapsed/);
+assert.match(layout, /label="Sandbox"/);
 
 const tokens = readFileSync(new URL('./sidebarTokens.css', import.meta.url), 'utf8');
 assert.match(tokens, /--nav-rail-width:\s*72px/);

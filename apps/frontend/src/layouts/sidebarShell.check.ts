@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { mainNavigationEntries, profileInitial, profileRoleLabel, shouldOpenWorkspace } from './sidebarModel.ts';
+import { mainNavigationEntries, profileInitial, profileRoleLabel } from './sidebarModel.ts';
 import { nextMenuIndex, nextRovingIndex } from './sidebarRoving.ts';
 
 const { SidebarNavItem } = await import('./SidebarNavItem.tsx');
@@ -34,9 +34,6 @@ assert.equal(profileRoleLabel(['ADMIN']), 'Admin');
 assert.equal(profileRoleLabel(['ADMIN', 'USER']), 'Admin · User');
 assert.equal(profileRoleLabel([]), null);
 assert.equal(profileRoleLabel(['   ']), null);
-assert.equal(shouldOpenWorkspace(false, true), true);
-assert.equal(shouldOpenWorkspace(true, true), false);
-assert.equal(shouldOpenWorkspace(false, false), false);
 
 assert.equal(nextRovingIndex(0, 4, 'ArrowDown'), 1);
 assert.equal(nextRovingIndex(3, 4, 'ArrowDown'), 3);
@@ -105,9 +102,9 @@ const profileSource = readFileSync(new URL('./SidebarProfile.tsx', import.meta.u
 const nav = layout.slice(layout.indexOf('layout-sidebar-nav'), layout.indexOf('sidebar-footer'));
 assert.doesNotMatch(nav, /SettingsMenu/);
 assert.match(nav, /entry\.to === '\/map'/);
-assert.match(layout, /sidebar-disclosure/);
-assert.match(layout, /shouldOpenWorkspace/);
-assert.match(layout, /isWorkspaceOpen/);
+assert.match(layout, /label="Sandbox"/);
+assert.doesNotMatch(layout, /sidebar-disclosure/);
+assert.doesNotMatch(layout, /My views/);
 assert.doesNotMatch(layout, /Sign out/);
 assert.doesNotMatch(layout, /layout-sidebar-role/);
 assert.match(layout, /moveSidebarFocus/);

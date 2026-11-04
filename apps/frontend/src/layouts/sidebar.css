@@ -127,6 +127,10 @@
   padding-left: 0;
 }
 
+.layout-sidebar.is-collapsed .sidebar-nav-item .graph-mode-tab__draft {
+  display: none;
+}
+
 .layout-sidebar.is-collapsed .sidebar-nav-item-label,
 .layout-sidebar.is-collapsed .layout-brand h1,
 .layout-sidebar.is-collapsed .sidebar-profile-text {

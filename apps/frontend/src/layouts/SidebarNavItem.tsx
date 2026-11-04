@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import './sidebarTokens.css';
 
@@ -11,7 +11,10 @@ type SidebarNavItemProps = {
   badge?: string;
   showSeparator?: boolean;
   isActive?: boolean;
-  onClick?: () => void;
+  /** When set, replaces the route match. False keeps the item idle on the current page. */
+  isCurrent?: boolean;
+  trailing?: ReactNode;
+  onClick?: (event: MouseEvent) => void;
   ariaExpanded?: boolean;
   ariaControls?: string;
   ariaLabel?: string;
@@ -24,11 +27,22 @@ function itemClassName(isActive: boolean, showSeparator: boolean): string {
   return classNames.join(' ');
 }
 
-function ItemBody({ icon, label, badge }: { icon: ReactNode; label: string; badge?: string }) {
+function ItemBody({
+  icon,
+  label,
+  badge,
+  trailing,
+}: {
+  icon: ReactNode;
+  label: string;
+  badge?: string;
+  trailing?: ReactNode;
+}) {
   return (
     <>
       <span className="sidebar-nav-item-icon">{icon}</span>
       <span className="sidebar-nav-item-label">{label}</span>
+      {trailing}
       {badge ? <span className="sidebar-ia-badge">{badge}</span> : null}
     </>
   );
@@ -43,12 +57,14 @@ export function SidebarNavItem({
   badge,
   showSeparator = false,
   isActive = false,
+  isCurrent,
+  trailing,
   onClick,
   ariaExpanded,
   ariaControls,
   ariaLabel,
 }: SidebarNavItemProps) {
-  const body = <ItemBody icon={icon} label={label} badge={badge} />;
+  const body = <ItemBody icon={icon} label={label} badge={badge} trailing={trailing} />;
   if (to) {
     return (
       <NavLink
@@ -56,7 +72,10 @@ export function SidebarNavItem({
         end={end}
         data-sidebar-item=""
         aria-label={ariaLabel}
-        className={({ isActive: routeIsActive }) => itemClassName(routeIsActive || forceActive, showSeparator)}
+        onClick={onClick}
+        className={({ isActive: routeIsActive }) =>
+          itemClassName(isCurrent ?? (routeIsActive || forceActive), showSeparator)
+        }
       >
         {body}
       </NavLink>

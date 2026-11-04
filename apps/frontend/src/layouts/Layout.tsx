@@ -14,14 +14,12 @@ import { SidebarCollapseButton } from './SidebarCollapseButton';
 import { SidebarNavItem } from './SidebarNavItem';
 import { SidebarProfile } from './SidebarProfile';
 import { ThemeToggle } from './ThemeToggle';
-import { WorkspaceModeNav } from './WorkspaceModeNav';
 import './sidebar.css';
 import { SIDEBAR_COLLAPSED_STORAGE_KEY, storedSidebarCollapsed } from './sidebarCollapse';
-import { mainNavigationEntries, shouldOpenWorkspace } from './sidebarModel';
+import { mainNavigationEntries } from './sidebarModel';
 import { moveSidebarFocus, primeSidebarTabStops, rememberSidebarTabStop } from './sidebarRoving';
 
 const navigationEntries = mainNavigationEntries();
-const CARTOGRAPHY_MODES_ID = 'cartography-modes';
 
 export function Layout() {
   return (
@@ -38,8 +36,6 @@ function LayoutShell() {
   const navigate = useNavigate();
   const onCartography = useMatch({ path: '/map', end: true });
   const isOnCartography = onCartography != null;
-  const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(isOnCartography);
-  const wasOnCartography = useRef(isOnCartography);
   const { mode, sandboxDirty } = useWorkspaceMode();
   const sidebarRef = useRef<HTMLElement>(null);
   const [theme, setTheme] = useState<ColorTheme>(() =>
@@ -58,16 +54,10 @@ function LayoutShell() {
     localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(isCollapsed));
   }, [isCollapsed]);
 
-  useEffect(() => {
-    if (shouldOpenWorkspace(wasOnCartography.current, isOnCartography)) setIsWorkspaceOpen(true);
-    if (wasOnCartography.current && !isOnCartography) setIsWorkspaceOpen(false);
-    wasOnCartography.current = isOnCartography;
-  }, [isOnCartography]);
-
   useLayoutEffect(() => {
     if (!sidebarRef.current) return;
     primeSidebarTabStops(sidebarRef.current);
-  }, [user, isWorkspaceOpen, isCollapsed]);
+  }, [user, isCollapsed, mode]);
 
   function openWorkspaceMode(next: GraphMode) {
     if (onCartography && mode === next) return;
@@ -110,7 +100,7 @@ function LayoutShell() {
               {navigationEntries.map((entry) => (
                 <Fragment key={entry.to}>
                   {entry.to === '/map' ? (
-                    <div className="sidebar-nav-row">
+                    <>
                       <SidebarNavItem
                         label={entry.label}
                         to={entry.to}
@@ -118,21 +108,24 @@ function LayoutShell() {
                         badge={entry.badge}
                         showSeparator={entry.showSeparator}
                         icon={<NavigationIcon name={entry.icon} />}
+                        isCurrent={isOnCartography && mode === 'normal'}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          openWorkspaceMode('normal');
+                        }}
                       />
-                      {!isCollapsed ? (
-                        <button
-                          type="button"
-                          className="sidebar-disclosure"
-                          data-sidebar-item=""
-                          aria-expanded={isWorkspaceOpen}
-                          aria-controls={CARTOGRAPHY_MODES_ID}
-                          aria-label="Cartography views"
-                          onClick={() => setIsWorkspaceOpen((open) => !open)}
-                        >
-                          <NavigationIcon name="chevronDown" />
-                        </button>
-                      ) : null}
-                    </div>
+                      <SidebarNavItem
+                        label="Sandbox"
+                        icon={<NavigationIcon name="sandbox" />}
+                        isActive={isOnCartography && mode === 'sandbox'}
+                        onClick={() => openWorkspaceMode('sandbox')}
+                        trailing={
+                          isOnCartography && mode === 'sandbox' && sandboxDirty ? (
+                            <span className="graph-mode-tab__draft" aria-label="Unsaved draft" />
+                          ) : null
+                        }
+                      />
+                    </>
                   ) : (
                     <SidebarNavItem
                       label={entry.label}
@@ -143,14 +136,6 @@ function LayoutShell() {
                       icon={<NavigationIcon name={entry.icon} />}
                     />
                   )}
-                  {entry.to === '/map' && isWorkspaceOpen && !isCollapsed ? (
-                    <WorkspaceModeNav
-                      id={CARTOGRAPHY_MODES_ID}
-                      mode={onCartography ? mode : null}
-                      sandboxDirty={Boolean(onCartography && sandboxDirty)}
-                      onModeChange={openWorkspaceMode}
-                    />
-                  ) : null}
                 </Fragment>
               ))}
             </nav>
