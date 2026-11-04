@@ -102,10 +102,15 @@ function areNodesMeasured(instance: Pick<ViewportInstance, 'getNodes'>): boolean
 /** The legend's right edge inside the pane, or the plain margin when no legend is drawn. */
 function readLegendFitPadding(): FitViewPadding {
   if (typeof document === 'undefined') return FIT_VIEW_PADDING;
-  const legend = document.querySelector('.graph-legend');
   const pane = document.querySelector('.react-flow');
-  if (!legend || !pane) return FIT_VIEW_PADDING;
-  return computeLegendFitPadding(legend.getBoundingClientRect().right - pane.getBoundingClientRect().left);
+  if (!pane) return FIT_VIEW_PADDING;
+  const paneRect = pane.getBoundingClientRect();
+  const legend = document.querySelector('.graph-legend');
+  const menu = document.querySelector('.map-graph-panel.is-menu-open .self-service-side-menu-shell');
+  return computeLegendFitPadding(
+    legend ? legend.getBoundingClientRect().right - paneRect.left : undefined,
+    menu ? paneRect.right - menu.getBoundingClientRect().left : undefined
+  );
 }
 
 function nodeSize(node: NodeLike): { width: number; height: number } {

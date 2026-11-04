@@ -20,14 +20,19 @@ type DrawerFit = { paneWidthPx?: number; drawerWidthPx?: number };
 /** Air between the legend's right edge and the fitted graph. */
 export const LEGEND_FIT_GAP_PX = 24;
 
-/** Fit the graph to the right of the legend, which floats over the pane's left edge. */
-export function computeLegendFitPadding(legendRightPx?: number): FitViewPadding {
-  if (!legendRightPx || legendRightPx <= 0) return FIT_RATIO;
+/**
+ * Fit the graph between the legend (floating over the pane's left edge) and the open side menu
+ * (floating over its right edge), so neither hides a box.
+ */
+export function computeLegendFitPadding(legendRightPx?: number, menuWidthPx?: number): FitViewPadding {
+  const hasLegend = legendRightPx !== undefined && legendRightPx > 0;
+  const hasMenu = menuWidthPx !== undefined && menuWidthPx > 0;
+  if (!hasLegend && !hasMenu) return FIT_RATIO;
   return {
     top: FIT_RATIO,
     bottom: FIT_RATIO,
-    left: `${Math.ceil(legendRightPx + LEGEND_FIT_GAP_PX)}px`,
-    right: FIT_RATIO,
+    left: hasLegend ? `${Math.ceil(legendRightPx + LEGEND_FIT_GAP_PX)}px` : FIT_RATIO,
+    right: hasMenu ? `${Math.ceil(menuWidthPx + LEGEND_FIT_GAP_PX)}px` : FIT_RATIO,
   };
 }
 
