@@ -1,7 +1,7 @@
 import { NODE_HEIGHT, NODE_WIDTH } from '../hooks/useGraphData';
-import { computeLegendFitPadding, type FitViewPadding } from './drawerFitPadding';
+import { computeLegendFitPadding, fitAreaAspectRatio, type FitViewPadding } from './drawerFitPadding';
 
-export const FIT_VIEW_PADDING = 0.15;
+export const FIT_VIEW_PADDING = 0.06;
 
 /** Inset (px) from the pane edges when deciding if a node is “on screen”. */
 const VISIBILITY_PADDING_PX = 12;
@@ -116,6 +116,14 @@ function readLegendFitPadding(): FitViewPadding {
     menu ? paneRect.right - menu.getBoundingClientRect().left : undefined,
     paneRect.width
   );
+}
+
+/** Aspect ratio of the area the next fit fills, for packing islands to the zoom they will get. */
+export function readFitAspectRatio(): number | undefined {
+  const pane = typeof document === 'undefined' ? null : document.querySelector(PANE_SELECTOR);
+  if (!pane) return undefined;
+  const { width, height } = pane.getBoundingClientRect();
+  return fitAreaAspectRatio(width, height, readLegendFitPadding());
 }
 
 function nodeSize(node: NodeLike): { width: number; height: number } {
