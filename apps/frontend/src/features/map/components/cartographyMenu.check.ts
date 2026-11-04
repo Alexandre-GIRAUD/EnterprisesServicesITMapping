@@ -132,6 +132,11 @@ assert.match(css, /\.graph-filter-compact-btn \{[^}]*min-height: 2\.25rem[^}]*pa
 assert.doesNotMatch(css, /\.graph-filter-back-btn \{/);
 assert.match(filterDrawer, /graph-filter-compact-btn graph-filter-compact-btn--neutral"[\s\S]{0,300}‹ Back/);
 
+// The value view header and its Select all row are bubbles too, so nothing floats over the graph.
+assert.match(css, /not(.is-sandbox-mode) .self-service-tool-detail .graph-filter-drawer-header {[^}]*border-radius: 999px[^}]*box-shadow: var(--ss-bubble-shadow)/);
+assert.match(css, /not(.is-sandbox-mode) .self-service-tool-detail .graph-filter-select-all-row {[^}]*box-shadow: var(--ss-bubble-shadow)/);
+assert.match(css, /.graph-filter-drawer-header .graph-filter-compact-btn {[^}]*flex: 0 0 auto/);
+
 // With neighbours sits under the search as a switch row, not above the list.
 assert.ok(filterDrawer.indexOf('graph-filter-search-input') < filterDrawer.indexOf('graph-filter-neighbours'));
 assert.match(css, /\.graph-filter-neighbours \{[^}]*justify-content: space-between/);
