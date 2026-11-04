@@ -21,6 +21,7 @@ import {
   useState,
   type KeyboardEvent,
   type MouseEvent as ReactMouseEvent,
+  type RefObject,
 } from 'react';
 import { GRID } from '../hooks/useGraphData';
 import { AppGraphNode } from './AppGraphNode';
@@ -134,6 +135,28 @@ function textNodesFromDoc(
 
 function isAnnotationNode(node: Node): boolean {
   return node.type === 'sandboxIcon' || node.type === 'sandboxText';
+}
+
+const TOP_ROW_TOLERANCE_PX = 4;
+
+/** True while the pane touches the top of its board, where the floating chrome overlaps its title. */
+function useIsTopRow(paneRef: RefObject<HTMLDivElement>): boolean {
+  const [isTopRow, setIsTopRow] = useState(true);
+
+  useEffect(() => {
+    const pane = paneRef.current;
+    const board = pane?.parentElement;
+    if (!pane || !board) return;
+    const refreshIsTopRow = () =>
+      setIsTopRow(pane.getBoundingClientRect().top - board.getBoundingClientRect().top < TOP_ROW_TOLERANCE_PX);
+    refreshIsTopRow();
+    const observer = new ResizeObserver(refreshIsTopRow);
+    observer.observe(pane);
+    observer.observe(board);
+    return () => observer.disconnect();
+  }, [paneRef]);
+
+  return isTopRow;
 }
 
 function SandboxPaneInner({
@@ -449,18 +472,7 @@ function SandboxPaneInner({
   }
 
   const placing = Boolean(placingIconKey || placingText);
-  const [isTopRow, setIsTopRow] = useState(true);
-
-  useEffect(() => {
-    const pane = paneRef.current;
-    const board = pane?.parentElement;
-    if (!pane || !board) return;
-    const update = () => setIsTopRow(pane.getBoundingClientRect().top - board.getBoundingClientRect().top < 4);
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(pane);
-    return () => observer.disconnect();
-  }, []);
+  const isTopRow = useIsTopRow(paneRef);
 
   return (
     <div

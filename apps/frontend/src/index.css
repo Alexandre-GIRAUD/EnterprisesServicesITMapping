@@ -3995,7 +3995,7 @@ body.is-diagram-grown .layout {
   display: flex;
   align-items: center;
   max-width: calc(100% - 1.5rem);
-  padding: 0.25rem 2.6rem 0.25rem 0.9rem;
+  padding: 0.25rem 2.8rem 0.25rem 0.9rem;
   border: 1px solid #e2e8f0;
   border-radius: 999px;
   background: #fff;
@@ -4104,13 +4104,13 @@ body.is-diagram-grown .layout {
 .sandbox-pane__close {
   position: absolute;
   top: 50%;
-  right: 0.25rem;
+  right: 0.2rem;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: 1px solid #f87171;
   border-radius: 8px;

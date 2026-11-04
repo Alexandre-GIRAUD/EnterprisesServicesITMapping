@@ -1,7 +1,7 @@
 import { NODE_HEIGHT, NODE_WIDTH } from '../hooks/useGraphData';
-import { computeLegendFitPadding, fitAreaAspectRatio, type FitViewPadding } from './drawerFitPadding';
+import { FIT_RATIO, computeLegendFitPadding, computeFitAreaAspectRatio, type FitViewPadding } from './drawerFitPadding';
 
-export const FIT_VIEW_PADDING = 0.06;
+export const FIT_VIEW_PADDING = FIT_RATIO;
 
 /** Inset (px) from the pane edges when deciding if a node is “on screen”. */
 const VISIBILITY_PADDING_PX = 12;
@@ -123,7 +123,7 @@ export function readFitAspectRatio(): number | undefined {
   const pane = typeof document === 'undefined' ? null : document.querySelector(PANE_SELECTOR);
   if (!pane) return undefined;
   const { width, height } = pane.getBoundingClientRect();
-  return fitAreaAspectRatio(width, height, readLegendFitPadding());
+  return computeFitAreaAspectRatio(width, height, readLegendFitPadding());
 }
 
 function nodeSize(node: NodeLike): { width: number; height: number } {

@@ -129,11 +129,10 @@ export function packComponentOffsets(
   let best: Pos[] = shelfPack(bounds, gap);
   for (const limit of shelfWidthLimits(items)) {
     const rows = shelvesOf(items, limit);
-    const gapSize = MIN_ISLAND_GAP;
-    const fit = fitZoom(rows, gapSize, aspectRatio);
+    const fit = fitZoom(rows, MIN_ISLAND_GAP, aspectRatio);
     if (fit > bestFit) {
       bestFit = fit;
-      best = placeRows(rows, gapSize);
+      best = placeRows(rows, MIN_ISLAND_GAP);
     }
   }
   return best;

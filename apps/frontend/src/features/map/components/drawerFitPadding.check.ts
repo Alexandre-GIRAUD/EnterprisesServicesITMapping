@@ -10,7 +10,7 @@ import {
   DRAWER_FIT_GAP_PX,
   MODULE_DRAWER_WIDTH_PX,
   computeDrawerFitPadding,
-  fitAreaAspectRatio,
+  computeFitAreaAspectRatio,
 } from './drawerFitPadding.ts';
 
 assert.equal(typeof computeDrawerFitPadding(false), 'number');
@@ -46,8 +46,8 @@ assert.equal(computeLegendFitPadding(200, 360, 500), 0.06);
 assert.equal((computeLegendFitPadding(200, 360, 1200) as { left: string }).left, '224px');
 
 // Islands are packed for the area the fit really uses: the pane minus its margins, legend and menu.
-assert.equal(fitAreaAspectRatio(800, 600, 0.06), 800 / 600);
-assert.equal(fitAreaAspectRatio(800, 600, { top: 0.06, bottom: 0.06, left: '300px', right: 0.06 }), 452 / 528);
-assert.equal(fitAreaAspectRatio(0, 600, 0.06), undefined);
+assert.equal(computeFitAreaAspectRatio(800, 600, 0.06), 800 / 600);
+assert.equal(computeFitAreaAspectRatio(800, 600, { top: 0.06, bottom: 0.06, left: '300px', right: 0.06 }), 452 / 528);
+assert.equal(computeFitAreaAspectRatio(0, 600, 0.06), undefined);
 
 console.log('drawerFitPadding.check: ok');

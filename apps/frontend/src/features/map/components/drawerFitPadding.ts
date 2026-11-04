@@ -3,7 +3,7 @@ import type { FitViewOptions } from '@xyflow/react';
 /** How much room fitView leaves around the graph: a ratio, or per side (ratio or CSS px). */
 export type FitViewPadding = NonNullable<FitViewOptions['padding']>;
 
-const FIT_RATIO = 0.06;
+export const FIT_RATIO = 0.06;
 
 export const MODULE_DRAWER_WIDTH_PX = 440;
 export const DETAILS_DRAWER_WIDTH_PX = 420;
@@ -60,16 +60,20 @@ export function computeDrawerFitPadding(
   };
 }
 
-function paddingPx(value: number | string | undefined, sideLengthPx: number): number {
+const PERCENT_DIVISOR = 100;
+
+function convertPaddingToPixels(value: number | string | undefined, sideLengthPx: number): number {
   if (typeof value === 'number') return value * sideLengthPx;
-  if (typeof value === 'string') return value.endsWith('%') ? (parseFloat(value) / 100) * sideLengthPx : parseFloat(value) || 0;
-  return 0;
+  if (typeof value !== 'string') return 0;
+  const amount = parseFloat(value);
+  if (Number.isNaN(amount)) return 0;
+  return value.endsWith('%') ? (amount / PERCENT_DIVISOR) * sideLengthPx : amount;
 }
 
 /** Width over height of the pane area the fit really fills (pane minus margins, legend and menu). */
-export function fitAreaAspectRatio(paneWidthPx: number, paneHeightPx: number, padding: FitViewPadding): number | undefined {
+export function computeFitAreaAspectRatio(paneWidthPx: number, paneHeightPx: number, padding: FitViewPadding): number | undefined {
   const sides = typeof padding === 'object' ? padding : { top: padding, bottom: padding, left: padding, right: padding };
-  const width = paneWidthPx - paddingPx(sides.left, paneWidthPx) - paddingPx(sides.right, paneWidthPx);
-  const height = paneHeightPx - paddingPx(sides.top, paneHeightPx) - paddingPx(sides.bottom, paneHeightPx);
+  const width = paneWidthPx - convertPaddingToPixels(sides.left, paneWidthPx) - convertPaddingToPixels(sides.right, paneWidthPx);
+  const height = paneHeightPx - convertPaddingToPixels(sides.top, paneHeightPx) - convertPaddingToPixels(sides.bottom, paneHeightPx);
   return width > 0 && height > 0 ? width / height : undefined;
 }

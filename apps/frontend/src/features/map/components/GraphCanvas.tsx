@@ -92,6 +92,7 @@ import { fitGraphView, ensureNodesVisible, readFitAspectRatio } from './fitGraph
 import { CenterGraphControl } from './CenterGraphControl';
 
 const CENTER_ANIMATION_MS = 200;
+const DEFAULT_FIT_ASPECT_RATIO = 16 / 9;
 import { downloadTableFile, tableToCsv, tableToExcelXml, type TableGrid } from '../utils/tableFile';
 import { customTableExportFormats } from '../utils/customTable';
 import { GraphViewsPanel, ViewInspectPanel, type InspectedView, type ViewLibraryActions } from './GraphViewsPanel';
@@ -725,7 +726,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
       if (status !== 'ready' || graphNodes.length === 0) return;
       const gen = ++collapseGenerationRef.current;
       const rect = containerRef.current?.getBoundingClientRect();
-      const aspectRatio = readFitAspectRatio() ?? (rect && rect.height > 0 ? rect.width / rect.height : 16 / 9);
+      const aspectRatio = readFitAspectRatio() ?? (rect && rect.height > 0 ? rect.width / rect.height : DEFAULT_FIT_ASPECT_RATIO);
       const coding = legendCodingRef.current;
       const laid = await layoutCollapsedAppGraph({
         graphNodes,
