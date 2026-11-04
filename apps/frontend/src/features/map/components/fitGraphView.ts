@@ -68,6 +68,24 @@ export function fitGraphView(
   });
 }
 
+/** React Flow hands out its instance a moment after the first layout; wait for it, but not forever. */
+const MAX_INSTANCE_WAIT_FRAMES = 120;
+
+/** Same as {@link fitGraphView}, for a caller whose instance may not exist yet. */
+export function fitGraphViewWhenReady(
+  ref: { current: Pick<ViewportInstance, 'fitView'> | null },
+  options: FitOptions = {},
+  framesLeft: number = MAX_INSTANCE_WAIT_FRAMES
+): void {
+  requestAnimationFrame(() => {
+    if (ref.current) {
+      fitGraphView(ref.current, options);
+      return;
+    }
+    if (framesLeft > 0) fitGraphViewWhenReady(ref, options, framesLeft - 1);
+  });
+}
+
 function nodeSize(node: NodeLike): { width: number; height: number } {
   return {
     width: node.measured?.width ?? node.width ?? NODE_WIDTH,

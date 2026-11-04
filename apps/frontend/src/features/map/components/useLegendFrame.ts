@@ -170,8 +170,12 @@ function applyLegendFrame(element: HTMLElement, frame: LegendSize): void {
 
 /** Lay the legend out in `frame` and read how much room its content needs. */
 function measureLegendContent(element: HTMLElement, frame: LegendSize): LegendContentSize {
+  // Scrollbars would take room from the content and be measured as content themselves.
+  element.style.overflow = 'hidden';
   applyLegendFrame(element, frame);
-  return { scrollWidth: element.scrollWidth, scrollHeight: element.scrollHeight };
+  const content = { scrollWidth: element.scrollWidth, scrollHeight: element.scrollHeight };
+  element.style.overflow = '';
+  return content;
 }
 
 function useFitDefaultHeight(
