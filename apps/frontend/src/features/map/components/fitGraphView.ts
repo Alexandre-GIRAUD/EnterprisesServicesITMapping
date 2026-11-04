@@ -74,6 +74,10 @@ const MAX_INSTANCE_WAIT_FRAMES = 120;
 /** The legend mounts a moment after the graph; give it this many frames before fitting without it. */
 const LEGEND_WAIT_FRAMES = 30;
 
+const LEGEND_SELECTOR = '.graph-legend';
+const PANE_SELECTOR = '.react-flow';
+const OPEN_MENU_SELECTOR = '.map-graph-panel.is-menu-open .self-service-side-menu-shell';
+
 /** Same as {@link fitGraphView}, for a caller whose instance may not exist yet. */
 export function fitGraphViewWhenReady(
   ref: { current: Pick<ViewportInstance, 'fitView' | 'getNodes'> | null },
@@ -91,7 +95,7 @@ export function fitGraphViewWhenReady(
 }
 
 function isLegendMissing(): boolean {
-  return typeof document !== 'undefined' && document.querySelector('.graph-legend') === null;
+  return typeof document !== 'undefined' && document.querySelector(LEGEND_SELECTOR) === null;
 }
 
 function areNodesMeasured(instance: Pick<ViewportInstance, 'getNodes'>): boolean {
@@ -102,11 +106,11 @@ function areNodesMeasured(instance: Pick<ViewportInstance, 'getNodes'>): boolean
 /** The legend's right edge inside the pane, or the plain margin when no legend is drawn. */
 function readLegendFitPadding(): FitViewPadding {
   if (typeof document === 'undefined') return FIT_VIEW_PADDING;
-  const pane = document.querySelector('.react-flow');
+  const pane = document.querySelector(PANE_SELECTOR);
   if (!pane) return FIT_VIEW_PADDING;
   const paneRect = pane.getBoundingClientRect();
-  const legend = document.querySelector('.graph-legend');
-  const menu = document.querySelector('.map-graph-panel.is-menu-open .self-service-side-menu-shell');
+  const legend = document.querySelector(LEGEND_SELECTOR);
+  const menu = document.querySelector(OPEN_MENU_SELECTOR);
   return computeLegendFitPadding(
     legend ? legend.getBoundingClientRect().right - paneRect.left : undefined,
     menu ? paneRect.right - menu.getBoundingClientRect().left : undefined
