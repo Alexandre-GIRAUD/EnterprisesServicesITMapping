@@ -1652,6 +1652,8 @@ body.is-diagram-grown .layout {
   --ss-views-accent: #16a34a;
   --ss-views-accent-dark: #15803d;
   --ss-views-focus: #22c55e;
+  --ss-bubble-shadow: 0 4px 12px rgb(15 23 42 / 10%);
+  --ss-bubble-shadow-hover: 0 6px 14px rgb(15 23 42 / 14%);
   position: relative;
   display: flex;
   flex-direction: row;
@@ -1687,8 +1689,17 @@ body.is-diagram-grown .layout {
 
 /* Cartography accent theming (Production / Sandbox / My views via mode class) */
 .map-graph-panel .graph-display-toggle {
+  border-color: #cbd5e1;
   border-radius: 10px;
   background: #fff;
+  box-shadow: var(--ss-bubble-shadow);
+}
+
+.map-graph-panel .history-date-picker,
+.map-graph-panel .graph-export-menu-trigger {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  box-shadow: var(--ss-bubble-shadow);
 }
 
 .map-graph-panel .graph-display-toggle-btn {
@@ -1705,11 +1716,37 @@ body.is-diagram-grown .layout {
   outline-color: var(--ss-accent-focus);
 }
 
-.map-graph-panel .self-service-burger:hover,
+.map-graph-panel .self-service-burger {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  box-shadow: var(--ss-bubble-shadow);
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.map-graph-panel .self-service-burger:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
 .map-graph-panel .self-service-burger.is-open {
-  border-color: transparent;
-  background: #f1f5f9;
-  box-shadow: none;
+  background: #ffffff;
+  color: #334155;
+  box-shadow: var(--ss-bubble-shadow);
+}
+
+.map-graph-panel .self-service-burger.is-open:hover {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #b91c1c;
 }
 
 .map-graph-panel .self-service-burger:focus-visible {
@@ -1720,7 +1757,6 @@ body.is-diagram-grown .layout {
   border-color: var(--ss-accent);
   background: var(--ss-accent);
   color: #fff;
-  box-shadow: none;
 }
 
 .map-graph-panel .self-service-tool-bar-btn:focus-visible {
@@ -1766,6 +1802,7 @@ body.is-diagram-grown .layout {
   background: #16a34a;
   color: #ffffff;
   font-weight: 700;
+  box-shadow: 0 4px 12px rgb(22 163 74 / 28%);
 }
 
 .map-graph-panel .graph-filter-compact-btn--pin:not(:disabled):hover {
@@ -2100,11 +2137,6 @@ body.is-diagram-grown .layout {
   background: rgb(248 250 252 / 84%);
 }
 
-.map-graph-panel .graph-view-header .self-service-burger {
-  border: 1px solid #e2e8f0;
-  background: #fff;
-}
-
 .graph-view-header-description.is-error {
   color: #b91c1c;
 }
@@ -2126,11 +2158,9 @@ body.is-diagram-grown .layout {
   cursor: pointer;
 }
 
-.self-service-burger:hover,
-.self-service-burger.is-open {
-  background: #f1f5f9;
-  color: #334155;
-  box-shadow: none;
+.self-service-burger:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--ss-bubble-shadow-hover);
 }
 
 .self-service-burger:focus:not(:focus-visible) {
@@ -2175,6 +2205,17 @@ body.is-diagram-grown .layout {
   top: 10px;
 }
 
+.self-service-burger.is-open .self-service-burger-icon::before {
+  top: 5px;
+  transform: rotate(45deg);
+  box-shadow: none;
+}
+
+.self-service-burger.is-open .self-service-burger-icon::after {
+  top: 5px;
+  transform: rotate(-45deg);
+}
+
 .self-service-side-menu-shell {
   position: relative;
   flex: 0 0 0;
@@ -2210,15 +2251,15 @@ body.is-diagram-grown .layout {
 }
 
 .map-graph-panel.is-menu-open .self-service-side-menu-shell {
-  position: absolute;
-  top: 4.25rem;
-  right: 0.75rem;
-  bottom: 0.5rem;
-  z-index: 21;
-  flex: none;
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  z-index: auto;
+  flex: 0 0 min(360px, 92vw);
   width: min(360px, 92vw);
-  overflow: visible;
-  pointer-events: none;
+  overflow: hidden;
+  pointer-events: auto;
 }
 
 .self-service-side-menu {
@@ -2243,7 +2284,6 @@ body.is-diagram-grown .layout {
   opacity: 1;
 }
 
-.self-service-side-menu-header,
 .self-service-tool-detail > :not(.graph-filter-drawer),
 .self-service-tool-detail .graph-filter-neighbours,
 .self-service-tool-detail .graph-filter-search,
@@ -2255,16 +2295,7 @@ body.is-diagram-grown .layout {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
-  box-shadow: none;
-}
-
-.self-service-side-menu-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.45rem 0.7rem;
-  flex-shrink: 0;
+  box-shadow: var(--ss-bubble-shadow);
 }
 
 .self-service-side-menu-body {
@@ -2287,6 +2318,7 @@ body.is-diagram-grown .layout {
   background: transparent;
   border: 0;
   box-shadow: none;
+  pointer-events: auto;
 }
 
 .self-service-tool-bar-btn {
@@ -2295,14 +2327,16 @@ body.is-diagram-grown .layout {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2rem;
+  min-height: 2.25rem;
   padding: 0.25rem;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 999px;
   background: #ffffff;
   color: #64748b;
+  box-shadow: var(--ss-bubble-shadow);
   cursor: pointer;
   transition:
+    transform 140ms ease,
     background-color 160ms ease,
     border-color 160ms ease,
     color 160ms ease,
@@ -2313,6 +2347,8 @@ body.is-diagram-grown .layout {
   background: #ffffff;
   border-color: #cbd5e1;
   color: #334155;
+  transform: translateY(-1px);
+  box-shadow: var(--ss-bubble-shadow-hover);
 }
 
 .self-service-tool-bar-btn.is-active {
@@ -2342,38 +2378,57 @@ body.is-diagram-grown .layout {
 .self-service-tool-detail {
   display: flex;
   flex-direction: column;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   min-height: 0;
   gap: 0.55rem;
   margin-top: 0;
   padding: 0;
-  overflow: visible;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: transparent;
   border: 0;
   box-shadow: none;
 }
 
-.self-service-tool-detail .graph-filter-form,
-.self-service-tool-detail .graph-filter-root-list {
-  flex: none;
+.self-service-tool-detail .graph-filter-form {
+  flex: 1 1 auto;
   overflow: visible;
   gap: 0.55rem;
 }
 
-/* My views keeps the solid docked menu. Bubbles stay on Cartography and Sandbox. */
-.map-graph-panel.is-views-mode.is-menu-open .self-service-side-menu-shell {
-  position: relative;
-  top: auto;
-  right: auto;
-  bottom: auto;
-  z-index: auto;
-  flex: 0 0 min(360px, 92vw);
-  width: min(360px, 92vw);
-  overflow: hidden;
-  pointer-events: auto;
+.self-service-tool-detail .graph-filter-drawer--embedded,
+.self-service-tool-detail .graph-filter-detail-panel {
+  overflow: visible;
 }
 
-.map-graph-panel.is-views-mode .self-service-side-menu {
+.self-service-tool-detail > .self-service-tool-detail-title {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.self-service-tool-detail .graph-filter-root-list {
+  gap: 0.45rem;
+}
+
+.self-service-tool-detail .graph-filter-detail-list > * {
+  flex-shrink: 0;
+}
+
+.self-service-tool-detail .graph-filter-root-list,
+.self-service-tool-detail .graph-filter-detail-list {
+  padding: 4px 12px 16px;
+  margin: 0 -12px;
+}
+
+.graph-filter-drawer-header .graph-filter-compact-btn {
+  flex: 0 0 auto;
+  padding: 0 0.9rem;
+  box-shadow: none;
+}
+
+/* Every mode uses the same solid docked menu. */
+.map-graph-panel .self-service-side-menu {
   gap: 0;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -2383,25 +2438,20 @@ body.is-diagram-grown .layout {
   pointer-events: auto;
 }
 
-.map-graph-panel.is-views-mode .self-service-side-menu-header,
-.map-graph-panel.is-views-mode .self-service-tool-detail > :not(.graph-filter-drawer) {
+.map-graph-panel .self-service-tool-detail > :not(.graph-filter-drawer) {
   background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
 }
 
-.map-graph-panel.is-views-mode .self-service-side-menu-header {
-  padding: 0.45rem 0.7rem 0.3rem;
-}
-
-.map-graph-panel.is-views-mode .self-service-side-menu-body {
+.map-graph-panel .self-service-side-menu-body {
   gap: 0;
   overflow: hidden;
-  padding: 0 0.65rem 0.55rem;
+  padding: 0.55rem 0.65rem;
 }
 
-.map-graph-panel.is-views-mode .self-service-tool-detail {
+.map-graph-panel .self-service-tool-detail {
   flex: 1;
   gap: 0.35rem;
   margin-top: 0.4rem;
@@ -2409,18 +2459,14 @@ body.is-diagram-grown .layout {
   overscroll-behavior: contain;
 }
 
-.map-graph-panel.is-views-mode .self-service-burger {
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  box-shadow: none;
+/* The docked menu keeps the filter lists inside its own width, so it never scrolls sideways. */
+.map-graph-panel .self-service-tool-detail {
+  overflow-x: hidden;
 }
 
-.map-graph-panel.is-views-mode .self-service-burger:hover,
-.map-graph-panel.is-views-mode .self-service-burger.is-open {
-  border-color: #cbd5e1;
-  background: #f8fafc;
-  color: #334155;
-  box-shadow: none;
+.map-graph-panel .self-service-tool-detail .graph-filter-root-list,
+.map-graph-panel .self-service-tool-detail .graph-filter-detail-list {
+  margin: 0;
 }
 
 .self-service-tool-bar-btn:hover::after,
@@ -2473,7 +2519,7 @@ body.is-diagram-grown .layout {
   gap: 0.4rem;
   min-height: 3.5rem;
   padding: 0.45rem;
-  border: 1px dashed #cbd5e1;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #f8fafc;
 }
@@ -2778,22 +2824,6 @@ body.is-diagram-grown .layout {
   min-width: 0;
 }
 
-.graph-filter-back-btn {
-  border: 1px solid #f87171;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #b91c1c;
-  font-size: 0.82rem;
-  cursor: pointer;
-  padding: 0.2rem 0.45rem;
-}
-
-.graph-filter-back-btn:hover {
-  border-color: #ef4444;
-  background: #ffffff;
-  color: #991b1b;
-}
-
 .graph-filter-drawer--embedded .graph-filter-root-list {
   flex: 1;
   min-height: 0;
@@ -2940,10 +2970,8 @@ body.is-diagram-grown .layout {
 
 .graph-filter-compact-actions {
   display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+  align-items: stretch;
+  gap: 0.4rem;
   flex-shrink: 0;
   margin: 0;
   background: transparent;
@@ -2954,18 +2982,102 @@ body.is-diagram-grown .layout {
 .graph-filter-neighbours {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.45rem;
   flex-shrink: 0;
+  min-height: 2.25rem;
   margin: 0 0 0.4rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.3rem;
   font-size: 0.85rem;
   font-weight: 500;
   color: #334155;
   cursor: pointer;
 }
 
+.graph-filter-neighbours:has(input:checked) {
+  border-color: var(--ss-accent-border);
+  background: var(--ss-accent-surface);
+}
+
+.graph-filter-neighbours-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.graph-filter-neighbours:has(input:checked) .graph-filter-neighbours-icon {
+  background: var(--ss-accent);
+  color: #ffffff;
+}
+
+.graph-filter-neighbours-text {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.45rem;
+  min-width: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.self-service-tool-detail .graph-filter-neighbours {
+  border-radius: 999px;
+}
+
+.graph-filter-neighbours-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #64748b;
+}
+
 .graph-filter-neighbours input {
+  appearance: none;
+  order: 2;
+  position: relative;
+  flex: none;
+  width: 2rem;
+  height: 1.15rem;
   margin: 0;
-  accent-color: var(--ss-accent, #2563eb);
+  border-radius: 999px;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.graph-filter-neighbours input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(1.15rem - 4px);
+  height: calc(1.15rem - 4px);
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 160ms ease;
+}
+
+.graph-filter-neighbours input:checked {
+  background: var(--ss-accent, #2563eb);
+}
+
+.graph-filter-neighbours input:checked::after {
+  transform: translateX(0.85rem);
+}
+
+.graph-filter-neighbours input:focus-visible {
+  outline: 2px solid var(--ss-accent-focus, #3b82f6);
+  outline-offset: 2px;
 }
 
 .graph-filter-compact-btn {
@@ -2973,13 +3085,21 @@ body.is-diagram-grown .layout {
   font-size: 0.85rem;
   font-weight: 600;
   line-height: 1.2;
-  padding: 0.5rem 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 999px;
   background: #ffffff;
   color: #475569;
+  box-shadow: var(--ss-bubble-shadow);
   cursor: pointer;
   transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
     border-color 140ms ease,
     background-color 140ms ease,
     color 140ms ease;
@@ -2989,18 +3109,28 @@ body.is-diagram-grown .layout {
   border-color: #cbd5e1;
   background: #f8fafc;
   color: #334155;
+  transform: translateY(-1px);
+  box-shadow: var(--ss-bubble-shadow-hover);
 }
 
-.graph-filter-compact-btn:not(.graph-filter-compact-btn--primary):not(.graph-filter-compact-btn--pin):not(.graph-filter-compact-btn--neutral):not(.graph-filter-compact-btn--views) {
-  border-color: #f87171;
-  background: #ffffff;
+.graph-filter-compact-btn:active:not(:disabled),
+.self-service-tool-bar-btn:active,
+.map-graph-panel .self-service-burger:active {
+  transform: none;
+}
+
+.graph-filter-compact-btn--ghost {
+  flex: 0 0 auto;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  box-shadow: none;
+}
+
+.graph-filter-compact-btn--ghost:hover:not(:disabled) {
+  border-color: #fca5a5;
+  background: #fef2f2;
   color: #b91c1c;
-}
-
-.graph-filter-compact-btn:not(.graph-filter-compact-btn--primary):not(.graph-filter-compact-btn--pin):not(.graph-filter-compact-btn--neutral):not(.graph-filter-compact-btn--views):hover:not(:disabled) {
-  border-color: #ef4444;
-  background: #ffffff;
-  color: #991b1b;
 }
 
 .graph-filter-compact-btn:focus-visible {
@@ -3012,6 +3142,7 @@ body.is-diagram-grown .layout {
   border-color: #2563eb;
   background: #2563eb;
   color: #ffffff;
+  box-shadow: 0 4px 12px rgb(37 99 235 / 28%);
 }
 
 .graph-filter-compact-btn--primary:hover:not(:disabled) {
@@ -3113,7 +3244,6 @@ body.is-diagram-grown .layout {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  overflow: visible;
 }
 
 .self-service-tool-detail .graph-filter-detail-list .graph-drawer-checkbox-row:not(.graph-filter-select-all-row) {
@@ -3995,7 +4125,7 @@ body.is-diagram-grown .layout {
 
 .sandbox-shared-legend {
   position: absolute;
-  top: 0.65rem;
+  top: 3.6rem;
   left: 0.65rem;
   z-index: 5;
   pointer-events: none;
@@ -6359,6 +6489,47 @@ body.is-diagram-grown .layout {
   font-weight: 600;
 }
 
+.graph-drawer-action--card {
+  justify-content: flex-start;
+  gap: 0.7rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+}
+
+.graph-drawer-action--card:hover:not(:disabled) {
+  border-color: var(--ss-accent-border, #cbd5e1);
+  background: var(--ss-accent-surface, #f8fafc);
+}
+
+.graph-drawer-action-chip {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--ss-accent-border, #dbeafe);
+  border-radius: 50%;
+  background: var(--ss-accent-surface, #eff6ff);
+  color: var(--ss-accent-text, #2563eb);
+}
+
+.graph-drawer-action-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.graph-drawer-action-hint {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.graph-drawer-action-chevron {
+  flex: none;
+  color: #94a3b8;
+}
+
 .graph-drawer-rescan-title {
   display: inline-flex;
   align-items: center;
@@ -7312,27 +7483,12 @@ body.is-diagram-grown .layout {
   }
 
   .map-graph-panel.is-menu-open .self-service-side-menu-shell {
-    top: auto;
-    right: 0.5rem;
-    left: 0.5rem;
-    width: auto;
-    max-height: min(52vh, 28rem);
-  }
-
-  .map-graph-panel.is-views-mode.is-menu-open .self-service-side-menu-shell {
-    position: relative;
-    top: auto;
-    right: auto;
-    left: auto;
-    bottom: auto;
     flex: 0 0 auto;
     width: 100%;
     margin: 0 0.75rem 0.75rem;
-    overflow: hidden;
-    pointer-events: auto;
   }
 
-  .map-graph-panel.is-views-mode .self-service-side-menu {
+  .map-graph-panel .self-service-side-menu {
     border-radius: 18px 18px 0 0;
     box-shadow: 0 -8px 24px rgb(15 23 42 / 8%);
   }

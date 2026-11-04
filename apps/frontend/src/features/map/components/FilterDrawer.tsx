@@ -51,6 +51,17 @@ function applyRootToggle(catalog: string[], selected: string[]): string[] {
   return dimensionMode(selected, catalog) === 'none' ? selectAllCatalog(catalog) : [];
 }
 
+function NeighboursIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="16" height="16" focusable="false">
+      <circle cx="5" cy="10" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="15" cy="5" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="15" cy="15" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M7 9 13 6M7 11l6 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function statusClass(mode: ReturnType<typeof dimensionMode>): string {
   if (mode === 'some') return 'graph-filter-status is-active';
   if (mode === 'none') return 'graph-filter-status is-invalid';
@@ -323,7 +334,7 @@ export function FilterDrawer({
   function renderRootActions() {
     return (
       <div className="graph-filter-compact-actions">
-        <button type="button" className="graph-filter-compact-btn" onClick={onReset}>
+        <button type="button" className="graph-filter-compact-btn graph-filter-compact-btn--ghost" onClick={onReset}>
           Clear
         </button>
         {onOpenMyViews ? (
@@ -362,7 +373,7 @@ export function FilterDrawer({
 
     return (
       <div className="graph-filter-compact-actions">
-        <button type="button" className="graph-filter-compact-btn" onClick={clearDetailDimension}>
+        <button type="button" className="graph-filter-compact-btn graph-filter-compact-btn--ghost" onClick={clearDetailDimension}>
           Clear
         </button>
         <button
@@ -634,7 +645,7 @@ export function FilterDrawer({
           {view !== 'root' ? (
             <button
               type="button"
-              className="graph-filter-back-btn"
+              className="graph-filter-compact-btn graph-filter-compact-btn--neutral"
               onClick={() => {
                 setValueQuery('');
                 setView('root');
@@ -662,19 +673,6 @@ export function FilterDrawer({
 
       <form className="graph-drawer-form graph-filter-form" onSubmit={onSubmit}>
         {view === 'root' ? renderRootActions() : renderDetailViewActions()}
-        {view === 'root' && showWithNeighbours ? (
-          <label className="graph-filter-neighbours" title="Also show applications linked by a feed to the filtered ones">
-            <input
-              type="checkbox"
-              checked={withNeighbours}
-              onChange={(event) => {
-                hasEditedFilters.current = true;
-                setWithNeighbours(event.target.checked);
-              }}
-            />
-            with neighbours
-          </label>
-        ) : null}
         {view === 'root' ? (
           <div className="graph-filter-root-list" role="group" aria-label="Filter types">
             <div className="graph-filter-search">
@@ -715,6 +713,26 @@ export function FilterDrawer({
                 </ul>
               ) : null}
             </div>
+
+            {showWithNeighbours ? (
+              <label className="graph-filter-neighbours" title="Also show applications linked by a feed to the filtered ones">
+                <span className="graph-filter-neighbours-icon" aria-hidden="true">
+                  <NeighboursIcon />
+                </span>
+                <input
+                  type="checkbox"
+                  checked={withNeighbours}
+                  onChange={(event) => {
+                    hasEditedFilters.current = true;
+                    setWithNeighbours(event.target.checked);
+                  }}
+                />
+                <span className="graph-filter-neighbours-text">
+                  With neighbours
+                  <span className="graph-filter-neighbours-hint">Also show linked applications</span>
+                </span>
+              </label>
+            ) : null}
 
             {renderRootRow({
               key: 'applications',

@@ -51,7 +51,8 @@ assert.match(page, /applicationDescriptionForGitHubRepos\(toCreate\)/);
 assert.match(page, /Create New/);
 assert.match(page, /role="dialog"/);
 assert.match(page, /aria-modal="true"/);
-assert.match(page, /replaceExisting: true/);
+assert.match(page, /rescanLinkedApplication/);
+assert.match(readFileSync(new URL('./rescanLinkedApplication.ts', import.meta.url), 'utf8'), /replaceExisting: true/);
 assert.doesNotMatch(page, /value="private"/);
 
 const drawer = readFileSync(
