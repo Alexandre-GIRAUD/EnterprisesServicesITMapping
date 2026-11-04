@@ -31,7 +31,7 @@ assert.equal((computeDrawerFitPadding(true, { paneWidthPx: 500, drawerWidthPx: 2
 
 // The legend sits over the pane's left edge: the graph is fitted to its right.
 assert.equal(computeLegendFitPadding(undefined), 0.15);
-assert.equal((computeLegendFitPadding(200) as { left: string }).left, );
+assert.equal((computeLegendFitPadding(200) as { left: string }).left, `${200 + LEGEND_FIT_GAP_PX}px`);
 assert.equal((computeLegendFitPadding(200) as { top: number }).top, 0.15);
 
 console.log('drawerFitPadding.check: ok');
