@@ -32,7 +32,7 @@ const canvas = source('../components/GraphCanvas.tsx');
 assert.match(canvas, /<HistoryDatePicker/);
 assert.match(canvas, /Read-only\./);
 assert.match(canvas, /Back to today/);
-assert.equal((canvas.match(/isReadOnly=\{isReadOnly\}/g) ?? []).length, 2);
+assert.equal((canvas.match(/isReadOnly=\{isReadOnly\}/g) ?? []).length, 3);
 assert.match(canvas, /canCorrect=\{!isReadOnly\}/);
 assert.match(canvas, /isReadOnly,/);
 

@@ -38,7 +38,7 @@ const sidebarCss = readFileSync(new URL('./sidebar.css', import.meta.url), 'utf8
 const tokens = readFileSync(new URL('./sidebarTokens.css', import.meta.url), 'utf8');
 assert.match(tokens, /--nav-theme-size:\s*32px/);
 assert.match(sidebarCss, /\.sidebar-theme-toggle\s*\{[^}]*width:\s*var\(--nav-theme-size\)/);
-assert.match(sidebarCss, /\.sidebar-theme-toggle\s*\{[^}]*background:\s*transparent/);
+assert.match(sidebarCss, /\.sidebar-theme-toggle,\s*\.sidebar-collapse\s*\{[^}]*background:\s*transparent/);
 assert.match(sidebarCss, /\.sidebar-theme-toggle\s*\{[^}]*border-radius:\s*var\(--radius-sm\)/);
 
 console.log('themeModeButton.check: ok');
