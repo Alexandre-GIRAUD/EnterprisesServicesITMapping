@@ -173,6 +173,8 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
             initialBlankedDimensions={
               isSandbox ? activeSandboxFilters.blankedDimensions ?? [] : blankedDimensions
             }
+            showBreach={!isSandbox}
+            initialBreach={isSandbox ? [] : filters.breach}
             edges={graphEdges}
             onApply={({
               applicationIds: appIds,
@@ -183,6 +185,7 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
               matchNothing: nextMatchNothing,
               blankedDimensions: nextBlanked,
               withNeighbours: nextWithNeighbours,
+              breach: nextBreach,
             }) => {
               if (isSandbox) {
                 const id = sandboxes.activeId ?? sandboxes.activeDoc?.id;
@@ -210,6 +213,7 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
               filters.setMatchNothing(Boolean(nextMatchNothing));
               filters.setWithNeighbours(Boolean(nextWithNeighbours));
               filters.setBlankedDimensions(nextBlanked ?? []);
+              filters.setBreach(nextBreach ?? []);
             }}
             showPinView={isExplorer && !isReadOnly}
             pinViewDisabled={status !== 'ready'}

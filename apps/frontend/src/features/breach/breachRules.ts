@@ -143,6 +143,23 @@ export function isDraftDirty(draft: BreachRuleRequest, saved: BreachRuleRequest 
   return comparable(draft) !== comparable(saved);
 }
 
+/** Map filter selector meaning every rule; the server reads the same word. */
+export const ANY_BREACH_RULE = 'any';
+
+/** "Any rule" and single rules exclude each other. */
+export function toggleBreachSelector(selected: string[], selector: string): string[] {
+  if (selected.includes(selector)) return selected.filter((value) => value !== selector);
+  if (selector === ANY_BREACH_RULE) return [ANY_BREACH_RULE];
+  return [...selected.filter((value) => value !== ANY_BREACH_RULE), selector];
+}
+
+export function breachFilterLabel(selected: string[], rules: { id: string; name: string }[]): string {
+  if (selected.length === 0) return 'Off';
+  if (selected.includes(ANY_BREACH_RULE)) return 'Any rule';
+  if (selected.length === 1) return rules.find((rule) => rule.id === selected[0])?.name ?? '1 rule';
+  return `${selected.length} rules`;
+}
+
 export function elementTitle(element: BreachElementDto): string {
   if (element.kind === 'FLOW') return `${element.sourceLabel ?? element.sourceId} → ${element.targetLabel ?? element.targetId}`;
   return element.label;

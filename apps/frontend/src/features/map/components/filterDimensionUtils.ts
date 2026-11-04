@@ -2,7 +2,7 @@
  * Filter menu navigation target: the root list, the Applications identity dimension, or one Data
  * Model `target=NODE` dimension addressed by its key (`attr:<key>`).
  */
-export type FilterView = 'root' | 'applications' | `attr:${string}`;
+export type FilterView = 'root' | 'applications' | 'breach' | `attr:${string}`;
 
 export function nodeAttributeView(key: string): FilterView {
   return `attr:${key}`;

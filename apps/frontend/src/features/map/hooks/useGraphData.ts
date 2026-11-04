@@ -187,6 +187,9 @@ function applyNodeCoding(
   });
 }
 
+/** Stable default, so the fetch effect does not rerun on every render. */
+const NO_BREACH_FILTER: string[] = [];
+
 type UseGraphDataParams = {
   applicationIds: string[];
   nodeAttributes: Record<string, string[]>;
@@ -195,6 +198,7 @@ type UseGraphDataParams = {
   edgeIds?: string[];
   matchNothing?: boolean;
   withNeighbours?: boolean;
+  breach?: string[];
   filtersActive: boolean;
   graphReloadNonce: number;
   hiddenNodeIds?: ReadonlySet<string>;
@@ -216,6 +220,7 @@ export function useGraphData({
   edgeIds = [],
   matchNothing = false,
   withNeighbours = false,
+  breach = NO_BREACH_FILTER,
   filtersActive,
   graphReloadNonce,
   hiddenNodeIds = new Set(),
@@ -631,6 +636,7 @@ export function useGraphData({
           nodeAttributes: Object.keys(nodeAttributes).length > 0 ? nodeAttributes : undefined,
           nodeRefs: Object.keys(nodeRefs).length > 0 ? nodeRefs : undefined,
           edgeAttributes: Object.keys(edgeAttributes).length > 0 ? edgeAttributes : undefined,
+          breach: breach.length > 0 ? breach : undefined,
         });
         const data =
           withNeighbours && filtersActive ? addNeighbours(filtered, await fetchGraph()) : filtered;
@@ -795,6 +801,7 @@ export function useGraphData({
     edgeIds,
     matchNothing,
     withNeighbours,
+    breach,
     filtersActive,
     graphReloadNonce,
     setNodes,

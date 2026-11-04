@@ -8,7 +8,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ReactFlowProvider } from '@xyflow/react';
 import { AppGraphNode } from './AppGraphNode.tsx';
 
-const render = (data: { label: string; nodeType: string; iconKey?: string }, selected = false) =>
+const render = (
+  data: { label: string; nodeType: string; iconKey?: string; breachRuleNames?: string[] },
+  selected = false,
+) =>
   renderToStaticMarkup(
     createElement(
       ReactFlowProvider,
@@ -25,5 +28,11 @@ assert.doesNotMatch(plain, /graph-node-card--with-icon/);
 
 // Resize handles exist on every box (invisible), so the cursor can change on any edge.
 assert.match(render({ label: 'Core', nodeType: 'Application' }), /react-flow__resize-control/);
+
+// A box in breach carries a flame that names its rules; other boxes carry none.
+const flagged = render({ label: 'Core', nodeType: 'Application', breachRuleNames: ['Over budget', 'No owner'] });
+assert.match(flagged, /graph-node-breach/);
+assert.match(flagged, /In breach: Over budget, No owner/);
+assert.doesNotMatch(plain, /graph-node-breach/);
 
 console.log('AppGraphNode.check: ok');

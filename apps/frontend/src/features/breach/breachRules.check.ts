@@ -5,8 +5,11 @@
 import assert from 'node:assert/strict';
 import type { BreachRuleRequest, DataModelFieldDto } from '@/types/api';
 import {
+  ANY_BREACH_RULE,
   attributeOptions,
+  breachFilterLabel,
   changeSubject,
+  toggleBreachSelector,
   draftIssue,
   elementTitle,
   isDraftDirty,
@@ -106,5 +109,19 @@ assert.equal(
   'Billing → CRM'
 );
 assert.equal(elementTitle({ kind: 'APPLICATION', id: 'a', label: 'Billing', values: [] }), 'Billing');
+
+// Map filter: "any rule" and single rules exclude each other; the row says what is on.
+const ruleNames = [
+  { id: 'r1', name: 'Over budget' },
+  { id: 'r2', name: 'FTP flows' },
+];
+assert.deepEqual(toggleBreachSelector([], ANY_BREACH_RULE), [ANY_BREACH_RULE]);
+assert.deepEqual(toggleBreachSelector([ANY_BREACH_RULE], 'r1'), ['r1']);
+assert.deepEqual(toggleBreachSelector(['r1'], ANY_BREACH_RULE), [ANY_BREACH_RULE]);
+assert.deepEqual(toggleBreachSelector(['r1', 'r2'], 'r1'), ['r2']);
+assert.equal(breachFilterLabel([], ruleNames), 'Off');
+assert.equal(breachFilterLabel([ANY_BREACH_RULE], ruleNames), 'Any rule');
+assert.equal(breachFilterLabel(['r2'], ruleNames), 'FTP flows');
+assert.equal(breachFilterLabel(['r1', 'r2'], ruleNames), '2 rules');
 
 console.log('breachRules.check.ts passed');

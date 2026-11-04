@@ -315,6 +315,8 @@ export type GraphFilters = {
   edgeIds?: string[];
   /** Client-only: also show applications linked by a feed to a filtered application. */
   withNeighbours?: boolean;
+  /** Live map only: breach rule ids, or `any`, whose breaches the graph keeps. Not saved in views. */
+  breach?: string[];
 };
 
 /** One filterable dimension from GET /api/graph/node-filters. */

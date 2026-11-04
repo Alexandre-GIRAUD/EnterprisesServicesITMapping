@@ -63,6 +63,8 @@ export type OrientedEdgeData = {
   onExpand?: () => void;
   /** Highlight this edge (GraphCanvas hover). */
   hovered?: boolean;
+  /** Names of the flow rules this edge is in breach of; the stroke turns to the breach colour. */
+  breachRuleNames?: string[];
   /** Neighborhood of the hovered or open node: the label follows its edge. */
   tier?: 'focus' | 'faded';
   bendPoints?: Point[];
@@ -375,6 +377,8 @@ const EDGE_HIT_STROKE = 24;
 
 /** Resting edge thickness in flow units. */
 const REST_STROKE = 1.75;
+/** Same warm accent as the Breach page. */
+const BREACH_STROKE = '#ea580c';
 
 export function OrientedEdge({
   id,
@@ -546,6 +550,9 @@ export function OrientedEdge({
         ? Math.max(REST_STROKE * 1.35, 2 / zoomSafe)
         : REST_STROKE;
   const hitStroke = Math.max(32, EDGE_HIT_STROKE / zoomSafe);
+  const breachRuleNames = data?.breachRuleNames ?? [];
+  const isBreach = breachRuleNames.length > 0;
+  const breachHint = isBreach ? `In breach: ${breachRuleNames.join(', ')}. ` : '';
 
   return (
     <>
@@ -567,10 +574,10 @@ export function OrientedEdge({
         path={edgePath}
         markerEnd={markerEnd}
         style={{
-          stroke: `url(#${gradientId})`,
+          stroke: isBreach ? BREACH_STROKE : `url(#${gradientId})`,
           strokeWidth,
           opacity: isActive ? 1 : 0.95,
-          filter: isActive ? `drop-shadow(0 0 6px ${sourceColor}aa)` : undefined,
+          filter: isActive ? `drop-shadow(0 0 6px ${isBreach ? BREACH_STROKE : sourceColor}aa)` : undefined,
           ...(data?.dashed || isIndirect ? { strokeDasharray: '6 4' } : {}),
           transition: 'stroke-width 120ms ease, filter 120ms ease, opacity 120ms ease',
         }}
@@ -598,7 +605,10 @@ export function OrientedEdge({
           }}
           onDoubleClick={onLabelDoubleClick}
         >
-          <title>{canEditLabel ? 'Click for connection details · double-click to edit label' : 'Click for connection details'}</title>
+          <title>
+            {breachHint}
+            {canEditLabel ? 'Click for connection details · double-click to edit label' : 'Click for connection details'}
+          </title>
         </path>
       ) : null}
       {isIndirect && (

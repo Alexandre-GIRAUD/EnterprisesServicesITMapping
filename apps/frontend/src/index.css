@@ -8823,6 +8823,33 @@ button.chat-citation:hover {
   font-size: 0.85rem;
 }
 
+/* Breach flame on a map box: a small warm badge on the top-right corner. */
+.graph-node-breach {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #c2410c;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 12%);
+  pointer-events: auto;
+}
+
+.breach-filter-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.breach-filter-title .breach-flame {
+  color: #c2410c;
+}
+
 /* Breach: the Data Model system plus one warm accent, used only for what is in breach. */
 .breach-page {
   --breach-accent: #ea580c;
