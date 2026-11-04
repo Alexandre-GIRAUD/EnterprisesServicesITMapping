@@ -159,4 +159,6 @@ assert.match(css, /\.self-service-tool-bar-btn \{[^}]*border-radius: 999px/);
 assert.match(css, /\.graph-filter-neighbours \{[^}]*min-height: 2\.25rem/);
 assert.match(css, /\.graph-filter-neighbours-text \{[^}]*flex-direction: row/);
 
+assert.match(css, /--ss-bubble-shadow-hover: 0 6px 14px rgb\(15 23 42 \/ 14%\)/);
+assert.doesNotMatch(css, /box-shadow: 0 6px 14px rgb\(15 23 42 \/ 14%\)/);
 console.log('cartographyMenu.check: ok');
