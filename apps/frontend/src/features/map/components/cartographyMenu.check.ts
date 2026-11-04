@@ -130,9 +130,9 @@ assert.ok(filterDrawer.indexOf('graph-filter-search-input') < filterDrawer.index
 assert.match(css, /\.graph-filter-neighbours \{[^}]*justify-content: space-between/);
 assert.match(css, /\.graph-filter-neighbours input \{[^}]*appearance: none/);
 
-
-console.log('cartographyMenu.check: ok');
 assert.doesNotMatch(css, /\.sandbox-pane__icon/);
 assert.doesNotMatch(readFileSync(new URL('./SandboxPane.tsx', import.meta.url), 'utf8'), /sandbox-pane__icon/);
 assert.match(css, /\.sandbox-pane__title \{[^}]*text-align: center/);
 assert.match(css, /\.sandbox-pane__close \{[^}]*position: absolute/);
+
+console.log('cartographyMenu.check: ok');

@@ -704,17 +704,17 @@ export function FilterDrawer({
             </div>
 
             {showWithNeighbours ? (
-            <label className="graph-filter-neighbours" title="Also show applications linked by a feed to the filtered ones">
-              <input
-                type="checkbox"
-                checked={withNeighbours}
-                onChange={(event) => {
-                  hasEditedFilters.current = true;
-                  setWithNeighbours(event.target.checked);
-                }}
-              />
-              with neighbours
-            </label>
+              <label className="graph-filter-neighbours" title="Also show applications linked by a feed to the filtered ones">
+                <input
+                  type="checkbox"
+                  checked={withNeighbours}
+                  onChange={(event) => {
+                    hasEditedFilters.current = true;
+                    setWithNeighbours(event.target.checked);
+                  }}
+                />
+                with neighbours
+              </label>
             ) : null}
 
             {renderRootRow({
