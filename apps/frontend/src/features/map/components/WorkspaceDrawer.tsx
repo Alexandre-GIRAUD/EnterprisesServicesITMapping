@@ -135,13 +135,65 @@ const TOOLKIT_ICON_PATHS: Partial<Record<DrawerActionId, readonly string[]>> = {
   'add-text': ['M4 7V4h16v3', 'M9 20h6', 'M12 4v16'],
 };
 
-function ToolkitGlyph({ paths }: { paths: readonly string[] }) {
+const GLYPH_VIEW_BOX = '0 0 24 24';
+const GLYPH_STROKE_WIDTH = 1.8;
+const TOOLKIT_GLYPH_SIZE = 16;
+const CHEVRON_GLYPH_SIZE = 14;
+const CHEVRON_PATH = 'm9 18 6-6-6-6';
+
+function Glyph({
+  paths,
+  size,
+  className,
+}: {
+  paths: readonly string[];
+  size: number;
+  className?: string;
+}) {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+    <svg className={className} viewBox={GLYPH_VIEW_BOX} width={size} height={size} aria-hidden="true" focusable="false">
       {paths.map((d) => (
-        <path key={d} d={d} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          key={d}
+          d={d}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={GLYPH_STROKE_WIDTH}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       ))}
     </svg>
+  );
+}
+
+function ToolkitActionCard({
+  action,
+  onClick,
+}: {
+  action: DrawerActionItem;
+  onClick?: () => void;
+}) {
+  const iconPaths = TOOLKIT_ICON_PATHS[action.id];
+  return (
+    <button
+      type="button"
+      className="graph-drawer-action graph-drawer-action--card"
+      role="listitem"
+      onClick={onClick}
+      disabled={!onClick}
+    >
+      {iconPaths ? (
+        <span className="graph-drawer-action-chip">
+          <Glyph paths={iconPaths} size={TOOLKIT_GLYPH_SIZE} />
+        </span>
+      ) : null}
+      <span className="graph-drawer-action-text">
+        <span className="graph-drawer-action-title">{action.label}</span>
+        {action.hint ? <span className="graph-drawer-action-hint">{action.hint}</span> : null}
+      </span>
+      <Glyph className="graph-drawer-action-chevron" paths={[CHEVRON_PATH]} size={CHEVRON_GLYPH_SIZE} />
+    </button>
   );
 }
 
@@ -627,31 +679,19 @@ export function WorkspaceDrawer({
                 openEditApplication,
                 openEditFlow,
               });
+              if (sandboxMode) {
+                return <ToolkitActionCard key={action.id} action={action} onClick={onClick} />;
+              }
               return (
                 <button
                   key={action.id}
                   type="button"
-                  className={`graph-drawer-action${sandboxMode ? ' graph-drawer-action--card' : ''}`}
+                  className="graph-drawer-action"
                   role="listitem"
                   onClick={onClick}
                   disabled={!onClick}
                 >
-                  {sandboxMode && TOOLKIT_ICON_PATHS[action.id] ? (
-                    <span className="graph-drawer-action-chip">
-                      <ToolkitGlyph paths={TOOLKIT_ICON_PATHS[action.id]!} />
-                    </span>
-                  ) : null}
-                  <span className="graph-drawer-action-text">
-                    <span className="graph-drawer-action-title">{action.label}</span>
-                    {sandboxMode && action.hint ? (
-                      <span className="graph-drawer-action-hint">{action.hint}</span>
-                    ) : null}
-                  </span>
-                  {sandboxMode ? (
-                    <svg className="graph-drawer-action-chevron" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">
-                      <path d="m9 18 6-6-6-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  ) : null}
+                  <span className="graph-drawer-action-title">{action.label}</span>
                 </button>
               );
             })}
@@ -738,7 +778,7 @@ export function WorkspaceDrawer({
               value={nodeFormState.description}
               onChange={(e) => updateNodeField('description', e.target.value)}
               rows={3}
-              placeholder="Functional context for the node"
+              placeholder="Functional context for the app"
             />
           </label>
 

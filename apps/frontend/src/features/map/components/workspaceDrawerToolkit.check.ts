@@ -17,7 +17,7 @@ assert.match(drawer, /label: 'Flows'/);
 assert.doesNotMatch(drawer, /label: 'Nodes'/);
 assert.doesNotMatch(drawer, /label: 'Edges'/);
 assert.doesNotMatch(drawer, /graph-drawer-action-meta">Open/);
-assert.doesNotMatch(drawer, /Application node|between two nodes/);
+assert.doesNotMatch(drawer, /Application node|between two nodes|context for the node/);
 assert.match(drawer, /hint: 'Add an app to the canvas'/);
 assert.match(drawer, /graph-drawer-action--card/);
 assert.match(drawer, /graph-drawer-action-chip/);
