@@ -90,8 +90,8 @@ export function SandboxCanvasMenu({
       <MenuItem label="Close" onClick={onClose} />
       <MenuItem label="New sandbox" onClick={onNewSandbox} />
       <div className="sandbox-pane__ctx-sep" role="separator" />
-      <MenuItem label="Add node" onClick={onAddNode} />
-      <MenuItem label="Add edge" onClick={onAddEdge} />
+      <MenuItem label="Add app" onClick={onAddNode} />
+      <MenuItem label="Add flow" onClick={onAddEdge} />
       {onAddText ? <MenuItem label="Add text" onClick={onAddText} /> : null}
       {recentIcons.length > 0 ? (
         <>

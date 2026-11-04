@@ -79,6 +79,7 @@ const DEFAULT_EDGE_FORM_STATE: AddEdgeFormState = {
 type DrawerActionItem = {
   id: DrawerActionId;
   label: string;
+  hint?: string;
 };
 
 const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
@@ -91,7 +92,7 @@ const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
 const DRAWER_COPY: Partial<Record<DrawerView, { title: string; description: string }>> = {
   'add-node-form': {
     title: 'Create App',
-    description: 'Create an Application node (name, description). Business attributes are edited from the node details.',
+    description: 'Create an app (name, description). Business attributes are edited from the app details.',
   },
   'add-icons': {
     title: 'Icons',
@@ -109,7 +110,7 @@ const DRAWER_COPY: Partial<Record<DrawerView, { title: string; description: stri
 
 const EDGE_DRAWER_COPY = {
   title: 'Create Flow',
-  description: 'Create a typed relationship between two nodes already visible in the graph.',
+  description: 'Create a flow between two apps already visible in the graph.',
 };
 
 function readDrawerCopy(view: DrawerView): { title: string; description: string } {
@@ -117,11 +118,32 @@ function readDrawerCopy(view: DrawerView): { title: string; description: string 
 }
 
 const TOOLKIT_ACTIONS: DrawerActionItem[] = [
-  { id: 'add-node', label: 'Nodes' },
-  { id: 'add-edge', label: 'Edges' },
-  { id: 'add-icons', label: 'Icons' },
-  { id: 'add-text', label: 'Text' },
+  { id: 'add-node', label: 'Apps', hint: 'Add an app to the canvas' },
+  { id: 'add-edge', label: 'Flows', hint: 'Link two apps with a flow' },
+  { id: 'add-icons', label: 'Icons', hint: 'Place visual markers' },
+  { id: 'add-text', label: 'Text', hint: 'Annotate the canvas' },
 ];
+
+const TOOLKIT_ICON_PATHS: Partial<Record<DrawerActionId, readonly string[]>> = {
+  'add-node': [
+    'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z',
+    'm3.3 7 8.7 5 8.7-5',
+    'M12 22V12',
+  ],
+  'add-edge': ['m16 3 4 4-4 4', 'M20 7H4', 'm8 21-4-4 4-4', 'M4 17h16'],
+  'add-icons': ['M8 14s1.5 2 4 2 4-2 4-2', 'M9 9h.01', 'M15 9h.01', 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z'],
+  'add-text': ['M4 7V4h16v3', 'M9 20h6', 'M12 4v16'],
+};
+
+function ToolkitGlyph({ paths }: { paths: readonly string[] }) {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+      {paths.map((d) => (
+        <path key={d} d={d} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      ))}
+    </svg>
+  );
+}
 
 function actionHandler(
   id: DrawerActionId,
@@ -609,13 +631,27 @@ export function WorkspaceDrawer({
                 <button
                   key={action.id}
                   type="button"
-                  className="graph-drawer-action"
+                  className={`graph-drawer-action${sandboxMode ? ' graph-drawer-action--card' : ''}`}
                   role="listitem"
                   onClick={onClick}
                   disabled={!onClick}
                 >
-                  <span className="graph-drawer-action-title">{action.label}</span>
-                  {sandboxMode ? <span className="graph-drawer-action-meta">Open</span> : null}
+                  {sandboxMode && TOOLKIT_ICON_PATHS[action.id] ? (
+                    <span className="graph-drawer-action-chip">
+                      <ToolkitGlyph paths={TOOLKIT_ICON_PATHS[action.id]!} />
+                    </span>
+                  ) : null}
+                  <span className="graph-drawer-action-text">
+                    <span className="graph-drawer-action-title">{action.label}</span>
+                    {sandboxMode && action.hint ? (
+                      <span className="graph-drawer-action-hint">{action.hint}</span>
+                    ) : null}
+                  </span>
+                  {sandboxMode ? (
+                    <svg className="graph-drawer-action-chevron" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">
+                      <path d="m9 18 6-6-6-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : null}
                 </button>
               );
             })}

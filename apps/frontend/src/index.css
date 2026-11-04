@@ -6465,6 +6465,47 @@ body.is-diagram-grown .layout {
   font-weight: 600;
 }
 
+.graph-drawer-action--card {
+  justify-content: flex-start;
+  gap: 0.7rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+}
+
+.graph-drawer-action--card:hover:not(:disabled) {
+  border-color: var(--ss-accent-border, #cbd5e1);
+  background: var(--ss-accent-surface, #f8fafc);
+}
+
+.graph-drawer-action-chip {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--ss-accent-border, #dbeafe);
+  border-radius: 50%;
+  background: var(--ss-accent-surface, #eff6ff);
+  color: var(--ss-accent-text, #2563eb);
+}
+
+.graph-drawer-action-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.graph-drawer-action-hint {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.graph-drawer-action-chevron {
+  flex: none;
+  color: #94a3b8;
+}
+
 .graph-drawer-rescan-title {
   display: inline-flex;
   align-items: center;
