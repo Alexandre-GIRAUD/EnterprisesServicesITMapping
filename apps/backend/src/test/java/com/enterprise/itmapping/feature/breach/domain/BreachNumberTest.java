@@ -21,7 +21,9 @@ class BreachNumberTest {
         "'1,2M';1200000",
         "-5;-5",
         "' 42.5 ';42.5",
-        "100 k;100000"
+        "100 k;100000",
+        "120 000;120000",
+        "120 000;120000"
       })
   void parsesNumbersWrittenByPeople(String raw, double expected) {
     assertThat(BreachNumber.parse(raw)).isEqualTo(expected);

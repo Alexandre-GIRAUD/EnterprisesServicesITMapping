@@ -586,6 +586,8 @@ export type BreachRuleDto = BreachRuleRequest & {
   breachCount: number;
   unknownCount: number;
   updatedAt: string;
+  /** Username of the last editor; null when that user was deleted. */
+  updatedBy: string | null;
 };
 
 export type BreachTestedValueDto = { scope: BreachScope; attribute: string; values: string[] };
@@ -594,20 +596,23 @@ export type BreachElementDto = {
   kind: BreachSubject;
   id: string;
   label: string;
-  sourceId?: string;
-  sourceLabel?: string;
-  targetId?: string;
-  targetLabel?: string;
+  /** Flows only. */
+  source?: BreachEndpointDto;
+  /** Flows only. */
+  target?: BreachEndpointDto;
   values: BreachTestedValueDto[];
 };
 
-/** {@code GET /api/breach-rules/{id}/evaluation} */
-export type BreachResultDto = { breaches: BreachElementDto[]; unknown: BreachElementDto[] };
+export type BreachEndpointDto = { id: string; label: string };
 
-/** {@code GET /api/breach-rules/evaluation}: rule ids by application id and by flow id. */
+/** {@code GET /api/breach-rules/{id}/evaluation} */
+export type BreachResultDto = { ruleId: string; breaches: BreachElementDto[]; unknown: BreachElementDto[] };
+
+/** {@code GET /api/breach-rules/evaluation}: rule ids by application id and by flow id, and rule names. */
 export type BreachSummaryDto = {
   applications: Record<string, string[]>;
   flows: Record<string, string[]>;
+  ruleNames: Record<string, string>;
 };
 
 export type BreachImpactDto = { ruleId: string; ruleName: string; element: BreachElementDto };

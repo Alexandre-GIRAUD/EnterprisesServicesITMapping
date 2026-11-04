@@ -24,15 +24,18 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "breach_rules")
 public class BreachRuleEntity {
 
+  /** Matches {@code breach_rules.subject VARCHAR(16)}. */
+  private static final int SUBJECT_LENGTH = 16;
+
   @Id
   @Column(nullable = false, updatable = false)
   private UUID id;
 
-  @Column(nullable = false, length = 120)
+  @Column(nullable = false, length = BreachRule.MAX_NAME_LENGTH)
   private String name;
 
   @Enumerated(EnumType.STRING)
-  @Column(nullable = false, length = 16)
+  @Column(nullable = false, length = SUBJECT_LENGTH)
   private BreachSubject subject;
 
   @JdbcTypeCode(SqlTypes.JSON)
@@ -92,6 +95,10 @@ public class BreachRuleEntity {
 
   public Instant getUpdatedAt() {
     return updatedAt;
+  }
+
+  public UserEntity getUpdatedBy() {
+    return updatedBy;
   }
 
   public void setUpdatedBy(UserEntity updatedBy) {

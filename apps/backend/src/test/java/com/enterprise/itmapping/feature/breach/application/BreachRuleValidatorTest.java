@@ -10,6 +10,7 @@ import com.enterprise.itmapping.feature.breach.domain.BreachGroup;
 import com.enterprise.itmapping.feature.breach.domain.BreachOperator;
 import com.enterprise.itmapping.feature.breach.domain.BreachScope;
 import com.enterprise.itmapping.feature.breach.domain.BreachSubject;
+import com.enterprise.itmapping.feature.breach.presentation.dto.BreachRuleRequest;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelDetection;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
@@ -42,7 +43,7 @@ class BreachRuleValidatorTest {
   }
 
   private void validate(String name, BreachSubject subject, BreachDefinition definition) {
-    validator.validate(name, subject, definition, MODEL, Set.of("Existing"));
+    validator.validate(new BreachRuleRequest(name, subject, definition), MODEL, Set.of("Existing"));
   }
 
   @Test

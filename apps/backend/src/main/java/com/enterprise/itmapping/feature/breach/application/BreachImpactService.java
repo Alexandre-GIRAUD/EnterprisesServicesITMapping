@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.feature.breach.application;
 
+import com.enterprise.itmapping.feature.breach.application.BreachGraphChange.PendingChange;
 import com.enterprise.itmapping.feature.breach.domain.BreachRule;
 import com.enterprise.itmapping.feature.breach.presentation.dto.BreachImpact;
 import com.enterprise.itmapping.feature.breach.presentation.dto.BreachImpactResponse;
@@ -30,9 +31,7 @@ public class BreachImpactService {
   private final BreachEvaluator evaluator;
 
   public BreachImpactService(
-      ChangeDetectionItemRepository itemRepository,
-      BreachRuleService ruleService,
-      BreachEvaluator evaluator) {
+      ChangeDetectionItemRepository itemRepository, BreachRuleService ruleService, BreachEvaluator evaluator) {
     this.itemRepository = itemRepository;
     this.ruleService = ruleService;
     this.evaluator = evaluator;
@@ -43,39 +42,38 @@ public class BreachImpactService {
     ChangeDetectionItemEntity item =
         itemRepository
             .findByIdAndRun_Id(itemId, runId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found."));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Change item not found."));
     String applicationId = item.getRun().getApplicationId();
     if (item.getStatus() != ChangeDetectionItemStatus.PENDING || !StringUtils.hasText(applicationId)) {
       return NO_IMPACT;
     }
-    GraphResponseDto before = ruleService.liveGraph();
     Map<String, Object> payload = item.getPayload() != null ? item.getPayload() : Map.of();
-    GraphResponseDto after = BreachGraphChange.apply(before, applicationId, item.getKind(), payload);
-    return diff(ruleService.rules(), before, after);
+    GraphResponseDto before = ruleService.loadLiveGraph();
+    GraphResponseDto after =
+        BreachGraphChange.apply(before, new PendingChange(applicationId, item.getKind(), payload));
+    return compareBreaches(ruleService.loadRules(), before, after);
   }
 
-  private BreachImpactResponse diff(List<BreachRule> rules, GraphResponseDto before, GraphResponseDto after) {
+  private BreachImpactResponse compareBreaches(
+      List<BreachRule> rules, GraphResponseDto before, GraphResponseDto after) {
     List<BreachImpact> entering = new ArrayList<>();
     List<BreachImpact> leaving = new ArrayList<>();
     for (BreachRule rule : rules) {
       List<BreachElement> was = evaluator.evaluate(rule, before).breaches();
       List<BreachElement> willBe = evaluator.evaluate(rule, after).breaches();
-      collectMissing(rule, willBe, ids(was), entering);
-      collectMissing(rule, was, ids(willBe), leaving);
+      entering.addAll(findMissing(rule, willBe, was));
+      leaving.addAll(findMissing(rule, was, willBe));
     }
     return new BreachImpactResponse(entering, leaving);
   }
 
-  private static void collectMissing(
-      BreachRule rule, List<BreachElement> elements, Set<String> otherIds, List<BreachImpact> out) {
-    for (BreachElement element : elements) {
-      if (!otherIds.contains(element.id())) {
-        out.add(new BreachImpact(rule.id(), rule.name(), element));
-      }
-    }
-  }
-
-  private static Set<String> ids(List<BreachElement> elements) {
-    return elements.stream().map(BreachElement::id).collect(Collectors.toSet());
+  /** Elements of {@code elements} that {@code others} does not list, as impacts of {@code rule}. */
+  private static List<BreachImpact> findMissing(
+      BreachRule rule, List<BreachElement> elements, List<BreachElement> others) {
+    Set<String> otherIds = others.stream().map(BreachElement::id).collect(Collectors.toSet());
+    return elements.stream()
+        .filter(element -> !otherIds.contains(element.id()))
+        .map(element -> new BreachImpact(rule.id(), rule.name(), element))
+        .toList();
   }
 }

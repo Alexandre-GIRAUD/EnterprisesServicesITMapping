@@ -2,6 +2,7 @@ import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useStat
 import { CloseIcon } from './CloseIcon';
 import type { ApplicationResponse, GraphEdgeDto, GraphFilters, GraphNodeFilterDto } from '@/types/api';
 import {
+  BREACH_FILTER_VIEW,
   type FilterView,
   isGraphBlankedBySelection,
   keepApplicationsForCheckedFlows,
@@ -283,7 +284,7 @@ export function FilterDrawer({
 
   function clearDetailDimension() {
     hasEditedFilters.current = true;
-    if (view === 'breach') {
+    if (view === BREACH_FILTER_VIEW) {
       setSelectedBreach([]);
       return;
     }
@@ -383,7 +384,7 @@ export function FilterDrawer({
         : detailDimension
           ? (selectedNodeValues[detailDimension.key] ?? []).length
           : 0;
-    const doneLabel = view !== 'breach' && detailMode === 'some' ? `Done (${selectedCount})` : 'Done';
+    const doneLabel = view !== BREACH_FILTER_VIEW && detailMode === 'some' ? `Done (${selectedCount})` : 'Done';
 
     return (
       <div className="graph-filter-compact-actions">
@@ -577,7 +578,7 @@ export function FilterDrawer({
       ? 'Filters'
       : view === 'applications'
         ? 'Applications'
-        : view === 'breach'
+        : view === BREACH_FILTER_VIEW
           ? 'Breach'
           : (detailDimension?.label ?? 'Filters');
 
@@ -753,7 +754,7 @@ export function FilterDrawer({
             })}
 
             {showBreach && breachRules.length > 0 ? (
-              <BreachFilterRow rules={breachRules} selected={selectedBreach} onOpen={() => openDetail('breach')} />
+              <BreachFilterRow rules={breachRules} selected={selectedBreach} onOpen={() => openDetail(BREACH_FILTER_VIEW)} />
             ) : null}
 
             {nodeFilters.map((dimension) =>
@@ -783,7 +784,7 @@ export function FilterDrawer({
           </div>
         ) : view === 'applications' ? (
           renderApplicationsDetail()
-        ) : view === 'breach' ? (
+        ) : view === BREACH_FILTER_VIEW ? (
           <BreachFilterDetail rules={breachRules} selected={selectedBreach} onToggle={toggleBreach} />
         ) : detailDimension ? (
           renderNodeAttributeDetail(detailDimension)

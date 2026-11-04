@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getBreachSummary, listBreachRules } from './api/breachApi';
+import { getBreachSummary } from './api/breachApi';
 
 /** Rule names by application id and by flow id, for the flames and colours on the map. */
 export type BreachMarks = {
@@ -9,9 +9,9 @@ export type BreachMarks = {
 
 const NO_MARKS: BreachMarks = { applications: new Map(), flows: new Map() };
 
-function namesById(ruleIdsById: Record<string, string[]>, nameOf: Map<string, string>): Map<string, string[]> {
+function mapRuleNames(ruleIdsById: Record<string, string[]>, ruleNames: Record<string, string>): Map<string, string[]> {
   return new Map(
-    Object.entries(ruleIdsById).map(([id, ruleIds]) => [id, ruleIds.map((ruleId) => nameOf.get(ruleId) ?? ruleId)])
+    Object.entries(ruleIdsById).map(([id, ruleIds]) => [id, ruleIds.map((ruleId) => ruleNames[ruleId] ?? ruleId)])
   );
 }
 
@@ -26,18 +26,20 @@ export function useBreachMarks(isEnabled: boolean, reloadKey: unknown): BreachMa
       setMarks(NO_MARKS);
       return undefined;
     }
-    let cancelled = false;
-    Promise.all([listBreachRules(), getBreachSummary()])
-      .then(([rules, summary]) => {
-        if (cancelled) return;
-        const nameOf = new Map(rules.map((rule) => [rule.id, rule.name]));
-        setMarks({ applications: namesById(summary.applications, nameOf), flows: namesById(summary.flows, nameOf) });
+    let isCancelled = false;
+    getBreachSummary()
+      .then((summary) => {
+        if (isCancelled) return;
+        setMarks({
+          applications: mapRuleNames(summary.applications, summary.ruleNames),
+          flows: mapRuleNames(summary.flows, summary.ruleNames),
+        });
       })
       .catch(() => {
-        if (!cancelled) setMarks(NO_MARKS);
+        if (!isCancelled) setMarks(NO_MARKS);
       });
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
   }, [isEnabled, reloadKey]);
   return marks;

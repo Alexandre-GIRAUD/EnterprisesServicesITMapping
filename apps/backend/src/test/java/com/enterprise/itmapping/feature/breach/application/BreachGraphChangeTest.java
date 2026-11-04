@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.breach.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.enterprise.itmapping.feature.breach.application.BreachGraphChange.PendingChange;
 import com.enterprise.itmapping.feature.changedetection.domain.ChangeDetectionItemKind;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphEdgeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeDto;
@@ -16,25 +17,26 @@ class BreachGraphChangeTest {
       new GraphResponseDto(
           List.of(
               new GraphNodeDto("app", "Billing", "Application", null, Map.of("cost", "10k")),
-              new GraphNodeDto("crm", "CRM", "Application", null, Map.of())),
+              new GraphNodeDto("crm", " CRM ", "Application", null, Map.of())),
           List.of());
+
+  private static GraphResponseDto apply(ChangeDetectionItemKind kind, Map<String, Object> payload) {
+    return BreachGraphChange.apply(GRAPH, new PendingChange("app", kind, payload));
+  }
 
   @Test
   void anAttributeChangeSetsThePropertyOnTheRunApplication() {
     GraphResponseDto changed =
-        BreachGraphChange.apply(
-            GRAPH, "app", ChangeDetectionItemKind.NODE_ATTRIBUTE, Map.of("key", "cost", "value", "150k"));
+        apply(ChangeDetectionItemKind.NODE_ATTRIBUTE, Map.of("key", "cost", "value", "150k"));
 
     assertThat(changed.nodes().get(0).properties()).containsEntry("cost", "150k");
     assertThat(GRAPH.nodes().get(0).properties()).containsEntry("cost", "10k");
   }
 
   @Test
-  void anOutboundConnectionAddsAFlowToThePeerFoundByName() {
+  void anOutboundConnectionAddsAFlowToThePeerFoundByNameIgnoringCaseAndSpaces() {
     GraphResponseDto changed =
-        BreachGraphChange.apply(
-            GRAPH,
-            "app",
+        apply(
             ChangeDetectionItemKind.CONNECTION,
             Map.of(
                 "peerApplicationName", "crm",
@@ -52,11 +54,7 @@ class BreachGraphChangeTest {
   @Test
   void anInboundConnectionToAnUnknownPeerAddsAnAttributelessApplication() {
     GraphResponseDto changed =
-        BreachGraphChange.apply(
-            GRAPH,
-            "app",
-            ChangeDetectionItemKind.CONNECTION,
-            Map.of("peerApplicationName", "Ledger", "direction", "inbound"));
+        apply(ChangeDetectionItemKind.CONNECTION, Map.of("peerApplicationName", "Ledger", "direction", "inbound"));
 
     assertThat(changed.nodes()).hasSize(3);
     GraphNodeDto peer = changed.nodes().get(2);
@@ -68,7 +66,6 @@ class BreachGraphChangeTest {
 
   @Test
   void aModuleChangeLeavesTheGraphAsItIs() {
-    assertThat(BreachGraphChange.apply(GRAPH, "app", ChangeDetectionItemKind.MODULE, Map.of()))
-        .isEqualTo(GRAPH);
+    assertThat(apply(ChangeDetectionItemKind.MODULE, Map.of())).isEqualTo(GRAPH);
   }
 }

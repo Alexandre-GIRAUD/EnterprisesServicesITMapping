@@ -200,8 +200,8 @@ class BreachEvaluatorTest {
     assertThat(ids(result.unknown())).containsExactly("toBlank");
     BreachElement flagged = result.breaches().get(0);
     assertThat(flagged.kind()).isEqualTo(BreachSubject.FLOW);
-    assertThat(flagged.sourceLabel()).isEqualTo("App cheap");
-    assertThat(flagged.targetLabel()).isEqualTo("App expensive");
+    assertThat(flagged.source()).isEqualTo(new BreachEndpoint("cheap", "App cheap"));
+    assertThat(flagged.target()).isEqualTo(new BreachEndpoint("expensive", "App expensive"));
   }
 
   @Test

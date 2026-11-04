@@ -20,19 +20,19 @@ public enum BreachScope {
   SOURCE_OR_TARGET(BreachSubject.FLOW, false);
 
   private final BreachSubject subject;
-  private final boolean readsFlowAttributes;
+  private final boolean isFlowScope;
 
-  BreachScope(BreachSubject subject, boolean readsFlowAttributes) {
+  BreachScope(BreachSubject subject, boolean isFlowScope) {
     this.subject = subject;
-    this.readsFlowAttributes = readsFlowAttributes;
+    this.isFlowScope = isFlowScope;
   }
 
-  public boolean fits(BreachSubject ruleSubject) {
+  public boolean isAllowedFor(BreachSubject ruleSubject) {
     return subject == ruleSubject;
   }
 
   /** True when the condition attribute is a flow (EDGE) attribute, false for an application one. */
-  public boolean readsFlowAttributes() {
-    return readsFlowAttributes;
+  public boolean isFlowScope() {
+    return isFlowScope;
   }
 }

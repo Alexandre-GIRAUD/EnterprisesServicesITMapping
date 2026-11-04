@@ -3,6 +3,7 @@ import { Handle, NodeResizer, Position, type Node, type NodeProps } from '@xyflo
 import { nodeColorForType } from './graphTheme';
 import { NodeIconGlyph } from './NodeIconGlyph';
 import { FlameIcon } from '@/features/breach/components/FlameIcon';
+import { describeBreachRules } from '@/features/breach/breachRules';
 
 /** Smallest box the user can shrink to; text and icon keep their size. */
 const MIN_BOX_WIDTH_PX = 80;
@@ -104,8 +105,8 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
         </button>
       ) : null}
       {data.breachRuleNames && data.breachRuleNames.length > 0 ? (
-        <span className="graph-node-breach" title={`In breach: ${data.breachRuleNames.join(', ')}`}>
-          <FlameIcon size={12} title={`In breach: ${data.breachRuleNames.join(', ')}`} />
+        <span className="graph-node-breach" title={describeBreachRules(data.breachRuleNames)}>
+          <FlameIcon size="badge" title={describeBreachRules(data.breachRuleNames)} />
         </span>
       ) : null}
       {editing ? (

@@ -385,7 +385,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     edgeIds,
     matchNothing,
     withNeighbours,
-    breach,
+    breach: isReadOnly ? undefined : breach,
     filtersActive: productionFiltersActive,
     graphReloadNonce,
     hiddenNodeIds: hiddenNodeIdsForLegend,
@@ -437,7 +437,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     applyLegendSetup,
     deleteLegendSetup,
   } = data;
-  const breachMarks = useBreachMarks(!isSandbox && !isViewsMode, graphNodes);
+  const breachMarks = useBreachMarks(!isSandbox && !isViewsMode && !isReadOnly, graphNodes);
 
   const legendCodingRef = useRef({
     colorPropertyKey,

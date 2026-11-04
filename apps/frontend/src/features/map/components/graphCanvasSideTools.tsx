@@ -17,6 +17,9 @@ import type { SideMenuTool } from './SelfServiceToolBar';
 import type { CartographyChatTurn } from '../utils/mapNavigation';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
 
+/** Sandboxes and past days never filter on breaches; a stable empty list keeps the drawer still. */
+const NO_BREACH_SELECTION: string[] = [];
+
 type GraphCanvasSideToolInput = {
   graphMode: GraphMode;
   activeSideMenuTool: SideMenuTool;
@@ -173,8 +176,8 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
             initialBlankedDimensions={
               isSandbox ? activeSandboxFilters.blankedDimensions ?? [] : blankedDimensions
             }
-            showBreach={!isSandbox}
-            initialBreach={isSandbox ? [] : filters.breach}
+            showBreach={!isSandbox && !isReadOnly}
+            initialBreach={isSandbox || isReadOnly ? NO_BREACH_SELECTION : filters.breach}
             edges={graphEdges}
             onApply={({
               applicationIds: appIds,

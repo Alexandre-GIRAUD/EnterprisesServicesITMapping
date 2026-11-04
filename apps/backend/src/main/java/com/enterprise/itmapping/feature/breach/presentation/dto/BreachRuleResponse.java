@@ -13,4 +13,6 @@ public record BreachRuleResponse(
     BreachDefinition definition,
     int breachCount,
     int unknownCount,
-    Instant updatedAt) {}
+    Instant updatedAt,
+    /** Username of the last editor; null when that user was deleted. */
+    String updatedBy) {}

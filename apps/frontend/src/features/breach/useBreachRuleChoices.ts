@@ -7,16 +7,16 @@ export function useBreachRuleChoices(isEnabled: boolean): BreachRuleDto[] {
   const [rules, setRules] = useState<BreachRuleDto[]>([]);
   useEffect(() => {
     if (!isEnabled) return undefined;
-    let cancelled = false;
+    let isCancelled = false;
     listBreachRules()
       .then((loaded) => {
-        if (!cancelled) setRules(loaded);
+        if (!isCancelled) setRules(loaded);
       })
       .catch(() => {
-        if (!cancelled) setRules([]);
+        if (!isCancelled) setRules([]);
       });
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
   }, [isEnabled]);
   return rules;

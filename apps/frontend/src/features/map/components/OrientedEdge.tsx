@@ -1,4 +1,5 @@
 ﻿import { useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { describeBreachRules } from '@/features/breach/breachRules';
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -377,8 +378,8 @@ const EDGE_HIT_STROKE = 24;
 
 /** Resting edge thickness in flow units. */
 const REST_STROKE = 1.75;
-/** Same warm accent as the Breach page. */
-const BREACH_STROKE = '#ea580c';
+/** The Breach accent token from index.css. */
+const BREACH_STROKE = 'var(--breach-accent)';
 
 export function OrientedEdge({
   id,
@@ -552,7 +553,7 @@ export function OrientedEdge({
   const hitStroke = Math.max(32, EDGE_HIT_STROKE / zoomSafe);
   const breachRuleNames = data?.breachRuleNames ?? [];
   const isBreach = breachRuleNames.length > 0;
-  const breachHint = isBreach ? `In breach: ${breachRuleNames.join(', ')}. ` : '';
+  const breachHint = isBreach ? `${describeBreachRules(breachRuleNames)}. ` : '';
 
   return (
     <>
@@ -577,7 +578,7 @@ export function OrientedEdge({
           stroke: isBreach ? BREACH_STROKE : `url(#${gradientId})`,
           strokeWidth,
           opacity: isActive ? 1 : 0.95,
-          filter: isActive ? `drop-shadow(0 0 6px ${isBreach ? BREACH_STROKE : sourceColor}aa)` : undefined,
+          filter: isActive ? `drop-shadow(0 0 6px ${isBreach ? BREACH_STROKE : `${sourceColor}aa`})` : undefined,
           ...(data?.dashed || isIndirect ? { strokeDasharray: '6 4' } : {}),
           transition: 'stroke-width 120ms ease, filter 120ms ease, opacity 120ms ease',
         }}

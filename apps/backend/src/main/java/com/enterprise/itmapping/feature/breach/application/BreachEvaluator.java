@@ -1,11 +1,14 @@
 package com.enterprise.itmapping.feature.breach.application;
 
+import com.enterprise.itmapping.feature.breach.application.BreachElement.FlowEnds;
+import com.enterprise.itmapping.feature.breach.domain.BreachCombinator;
 import com.enterprise.itmapping.feature.breach.domain.BreachCondition;
 import com.enterprise.itmapping.feature.breach.domain.BreachDefinition;
 import com.enterprise.itmapping.feature.breach.domain.BreachGroup;
 import com.enterprise.itmapping.feature.breach.domain.BreachNumber;
 import com.enterprise.itmapping.feature.breach.domain.BreachOperator;
 import com.enterprise.itmapping.feature.breach.domain.BreachRule;
+import com.enterprise.itmapping.feature.breach.domain.BreachScope;
 import com.enterprise.itmapping.feature.breach.domain.BreachSubject;
 import com.enterprise.itmapping.feature.breach.domain.Truth;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphEdgeDto;
@@ -18,7 +21,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import org.springframework.stereotype.Component;
 
 /** Evaluates a breach rule over a graph, with three-valued logic (see the Breach spec). */
@@ -29,8 +34,8 @@ public class BreachEvaluator {
     GraphIndex index = new GraphIndex(graph);
     List<BreachElement> breaches = new ArrayList<>();
     List<BreachElement> unknown = new ArrayList<>();
-    for (Subject subject : subjects(rule.subject(), index)) {
-      Truth truth = evaluate(rule.definition(), subject, index);
+    for (Subject subject : listSubjects(rule.subject(), index)) {
+      Truth truth = evaluateDefinition(rule.definition(), subject, index);
       if (truth == Truth.TRUE) {
         breaches.add(toElement(subject, rule.definition(), index));
       } else if (truth == Truth.UNKNOWN) {
@@ -40,66 +45,61 @@ public class BreachEvaluator {
     return new BreachResult(breaches, unknown);
   }
 
-  private static List<Subject> subjects(BreachSubject kind, GraphIndex index) {
+  private static List<Subject> listSubjects(BreachSubject kind, GraphIndex index) {
     if (kind == BreachSubject.APPLICATION) {
       return index.nodes().stream().map(Subject::ofNode).toList();
     }
     return index.edges().stream().map(Subject::ofEdge).toList();
   }
 
-  private static Truth evaluate(BreachDefinition definition, Subject subject, GraphIndex index) {
-    Truth result = definition.combinator().identity();
-    for (BreachGroup group : definition.groups()) {
-      result = definition.combinator().combine(result, evaluate(group, subject, index));
-    }
-    return result;
+  private static Truth evaluateDefinition(BreachDefinition definition, Subject subject, GraphIndex index) {
+    return fold(definition.combinator(), definition.groups(), group -> evaluateGroup(group, subject, index));
   }
 
-  private static Truth evaluate(BreachGroup group, Subject subject, GraphIndex index) {
-    Truth result = group.combinator().identity();
-    for (BreachCondition condition : group.conditions()) {
-      result = group.combinator().combine(result, evaluate(condition, subject, index));
+  private static Truth evaluateGroup(BreachGroup group, Subject subject, GraphIndex index) {
+    return fold(group.combinator(), group.conditions(), condition -> evaluateCondition(condition, subject, index));
+  }
+
+  private static <T> Truth fold(BreachCombinator combinator, List<T> items, Function<T, Truth> evaluate) {
+    Truth result = combinator.identity();
+    for (T item : items) {
+      result = combinator.combine(result, evaluate.apply(item));
     }
     return result;
   }
 
   /** A scope that reads several elements (source or target, any flow) holds when one of them does. */
-  private static Truth evaluate(BreachCondition condition, Subject subject, GraphIndex index) {
-    List<List<String>> readings = readings(condition, subject, index);
-    if (readings.isEmpty()) {
-      return Truth.FALSE;
-    }
+  private static Truth evaluateCondition(BreachCondition condition, Subject subject, GraphIndex index) {
     Truth result = Truth.FALSE;
-    for (List<String> values : readings) {
-      result = result.or(test(condition, values));
+    for (List<String> values : readValueLists(condition, subject, index)) {
+      result = result.or(testValues(condition, values));
     }
     return result;
   }
 
   /** The value lists of every element the condition scope names, one list per element. */
-  private static List<List<String>> readings(
-      BreachCondition condition, Subject subject, GraphIndex index) {
+  private static List<List<String>> readValueLists(BreachCondition condition, Subject subject, GraphIndex index) {
     String key = condition.attribute();
     return switch (condition.scope()) {
-      case SELF -> List.of(nodeValues(subject.node(), key));
-      case ANY_FLOW_IN -> edgeReadings(index.incoming(subject.node().id()), key);
-      case ANY_FLOW_OUT -> edgeReadings(index.outgoing(subject.node().id()), key);
-      case ANY_FLOW -> edgeReadings(index.incident(subject.node().id()), key);
-      case FLOW -> List.of(edgeValues(subject.edge(), key));
-      case SOURCE -> List.of(nodeValues(index.node(subject.edge().sourceId()), key));
-      case TARGET -> List.of(nodeValues(index.node(subject.edge().targetId()), key));
+      case SELF -> List.of(readNodeValues(subject.node(), key));
+      case ANY_FLOW_IN -> readEdgeValueLists(index.incoming(subject.node().id()), key);
+      case ANY_FLOW_OUT -> readEdgeValueLists(index.outgoing(subject.node().id()), key);
+      case ANY_FLOW -> readEdgeValueLists(index.incident(subject.node().id()), key);
+      case FLOW -> List.of(readEdgeValues(subject.edge(), key));
+      case SOURCE -> List.of(readNodeValues(index.node(subject.edge().sourceId()), key));
+      case TARGET -> List.of(readNodeValues(index.node(subject.edge().targetId()), key));
       case SOURCE_OR_TARGET ->
           List.of(
-              nodeValues(index.node(subject.edge().sourceId()), key),
-              nodeValues(index.node(subject.edge().targetId()), key));
+              readNodeValues(index.node(subject.edge().sourceId()), key),
+              readNodeValues(index.node(subject.edge().targetId()), key));
     };
   }
 
-  private static List<List<String>> edgeReadings(List<GraphEdgeDto> edges, String key) {
-    return edges.stream().map(edge -> edgeValues(edge, key)).toList();
+  private static List<List<String>> readEdgeValueLists(List<GraphEdgeDto> edges, String key) {
+    return edges.stream().map(edge -> readEdgeValues(edge, key)).toList();
   }
 
-  private static Truth test(BreachCondition condition, List<String> values) {
+  private static Truth testValues(BreachCondition condition, List<String> values) {
     BreachOperator operator = condition.operator();
     if (operator == BreachOperator.IS_EMPTY) {
       return Truth.of(values.isEmpty());
@@ -113,12 +113,15 @@ public class BreachEvaluator {
     if (operator.isNumeric()) {
       return testNumbers(operator, values, BreachNumber.parse(condition.value()));
     }
-    String expected = condition.value().toLowerCase(Locale.ROOT);
+    return testTexts(operator, values, toLowerCase(condition.value()));
+  }
+
+  private static Truth testTexts(BreachOperator operator, List<String> values, String expected) {
     return switch (operator) {
-      case EQUALS -> Truth.of(values.stream().anyMatch(value -> lower(value).equals(expected)));
-      case NOT_EQUALS -> Truth.of(values.stream().noneMatch(value -> lower(value).equals(expected)));
-      case CONTAINS -> Truth.of(values.stream().anyMatch(value -> lower(value).contains(expected)));
-      default -> throw new IllegalStateException("Unhandled operator " + operator);
+      case EQUALS -> Truth.of(values.stream().anyMatch(value -> toLowerCase(value).equals(expected)));
+      case NOT_EQUALS -> Truth.of(values.stream().noneMatch(value -> toLowerCase(value).equals(expected)));
+      case CONTAINS -> Truth.of(values.stream().anyMatch(value -> toLowerCase(value).contains(expected)));
+      default -> throw new IllegalStateException("Not a text operator: " + operator);
     };
   }
 
@@ -134,75 +137,66 @@ public class BreachEvaluator {
     return result;
   }
 
-  private static String lower(String value) {
+  private static String toLowerCase(String value) {
     return value.toLowerCase(Locale.ROOT);
   }
 
   private static BreachElement toElement(Subject subject, BreachDefinition definition, GraphIndex index) {
-    List<BreachTestedValue> tested = testedValues(subject, definition, index);
+    List<BreachTestedValue> tested = collectTestedValues(subject, definition, index);
     if (subject.node() != null) {
-      GraphNodeDto node = subject.node();
-      return new BreachElement(
-          BreachSubject.APPLICATION, node.id(), node.label(), null, null, null, null, tested);
+      return BreachElement.ofApplication(subject.node().id(), subject.node().label(), tested);
     }
     GraphEdgeDto edge = subject.edge();
-    return new BreachElement(
-        BreachSubject.FLOW,
-        edge.id(),
-        index.label(edge.sourceId()) + " → " + index.label(edge.targetId()),
-        edge.sourceId(),
-        index.label(edge.sourceId()),
-        edge.targetId(),
-        index.label(edge.targetId()),
-        tested);
+    FlowEnds ends = new FlowEnds(index.endpoint(edge.sourceId()), index.endpoint(edge.targetId()));
+    return BreachElement.ofFlow(edge.id(), ends, tested);
   }
 
   /** One entry per distinct scope and attribute, in rule order. */
-  private static List<BreachTestedValue> testedValues(
+  private static List<BreachTestedValue> collectTestedValues(
       Subject subject, BreachDefinition definition, GraphIndex index) {
-    Map<String, BreachTestedValue> tested = new LinkedHashMap<>();
-    for (BreachGroup group : definition.groups()) {
-      for (BreachCondition condition : group.conditions()) {
-        String key = condition.scope() + ":" + condition.attribute();
-        if (tested.containsKey(key)) {
-          continue;
-        }
-        Set<String> values = new LinkedHashSet<>();
-        readings(condition, subject, index).forEach(values::addAll);
-        tested.put(
-            key, new BreachTestedValue(condition.scope(), condition.attribute(), List.copyOf(values)));
-      }
-    }
+    Map<ScopedAttribute, BreachTestedValue> tested = new LinkedHashMap<>();
+    definition.groups().stream()
+        .flatMap(group -> group.conditions().stream())
+        .forEach(
+            condition ->
+                tested.computeIfAbsent(
+                    new ScopedAttribute(condition.scope(), condition.attribute()),
+                    key -> readTestedValue(condition, subject, index)));
     return List.copyOf(tested.values());
   }
 
+  private static BreachTestedValue readTestedValue(BreachCondition condition, Subject subject, GraphIndex index) {
+    Set<String> values = new LinkedHashSet<>();
+    readValueLists(condition, subject, index).forEach(values::addAll);
+    return new BreachTestedValue(condition.scope(), condition.attribute(), List.copyOf(values));
+  }
+
   /** Non-blank values of an application attribute: a flat property, else catalogue names. */
-  private static List<String> nodeValues(GraphNodeDto node, String key) {
+  private static List<String> readNodeValues(GraphNodeDto node, String key) {
     if (node == null) {
       return List.of();
     }
     Object property = node.properties().get(key);
-    if (property != null) {
-      return values(property);
-    }
-    return values(node.nodeRefs().get(key));
+    return toValueList(property != null ? property : node.nodeRefs().get(key));
   }
 
-  private static List<String> edgeValues(GraphEdgeDto edge, String key) {
-    return values(edge.properties().get(key));
+  private static List<String> readEdgeValues(GraphEdgeDto edge, String key) {
+    return toValueList(edge.properties().get(key));
   }
 
-  private static List<String> values(Object raw) {
+  private static List<String> toValueList(Object raw) {
     if (raw == null) {
       return List.of();
     }
     Collection<?> items = raw instanceof Collection<?> collection ? collection : List.of(raw);
     return items.stream()
-        .filter(item -> item != null)
+        .filter(Objects::nonNull)
         .map(item -> String.valueOf(item).trim())
         .filter(value -> !value.isEmpty())
         .toList();
   }
+
+  private record ScopedAttribute(BreachScope scope, String attribute) {}
 
   /** The element a rule is evaluated for: an application or a flow. */
   private record Subject(GraphNodeDto node, GraphEdgeDto edge) {
@@ -245,9 +239,10 @@ public class BreachEvaluator {
       return nodesById.get(id);
     }
 
-    String label(String id) {
+    /** An endpoint missing from the graph keeps its id as label. */
+    BreachEndpoint endpoint(String id) {
       GraphNodeDto node = nodesById.get(id);
-      return node != null ? node.label() : id;
+      return new BreachEndpoint(id, node != null ? node.label() : id);
     }
 
     List<GraphEdgeDto> outgoing(String id) {

@@ -13,7 +13,7 @@ function ImpactList({ title, impacts, isEntering }: { title: string; impacts: Br
         {impacts.map((impact) => (
           <li key={`${impact.ruleId}:${impact.element.id}`} className="breach-impact-row">
             <span className={`breach-result-mark${isEntering ? ' is-breach' : ''}`} aria-hidden="true">
-              <FlameIcon size={14} />
+              <FlameIcon size="inline" />
             </span>
             <span className="breach-result-name">{elementTitle(impact.element)}</span>
             <span className="data-model-chip">{impact.ruleName}</span>
@@ -30,18 +30,18 @@ export function BreachImpactSection({ runId, itemId }: { runId: string; itemId: 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    let isCancelled = false;
     setImpact(null);
     setError(null);
     getBreachImpact(runId, itemId)
       .then((loaded) => {
-        if (!cancelled) setImpact(loaded);
+        if (!isCancelled) setImpact(loaded);
       })
       .catch((reason: unknown) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : 'Unable to load the breach impact.');
+        if (!isCancelled) setError(reason instanceof Error ? reason.message : 'Unable to load the breach impact.');
       });
     return () => {
-      cancelled = true;
+      isCancelled = true;
     };
   }, [runId, itemId]);
 
@@ -50,7 +50,7 @@ export function BreachImpactSection({ runId, itemId }: { runId: string; itemId: 
   return (
     <section className="breach-impact" aria-label="Breach impact">
       <h2 className="breach-impact-heading">
-        <FlameIcon size={16} />
+        <FlameIcon size="heading" />
         Breach impact
       </h2>
       {error ? <p className="change-detail-error">{error}</p> : null}

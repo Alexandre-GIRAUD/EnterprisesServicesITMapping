@@ -13,7 +13,7 @@ export function BreachFilterRow({ rules, selected, onOpen }: BreachFilterProps &
     <div className="graph-filter-root-row">
       <button type="button" className="graph-filter-root-row-main" onClick={onOpen}>
         <span className="graph-filter-root-row-title breach-filter-title">
-          <FlameIcon size={14} />
+          <FlameIcon size="inline" />
           Breach
         </span>
         <span className={selected.length > 0 ? 'graph-filter-status is-active' : 'graph-filter-status'}>

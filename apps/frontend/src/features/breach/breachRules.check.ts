@@ -10,8 +10,9 @@ import {
   breachFilterLabel,
   canHaveBreachImpact,
   changeSubject,
+  describeBreachRules,
   toggleBreachSelector,
-  draftIssue,
+  findDraftIssue,
   elementTitle,
   isDraftDirty,
   newRuleDraft,
@@ -86,18 +87,28 @@ assert.equal(switched.draft.subject, 'APPLICATION');
 assert.equal(switched.draft.definition.groups.length, 1);
 assert.equal(switched.draft.definition.groups[0].conditions[0].scope, 'SELF');
 
-// Client hints mirror the server checks.
-assert.equal(draftIssue({ ...first, name: ' ' }), 'Give the rule a name.');
+// Without a cost attribute, the first draft reads the first plain application attribute.
+const noCost = [field('domain', 'NODE_REF'), field('owner', 'NODE')];
+assert.equal(newRuleDraft('APPLICATION', noCost).definition.groups[0].conditions[0].attribute, 'owner');
+
+// Client hints mirror the server checks and say where the problem is.
+assert.deepEqual(findDraftIssue({ ...first, name: ' ' }), { message: 'Give the rule a name.', at: 'name' });
 const noValue = structuredClone(first);
 noValue.name = 'Expensive';
 noValue.definition.groups[0].conditions[0].value = '';
-assert.equal(draftIssue(noValue), 'The condition on "cost" needs a value.');
+assert.deepEqual(findDraftIssue(noValue), {
+  message: 'The condition on "cost" needs a value.',
+  at: { groupIndex: 0, conditionIndex: 0 },
+});
 const notNumber = structuredClone(noValue);
 notNumber.definition.groups[0].conditions[0].value = 'a lot';
-assert.equal(draftIssue(notNumber), 'The condition on "cost" needs a number, like 100k.');
+assert.equal(findDraftIssue(notNumber)?.message, 'The condition on "cost" needs a number, like 100k.');
 const emptyOperator = structuredClone(noValue);
 emptyOperator.definition.groups[0].conditions[0].operator = 'IS_EMPTY';
-assert.equal(draftIssue(emptyOperator), null);
+assert.equal(findDraftIssue(emptyOperator), null);
+
+// One wording for every "in breach" hint on the map.
+assert.equal(describeBreachRules(['Over budget', 'No owner']), 'In breach: Over budget, No owner');
 
 // Dirty tracking compares content, not identity.
 assert.equal(isDraftDirty(structuredClone(first), first), false);
@@ -106,7 +117,14 @@ assert.equal(isDraftDirty(first, null), true);
 
 // Flows read source → target.
 assert.equal(
-  elementTitle({ kind: 'FLOW', id: 'e', label: 'a → b', sourceLabel: 'Billing', targetLabel: 'CRM', values: [] }),
+  elementTitle({
+    kind: 'FLOW',
+    id: 'e',
+    label: 'a → b',
+    source: { id: 'a', label: 'Billing' },
+    target: { id: 'b', label: 'CRM' },
+    values: [],
+  }),
   'Billing → CRM'
 );
 assert.equal(elementTitle({ kind: 'APPLICATION', id: 'a', label: 'Billing', values: [] }), 'Billing');

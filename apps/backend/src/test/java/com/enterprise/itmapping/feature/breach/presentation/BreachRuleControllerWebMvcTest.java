@@ -53,7 +53,8 @@ class BreachRuleControllerWebMvcTest {
         new BreachDefinition(BreachCombinator.AND, List.of()),
         2,
         1,
-        Instant.parse("2026-11-04T00:00:00Z"));
+        Instant.parse("2026-11-04T00:00:00Z"),
+        "admin");
   }
 
   @Test
@@ -65,7 +66,8 @@ class BreachRuleControllerWebMvcTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].name").value("Expensive apps"))
         .andExpect(jsonPath("$[0].breachCount").value(2))
-        .andExpect(jsonPath("$[0].unknownCount").value(1));
+        .andExpect(jsonPath("$[0].unknownCount").value(1))
+        .andExpect(jsonPath("$[0].updatedBy").value("admin"));
   }
 
   @Test
@@ -95,27 +97,30 @@ class BreachRuleControllerWebMvcTest {
 
   @Test
   void returnsTheElementsOfOneRule() throws Exception {
-    BreachElement element =
-        new BreachElement(BreachSubject.APPLICATION, "a", "Billing", null, null, null, null, List.of());
+    BreachElement element = BreachElement.ofApplication("a", "Billing", List.of());
     when(breachRuleService.evaluate(RULE_ID)).thenReturn(new BreachResult(List.of(element), List.of()));
 
     mockMvc
         .perform(get("/breach-rules/" + RULE_ID + "/evaluation"))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.ruleId").value(RULE_ID.toString()))
         .andExpect(jsonPath("$.breaches[0].label").value("Billing"))
-        .andExpect(jsonPath("$.breaches[0].sourceId").doesNotExist())
+        .andExpect(jsonPath("$.breaches[0].source").doesNotExist())
         .andExpect(jsonPath("$.unknown").isEmpty());
   }
 
   @Test
   void returnsTheBreachesOfEveryRuleForTheMap() throws Exception {
-    when(breachRuleService.summary())
-        .thenReturn(new BreachSummaryResponse(Map.of("a", List.of(RULE_ID)), Map.of()));
+    when(breachRuleService.summarize())
+        .thenReturn(
+            new BreachSummaryResponse(
+                Map.of("a", List.of(RULE_ID)), Map.of(), Map.of(RULE_ID, "Expensive apps")));
 
     mockMvc
         .perform(get("/breach-rules/evaluation"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.applications.a[0]").value(RULE_ID.toString()));
+        .andExpect(jsonPath("$.applications.a[0]").value(RULE_ID.toString()))
+        .andExpect(jsonPath("$.ruleNames." + RULE_ID).value("Expensive apps"));
   }
 
   @Test

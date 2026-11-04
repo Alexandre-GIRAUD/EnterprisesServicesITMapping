@@ -10,12 +10,20 @@ import type {
 } from '@/types/api';
 
 type Option<T extends string> = { value: T; label: string };
-export type AttributeOption = { key: string; label: string };
+type AttributeOption = { key: string; label: string };
+
+/** Where an editor problem shows: under the name, or under one condition. */
+export type ConditionPosition = { groupIndex: number; conditionIndex: number };
+export type DraftIssue = { message: string; at: 'name' | ConditionPosition };
 
 const NUMBER_PATTERN = /^(-?\d+(?:[.,]\d+)?)([kKmM]?)$/;
 const UNIT_FACTORS: Record<string, number> = { '': 1, k: 1_000, m: 1_000_000 };
 const EXAMPLE_ATTRIBUTE = 'cost';
 const EXAMPLE_THRESHOLD = '100k';
+const EDGE_TARGET: DataModelFieldDto['target'] = 'EDGE';
+const NODE_TARGET: DataModelFieldDto['target'] = 'NODE';
+const PENDING_STATUS: ChangeDetectionItemDto['status'] = 'PENDING';
+const MODULE_KIND: ChangeDetectionItemDto['kind'] = 'MODULE';
 
 const SCOPES: Record<BreachSubject, Option<BreachScope>[]> = {
   APPLICATION: [
@@ -47,8 +55,15 @@ export const OPERATOR_OPTIONS: Option<BreachOperator>[] = [
 ];
 
 const NUMERIC_OPERATORS = new Set<BreachOperator>(['GREATER_THAN', 'GREATER_OR_EQUAL', 'LESS_THAN', 'LESS_OR_EQUAL']);
+const VALUELESS_OPERATORS = new Set<BreachOperator>(['IS_EMPTY', 'IS_NOT_EMPTY']);
 
 export const SUBJECT_LABELS: Record<BreachSubject, string> = { APPLICATION: 'Applications', FLOW: 'Flows' };
+export const FIRST_SUBJECT: BreachSubject = 'APPLICATION';
+
+/** Map filter selector meaning every rule; the server reads the same word. */
+export const ANY_BREACH_RULE = 'any';
+const FILTER_LABELS = { off: 'Off', anyRule: 'Any rule', oneRule: '1 rule' } as const;
+const BREACH_HINT_PREFIX = 'In breach: ';
 
 export function scopeOptions(subject: BreachSubject): Option<BreachScope>[] {
   return SCOPES[subject];
@@ -58,43 +73,44 @@ export function scopeLabel(scope: BreachScope): string {
   return [...SCOPES.APPLICATION, ...SCOPES.FLOW].find((option) => option.value === scope)?.label ?? scope;
 }
 
-export function needsValue(operator: BreachOperator): boolean {
-  return operator !== 'IS_EMPTY' && operator !== 'IS_NOT_EMPTY';
+export function isValueRequired(operator: BreachOperator): boolean {
+  return !VALUELESS_OPERATORS.has(operator);
 }
 
 /** Mirrors the server: `120 000`, `120k`, `1,2M`. Null when the text is not a number. */
 export function parseBreachNumber(raw: string): number | null {
   const match = NUMBER_PATTERN.exec(raw.replace(/\s/g, ''));
   if (!match) return null;
-  return Number(match[1].replace(',', '.')) * UNIT_FACTORS[match[2].toLowerCase()];
+  const [, amount, unit] = match;
+  return Number(amount.replace(',', '.')) * UNIT_FACTORS[unit.toLowerCase()];
 }
 
 /** Flow scopes read EDGE attributes; application scopes read NODE and NODE_REF ones. */
 export function attributeOptions(fields: DataModelFieldDto[], scope: BreachScope): AttributeOption[] {
-  const readsFlow = FLOW_SCOPES.has(scope);
+  const isFlowScope = FLOW_SCOPES.has(scope);
   return fields
-    .filter((field) => (field.target === 'EDGE') === readsFlow)
+    .filter((field) => (field.target === EDGE_TARGET) === isFlowScope)
     .map((field) => ({ key: field.key, label: field.label || field.key }));
 }
 
+/** The brief's example (cost > 100k) when it fits, else the first plain attribute of the scope. */
 export function emptyCondition(subject: BreachSubject, fields: DataModelFieldDto[]): BreachConditionDto {
   const scope = SCOPES[subject][0].value;
   const options = attributeOptions(fields, scope);
-  const example = subject === 'APPLICATION' ? options.find((option) => option.key === EXAMPLE_ATTRIBUTE) : undefined;
-  if (example) {
-    return { scope, attribute: example.key, operator: 'GREATER_THAN', value: EXAMPLE_THRESHOLD };
+  const hasExample = subject === FIRST_SUBJECT && options.some((option) => option.key === EXAMPLE_ATTRIBUTE);
+  if (hasExample) {
+    return { scope, attribute: EXAMPLE_ATTRIBUTE, operator: 'GREATER_THAN', value: EXAMPLE_THRESHOLD };
   }
-  return { scope, attribute: options[0]?.key ?? '', operator: 'EQUALS', value: '' };
+  const plainKeys = new Set(fields.filter((field) => field.target === NODE_TARGET).map((field) => field.key));
+  const first = options.find((option) => plainKeys.has(option.key)) ?? options[0];
+  return { scope, attribute: first?.key ?? '', operator: 'EQUALS', value: '' };
 }
 
 export function newRuleDraft(subject: BreachSubject, fields: DataModelFieldDto[]): BreachRuleRequest {
   return {
     name: '',
     subject,
-    definition: {
-      combinator: 'OR',
-      groups: [{ combinator: 'AND', conditions: [emptyCondition(subject, fields)] }],
-    },
+    definition: { combinator: 'OR', groups: [{ combinator: 'AND', conditions: [emptyCondition(subject, fields)] }] },
   };
 }
 
@@ -105,33 +121,35 @@ export function changeSubject(
   fields: DataModelFieldDto[]
 ): { draft: BreachRuleRequest; removed: number } {
   const allowed = new Set(SCOPES[subject].map((option) => option.value));
-  let removed = 0;
   const groups = draft.definition.groups
-    .map((group) => {
-      const conditions = group.conditions.filter((condition) => allowed.has(condition.scope));
-      removed += group.conditions.length - conditions.length;
-      return { ...group, conditions };
-    })
+    .map((group) => ({ ...group, conditions: group.conditions.filter((condition) => allowed.has(condition.scope)) }))
     .filter((group) => group.conditions.length > 0);
-  const definition =
-    groups.length > 0
-      ? { ...draft.definition, groups }
-      : { ...draft.definition, groups: [{ combinator: 'AND' as const, conditions: [emptyCondition(subject, fields)] }] };
-  return { draft: { ...draft, subject, definition }, removed };
+  const countConditions = (rule: BreachRuleRequest['definition']['groups']) =>
+    rule.reduce((count, group) => count + group.conditions.length, 0);
+  const removed = countConditions(draft.definition.groups) - countConditions(groups);
+  const nextGroups = groups.length > 0 ? groups : newRuleDraft(subject, fields).definition.groups;
+  return { draft: { ...draft, subject, definition: { ...draft.definition, groups: nextGroups } }, removed };
 }
 
-/** The first problem the server would refuse, phrased for the editor; null when the draft can be saved. */
-export function draftIssue(draft: BreachRuleRequest): string | null {
-  if (!draft.name.trim()) return 'Give the rule a name.';
-  for (const group of draft.definition.groups) {
-    for (const condition of group.conditions) {
-      if (!condition.attribute) return 'Pick an attribute for every condition.';
-      if (!needsValue(condition.operator)) continue;
-      const label = `The condition on "${condition.attribute}"`;
-      if (!condition.value.trim()) return `${label} needs a value.`;
-      if (NUMERIC_OPERATORS.has(condition.operator) && parseBreachNumber(condition.value) === null) {
-        return `${label} needs a number, like 100k.`;
-      }
+function findConditionIssue(condition: BreachConditionDto): string | null {
+  if (!condition.attribute) return 'Pick an attribute.';
+  if (!isValueRequired(condition.operator)) return null;
+  const label = `The condition on "${condition.attribute}"`;
+  if (!condition.value.trim()) return `${label} needs a value.`;
+  const isNumberExpected = NUMERIC_OPERATORS.has(condition.operator);
+  if (isNumberExpected && parseBreachNumber(condition.value) === null) {
+    return `${label} needs a number, like ${EXAMPLE_THRESHOLD}.`;
+  }
+  return null;
+}
+
+/** The first problem the server would refuse, and where to show it; null when the draft can be saved. */
+export function findDraftIssue(draft: BreachRuleRequest): DraftIssue | null {
+  if (!draft.name.trim()) return { message: 'Give the rule a name.', at: 'name' };
+  for (const [groupIndex, group] of draft.definition.groups.entries()) {
+    for (const [conditionIndex, condition] of group.conditions.entries()) {
+      const message = findConditionIssue(condition);
+      if (message) return { message, at: { groupIndex, conditionIndex } };
     }
   }
   return null;
@@ -139,13 +157,10 @@ export function draftIssue(draft: BreachRuleRequest): string | null {
 
 export function isDraftDirty(draft: BreachRuleRequest, saved: BreachRuleRequest | null): boolean {
   if (!saved) return true;
-  const comparable = (rule: BreachRuleRequest) =>
+  const serialize = (rule: BreachRuleRequest) =>
     JSON.stringify({ name: rule.name, subject: rule.subject, definition: rule.definition });
-  return comparable(draft) !== comparable(saved);
+  return serialize(draft) !== serialize(saved);
 }
-
-/** Map filter selector meaning every rule; the server reads the same word. */
-export const ANY_BREACH_RULE = 'any';
 
 /** "Any rule" and single rules exclude each other. */
 export function toggleBreachSelector(selected: string[], selector: string): string[] {
@@ -155,18 +170,23 @@ export function toggleBreachSelector(selected: string[], selector: string): stri
 }
 
 export function breachFilterLabel(selected: string[], rules: { id: string; name: string }[]): string {
-  if (selected.length === 0) return 'Off';
-  if (selected.includes(ANY_BREACH_RULE)) return 'Any rule';
-  if (selected.length === 1) return rules.find((rule) => rule.id === selected[0])?.name ?? '1 rule';
+  if (selected.length === 0) return FILTER_LABELS.off;
+  if (selected.includes(ANY_BREACH_RULE)) return FILTER_LABELS.anyRule;
+  if (selected.length === 1) return rules.find((rule) => rule.id === selected[0])?.name ?? FILTER_LABELS.oneRule;
   return `${selected.length} rules`;
+}
+
+/** The hint shown on a flagged box or flow. */
+export function describeBreachRules(ruleNames: string[]): string {
+  return `${BREACH_HINT_PREFIX}${ruleNames.join(', ')}`;
 }
 
 /** Accepting a pending attribute or flow can change breaches; a module never does. */
 export function canHaveBreachImpact(item: Pick<ChangeDetectionItemDto, 'kind' | 'status'>): boolean {
-  return item.status === 'PENDING' && item.kind !== 'MODULE';
+  return item.status === PENDING_STATUS && item.kind !== MODULE_KIND;
 }
 
 export function elementTitle(element: BreachElementDto): string {
-  if (element.kind === 'FLOW') return `${element.sourceLabel ?? element.sourceId} → ${element.targetLabel ?? element.targetId}`;
+  if (element.source && element.target) return `${element.source.label} → ${element.target.label}`;
   return element.label;
 }

@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.breach.application;
 
 import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
+import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.enterprise.itmapping.feature.breach.domain.BreachRule;
 import com.enterprise.itmapping.feature.breach.domain.BreachSubject;
 import com.enterprise.itmapping.feature.breach.infrastructure.persistence.BreachRuleEntity;
@@ -12,12 +13,13 @@ import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.graph.application.GraphService;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -53,7 +55,7 @@ public class BreachRuleService {
   }
 
   public List<BreachRuleResponse> list() {
-    GraphResponseDto graph = liveGraph();
+    GraphResponseDto graph = loadLiveGraph();
     return repository.findAllByOrderByNameAsc().stream()
         .map(entity -> toResponse(entity, evaluator.evaluate(entity.toDomain(), graph)))
         .toList();
@@ -72,20 +74,17 @@ public class BreachRuleService {
   }
 
   public BreachResult evaluate(UUID id) {
-    return evaluator.evaluate(find(id).toDomain(), liveGraph());
+    return evaluator.evaluate(find(id).toDomain(), loadLiveGraph());
   }
 
-  public BreachSummaryResponse summary() {
-    GraphResponseDto graph = liveGraph();
-    Map<String, List<UUID>> applications = new LinkedHashMap<>();
-    Map<String, List<UUID>> flows = new LinkedHashMap<>();
-    for (BreachRule rule : rules()) {
-      Map<String, List<UUID>> target = rule.subject() == BreachSubject.APPLICATION ? applications : flows;
-      for (BreachElement element : evaluator.evaluate(rule, graph).breaches()) {
-        target.computeIfAbsent(element.id(), id -> new ArrayList<>()).add(rule.id());
-      }
-    }
-    return new BreachSummaryResponse(applications, flows);
+  /** For the map: the rules each element is in breach of, and the rule names to show. */
+  public BreachSummaryResponse summarize() {
+    List<BreachRule> rules = loadRules();
+    Map<BreachSubject, Map<String, List<UUID>>> breaches = collectBreaches(rules, rule -> true);
+    Map<UUID, String> ruleNames = new LinkedHashMap<>();
+    rules.forEach(rule -> ruleNames.put(rule.id(), rule.name()));
+    return new BreachSummaryResponse(
+        breaches.get(BreachSubject.APPLICATION), breaches.get(BreachSubject.FLOW), ruleNames);
   }
 
   /**
@@ -94,27 +93,41 @@ public class BreachRuleService {
    * neighbour a cross condition needs.
    */
   public GraphResponseDto narrowToBreaches(GraphResponseDto graph, List<String> selectors) {
-    Set<String> selected = new HashSet<>(selectors);
-    boolean everyRule = selected.contains(ANY_RULE);
-    GraphResponseDto live = liveGraph();
-    Set<String> applicationIds = new HashSet<>();
-    Set<String> flowIds = new HashSet<>();
-    for (BreachRule rule : rules()) {
-      if (!everyRule && !selected.contains(rule.id().toString())) {
-        continue;
-      }
-      Set<String> target = rule.subject() == BreachSubject.APPLICATION ? applicationIds : flowIds;
-      evaluator.evaluate(rule, live).breaches().forEach(element -> target.add(element.id()));
-    }
-    return BreachGraphFilter.narrow(graph, applicationIds, flowIds);
+    Set<String> selected = Set.copyOf(selectors);
+    boolean isEveryRuleSelected = selected.contains(ANY_RULE);
+    Map<BreachSubject, Map<String, List<UUID>>> breaches =
+        collectBreaches(loadRules(), rule -> isEveryRuleSelected || selected.contains(rule.id().toString()));
+    return BreachGraphFilter.narrow(
+        graph,
+        breaches.get(BreachSubject.APPLICATION).keySet(),
+        breaches.get(BreachSubject.FLOW).keySet());
   }
 
-  List<BreachRule> rules() {
+  List<BreachRule> loadRules() {
     return repository.findAllByOrderByNameAsc().stream().map(BreachRuleEntity::toDomain).toList();
   }
 
-  GraphResponseDto liveGraph() {
+  GraphResponseDto loadLiveGraph() {
     return graphService.getGraph(null, Map.of(), Map.of(), Map.of());
+  }
+
+  /** Element id → ids of the matching rules in breach, per subject; both subjects are always present. */
+  private Map<BreachSubject, Map<String, List<UUID>>> collectBreaches(
+      List<BreachRule> rules, Predicate<BreachRule> isSelected) {
+    GraphResponseDto graph = loadLiveGraph();
+    Map<BreachSubject, Map<String, List<UUID>>> breaches = new EnumMap<>(BreachSubject.class);
+    for (BreachSubject subject : BreachSubject.values()) {
+      breaches.put(subject, new LinkedHashMap<>());
+    }
+    rules.stream()
+        .filter(isSelected)
+        .forEach(
+            rule ->
+                evaluator.evaluate(rule, graph).breaches().stream()
+                    .map(BreachElement::id)
+                    .forEach(
+                        id -> breaches.get(rule.subject()).computeIfAbsent(id, key -> new ArrayList<>()).add(rule.id())));
+    return breaches;
   }
 
   private BreachRuleResponse save(BreachRuleEntity entity, BreachRuleRequest request) {
@@ -123,14 +136,13 @@ public class BreachRuleService {
             .filter(other -> !other.getId().equals(entity.getId()))
             .map(BreachRuleEntity::getName)
             .collect(Collectors.toSet());
-    validator.validate(
-        request.name(), request.subject(), request.definition(), dataModelService.loadConfig(), otherNames);
+    validator.validate(request, dataModelService.loadConfig(), otherNames);
     entity.setName(request.name().trim());
     entity.setSubject(request.subject());
     entity.setDefinition(request.definition());
     entity.setUpdatedBy(currentUserResolver.requireCurrentUser());
     BreachRuleEntity saved = repository.save(entity);
-    return toResponse(saved, evaluator.evaluate(saved.toDomain(), liveGraph()));
+    return toResponse(saved, evaluator.evaluate(saved.toDomain(), loadLiveGraph()));
   }
 
   private BreachRuleEntity find(UUID id) {
@@ -140,6 +152,7 @@ public class BreachRuleService {
   }
 
   private static BreachRuleResponse toResponse(BreachRuleEntity entity, BreachResult result) {
+    UserEntity updatedBy = entity.getUpdatedBy();
     return new BreachRuleResponse(
         entity.getId(),
         entity.getName(),
@@ -147,6 +160,7 @@ public class BreachRuleService {
         entity.getDefinition(),
         result.breaches().size(),
         result.unknown().size(),
-        entity.getUpdatedAt());
+        entity.getUpdatedAt(),
+        updatedBy != null ? updatedBy.getUsername() : null);
   }
 }

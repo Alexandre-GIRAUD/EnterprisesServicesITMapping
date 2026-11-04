@@ -12,7 +12,7 @@ public enum BreachOperator {
   IS_EMPTY,
   IS_NOT_EMPTY;
 
-  public boolean needsValue() {
+  public boolean isValueRequired() {
     return this != IS_EMPTY && this != IS_NOT_EMPTY;
   }
 

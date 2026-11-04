@@ -1,7 +1,7 @@
 package com.enterprise.itmapping.feature.breach.presentation;
 
-import com.enterprise.itmapping.feature.breach.application.BreachResult;
 import com.enterprise.itmapping.feature.breach.application.BreachRuleService;
+import com.enterprise.itmapping.feature.breach.presentation.dto.BreachEvaluationResponse;
 import com.enterprise.itmapping.feature.breach.presentation.dto.BreachRuleRequest;
 import com.enterprise.itmapping.feature.breach.presentation.dto.BreachRuleResponse;
 import com.enterprise.itmapping.feature.breach.presentation.dto.BreachSummaryResponse;
@@ -56,12 +56,12 @@ public class BreachRuleController {
 
   /** Breaches of every rule, by application and by flow, for the map. */
   @GetMapping("/evaluation")
-  public BreachSummaryResponse summary() {
-    return breachRuleService.summary();
+  public BreachSummaryResponse summarize() {
+    return breachRuleService.summarize();
   }
 
   @GetMapping("/{id}/evaluation")
-  public BreachResult evaluate(@PathVariable UUID id) {
-    return breachRuleService.evaluate(id);
+  public BreachEvaluationResponse evaluate(@PathVariable UUID id) {
+    return BreachEvaluationResponse.of(id, breachRuleService.evaluate(id));
   }
 }

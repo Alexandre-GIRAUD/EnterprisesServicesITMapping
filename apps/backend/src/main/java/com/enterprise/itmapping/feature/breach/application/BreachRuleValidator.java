@@ -4,7 +4,9 @@ import com.enterprise.itmapping.feature.breach.domain.BreachCondition;
 import com.enterprise.itmapping.feature.breach.domain.BreachDefinition;
 import com.enterprise.itmapping.feature.breach.domain.BreachGroup;
 import com.enterprise.itmapping.feature.breach.domain.BreachNumber;
+import com.enterprise.itmapping.feature.breach.domain.BreachRule;
 import com.enterprise.itmapping.feature.breach.domain.BreachSubject;
+import com.enterprise.itmapping.feature.breach.presentation.dto.BreachRuleRequest;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import java.util.List;
@@ -20,99 +22,95 @@ import org.springframework.web.server.ResponseStatusException;
 @Component
 public class BreachRuleValidator {
 
-  static final int MAX_NAME_LENGTH = 120;
-  static final int MAX_ITEMS = 20;
+  /** Caps both the groups of a rule and the conditions of a group, so a rule stays readable. */
+  static final int MAX_GROUPS_OR_CONDITIONS = 20;
 
   /**
    * @param otherRuleNames names of the other rules (the edited rule excluded), compared ignoring case
    */
-  public void validate(
-      String name,
-      BreachSubject subject,
-      BreachDefinition definition,
-      DataModelConfig model,
-      Set<String> otherRuleNames) {
-    validateName(name, otherRuleNames);
-    if (subject == null) {
-      throw badRequest("A rule needs a subject (APPLICATION or FLOW).");
+  public void validate(BreachRuleRequest request, DataModelConfig model, Set<String> otherRuleNames) {
+    validateName(request.name(), otherRuleNames);
+    if (request.subject() == null) {
+      throw reject("A rule needs a subject (APPLICATION or FLOW).");
     }
+    BreachDefinition definition = request.definition();
     if (definition == null || definition.combinator() == null) {
-      throw badRequest("A rule needs a combinator between its groups.");
+      throw reject("A rule needs a combinator between its groups.");
     }
     List<BreachGroup> groups = definition.groups();
     if (groups.isEmpty()) {
-      throw badRequest("A rule needs at least one group.");
+      throw reject("A rule needs at least one group.");
     }
-    if (groups.size() > MAX_ITEMS) {
-      throw badRequest("A rule holds at most " + MAX_ITEMS + " groups.");
+    if (groups.size() > MAX_GROUPS_OR_CONDITIONS) {
+      throw reject("A rule holds at most " + MAX_GROUPS_OR_CONDITIONS + " groups.");
     }
-    for (BreachGroup group : groups) {
-      validateGroup(group, subject, model);
-    }
+    groups.forEach(group -> validateGroup(group, request.subject(), model));
   }
 
   private static void validateName(String name, Set<String> otherRuleNames) {
     if (!StringUtils.hasText(name)) {
-      throw badRequest("A rule needs a name.");
+      throw reject("A rule needs a name.");
     }
     String trimmed = name.trim();
-    if (trimmed.length() > MAX_NAME_LENGTH) {
-      throw badRequest("A rule name holds at most " + MAX_NAME_LENGTH + " characters.");
+    if (trimmed.length() > BreachRule.MAX_NAME_LENGTH) {
+      throw reject("A rule name holds at most " + BreachRule.MAX_NAME_LENGTH + " characters.");
     }
     String lower = trimmed.toLowerCase(Locale.ROOT);
     if (otherRuleNames.stream().anyMatch(other -> other.trim().toLowerCase(Locale.ROOT).equals(lower))) {
-      throw badRequest("A rule named \"" + trimmed + "\" already exists.");
+      throw reject("A rule named \"" + trimmed + "\" already exists.");
     }
   }
 
   private static void validateGroup(BreachGroup group, BreachSubject subject, DataModelConfig model) {
     if (group == null || group.combinator() == null) {
-      throw badRequest("Each group needs a combinator.");
+      throw reject("Each group needs a combinator.");
     }
     if (group.conditions().isEmpty()) {
-      throw badRequest("Each group needs at least one condition.");
+      throw reject("Each group needs at least one condition.");
     }
-    if (group.conditions().size() > MAX_ITEMS) {
-      throw badRequest("A group holds at most " + MAX_ITEMS + " conditions.");
+    if (group.conditions().size() > MAX_GROUPS_OR_CONDITIONS) {
+      throw reject("A group holds at most " + MAX_GROUPS_OR_CONDITIONS + " conditions.");
     }
-    for (BreachCondition condition : group.conditions()) {
-      validateCondition(condition, subject, model);
+    group.conditions().forEach(condition -> validateCondition(condition, subject, model));
+  }
+
+  private static void validateCondition(BreachCondition condition, BreachSubject subject, DataModelConfig model) {
+    if (condition == null || condition.scope() == null || condition.operator() == null) {
+      throw reject("Each condition needs a scope and an operator.");
+    }
+    if (!condition.scope().isAllowedFor(subject)) {
+      throw reject("Scope " + condition.scope() + " does not apply to a " + subject + " rule.");
+    }
+    validateAttribute(condition, model);
+    validateValue(condition);
+  }
+
+  private static void validateAttribute(BreachCondition condition, DataModelConfig model) {
+    List<DataModelField> allowed =
+        condition.scope().isFlowScope()
+            ? model.edgeFields()
+            : Stream.concat(model.nodeFields().stream(), model.nodeRefFields().stream()).toList();
+    if (allowed.stream().noneMatch(field -> field.key().equals(condition.attribute()))) {
+      throw reject(
+          "Attribute \"" + condition.attribute() + "\" is not a Data Model attribute of scope "
+              + condition.scope() + ".");
     }
   }
 
-  private static void validateCondition(
-      BreachCondition condition, BreachSubject subject, DataModelConfig model) {
-    if (condition == null || condition.scope() == null || condition.operator() == null) {
-      throw badRequest("Each condition needs a scope and an operator.");
-    }
-    if (!condition.scope().fits(subject)) {
-      throw badRequest("Scope " + condition.scope() + " does not apply to a " + subject + " rule.");
-    }
-    List<DataModelField> allowed =
-        condition.scope().readsFlowAttributes()
-            ? model.edgeFields()
-            : concat(model.nodeFields(), model.nodeRefFields());
-    String attribute = condition.attribute();
-    if (allowed.stream().noneMatch(field -> field.key().equals(attribute))) {
-      throw badRequest(
-          "Attribute \"" + attribute + "\" is not a Data Model attribute of scope " + condition.scope() + ".");
-    }
-    if (!condition.operator().needsValue()) {
+  private static void validateValue(BreachCondition condition) {
+    if (!condition.operator().isValueRequired()) {
       return;
     }
+    String subject = "The condition on \"" + condition.attribute() + "\"";
     if (condition.value().isEmpty()) {
-      throw badRequest("The condition on \"" + attribute + "\" needs a value.");
+      throw reject(subject + " needs a value.");
     }
     if (condition.operator().isNumeric() && BreachNumber.parse(condition.value()) == null) {
-      throw badRequest("The condition on \"" + attribute + "\" needs a number, got \"" + condition.value() + "\".");
+      throw reject(subject + " needs a number, got \"" + condition.value() + "\".");
     }
   }
 
-  private static List<DataModelField> concat(List<DataModelField> first, List<DataModelField> second) {
-    return Stream.concat(first.stream(), second.stream()).toList();
-  }
-
-  private static ResponseStatusException badRequest(String message) {
+  private static ResponseStatusException reject(String message) {
     return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
   }
 }
