@@ -173,7 +173,11 @@ function measureLegendContent(element: HTMLElement, frame: LegendSize): LegendCo
   // Scrollbars would take room from the content and be measured as content themselves.
   element.style.overflow = 'hidden';
   applyLegendFrame(element, frame);
-  const content = { scrollWidth: element.scrollWidth, scrollHeight: element.scrollHeight };
+  // scroll sizes leave the borders out, but the frame is a border box.
+  const content = {
+    scrollWidth: element.scrollWidth + (element.offsetWidth - element.clientWidth),
+    scrollHeight: element.scrollHeight + (element.offsetHeight - element.clientHeight),
+  };
   element.style.overflow = '';
   return content;
 }
