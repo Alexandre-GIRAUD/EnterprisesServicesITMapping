@@ -40,4 +40,8 @@ assert.equal((computeLegendFitPadding(undefined, 360) as { right: string }).righ
 assert.equal((computeLegendFitPadding(undefined, 360) as { left: number }).left, 0.15);
 assert.equal((computeLegendFitPadding(200) as { right: number }).right, 0.15);
 
+// On a narrow pane the legend and menu insets give way to the plain margin so the graph keeps room.
+assert.equal(computeLegendFitPadding(200, 360, 500), 0.15);
+assert.equal((computeLegendFitPadding(200, 360, 1200) as { left: string }).left, '224px');
+
 console.log('drawerFitPadding.check: ok');
