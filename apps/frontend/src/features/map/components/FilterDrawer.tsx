@@ -39,6 +39,7 @@ type FilterDrawerProps = {
   showPinView?: boolean;
   pinViewDisabled?: boolean;
   onPinView?: () => void;
+  onOpenMyViews?: () => void;
 };
 
 /**
@@ -117,6 +118,7 @@ export function FilterDrawer({
   showPinView = false,
   pinViewDisabled = false,
   onPinView,
+  onOpenMyViews,
 }: FilterDrawerProps) {
   const [view, setView] = useState<FilterView>('root');
   const [selectedApplicationIds, setSelectedApplicationIds] = useState(initialApplicationIds);
@@ -324,6 +326,11 @@ export function FilterDrawer({
         <button type="button" className="graph-filter-compact-btn" onClick={onReset}>
           Clear
         </button>
+        {onOpenMyViews ? (
+          <button type="button" className="graph-filter-compact-btn graph-filter-compact-btn--views" onClick={onOpenMyViews}>
+            My views
+          </button>
+        ) : null}
         {showPinView && onPinView ? (
           <button
             type="button"

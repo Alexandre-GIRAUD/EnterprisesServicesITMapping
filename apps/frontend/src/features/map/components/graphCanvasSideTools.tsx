@@ -66,6 +66,7 @@ type GraphCanvasSideToolInput = {
   isReadOnly: boolean;
   chatTurns: CartographyChatTurn[];
   onChatTurnsChange: (turns: CartographyChatTurn[]) => void;
+  onOpenMyViews?: () => void;
 };
 
 export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): ReactNode {
@@ -118,6 +119,7 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
     isReadOnly,
     chatTurns,
     onChatTurnsChange,
+    onOpenMyViews,
   } = input;
 
     if (graphMode !== 'normal' && graphMode !== 'sandbox') return null;
@@ -212,6 +214,7 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
             showPinView={isExplorer && !isReadOnly}
             pinViewDisabled={status !== 'ready'}
             onPinView={() => setIsSaveSnapshotOpen(true)}
+            onOpenMyViews={onOpenMyViews}
           />
           </>
         );

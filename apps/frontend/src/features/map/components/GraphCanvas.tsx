@@ -1692,6 +1692,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         isReadOnly,
         chatTurns: cartographyChatTurns,
         onChatTurnsChange: setCartographyChatTurns,
+        onOpenMyViews: () => navigate('/map', { state: { graphMode: 'views' } satisfies MapLocationState }),
       }),
     [
     graphMode,
@@ -1726,6 +1727,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     toolkitRequest,
     isReadOnly,
     cartographyChatTurns,
+    navigate,
   ]);
 
   const isDiagramGrown = diagramHeight != null && displayMode === 'graph' && !isViewsMode;

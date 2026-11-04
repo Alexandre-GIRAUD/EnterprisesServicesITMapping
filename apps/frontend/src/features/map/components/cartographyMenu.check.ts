@@ -17,6 +17,34 @@ assert.doesNotMatch(css, /\.self-service[^{]*is-expanded/);
 assert.match(css, /cubic-bezier\(0\.22, 1, 0\.36, 1\)/);
 assert.doesNotMatch(css, /7\.25rem/);
 assert.match(css, /\.graph-filter-compact-btn--pin:not\(:disabled\) \{[^}]*background: #16a34a/);
+assert.match(
+  css,
+  /\.map-graph-panel \.graph-filter-compact-btn--views \{[^}]*border-color: #16a34a[^}]*background: #ffffff[^}]*color: #15803d/,
+);
+assert.match(
+  css,
+  /\.graph-filter-compact-btn:not\(\.graph-filter-compact-btn--primary\):not\(\.graph-filter-compact-btn--pin\):not\(\.graph-filter-compact-btn--neutral\):not\(\.graph-filter-compact-btn--views\)/,
+);
+assert.match(
+  readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8'),
+  /graph-filter-compact-btn graph-filter-compact-btn--views/,
+);
+assert.match(
+  css,
+  /\.map-graph-panel\.is-views-mode\.is-menu-open \.self-service-side-menu-shell \{[^}]*position: relative[^}]*flex: 0 0 min\(360px, 92vw\)[^}]*overflow: hidden/,
+);
+assert.match(
+  css,
+  /\.map-graph-panel\.is-views-mode \.self-service-side-menu \{[^}]*border: 1px solid #e2e8f0[^}]*border-radius: 8px[^}]*background: #ffffff[^}]*overflow: hidden/,
+);
+assert.match(
+  css,
+  /\.map-graph-panel\.is-views-mode \.self-service-burger \{[^}]*border: 1px solid #e2e8f0[^}]*background: #ffffff/,
+);
+assert.doesNotMatch(
+  css,
+  /\.map-graph-panel\.is-views-mode \.self-service-side-menu \{[^}]*background: transparent/,
+);
 assert.doesNotMatch(css, /\.graph-filter-compact-actions > \.graph-filter-compact-btn \{[^}]*flex: 1 1 0/);
 assert.match(css, /\.graph-filter-neighbours \{[^}]*gap: 0\.45rem[^}]*font-size: 0\.85rem[^}]*font-weight: 500[^}]*color: #334155/);
 assert.match(readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8'), /with neighbours/);
