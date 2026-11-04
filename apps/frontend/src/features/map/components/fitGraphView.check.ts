@@ -15,7 +15,11 @@ function runFrames(count: number): void {
 }
 
 const fitted: unknown[] = [];
-const instance = { fitView: (options: unknown) => void fitted.push(options) };
+let isMeasured = false;
+const instance = {
+  fitView: (options: unknown) => void fitted.push(options),
+  getNodes: () => [{ id: 'a', position: { x: 0, y: 0 }, measured: isMeasured ? { width: 160, height: 48 } : {} }],
+};
 const ref: { current: typeof instance | null } = { current: null };
 
 fitGraphViewWhenReady(ref, { duration: 0 });
@@ -24,7 +28,11 @@ assert.equal(fitted.length, 0, 'nothing to fit while the instance is missing');
 
 ref.current = instance;
 runFrames(10);
-assert.equal(fitted.length, 1, 'fits once the instance shows up');
+assert.equal(fitted.length, 0, 'nothing to fit while the boxes are not measured');
+
+isMeasured = true;
+runFrames(10);
+assert.equal(fitted.length, 1, 'fits once the instance shows up and its boxes are measured');
 
 const giveUp: { current: typeof instance | null } = { current: null };
 fitGraphViewWhenReady(giveUp);

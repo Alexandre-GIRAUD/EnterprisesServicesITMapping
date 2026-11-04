@@ -1,5 +1,5 @@
 import { NODE_HEIGHT, NODE_WIDTH } from '../hooks/useGraphData';
-import type { FitViewPadding } from './drawerFitPadding';
+import { computeLegendFitPadding, type FitViewPadding } from './drawerFitPadding';
 
 export const FIT_VIEW_PADDING = 0.15;
 
@@ -79,11 +79,20 @@ export function fitGraphViewWhenReady(
 ): void {
   requestAnimationFrame(() => {
     if (ref.current) {
-      fitGraphView(ref.current, options);
+      fitGraphView(ref.current, { padding: readLegendFitPadding(), ...options });
       return;
     }
     if (framesLeft > 0) fitGraphViewWhenReady(ref, options, framesLeft - 1);
   });
+}
+
+/** The legend's right edge inside the pane, or the plain margin when no legend is drawn. */
+function readLegendFitPadding(): FitViewPadding {
+  if (typeof document === 'undefined') return FIT_VIEW_PADDING;
+  const legend = document.querySelector('.graph-legend');
+  const pane = document.querySelector('.react-flow');
+  if (!legend || !pane) return FIT_VIEW_PADDING;
+  return computeLegendFitPadding(legend.getBoundingClientRect().right - pane.getBoundingClientRect().left);
 }
 
 function nodeSize(node: NodeLike): { width: number; height: number } {
