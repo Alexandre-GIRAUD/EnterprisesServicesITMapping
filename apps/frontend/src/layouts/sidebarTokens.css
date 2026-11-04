@@ -22,6 +22,8 @@
   --nav-role-size: 12px;
   --nav-badge-size: 12px;
   --nav-chevron-size: 16px;
+  --nav-rail-width: 72px;
+  --nav-flyout-min: 11rem;
   --nav-focus-width: 2px;
   --nav-transition: 140ms;
   --radius-sm: 6px;

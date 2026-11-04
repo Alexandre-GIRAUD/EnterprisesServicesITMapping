@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { DataModelFieldDto, DataSourceDto, SourceNameDto, SourceSyncResponse } from '@/types/api';
 import { getDataModelRequest } from '@/features/datamodel/api/dataModelApi';
+import { attributesFedBySource } from '@/features/datamodel/dataModelSource';
 import {
   createSource,
   deleteSource,
@@ -186,7 +187,7 @@ export function DataSourcesPanel({ isAdmin, initialMappingId = null }: DataSourc
         <SourceForm
           draft={draft}
           editingSource={editingSource}
-          nodeFields={nodeFields}
+          nodeFields={attributesFedBySource(nodeFields, editingId)}
           columns={columns}
           onChange={changeDraft}
           onColumnChange={changeColumn}

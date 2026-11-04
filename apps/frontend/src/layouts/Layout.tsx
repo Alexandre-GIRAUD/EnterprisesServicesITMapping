@@ -10,11 +10,13 @@ import { COLOR_THEME_STORAGE_KEY, storedColorTheme, toggledColorTheme, type Colo
 import { HelpMenu } from './HelpMenu';
 import { NavigationIcon } from './NavigationIcon';
 import { SettingsMenu } from './SettingsMenu';
+import { SidebarCollapseButton } from './SidebarCollapseButton';
 import { SidebarNavItem } from './SidebarNavItem';
 import { SidebarProfile } from './SidebarProfile';
 import { ThemeToggle } from './ThemeToggle';
 import { WorkspaceModeNav } from './WorkspaceModeNav';
 import './sidebar.css';
+import { SIDEBAR_COLLAPSED_STORAGE_KEY, storedSidebarCollapsed } from './sidebarCollapse';
 import { mainNavigationEntries, shouldOpenWorkspace } from './sidebarModel';
 import { moveSidebarFocus, primeSidebarTabStops, rememberSidebarTabStop } from './sidebarRoving';
 
@@ -43,11 +45,18 @@ function LayoutShell() {
   const [theme, setTheme] = useState<ColorTheme>(() =>
     storedColorTheme(localStorage.getItem(COLOR_THEME_STORAGE_KEY)),
   );
+  const [isCollapsed, setIsCollapsed] = useState(() =>
+    storedSidebarCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY)),
+  );
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem(COLOR_THEME_STORAGE_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(isCollapsed));
+  }, [isCollapsed]);
 
   useEffect(() => {
     if (shouldOpenWorkspace(wasOnCartography.current, isOnCartography)) setIsWorkspaceOpen(true);
@@ -58,7 +67,7 @@ function LayoutShell() {
   useLayoutEffect(() => {
     if (!sidebarRef.current) return;
     primeSidebarTabStops(sidebarRef.current);
-  }, [user, isWorkspaceOpen]);
+  }, [user, isWorkspaceOpen, isCollapsed]);
 
   function openWorkspaceMode(next: GraphMode) {
     if (onCartography && mode === next) return;
@@ -70,10 +79,14 @@ function LayoutShell() {
     navigate('/login', { replace: true });
   }
 
+  function toggleSidebar() {
+    setIsCollapsed((collapsed) => !collapsed);
+  }
+
   return (
     <div className="layout">
       <aside
-        className="layout-sidebar"
+        className={isCollapsed ? 'layout-sidebar is-collapsed' : 'layout-sidebar'}
         ref={sidebarRef}
         onKeyDown={(event) => {
           if (!sidebarRef.current) return;
@@ -89,6 +102,7 @@ function LayoutShell() {
             <img src={flowraLogo} alt="" className="layout-brand-logo" aria-hidden />
             <h1>Flowra</h1>
           </Link>
+          <SidebarCollapseButton isCollapsed={isCollapsed} onToggle={toggleSidebar} />
         </div>
         {user ? (
           <>
@@ -105,17 +119,19 @@ function LayoutShell() {
                         showSeparator={entry.showSeparator}
                         icon={<NavigationIcon name={entry.icon} />}
                       />
-                      <button
-                        type="button"
-                        className="sidebar-disclosure"
-                        data-sidebar-item=""
-                        aria-expanded={isWorkspaceOpen}
-                        aria-controls={CARTOGRAPHY_MODES_ID}
-                        aria-label="Cartography views"
-                        onClick={() => setIsWorkspaceOpen((open) => !open)}
-                      >
-                        <NavigationIcon name="chevronDown" />
-                      </button>
+                      {!isCollapsed ? (
+                        <button
+                          type="button"
+                          className="sidebar-disclosure"
+                          data-sidebar-item=""
+                          aria-expanded={isWorkspaceOpen}
+                          aria-controls={CARTOGRAPHY_MODES_ID}
+                          aria-label="Cartography views"
+                          onClick={() => setIsWorkspaceOpen((open) => !open)}
+                        >
+                          <NavigationIcon name="chevronDown" />
+                        </button>
+                      ) : null}
                     </div>
                   ) : (
                     <SidebarNavItem
@@ -127,7 +143,7 @@ function LayoutShell() {
                       icon={<NavigationIcon name={entry.icon} />}
                     />
                   )}
-                  {entry.to === '/map' && isWorkspaceOpen ? (
+                  {entry.to === '/map' && isWorkspaceOpen && !isCollapsed ? (
                     <WorkspaceModeNav
                       id={CARTOGRAPHY_MODES_ID}
                       mode={onCartography ? mode : null}

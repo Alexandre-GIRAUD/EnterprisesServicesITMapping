@@ -3,7 +3,7 @@
  * Run: npx --yes tsx src/features/datamodel/dataModelSource.check.ts
  */
 import assert from 'node:assert/strict';
-import { fieldSourceChoice, sourceChoicePatch, sourceChoiceOptions } from './dataModelSource.ts';
+import { attributesFedBySource, fieldSourceChoice, sourceChoicePatch, sourceChoiceOptions } from './dataModelSource.ts';
 
 assert.equal(fieldSourceChoice({ detection: 'AUTOMATIC_DETECTION' }), 'code');
 assert.equal(fieldSourceChoice({}), 'code');
@@ -23,4 +23,9 @@ assert.deepEqual(sourceChoiceOptions([{ id: 's1', name: 'Referential' }], false)
   { value: 'code', label: 'Code' },
   { value: 'manual', label: 'Manual' },
 ]);
+const pillar = { key: 'pillar', label: 'pillar', sourceId: undefined };
+const language = { key: 'language', label: 'Language', sourceId: 'github' };
+assert.deepEqual(attributesFedBySource([pillar, language], null), []);
+assert.deepEqual(attributesFedBySource([pillar, language], 'github'), [language]);
+
 console.log('dataModelSource.check ok');

@@ -21,6 +21,17 @@ export function sourceChoicePatch(choice: SourceChoice): {
   return { detection: 'MANUAL', sourceId: choice === 'manual' ? undefined : choice };
 }
 
+/** Attributes this source fills. A source being created has no id, so nothing is listed. */
+export function attributesFedBySource<T extends { sourceId?: string }>(
+  fields: T[],
+  sourceId: string | null,
+): T[] {
+  if (!sourceId) {
+    return [];
+  }
+  return fields.filter((field) => field.sourceId === sourceId);
+}
+
 /** Only application (NODE) attributes can be fed by an added source. */
 export function sourceChoiceOptions(
   sources: { id: string; name: string }[],
