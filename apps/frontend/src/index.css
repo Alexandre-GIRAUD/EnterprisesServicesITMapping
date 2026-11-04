@@ -1706,11 +1706,31 @@ body.is-diagram-grown .layout {
   outline-color: var(--ss-accent-focus);
 }
 
-.map-graph-panel .self-service-burger:hover,
-.map-graph-panel .self-service-burger.is-open {
-  border-color: transparent;
-  background: #f1f5f9;
-  box-shadow: none;
+.map-graph-panel .self-service-burger {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  box-shadow: var(--ss-bubble-shadow);
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.map-graph-panel .self-service-burger:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.map-graph-panel .self-service-burger.is-open:hover {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #b91c1c;
 }
 
 .map-graph-panel .self-service-burger:focus-visible {
@@ -2102,7 +2122,7 @@ body.is-diagram-grown .layout {
 }
 
 .map-graph-panel .graph-view-header .self-service-burger {
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   background: #fff;
 }
 
@@ -2132,6 +2152,11 @@ body.is-diagram-grown .layout {
   background: #f1f5f9;
   color: #334155;
   box-shadow: none;
+}
+
+.self-service-burger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgb(15 23 42 / 14%);
 }
 
 .self-service-burger:focus:not(:focus-visible) {
@@ -2289,6 +2314,7 @@ body.is-diagram-grown .layout {
   background: transparent;
   border: 0;
   box-shadow: none;
+  pointer-events: auto;
 }
 
 .self-service-tool-bar-btn {
@@ -2300,12 +2326,13 @@ body.is-diagram-grown .layout {
   min-height: 2.25rem;
   padding: 0.25rem;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 999px;
   background: #ffffff;
   color: #64748b;
   box-shadow: var(--ss-bubble-shadow);
   cursor: pointer;
   transition:
+    transform 140ms ease,
     background-color 160ms ease,
     border-color 160ms ease,
     color 160ms ease,
@@ -2316,6 +2343,8 @@ body.is-diagram-grown .layout {
   background: #ffffff;
   border-color: #cbd5e1;
   color: #334155;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgb(15 23 42 / 14%);
 }
 
 .self-service-tool-bar-btn.is-active {
@@ -2477,20 +2506,6 @@ body.is-diagram-grown .layout {
   margin-top: 0.4rem;
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-burger {
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  box-shadow: none;
-}
-
-.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-burger:hover,
-.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-burger.is-open {
-  border-color: #cbd5e1;
-  background: #f8fafc;
-  color: #334155;
-  box-shadow: none;
 }
 
 .self-service-tool-bar-btn:hover::after,
@@ -3009,8 +3024,9 @@ body.is-diagram-grown .layout {
   justify-content: space-between;
   gap: 0.45rem;
   flex-shrink: 0;
+  min-height: 2.25rem;
   margin: 0 0 0.4rem;
-  padding: 0.5rem 0.7rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.3rem;
   font-size: 0.85rem;
   font-weight: 500;
   color: #334155;
@@ -3027,8 +3043,8 @@ body.is-diagram-grown .layout {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.9rem;
-  height: 1.9rem;
+  width: 1.6rem;
+  height: 1.6rem;
   border-radius: 50%;
   background: #f1f5f9;
   color: #64748b;
@@ -3043,12 +3059,22 @@ body.is-diagram-grown .layout {
 .graph-filter-neighbours-text {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.45rem;
   min-width: 0;
   line-height: 1.2;
+  white-space: nowrap;
+}
+
+.self-service-tool-detail .graph-filter-neighbours {
+  border-radius: 999px;
 }
 
 .graph-filter-neighbours-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 0.72rem;
   font-weight: 400;
   color: #64748b;
@@ -3111,6 +3137,8 @@ body.is-diagram-grown .layout {
   box-shadow: var(--ss-bubble-shadow);
   cursor: pointer;
   transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
     border-color 140ms ease,
     background-color 140ms ease,
     color 140ms ease;
@@ -3120,18 +3148,26 @@ body.is-diagram-grown .layout {
   border-color: #cbd5e1;
   background: #f8fafc;
   color: #334155;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgb(15 23 42 / 14%);
+}
+
+.graph-filter-compact-btn:active:not(:disabled),
+.self-service-tool-bar-btn:active,
+.map-graph-panel .self-service-burger:active {
+  transform: none;
 }
 
 .graph-filter-compact-btn--ghost {
   flex: 0 0 auto;
-  border-color: transparent;
-  background: transparent;
-  color: #64748b;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
   box-shadow: none;
 }
 
 .graph-filter-compact-btn--ghost:hover:not(:disabled) {
-  border-color: transparent;
+  border-color: #fca5a5;
   background: #fef2f2;
   color: #b91c1c;
 }

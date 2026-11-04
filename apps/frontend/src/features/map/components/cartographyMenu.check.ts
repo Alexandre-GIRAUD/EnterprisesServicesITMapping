@@ -39,7 +39,7 @@ assert.match(
 );
 assert.match(
   css,
-  /\.map-graph-panel:is\(\.is-views-mode, \.is-sandbox-mode\) \.self-service-burger \{[^}]*border: 1px solid #e2e8f0[^}]*background: #ffffff/,
+  /\.map-graph-panel \.graph-view-header \.self-service-burger \{[^}]*border: 1px solid #cbd5e1[^}]*background: #fff/,
 );
 assert.doesNotMatch(
   css,
