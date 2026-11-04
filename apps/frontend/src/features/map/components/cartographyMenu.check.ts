@@ -81,7 +81,6 @@ function menu(mode: 'normal' | 'sandbox' | 'views') {
   return renderToStaticMarkup(
     createElement(SelfServiceSideMenu, {
       isOpen: true,
-      onToggle: () => undefined,
       graphMode: mode,
       filtersActive: false,
       activeTool: 'filters',
@@ -124,7 +123,7 @@ assert.match(css, /\.graph-filter-compact-actions \{[^}]*display: grid[^}]*grid-
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*min-height: 2\.25rem[^}]*padding: 0 0\.75rem/);
 assert.doesNotMatch(css, /\.graph-filter-back-btn \{/);
 const filterDrawer = readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8');
-assert.match(filterDrawer, /graph-filter-compact-btn graph-filter-compact-btn--neutral[^>]*>\s*‹ Back/);
+assert.match(filterDrawer, /graph-filter-compact-btn graph-filter-compact-btn--neutral"[\s\S]{0,300}‹ Back/);
 
 // With neighbours sits under the search as a switch row, not above the list.
 assert.ok(filterDrawer.indexOf('graph-filter-search-input') < filterDrawer.indexOf('graph-filter-neighbours'));

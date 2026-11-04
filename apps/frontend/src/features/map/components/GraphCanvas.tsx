@@ -2356,7 +2356,6 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
 
         <SelfServiceSideMenu
           isOpen={isSideMenuOpen}
-          onToggle={handleSideMenuToggle}
           graphMode={graphMode}
           filtersActive={filtersActive}
           activeTool={visibleSideMenuTool}

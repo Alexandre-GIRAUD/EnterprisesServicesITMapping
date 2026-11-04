@@ -634,7 +634,7 @@ export function FilterDrawer({
           {view !== 'root' ? (
             <button
               type="button"
-              className="graph-filter-back-btn"
+              className="graph-filter-compact-btn graph-filter-compact-btn--neutral"
               onClick={() => {
                 setValueQuery('');
                 setView('root');
@@ -662,19 +662,6 @@ export function FilterDrawer({
 
       <form className="graph-drawer-form graph-filter-form" onSubmit={onSubmit}>
         {view === 'root' ? renderRootActions() : renderDetailViewActions()}
-        {view === 'root' && showWithNeighbours ? (
-          <label className="graph-filter-neighbours" title="Also show applications linked by a feed to the filtered ones">
-            <input
-              type="checkbox"
-              checked={withNeighbours}
-              onChange={(event) => {
-                hasEditedFilters.current = true;
-                setWithNeighbours(event.target.checked);
-              }}
-            />
-            with neighbours
-          </label>
-        ) : null}
         {view === 'root' ? (
           <div className="graph-filter-root-list" role="group" aria-label="Filter types">
             <div className="graph-filter-search">
@@ -715,6 +702,20 @@ export function FilterDrawer({
                 </ul>
               ) : null}
             </div>
+
+            {showWithNeighbours ? (
+            <label className="graph-filter-neighbours" title="Also show applications linked by a feed to the filtered ones">
+              <input
+                type="checkbox"
+                checked={withNeighbours}
+                onChange={(event) => {
+                  hasEditedFilters.current = true;
+                  setWithNeighbours(event.target.checked);
+                }}
+              />
+              with neighbours
+            </label>
+            ) : null}
 
             {renderRootRow({
               key: 'applications',

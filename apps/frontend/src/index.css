@@ -1652,6 +1652,7 @@ body.is-diagram-grown .layout {
   --ss-views-accent: #16a34a;
   --ss-views-accent-dark: #15803d;
   --ss-views-focus: #22c55e;
+  --ss-bubble-shadow: 0 4px 12px rgb(15 23 42 / 10%);
   position: relative;
   display: flex;
   flex-direction: row;
@@ -1720,7 +1721,6 @@ body.is-diagram-grown .layout {
   border-color: var(--ss-accent);
   background: var(--ss-accent);
   color: #fff;
-  box-shadow: none;
 }
 
 .map-graph-panel .self-service-tool-bar-btn:focus-visible {
@@ -2175,6 +2175,17 @@ body.is-diagram-grown .layout {
   top: 10px;
 }
 
+.self-service-burger.is-open .self-service-burger-icon::before {
+  top: 5px;
+  transform: rotate(45deg);
+  box-shadow: none;
+}
+
+.self-service-burger.is-open .self-service-burger-icon::after {
+  top: 5px;
+  transform: rotate(-45deg);
+}
+
 .self-service-side-menu-shell {
   position: relative;
   flex: 0 0 0;
@@ -2243,7 +2254,6 @@ body.is-diagram-grown .layout {
   opacity: 1;
 }
 
-.self-service-side-menu-header,
 .self-service-tool-detail > :not(.graph-filter-drawer),
 .self-service-tool-detail .graph-filter-neighbours,
 .self-service-tool-detail .graph-filter-search,
@@ -2255,16 +2265,7 @@ body.is-diagram-grown .layout {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
-  box-shadow: none;
-}
-
-.self-service-side-menu-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.45rem 0.7rem;
-  flex-shrink: 0;
+  box-shadow: var(--ss-bubble-shadow);
 }
 
 .self-service-side-menu-body {
@@ -2295,12 +2296,13 @@ body.is-diagram-grown .layout {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2rem;
+  min-height: 2.25rem;
   padding: 0.25rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #ffffff;
   color: #64748b;
+  box-shadow: var(--ss-bubble-shadow);
   cursor: pointer;
   transition:
     background-color 160ms ease,
@@ -2342,22 +2344,53 @@ body.is-diagram-grown .layout {
 .self-service-tool-detail {
   display: flex;
   flex-direction: column;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   min-height: 0;
   gap: 0.55rem;
   margin-top: 0;
   padding: 0;
-  overflow: visible;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: transparent;
   border: 0;
   box-shadow: none;
 }
 
-.self-service-tool-detail .graph-filter-form,
-.self-service-tool-detail .graph-filter-root-list {
-  flex: none;
+.self-service-tool-detail .graph-filter-form {
+  flex: 1 1 auto;
   overflow: visible;
   gap: 0.55rem;
+}
+
+/* Room around the bubbles so their shadows are not cut by the scroll areas. */
+.map-graph-panel:not(.is-views-mode):not(.is-sandbox-mode) .self-service-tool-detail {
+  padding: 4px 12px 16px;
+  margin: -4px -12px -16px;
+}
+
+.self-service-tool-detail .graph-filter-drawer--embedded,
+.self-service-tool-detail .graph-filter-detail-panel {
+  overflow: visible;
+}
+
+.self-service-tool-detail > .self-service-tool-detail-title {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.self-service-tool-detail .graph-filter-root-list {
+  gap: 0.45rem;
+}
+
+.self-service-tool-detail .graph-filter-detail-list > * {
+  flex-shrink: 0;
+}
+
+.self-service-tool-detail .graph-filter-root-list,
+.self-service-tool-detail .graph-filter-detail-list {
+  padding: 4px 12px 16px;
+  margin: 0 -12px;
 }
 
 /* My views and Sandbox use the solid docked menu. Bubbles stay on Cartography. */
@@ -2383,7 +2416,6 @@ body.is-diagram-grown .layout {
   pointer-events: auto;
 }
 
-.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-side-menu-header,
 .map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-tool-detail > :not(.graph-filter-drawer) {
   background: transparent;
   border: 0;
@@ -2391,14 +2423,10 @@ body.is-diagram-grown .layout {
   box-shadow: none;
 }
 
-.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-side-menu-header {
-  padding: 0.45rem 0.7rem 0.3rem;
-}
-
 .map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-side-menu-body {
   gap: 0;
   overflow: hidden;
-  padding: 0 0.65rem 0.55rem;
+  padding: 0.55rem 0.65rem;
 }
 
 .map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-tool-detail {
@@ -2778,22 +2806,6 @@ body.is-diagram-grown .layout {
   min-width: 0;
 }
 
-.graph-filter-back-btn {
-  border: 1px solid #f87171;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #b91c1c;
-  font-size: 0.82rem;
-  cursor: pointer;
-  padding: 0.2rem 0.45rem;
-}
-
-.graph-filter-back-btn:hover {
-  border-color: #ef4444;
-  background: #ffffff;
-  color: #991b1b;
-}
-
 .graph-filter-drawer--embedded .graph-filter-root-list {
   flex: 1;
   min-height: 0;
@@ -2939,11 +2951,9 @@ body.is-diagram-grown .layout {
 }
 
 .graph-filter-compact-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 0.4rem;
   flex-shrink: 0;
   margin: 0;
   background: transparent;
@@ -2954,9 +2964,11 @@ body.is-diagram-grown .layout {
 .graph-filter-neighbours {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.45rem;
   flex-shrink: 0;
   margin: 0 0 0.4rem;
+  padding: 0.4rem 0.7rem;
   font-size: 0.85rem;
   font-weight: 500;
   color: #334155;
@@ -2964,8 +2976,42 @@ body.is-diagram-grown .layout {
 }
 
 .graph-filter-neighbours input {
+  appearance: none;
+  order: 2;
+  position: relative;
+  flex: none;
+  width: 2rem;
+  height: 1.15rem;
   margin: 0;
-  accent-color: var(--ss-accent, #2563eb);
+  border-radius: 999px;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.graph-filter-neighbours input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(1.15rem - 4px);
+  height: calc(1.15rem - 4px);
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 160ms ease;
+}
+
+.graph-filter-neighbours input:checked {
+  background: var(--ss-accent, #2563eb);
+}
+
+.graph-filter-neighbours input:checked::after {
+  transform: translateX(0.85rem);
+}
+
+.graph-filter-neighbours input:focus-visible {
+  outline: 2px solid var(--ss-accent-focus, #3b82f6);
+  outline-offset: 2px;
 }
 
 .graph-filter-compact-btn {
@@ -2973,11 +3019,16 @@ body.is-diagram-grown .layout {
   font-size: 0.85rem;
   font-weight: 600;
   line-height: 1.2;
-  padding: 0.5rem 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #ffffff;
   color: #475569;
+  box-shadow: var(--ss-bubble-shadow);
   cursor: pointer;
   transition:
     border-color 140ms ease,
@@ -3113,7 +3164,6 @@ body.is-diagram-grown .layout {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  overflow: visible;
 }
 
 .self-service-tool-detail .graph-filter-detail-list .graph-drawer-checkbox-row:not(.graph-filter-select-all-row) {
