@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ApplicationRequest,
   ApplicationResponse,
@@ -26,6 +26,7 @@ import {
 } from './AttributeChangeReasonFields';
 import { AttributeHistorySection } from './AttributeHistorySection';
 import { CloseIcon } from './CloseIcon';
+import { trackDrawerResize } from './drawerWidth';
 import { useDrawerSignOff } from './DrawerSignOff';
 import { AttributeValueControl } from './AttributeValueControl';
 import {
@@ -64,6 +65,9 @@ type ApplicationDetailsDrawerProps = {
   shouldOpenInEditMode?: boolean;
   /** Past day shown: details and history only. */
   isReadOnly?: boolean;
+  /** Overlay width in px. Dragging the left edge changes it. */
+  width?: number;
+  onWidthChange?: (width: number) => void;
 };
 
 function attributeValues(
@@ -113,7 +117,10 @@ export function ApplicationDetailsDrawer({
   isEmbedded = false,
   shouldOpenInEditMode = false,
   isReadOnly = false,
+  width,
+  onWidthChange,
 }: ApplicationDetailsDrawerProps) {
+  const drawerRef = useRef<HTMLElement>(null);
   const signOff = useDrawerSignOff(
     'APPLICATION',
     application?.id ?? null,
@@ -535,11 +542,29 @@ export function ApplicationDetailsDrawer({
     );
   }
 
+  function startResize(event: ReactPointerEvent<HTMLDivElement>) {
+    if (width == null || !onWidthChange) return;
+    event.preventDefault();
+    trackDrawerResize(event.clientX, drawerRef.current, width, onWidthChange);
+  }
+
   return (
     <aside
+      ref={drawerRef}
       className={`graph-details-drawer${isEmbedded ? ' is-embedded' : ''}${isOpen ? ' is-open' : ''}`}
+      style={width == null ? undefined : { width }}
       aria-label="Application details panel"
     >
+      {width != null && onWidthChange ? (
+        <div
+          className="graph-details-drawer__grip"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize application details"
+          title="Drag to resize"
+          onPointerDown={startResize}
+        />
+      ) : null}
       <header className="graph-details-header">
         <p className="graph-drawer-eyebrow">Application</p>
         <div className="graph-drawer-title-row">

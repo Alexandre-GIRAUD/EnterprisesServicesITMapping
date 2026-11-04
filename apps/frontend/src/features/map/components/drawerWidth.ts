@@ -17,3 +17,21 @@ type DragWidth = { startWidth: number; startX: number; x: number; paneWidth: num
 export function dragDrawerWidth({ startWidth, startX, x, paneWidth }: DragWidth): number {
   return clampDrawerWidth(startWidth + startX - x, paneWidth);
 }
+
+/** Follow the pointer until release and report the clamped width. */
+export function trackDrawerResize(
+  clientX: number,
+  drawer: HTMLElement | null,
+  width: number,
+  onWidthChange: (nextWidth: number) => void,
+): void {
+  const paneWidth = drawer?.parentElement?.clientWidth ?? window.innerWidth;
+  const drag = { startWidth: width, startX: clientX, paneWidth };
+  const onMove = (moveEvent: PointerEvent) => onWidthChange(dragDrawerWidth({ ...drag, x: moveEvent.clientX }));
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+}

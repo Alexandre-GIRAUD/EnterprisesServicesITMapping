@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { isHiddenEdgeAttribute, withoutHiddenEdgeAttributes } from '../utils/hiddenEdgeAttributes';
 import type { DataModelFieldDto, HumanChangeReason } from '@/types/api';
 import { getDataModelRequest } from '@/features/datamodel/api/dataModelApi';
@@ -12,6 +12,7 @@ import {
 } from './AttributeChangeReasonFields';
 import { AttributeHistorySection } from './AttributeHistorySection';
 import { CloseIcon } from './CloseIcon';
+import { trackDrawerResize } from './drawerWidth';
 import { useDrawerSignOff } from './DrawerSignOff';
 import { AttributeValueControl } from './AttributeValueControl';
 import {
@@ -35,6 +36,9 @@ type EdgeDetailsDrawerProps = {
   shouldOpenInEditMode?: boolean;
   /** Past day shown: details and history only. */
   isReadOnly?: boolean;
+  /** Overlay width in px. Dragging the left edge changes it. */
+  width?: number;
+  onWidthChange?: (width: number) => void;
 };
 
 function dash(value: string | null | undefined): string {
@@ -88,7 +92,10 @@ export function EdgeDetailsDrawer({
   isEmbedded = false,
   shouldOpenInEditMode = false,
   isReadOnly = false,
+  width,
+  onWidthChange,
 }: EdgeDetailsDrawerProps) {
+  const drawerRef = useRef<HTMLElement>(null);
   const signOff = useDrawerSignOff('EDGE', edge?.id ?? null, isOpen && !edge?.sandbox && !isReadOnly);
   const [edgeFields, setEdgeFields] = useState<DataModelFieldDto[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -293,12 +300,30 @@ export function EdgeDetailsDrawer({
     }
   }
 
+  function startResize(event: ReactPointerEvent<HTMLDivElement>) {
+    if (width == null || !onWidthChange) return;
+    event.preventDefault();
+    trackDrawerResize(event.clientX, drawerRef.current, width, onWidthChange);
+  }
+
   return (
     <aside
+      ref={drawerRef}
       className={`graph-details-drawer graph-details-drawer--edge${isEmbedded ? ' is-embedded' : ''}${isOpen ? ' is-open' : ''}`}
+      style={width == null ? undefined : { width }}
       aria-hidden={!isOpen}
       aria-label="Connection details panel"
     >
+      {width != null && onWidthChange ? (
+        <div
+          className="graph-details-drawer__grip"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize connection details"
+          title="Drag to resize"
+          onPointerDown={startResize}
+        />
+      ) : null}
       <header className="graph-details-header">
         <p className="graph-drawer-eyebrow">
           {sandbox ? 'Connection (sandbox)' : 'Connection'}

@@ -291,6 +291,11 @@ body.is-diagram-grown .layout {
   overflow: auto;
 }
 
+.layout-main:has(.map-page) {
+  padding: 0;
+  overflow: hidden;
+}
+
 /* ===== Map pages ===== */
 .map-page {
   position: relative;
@@ -1813,28 +1818,46 @@ body.is-diagram-grown .layout {
 }
 
 .map-graph-main {
+  --map-chrome-clearance: 8.5rem;
+  --map-drawer-top: 4.25rem;
+  position: relative;
   flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  margin: 0 0.75rem 0.75rem;
+  margin: 0;
   transition: flex 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .graph-view-header {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 22;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.65rem;
-  padding: 0.1rem 0 0.6rem;
-  margin-bottom: 0.45rem;
-  flex-shrink: 0;
+  padding: 0.85rem 1rem 0;
+  margin-bottom: 0;
+  pointer-events: none;
+}
+
+.graph-view-header-text,
+.graph-view-header-actions {
+  pointer-events: auto;
 }
 
 .graph-view-header-text {
-  flex: 1;
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: min(40rem, 55%);
   min-width: 0;
+  padding: 0.2rem 0.65rem 0.45rem;
+  border-radius: 12px;
+  background: rgb(248 250 252 / 88%);
 }
 
 .graph-view-header-actions {
@@ -2034,6 +2057,38 @@ body.is-diagram-grown .layout {
   font-size: 0.95rem;
   line-height: 1.5;
   color: #64748b;
+  max-width: 40rem;
+}
+
+.map-graph-main .react-flow__panel.top {
+  top: var(--map-chrome-clearance);
+}
+
+.map-graph-main .react-flow__panel.top.left {
+  top: var(--map-drawer-top);
+}
+
+.map-graph-main .graph-tables-view,
+.map-graph-main .graph-module-drilldown,
+.map-graph-main .graph-views-pane {
+  padding-top: var(--map-chrome-clearance);
+  box-sizing: border-box;
+}
+
+.map-page .graph-canvas,
+.map-page .graph-views-pane {
+  border-radius: 0;
+}
+
+.map-page .graph-details-drawer:not(.is-embedded) {
+  top: var(--map-drawer-top);
+  bottom: 0.5rem;
+  background: rgb(248 250 252 / 84%);
+}
+
+.map-graph-panel .graph-view-header .self-service-burger {
+  border: 1px solid #e2e8f0;
+  background: #fff;
 }
 
 .graph-view-header-description.is-error {
@@ -2114,7 +2169,7 @@ body.is-diagram-grown .layout {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0;
   transition:
     flex-basis 260ms cubic-bezier(0.22, 1, 0.36, 1),
     width 260ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -3540,6 +3595,12 @@ body.is-diagram-grown .layout {
 
 .graph-canvas .react-flow__controls-button svg {
   fill: #334155;
+}
+
+.graph-canvas .react-flow__controls-button svg.center-graph-icon,
+.graph-canvas .react-flow__controls-button svg.center-graph-icon * {
+  fill: none;
+  stroke: currentColor;
 }
 
 .graph-canvas.is-sandbox {
@@ -6321,9 +6382,8 @@ body.is-diagram-grown .layout {
 }
 
 .graph-details-header .graph-details-id {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .graph-details-header .graph-drawer-close {
@@ -6333,7 +6393,9 @@ body.is-diagram-grown .layout {
 
 .graph-details-content {
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   padding-right: 0.25rem;
   display: flex;
@@ -6449,11 +6511,22 @@ body.is-diagram-grown .layout {
 }
 
 .graph-details-section {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 0.85rem 1rem;
   background: #ffffff;
   box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  overflow-wrap: anywhere;
+}
+
+.graph-details-section :where(p, dd, dt, a, span, li, h3, strong) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .graph-details-section-title {
@@ -6467,6 +6540,9 @@ body.is-diagram-grown .layout {
 
 .graph-details-text {
   margin: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   font-size: 0.9rem;
   line-height: 1.5;
   color: #0f172a;
@@ -8690,7 +8766,8 @@ html[data-theme='dark'] .graph-legend__swatch img {
 }
 
 /* Drag the left edge to resize the drawer. */
-.module-drawer__grip {
+.module-drawer__grip,
+.graph-details-drawer__grip {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -8702,7 +8779,9 @@ html[data-theme='dark'] .graph-legend__swatch img {
 }
 
 .module-drawer__grip:hover,
-.module-drawer__grip:active {
+.module-drawer__grip:active,
+.graph-details-drawer__grip:hover,
+.graph-details-drawer__grip:active {
   background: linear-gradient(to right, rgb(37 99 235 / 45%) 0 3px, transparent 3px);
 }
 

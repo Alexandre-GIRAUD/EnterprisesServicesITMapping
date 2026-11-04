@@ -193,6 +193,9 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
   const [menuEditKind, setMenuEditKind] = useState<'application' | 'flow' | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdgeDetails | null>(null);
   const [isEdgeDetailsDrawerOpen, setIsEdgeDetailsDrawerOpen] = useState(false);
+  const [detailsDrawerWidth, setDetailsDrawerWidth] = useState(DETAILS_DRAWER_WIDTH_PX);
+  const detailsDrawerWidthRef = useRef(DETAILS_DRAWER_WIDTH_PX);
+  detailsDrawerWidthRef.current = detailsDrawerWidth;
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
   const [nodeFilters, setNodeFilters] = useState<GraphNodeFilterDto[]>([]);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -1011,7 +1014,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     fitGraphView(rfRef.current, {
       padding: computeDrawerFitPadding(true, {
         paneWidthPx: paneWidth,
-        drawerWidthPx: DETAILS_DRAWER_WIDTH_PX,
+        drawerWidthPx: detailsDrawerWidthRef.current,
       }),
       nodeIds,
       duration: DRAWER_FIT_DURATION_MS,
@@ -2331,6 +2334,8 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
               }}
               onApplicationDeleted={onApplicationDeletedHandler}
               isReadOnly={isReadOnly}
+              width={detailsDrawerWidth}
+              onWidthChange={setDetailsDrawerWidth}
             />
             <EdgeDetailsDrawer
               isOpen={isEdgeDetailsDrawerOpen && menuEditKind !== 'flow'}
@@ -2340,6 +2345,8 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
               onEdgeAttributesUpdated={handleEdgeAttributesUpdated}
               onEdgeDeleted={handleEdgeDeleted}
               isReadOnly={isReadOnly}
+              width={detailsDrawerWidth}
+              onWidthChange={setDetailsDrawerWidth}
             />
           </div>
         </div>
