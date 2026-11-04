@@ -58,7 +58,7 @@ export function fitGraphView(
   options: FitOptions = {}
 ): void {
   if (!instance) return;
-  const { padding = FIT_VIEW_PADDING, duration = 250, maxZoom = 1.5, nodeIds } = options;
+  const { padding = readLegendFitPadding(), duration = 250, maxZoom = 1.5, nodeIds } = options;
   const nodes = nodeIds?.map((id) => ({ id }));
 
   requestAnimationFrame(() => {
@@ -68,22 +68,35 @@ export function fitGraphView(
   });
 }
 
-/** React Flow hands out its instance a moment after the first layout; wait for it, but not forever. */
+/** React Flow hands out its instance, then measures the boxes, a moment after the first layout; wait for both, but not forever. */
 const MAX_INSTANCE_WAIT_FRAMES = 120;
+
+/** The legend mounts a moment after the graph; give it this many frames before fitting without it. */
+const LEGEND_WAIT_FRAMES = 30;
 
 /** Same as {@link fitGraphView}, for a caller whose instance may not exist yet. */
 export function fitGraphViewWhenReady(
-  ref: { current: Pick<ViewportInstance, 'fitView'> | null },
+  ref: { current: Pick<ViewportInstance, 'fitView' | 'getNodes'> | null },
   options: FitOptions = {},
   framesLeft: number = MAX_INSTANCE_WAIT_FRAMES
 ): void {
   requestAnimationFrame(() => {
-    if (ref.current) {
-      fitGraphView(ref.current, { padding: readLegendFitPadding(), ...options });
+    const isWaitingForLegend = framesLeft > MAX_INSTANCE_WAIT_FRAMES - LEGEND_WAIT_FRAMES && isLegendMissing();
+    if (ref.current && areNodesMeasured(ref.current) && !isWaitingForLegend) {
+      fitGraphView(ref.current, options);
       return;
     }
     if (framesLeft > 0) fitGraphViewWhenReady(ref, options, framesLeft - 1);
   });
+}
+
+function isLegendMissing(): boolean {
+  return typeof document !== 'undefined' && document.querySelector('.graph-legend') === null;
+}
+
+function areNodesMeasured(instance: Pick<ViewportInstance, 'getNodes'>): boolean {
+  const nodes = instance.getNodes();
+  return nodes.length > 0 && nodes.every((node) => (node.measured?.width ?? 0) > 0);
 }
 
 /** The legend's right edge inside the pane, or the plain margin when no legend is drawn. */
