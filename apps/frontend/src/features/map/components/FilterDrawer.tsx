@@ -729,7 +729,6 @@ export function FilterDrawer({
                 />
                 <span className="graph-filter-neighbours-text">
                   With neighbours
-                  <span className="graph-filter-neighbours-hint">Also show linked applications</span>
                 </span>
               </label>
             ) : null}

@@ -182,6 +182,7 @@ function SandboxPaneInner({
   const [isContextShareOpen, setIsContextShareOpen] = useState(false);
   const [shareUsername, setShareUsername] = useState('');
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+  const paneRef = useRef<HTMLDivElement>(null);
   const lastNodeClickRef = useRef<{ nodeId: string; time: number } | null>(null);
   const nodeClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const DOUBLE_CLICK_MS = 400;
@@ -448,10 +449,23 @@ function SandboxPaneInner({
   }
 
   const placing = Boolean(placingIconKey || placingText);
+  const [isTopRow, setIsTopRow] = useState(true);
+
+  useEffect(() => {
+    const pane = paneRef.current;
+    const board = pane?.parentElement;
+    if (!pane || !board) return;
+    const update = () => setIsTopRow(pane.getBoundingClientRect().top - board.getBoundingClientRect().top < 4);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(pane);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div
-      className={`sandbox-pane${active ? ' is-active' : ''}${placing ? ' is-placing-icon' : ''}`}
+      ref={paneRef}
+      className={`sandbox-pane${active ? ' is-active' : ''}${isTopRow ? ' is-top-row' : ''}${placing ? ' is-placing-icon' : ''}`}
       onMouseDown={onActivate}
       onContextMenu={(e) => {
         e.preventDefault();
