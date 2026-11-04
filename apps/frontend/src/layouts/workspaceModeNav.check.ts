@@ -23,6 +23,7 @@ assert.doesNotMatch(layout, /WorkspaceModeNav/);
 assert.doesNotMatch(layout, /My views/);
 assert.doesNotMatch(layout, />Production</);
 assert.match(icons, /sandbox:\s*\{[^}]*paths:/);
+assert.match(icons, /sandbox:\s*\{[^}]*'M12 20h9'/, 'sandbox icon is a pencil with its stroke line');
 assert.match(filterDrawer, /My views/);
 assert.match(css, /\.self-service-side-menu \{[^}]*background: transparent/);
 assert.match(
