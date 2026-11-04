@@ -1,0 +1,110 @@
+/**
+ * Runnable self-check for the Breach rule draft helpers.
+ * Run: npx --yes tsx src/features/breach/breachRules.check.ts
+ */
+import assert from 'node:assert/strict';
+import type { BreachRuleRequest, DataModelFieldDto } from '@/types/api';
+import {
+  attributeOptions,
+  changeSubject,
+  draftIssue,
+  elementTitle,
+  isDraftDirty,
+  newRuleDraft,
+  parseBreachNumber,
+  scopeOptions,
+} from './breachRules.ts';
+
+function field(key: string, target: DataModelFieldDto['target']): DataModelFieldDto {
+  return { key, label: key.toUpperCase(), enforceEnum: false, required: false, target };
+}
+
+const fields = [field('owner', 'NODE'), field('cost', 'NODE'), field('domain', 'NODE_REF'), field('protocol', 'EDGE')];
+
+// Numbers people type, the same way the server reads them.
+assert.equal(parseBreachNumber('120 000'), 120000);
+assert.equal(parseBreachNumber('120k'), 120000);
+assert.equal(parseBreachNumber('1,2M'), 1200000);
+assert.equal(parseBreachNumber('high'), null);
+assert.equal(parseBreachNumber(''), null);
+
+// Scopes depend on the subject; attributes on the scope.
+assert.deepEqual(
+  scopeOptions('APPLICATION').map((option) => option.value),
+  ['SELF', 'ANY_FLOW_IN', 'ANY_FLOW_OUT', 'ANY_FLOW']
+);
+assert.deepEqual(
+  scopeOptions('FLOW').map((option) => option.value),
+  ['FLOW', 'SOURCE', 'TARGET', 'SOURCE_OR_TARGET']
+);
+assert.deepEqual(
+  attributeOptions(fields, 'SELF').map((option) => option.key),
+  ['owner', 'cost', 'domain']
+);
+assert.deepEqual(
+  attributeOptions(fields, 'ANY_FLOW_OUT').map((option) => option.key),
+  ['protocol']
+);
+
+// The first draft is the example of the brief when a cost attribute exists.
+const first = newRuleDraft('APPLICATION', fields);
+assert.deepEqual(first.definition.groups[0].conditions[0], {
+  scope: 'SELF',
+  attribute: 'cost',
+  operator: 'GREATER_THAN',
+  value: '100k',
+});
+const flowDraft = newRuleDraft('FLOW', fields);
+assert.equal(flowDraft.definition.groups[0].conditions[0].scope, 'FLOW');
+assert.equal(flowDraft.definition.groups[0].conditions[0].attribute, 'protocol');
+
+// Switching the subject drops the conditions that no longer fit, and counts them.
+const mixed: BreachRuleRequest = {
+  name: 'Mixed',
+  subject: 'FLOW',
+  definition: {
+    combinator: 'OR',
+    groups: [
+      {
+        combinator: 'AND',
+        conditions: [
+          { scope: 'FLOW', attribute: 'protocol', operator: 'EQUALS', value: 'FTP' },
+          { scope: 'SOURCE', attribute: 'cost', operator: 'GREATER_THAN', value: '1' },
+        ],
+      },
+      { combinator: 'AND', conditions: [{ scope: 'TARGET', attribute: 'cost', operator: 'IS_EMPTY', value: '' }] },
+    ],
+  },
+};
+const switched = changeSubject(mixed, 'APPLICATION', fields);
+assert.equal(switched.removed, 3);
+assert.equal(switched.draft.subject, 'APPLICATION');
+assert.equal(switched.draft.definition.groups.length, 1);
+assert.equal(switched.draft.definition.groups[0].conditions[0].scope, 'SELF');
+
+// Client hints mirror the server checks.
+assert.equal(draftIssue({ ...first, name: ' ' }), 'Give the rule a name.');
+const noValue = structuredClone(first);
+noValue.name = 'Expensive';
+noValue.definition.groups[0].conditions[0].value = '';
+assert.equal(draftIssue(noValue), 'The condition on "cost" needs a value.');
+const notNumber = structuredClone(noValue);
+notNumber.definition.groups[0].conditions[0].value = 'a lot';
+assert.equal(draftIssue(notNumber), 'The condition on "cost" needs a number, like 100k.');
+const emptyOperator = structuredClone(noValue);
+emptyOperator.definition.groups[0].conditions[0].operator = 'IS_EMPTY';
+assert.equal(draftIssue(emptyOperator), null);
+
+// Dirty tracking compares content, not identity.
+assert.equal(isDraftDirty(structuredClone(first), first), false);
+assert.equal(isDraftDirty({ ...first, name: 'Other' }, first), true);
+assert.equal(isDraftDirty(first, null), true);
+
+// Flows read source → target.
+assert.equal(
+  elementTitle({ kind: 'FLOW', id: 'e', label: 'a → b', sourceLabel: 'Billing', targetLabel: 'CRM', values: [] }),
+  'Billing → CRM'
+);
+assert.equal(elementTitle({ kind: 'APPLICATION', id: 'a', label: 'Billing', values: [] }), 'Billing');
+
+console.log('breachRules.check.ts passed');

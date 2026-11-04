@@ -15,14 +15,14 @@ const { SidebarProfile } = await import('./SidebarProfile.tsx');
 const { ThemeToggle } = await import('./ThemeToggle.tsx');
 
 const primaryLabels = mainNavigationEntries(true).map((entry) => entry.label);
-assert.deepEqual(primaryLabels, ['Chatbot', 'Cartography', 'Data Model', 'Sources', 'Changes']);
+assert.deepEqual(primaryLabels, ['Chatbot', 'Cartography', 'Data Model', 'Sources', 'Changes', 'Breach']);
 assert.equal(mainNavigationEntries(true)[0]?.badge, 'IA');
 assert.equal(mainNavigationEntries(true)[0]?.showSeparator, true);
 
 const secondary = mainNavigationEntries(false);
 assert.deepEqual(
   secondary.map((entry) => entry.label),
-  ['Cartography', 'Data Model', 'Sources', 'Changes', 'Chatbot'],
+  ['Cartography', 'Data Model', 'Sources', 'Changes', 'Breach', 'Chatbot'],
 );
 assert.equal(secondary[0]?.label, 'Cartography');
 assert.equal(secondary.at(-1)?.badge, undefined);

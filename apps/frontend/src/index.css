@@ -8823,6 +8823,395 @@ button.chat-citation:hover {
   font-size: 0.85rem;
 }
 
+/* Breach: the Data Model system plus one warm accent, used only for what is in breach. */
+.breach-page {
+  --breach-accent: #ea580c;
+  --breach-accent-strong: #c2410c;
+  --breach-accent-surface: #fff7ed;
+  --breach-accent-border: #fed7aa;
+  max-width: 1180px;
+}
+
+.breach-flame {
+  flex: none;
+}
+
+.breach-layout {
+  display: grid;
+  grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .breach-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.breach-rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.4rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.breach-rule-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.breach-rule-item:hover:not(.is-selected) {
+  background: #f8fafc;
+}
+
+.breach-rule-item.is-selected {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  cursor: default;
+}
+
+.breach-rule-item:focus-visible,
+.breach-result-row:focus-visible,
+.breach-combinator-btn:focus-visible,
+.breach-text-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.breach-rule-item-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.breach-rule-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.breach-count,
+.breach-unknown-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #94a3b8;
+}
+
+.breach-count.is-active {
+  color: var(--breach-accent-strong);
+}
+
+.breach-unknown-count {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.breach-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.breach-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.breach-editor-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1.25rem;
+}
+
+.breach-editor-head .data-model-label {
+  margin-bottom: 0;
+}
+
+.breach-editor-name {
+  flex: 1 1 18rem;
+}
+
+.breach-subject-toggle {
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.breach-subject-toggle .graph-display-toggle-btn,
+.breach-results-tabs .graph-display-toggle-btn {
+  padding: 0.45rem 1rem;
+  font-size: 0.82rem;
+}
+
+.breach-subject-toggle .graph-display-toggle-btn.is-active,
+.breach-results-tabs .graph-display-toggle-btn.is-active {
+  background: #2563eb;
+  color: #fff;
+}
+
+.breach-groups {
+  display: flex;
+  flex-direction: column;
+}
+
+.breach-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.breach-group-join {
+  display: flex;
+  justify-content: center;
+  padding: 0.45rem 0;
+}
+
+.breach-condition-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.breach-condition {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) minmax(9rem, 1.2fr) minmax(6.5rem, 0.6fr) minmax(8rem, 1fr) 2rem;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+@media (max-width: 720px) {
+  .breach-condition {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.breach-condition .data-model-input:disabled,
+.breach-condition .data-model-input:read-only {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.breach-condition-operator {
+  font-variant-numeric: tabular-nums;
+}
+
+.breach-combinator {
+  display: inline-flex;
+  padding: 0.12rem;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.breach-combinator-btn,
+.breach-join-pill {
+  padding: 0.18rem 0.7rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.breach-combinator-btn {
+  cursor: pointer;
+}
+
+.breach-combinator-btn.is-active {
+  background: #0f172a;
+  color: #fff;
+}
+
+.breach-combinator-btn:disabled {
+  cursor: default;
+}
+
+.breach-join-pill {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.breach-text-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  align-self: flex-start;
+  padding: 0.3rem 0.4rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.breach-text-btn:hover {
+  background: #eff6ff;
+}
+
+.breach-add-group {
+  align-self: stretch;
+}
+
+.breach-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.breach-actions .data-model-remove-btn {
+  margin-left: auto;
+}
+
+.breach-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.breach-results-tabs {
+  align-self: flex-start;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.breach-result-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  overflow: hidden;
+}
+
+.breach-result-list li + li {
+  border-top: 1px solid #f1f5f9;
+}
+
+.breach-result-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.breach-result-row:hover {
+  background: #f8fafc;
+}
+
+.breach-result-mark {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.breach-result-mark.is-breach {
+  border-color: var(--breach-accent-border);
+  background: var(--breach-accent-surface);
+  color: var(--breach-accent-strong);
+}
+
+.breach-result-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.breach-result-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.breach-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.4rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.breach-empty > div {
+  flex: 1 1 18rem;
+}
+
+.breach-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  background: var(--breach-accent-surface);
+  color: var(--breach-accent);
+}
+
+.breach-empty-title {
+  margin: 0 0 0.2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
 /* ponytail: one invert flips light chrome to dark and dark chrome to light.
    Graph marks are inverted back so data colors hold. A dark logo is left
    inverted so it stays visible on the new dark ground.

@@ -12,6 +12,7 @@ import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { AdminUsersPage } from '@/features/auth/pages/AdminUsersPage';
 import { SettingsPage } from '@/features/auth/pages/SettingsPage';
 import { DataModelPage } from '@/features/datamodel/pages/DataModelPage';
+import { BreachPage } from '@/features/breach/pages/BreachPage';
 import { AboutPage } from '@/features/about/AboutPage';
 import { ChatPage } from '@/features/chat/ChatPage';
 
@@ -29,6 +30,7 @@ function App() {
             <Route path="/map/import-github" element={<GitHubImportPage />} />
             <Route path="/map/apps/:applicationId" element={<ApplicationModuleMapPage />} />
             <Route path="/data-model" element={<DataModelPage />} />
+            <Route path="/breach" element={<BreachPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/admin/changes" element={<ChangesListPage />} />
             <Route

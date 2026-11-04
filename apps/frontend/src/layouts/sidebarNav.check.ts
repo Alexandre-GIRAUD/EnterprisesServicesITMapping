@@ -16,8 +16,10 @@ assert.doesNotMatch(layout, /<header/);
 assert.doesNotMatch(css, /\.layout-header/);
 
 const labels = mainNavigationEntries().map((entry) => entry.label);
-assert.deepEqual(labels, ['Chatbot', 'Cartography', 'Data Model', 'Sources', 'Changes']);
+assert.deepEqual(labels, ['Chatbot', 'Cartography', 'Data Model', 'Sources', 'Changes', 'Breach']);
 assert.equal(mainNavigationEntries().find((entry) => entry.label === 'Chatbot')?.to, '/chat');
+assert.equal(mainNavigationEntries().find((entry) => entry.label === 'Breach')?.to, '/breach');
+assert.equal(mainNavigationEntries().find((entry) => entry.label === 'Breach')?.icon, 'breach');
 assert.match(settingsMenu, /label="Settings"/);
 assert.match(layout, /mainNavigationEntries\(/);
 assert.doesNotMatch(layout, /Sign out/);
