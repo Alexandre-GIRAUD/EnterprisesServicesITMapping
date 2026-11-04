@@ -8850,12 +8850,59 @@ button.chat-citation:hover {
   color: #c2410c;
 }
 
+/* Breach impact on a Change: same panel as the other Change sections. */
+.breach-impact {
+  padding: 1rem 1.15rem;
+  border: 1px solid #e8eef6;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.breach-impact-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.breach-impact-heading .breach-flame {
+  color: #c2410c;
+}
+
+.breach-impact-group + .breach-impact-group {
+  margin-top: 0.85rem;
+}
+
+.breach-impact-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.breach-impact-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+}
+
+.breach-impact-row .data-model-chip {
+  margin-left: auto;
+}
+
 /* Breach: the Data Model system plus one warm accent, used only for what is in breach. */
-.breach-page {
+:root {
   --breach-accent: #ea580c;
   --breach-accent-strong: #c2410c;
   --breach-accent-surface: #fff7ed;
   --breach-accent-border: #fed7aa;
+}
+
+.breach-page {
   max-width: 1180px;
 }
 

@@ -8,6 +8,7 @@ import {
   ANY_BREACH_RULE,
   attributeOptions,
   breachFilterLabel,
+  canHaveBreachImpact,
   changeSubject,
   toggleBreachSelector,
   draftIssue,
@@ -123,5 +124,11 @@ assert.equal(breachFilterLabel([], ruleNames), 'Off');
 assert.equal(breachFilterLabel([ANY_BREACH_RULE], ruleNames), 'Any rule');
 assert.equal(breachFilterLabel(['r2'], ruleNames), 'FTP flows');
 assert.equal(breachFilterLabel(['r1', 'r2'], ruleNames), '2 rules');
+
+// A Change shows its breach impact only while an attribute or a flow is still pending.
+assert.equal(canHaveBreachImpact({ kind: 'NODE_ATTRIBUTE', status: 'PENDING' }), true);
+assert.equal(canHaveBreachImpact({ kind: 'CONNECTION', status: 'PENDING' }), true);
+assert.equal(canHaveBreachImpact({ kind: 'MODULE', status: 'PENDING' }), false);
+assert.equal(canHaveBreachImpact({ kind: 'CONNECTION', status: 'ACCEPTED' }), false);
 
 console.log('breachRules.check.ts passed');

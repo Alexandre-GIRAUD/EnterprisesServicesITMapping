@@ -5,6 +5,7 @@ import type {
   BreachRuleRequest,
   BreachScope,
   BreachSubject,
+  ChangeDetectionItemDto,
   DataModelFieldDto,
 } from '@/types/api';
 
@@ -158,6 +159,11 @@ export function breachFilterLabel(selected: string[], rules: { id: string; name:
   if (selected.includes(ANY_BREACH_RULE)) return 'Any rule';
   if (selected.length === 1) return rules.find((rule) => rule.id === selected[0])?.name ?? '1 rule';
   return `${selected.length} rules`;
+}
+
+/** Accepting a pending attribute or flow can change breaches; a module never does. */
+export function canHaveBreachImpact(item: Pick<ChangeDetectionItemDto, 'kind' | 'status'>): boolean {
+  return item.status === 'PENDING' && item.kind !== 'MODULE';
 }
 
 export function elementTitle(element: BreachElementDto): string {

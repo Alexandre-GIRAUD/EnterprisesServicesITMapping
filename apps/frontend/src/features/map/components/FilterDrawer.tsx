@@ -15,11 +15,8 @@ import {
   toggleSortedValue,
 } from './filterDimensionUtils';
 import { displayFilterValue, searchFilterHits, type FilterSearchHit } from './filterSearch';
-import {
-  BreachFilterDetail,
-  BreachFilterRow,
-  useBreachRuleChoices,
-} from '@/features/breach/components/BreachFilterDetail';
+import { BreachFilterDetail, BreachFilterRow } from '@/features/breach/components/BreachFilterDetail';
+import { useBreachRuleChoices } from '@/features/breach/useBreachRuleChoices';
 import { toggleBreachSelector } from '@/features/breach/breachRules';
 
 export type { GraphFilters };
