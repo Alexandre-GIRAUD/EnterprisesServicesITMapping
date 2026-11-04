@@ -123,7 +123,7 @@ const filterDrawer = readFileSync(new URL('./FilterDrawer.tsx', import.meta.url)
 assert.match(css, /\.graph-filter-compact-actions \{[^}]*display: flex[^}]*gap: 0\.4rem/);
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*flex: 1 1 0/);
 assert.match(css, /not\(\.is-sandbox-mode\) \.self-service-tool-detail \.graph-filter-compact-actions \{[^}]*padding: 0\.25rem[^}]*border-radius: 999px[^}]*box-shadow: var\(--ss-bubble-shadow\)/);
-assert.match(css, /\.graph-filter-compact-btn--ghost \{[^}]*flex: 0 0 auto[^}]*background: transparent[^}]*box-shadow: none/);
+assert.match(css, /\.graph-filter-compact-btn--ghost \{[^}]*flex: 0 0 auto[^}]*border-color: #cbd5e1[^}]*background: #f8fafc/);
 assert.equal((filterDrawer.match(/graph-filter-compact-btn--ghost/g) ?? []).length, 2);
 assert.match(css, /\.graph-filter-neighbours:has\(input:checked\) \{[^}]*background: var\(--ss-accent-surface\)/);
 assert.match(css, /\.graph-filter-neighbours-icon \{[^}]*border-radius: 50%/);
@@ -146,5 +146,17 @@ assert.doesNotMatch(css, /\.sandbox-pane__icon/);
 assert.doesNotMatch(readFileSync(new URL('./SandboxPane.tsx', import.meta.url), 'utf8'), /sandbox-pane__icon/);
 assert.match(css, /\.sandbox-pane__title \{[^}]*text-align: center/);
 assert.match(css, /\.sandbox-pane__close \{[^}]*position: absolute/);
+
+// The tool tabs sit in a click-through menu: they must take clicks themselves (Chat and Corrections did not).
+assert.match(css, /\.self-service-tool-bar \{[^}]*pointer-events: auto/);
+// Every button of the menu reads as a button: a border, a shadow, a lift on hover.
+assert.match(css, /\.map-graph-panel \.self-service-burger \{[^}]*border: 1px solid #cbd5e1[^}]*border-radius: 999px[^}]*box-shadow: var\(--ss-bubble-shadow\)/);
+assert.match(css, /\.self-service-tool-bar-btn:hover[^{]*\{[^}]*transform: translateY\(-1px\)/);
+assert.match(css, /\.graph-filter-compact-btn:hover[^{]*\{[^}]*transform: translateY\(-1px\)/);
+assert.match(css, /\.self-service-burger:hover[^{]*\{[^}]*transform: translateY\(-1px\)/);
+assert.match(css, /\.self-service-tool-bar-btn \{[^}]*border-radius: 999px/);
+// With neighbours is one flat line, like the buttons.
+assert.match(css, /\.graph-filter-neighbours \{[^}]*min-height: 2\.25rem/);
+assert.match(css, /\.graph-filter-neighbours-text \{[^}]*flex-direction: row/);
 
 console.log('cartographyMenu.check: ok');
