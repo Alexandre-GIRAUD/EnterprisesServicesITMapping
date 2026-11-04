@@ -2394,6 +2394,33 @@ body.is-diagram-grown .layout {
   margin: 0 -12px;
 }
 
+/* The value view header and its Select all row float as bubbles too. */
+.map-graph-panel:not(.is-views-mode):not(.is-sandbox-mode) .self-service-tool-detail .graph-filter-drawer-header {
+  padding: 0.25rem 0.9rem 0.25rem 0.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: var(--ss-bubble-shadow);
+  flex-wrap: nowrap;
+  pointer-events: auto;
+}
+
+.map-graph-panel:not(.is-views-mode):not(.is-sandbox-mode) .self-service-tool-detail .graph-filter-select-all-row {
+  margin: 0;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: var(--ss-bubble-shadow);
+  pointer-events: auto;
+}
+
+.graph-filter-drawer-header .graph-filter-compact-btn {
+  flex: 0 0 auto;
+  padding: 0 0.9rem;
+  box-shadow: none;
+}
+
 /* On the map the action buttons sit in one floating pill bar. */
 .map-graph-panel:not(.is-views-mode):not(.is-sandbox-mode) .self-service-tool-detail .graph-filter-compact-actions {
   padding: 0.25rem;
