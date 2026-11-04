@@ -39,7 +39,7 @@ const labelLayer = Number(labels[0].match(/z-index:\s*(\d+)/)?.[1]);
 assert.ok(labelLayer > edgeLayer);
 
 const solidMenu = css.match(
-  /\.map-graph-panel:is\(\.is-views-mode, \.is-sandbox-mode\) \.self-service-side-menu \{[^}]*\}/,
+  /\.map-graph-panel \.self-service-side-menu \{[^}]*\}/,
 );
 assert.ok(solidMenu, 'sandbox mode must share the solid docked side menu');
 assert.match(solidMenu[0], /background: #ffffff/);

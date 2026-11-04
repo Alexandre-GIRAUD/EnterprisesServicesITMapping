@@ -31,11 +31,11 @@ assert.match(
 );
 assert.match(
   css,
-  /\.map-graph-panel:is\(\.is-views-mode, \.is-sandbox-mode\)\.is-menu-open \.self-service-side-menu-shell \{[^}]*position: relative[^}]*flex: 0 0 min\(360px, 92vw\)[^}]*overflow: hidden/,
+  /\.map-graph-panel\.is-menu-open \.self-service-side-menu-shell \{[^}]*position: relative[^}]*flex: 0 0 min\(360px, 92vw\)[^}]*overflow: hidden/,
 );
 assert.match(
   css,
-  /\.map-graph-panel:is\(\.is-views-mode, \.is-sandbox-mode\) \.self-service-side-menu \{[^}]*border: 1px solid #e2e8f0[^}]*border-radius: 8px[^}]*background: #ffffff[^}]*overflow: hidden/,
+  /\.map-graph-panel \.self-service-side-menu \{[^}]*border: 1px solid #e2e8f0[^}]*border-radius: 8px[^}]*background: #ffffff[^}]*overflow: hidden/,
 );
 assert.match(
   css,
@@ -43,7 +43,7 @@ assert.match(
 );
 assert.doesNotMatch(
   css,
-  /\.map-graph-panel:is\(\.is-views-mode, \.is-sandbox-mode\) \.self-service-side-menu \{[^}]*background: transparent/,
+  /\.map-graph-panel \.self-service-side-menu \{[^}]*background: transparent/,
 );
 assert.doesNotMatch(css, /\.graph-filter-compact-actions > \.graph-filter-compact-btn \{[^}]*flex: 1 1 0/);
 assert.match(css, /\.graph-filter-neighbours \{[^}]*gap: 0\.45rem[^}]*font-size: 0\.85rem[^}]*font-weight: 500[^}]*color: #334155/);
@@ -122,7 +122,7 @@ assert.doesNotMatch(css, /\.self-service-tool-detail \.graph-filter-detail-list 
 const filterDrawer = readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8');
 assert.match(css, /\.graph-filter-compact-actions \{[^}]*display: flex[^}]*gap: 0\.4rem/);
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*flex: 1 1 0/);
-assert.match(css, /not\(\.is-sandbox-mode\) \.self-service-tool-detail \.graph-filter-compact-actions \{[^}]*padding: 0\.25rem[^}]*border-radius: 999px[^}]*box-shadow: var\(--ss-bubble-shadow\)/);
+assert.doesNotMatch(css, /not\(\.is-sandbox-mode\)/);
 assert.match(css, /\.graph-filter-compact-btn--ghost \{[^}]*flex: 0 0 auto[^}]*border-color: #cbd5e1[^}]*background: #f8fafc/);
 assert.equal((filterDrawer.match(/graph-filter-compact-btn--ghost/g) ?? []).length, 2);
 assert.match(css, /\.graph-filter-neighbours:has\(input:checked\) \{[^}]*background: var\(--ss-accent-surface\)/);
@@ -132,9 +132,6 @@ assert.match(css, /\.graph-filter-compact-btn \{[^}]*min-height: 2\.25rem[^}]*pa
 assert.doesNotMatch(css, /\.graph-filter-back-btn \{/);
 assert.match(filterDrawer, /graph-filter-compact-btn graph-filter-compact-btn--neutral"[\s\S]{0,300}‹ Back/);
 
-// The value view header and its Select all row are bubbles too, so nothing floats over the graph.
-assert.match(css, /not\(\.is-sandbox-mode\) \.self-service-tool-detail \.graph-filter-drawer-header \{[^}]*border-radius: 999px[^}]*box-shadow: var\(--ss-bubble-shadow\)/);
-assert.match(css, /not\(\.is-sandbox-mode\) \.self-service-tool-detail \.graph-filter-select-all-row \{[^}]*box-shadow: var\(--ss-bubble-shadow\)/);
 assert.match(css, /\.graph-filter-drawer-header \.graph-filter-compact-btn \{[^}]*flex: 0 0 auto/);
 
 // With neighbours sits under the search as a switch row, not above the list.
@@ -163,4 +160,15 @@ assert.match(css, /--ss-bubble-shadow-hover: 0 6px 14px rgb\(15 23 42 \/ 14%\)/)
 assert.doesNotMatch(css, /box-shadow: 0 6px 14px rgb\(15 23 42 \/ 14%\)/);
 // The flat resting look of the bar buttons must not cancel their hover shadow.
 assert.match(css, /graph-filter-compact-btn--primary\):not\(:hover\) \{[^}]*box-shadow: none/);
+
+// One solid docked menu in every mode: Cartography, Tables, My views and Sandbox look alike.
+assert.doesNotMatch(css, /\.map-graph-panel:is\(\.is-views-mode, \.is-sandbox-mode\)/);
+assert.doesNotMatch(css, /\.map-graph-panel:not\(\.is-views-mode\):not\(\.is-sandbox-mode\)/);
+// The floating buttons share one look in every mode, the burger included once it is open.
+assert.doesNotMatch(css, /\.self-service-burger:hover,\s*\.self-service-burger\.is-open \{/);
+assert.match(css, /\.map-graph-panel \.self-service-burger\.is-open \{[^}]*background: #ffffff[^}]*box-shadow: var\(--ss-bubble-shadow\)/);
+assert.match(css, /\.map-graph-panel \.graph-export-menu-trigger \{[^}]*border-color: #cbd5e1[^}]*background: #ffffff[^}]*box-shadow: var\(--ss-bubble-shadow\)/);
+assert.match(css, /\.map-graph-panel \.graph-display-toggle \{[^}]*background: #fff[^}]*box-shadow: var\(--ss-bubble-shadow\)/);
+// The Tables column menu uses the same solid borders as the filter menu.
+assert.match(css, /\.table-columns-picker__zone \{[^}]*border: 1px solid #e2e8f0/);
 console.log('cartographyMenu.check: ok');
