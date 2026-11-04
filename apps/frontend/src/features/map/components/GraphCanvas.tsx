@@ -437,7 +437,10 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     applyLegendSetup,
     deleteLegendSetup,
   } = data;
-  const breachMarks = useBreachMarks(!isSandbox && !isViewsMode && !isReadOnly, graphNodes);
+  const breachMarks = useBreachMarks(
+    filters.shouldShowBreaches && !isSandbox && !isViewsMode && !isReadOnly,
+    graphNodes
+  );
 
   const legendCodingRef = useRef({
     colorPropertyKey,

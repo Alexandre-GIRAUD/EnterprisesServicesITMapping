@@ -74,7 +74,7 @@ export function BreachPage() {
     <div className="data-model-page breach-page">
       <header className="data-model-header">
         <div>
-          <h1>Breach</h1>
+          <h1>Breaches</h1>
           <p className="data-model-lead">
             Rules on your IT system. Applications and flows that match a rule are flagged as in breach.
           </p>

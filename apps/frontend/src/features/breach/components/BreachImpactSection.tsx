@@ -48,10 +48,10 @@ export function BreachImpactSection({ runId, itemId }: { runId: string; itemId: 
   const isEmpty = impact !== null && impact.entering.length === 0 && impact.leaving.length === 0;
 
   return (
-    <section className="breach-impact" aria-label="Breach impact">
+    <section className="breach-impact" aria-label="Impact on breaches">
       <h2 className="breach-impact-heading">
         <FlameIcon size="heading" />
-        Breach impact
+        Impact on breaches
       </h2>
       {error ? <p className="change-detail-error">{error}</p> : null}
       {!error && impact === null ? <p className="change-detail-hint">Evaluating the breach rules…</p> : null}

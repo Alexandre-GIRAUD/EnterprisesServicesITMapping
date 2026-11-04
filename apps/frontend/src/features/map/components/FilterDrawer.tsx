@@ -38,9 +38,10 @@ type FilterDrawerProps = {
   initialBlankedDimensions?: string[];
   showWithNeighbours?: boolean;
   initialWithNeighbours?: boolean;
-  /** Live map only: offer the Breach dimension. */
+  /** Live map only: offer the Breaches dimension and the "breaches" marks toggle. */
   showBreach?: boolean;
   initialBreach?: string[];
+  initialShouldShowBreaches?: boolean;
   edges?: GraphEdgeDto[];
   onApply: (filters: GraphFilters) => void;
   showPinView?: boolean;
@@ -124,6 +125,7 @@ export function FilterDrawer({
   initialWithNeighbours = false,
   showBreach = false,
   initialBreach = NO_BREACH,
+  initialShouldShowBreaches = false,
   edges = [],
   onApply,
   showPinView = false,
@@ -139,6 +141,7 @@ export function FilterDrawer({
   const [selectedFlowIds, setSelectedFlowIds] = useState(initialEdgeIds);
   const [withNeighbours, setWithNeighbours] = useState(initialWithNeighbours);
   const [selectedBreach, setSelectedBreach] = useState(initialBreach);
+  const [shouldShowBreaches, setShouldShowBreaches] = useState(initialShouldShowBreaches);
   const breachRules = useBreachRuleChoices(showBreach);
   const hasEditedFilters = useRef(false);
 
@@ -188,6 +191,7 @@ export function FilterDrawer({
     setSelectedFlowIds(initialEdgeIds);
     setWithNeighbours(initialWithNeighbours);
     setSelectedBreach(initialBreach);
+    setShouldShowBreaches(initialShouldShowBreaches);
     setSelectedApplicationIds(
       blanked.includes('applications')
         ? []
@@ -221,6 +225,7 @@ export function FilterDrawer({
     initialEdgeIds,
     initialWithNeighbours,
     initialBreach,
+    initialShouldShowBreaches,
     initialBlankedDimensions,
     initialMatchNothing,
     appCatalog,
@@ -248,10 +253,19 @@ export function FilterDrawer({
       blankedDimensions: blanked,
       withNeighbours,
       breach: selectedBreach,
+      shouldShowBreaches,
     });
     // collectAttributeFilters closes over the same selection state as this effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedApplicationIds, selectedNodeValues, selectedFlowIds, withNeighbours, selectedBreach, isOpen]);
+  }, [
+    selectedApplicationIds,
+    selectedNodeValues,
+    selectedFlowIds,
+    withNeighbours,
+    selectedBreach,
+    shouldShowBreaches,
+    isOpen,
+  ]);
 
   const detailKey = nodeAttributeKeyFromView(view);
   const detailDimension = nodeFilters.find((dimension) => dimension.key === detailKey) ?? null;
@@ -333,6 +347,7 @@ export function FilterDrawer({
     hasEditedFilters.current = true;
     setSelectedFlowIds([]);
     setSelectedBreach([]);
+    setShouldShowBreaches(false);
     setWithNeighbours(false);
     setSelectedApplicationIds(selectAllCatalog(appCatalog));
     setSelectedNodeValues(
@@ -579,7 +594,7 @@ export function FilterDrawer({
       : view === 'applications'
         ? 'Applications'
         : view === BREACH_FILTER_VIEW
-          ? 'Breach'
+          ? 'Breaches'
           : (detailDimension?.label ?? 'Filters');
 
   const isEmbedded = variant === 'embedded';
@@ -701,6 +716,19 @@ export function FilterDrawer({
               }}
             />
             with neighbours
+          </label>
+        ) : null}
+        {view === 'root' && showBreach ? (
+          <label className="graph-filter-neighbours" title="Show the breach flames on applications and colour flows in breach">
+            <input
+              type="checkbox"
+              checked={shouldShowBreaches}
+              onChange={(event) => {
+                hasEditedFilters.current = true;
+                setShouldShowBreaches(event.target.checked);
+              }}
+            />
+            breaches
           </label>
         ) : null}
         {view === 'root' ? (

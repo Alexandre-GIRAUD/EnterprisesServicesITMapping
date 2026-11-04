@@ -24,7 +24,7 @@ const CARTOGRAPHY_AND_REST: readonly SidebarEntry[] = [
   { label: 'Data Model', to: '/data-model', icon: 'dataModel' },
   { label: 'Sources', to: '/map/import-github', icon: 'sources' },
   { label: 'Changes', to: '/admin/changes', icon: 'changes' },
-  { label: 'Breach', to: '/breach', icon: 'breach' },
+  { label: 'Breaches', to: '/breaches', icon: 'breach' },
 ];
 
 export function mainNavigationEntries(chatbotIsPrimary = CHATBOT_IS_PRIMARY): SidebarEntry[] {

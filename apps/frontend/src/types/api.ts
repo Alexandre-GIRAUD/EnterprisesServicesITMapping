@@ -317,6 +317,8 @@ export type GraphFilters = {
   withNeighbours?: boolean;
   /** Live map only: breach rule ids, or `any`, whose breaches the graph keeps. Not saved in views. */
   breach?: string[];
+  /** Client-only: draw the breach flames and flow colour; off by default, like `withNeighbours`. */
+  shouldShowBreaches?: boolean;
 };
 
 /** One filterable dimension from GET /api/graph/node-filters. */
