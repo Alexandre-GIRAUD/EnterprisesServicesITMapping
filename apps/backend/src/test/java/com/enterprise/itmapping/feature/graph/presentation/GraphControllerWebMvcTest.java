@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.enterprise.itmapping.feature.breach.application.BreachRuleService;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributePatchService;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeLinkService;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeFilterFacetService;
@@ -40,6 +41,21 @@ class GraphControllerWebMvcTest {
   @MockBean GraphEdgeLinkService edgeLinkService;
   @MockBean com.enterprise.itmapping.feature.graph.application.GraphNeighborhoodService
       neighborhoodService;
+  @MockBean BreachRuleService breachRuleService;
+
+  @Test
+  void getGraphNarrowsToTheSelectedBreachesWhenAsked() throws Exception {
+    GraphResponseDto filtered = emptyGraph();
+    GraphResponseDto narrowed = new GraphResponseDto(List.of(), List.of());
+    when(graphService.getGraph(isNull(), any(), any(), any())).thenReturn(filtered);
+    when(breachRuleService.narrowToBreaches(filtered, List.of("any"))).thenReturn(narrowed);
+
+    mockMvc
+        .perform(get("/graph").param("breach", "any").accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk());
+
+    verify(breachRuleService).narrowToBreaches(filtered, List.of("any"));
+  }
 
   @Test
   void getGraphForwardsApplicationIds() throws Exception {
