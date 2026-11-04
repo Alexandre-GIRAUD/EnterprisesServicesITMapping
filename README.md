@@ -9,7 +9,7 @@ Production-ready SaaS monorepo for mapping enterprise applications, their depend
 | Backend     | Java 21, Spring Boot 3.2             |
 | Database    | Neo4j 5 (graph), PostgreSQL (users / auth) |
 | Frontend    | React 18, TypeScript, Vite 5         |
-| Visualization | Cytoscape.js                       |
+| Visualization | React Flow (`@xyflow/react`), dagre / ELK layout |
 | Auth        | Spring Security, JWT, JPA + Flyway   |
 | Runtime     | Docker, Docker Compose               |
 
@@ -33,7 +33,7 @@ Production-ready SaaS monorepo for mapping enterprise applications, their depend
 │       │   ├── config/           # API base, auth headers
 │       │   ├── layouts/         # App shell
 │       │   ├── features/        # Feature-based UI
-│       │   │   ├── map/         # Graph canvas (Cytoscape), map page
+│       │   │   ├── map/         # Graph canvas (React Flow), map page
 │       │   │   ├── applications/
 │       │   │   └── auth/
 │       │   └── types/           # Shared TS types
@@ -105,7 +105,7 @@ Dependencies point inward: presentation → application → domain; infrastructu
 ### Scalability (Thousands of Nodes)
 
 - **Backend**: Pagination and bounded graph queries (e.g. by application id, depth, or time window); avoid “load entire graph” APIs; use Neo4j indexes and projection for hot paths.
-- **Frontend**: Cytoscape.js supports large graphs with layout options and filtering; use viewport-based or level-of-detail loading where applicable (e.g. load neighborhood of selected node).
+- **Frontend**: React Flow with dagre / ELK layouts supports large graphs with filtering; use viewport-based or level-of-detail loading where applicable (e.g. load neighborhood of selected node).
 
 ### Authentification (SQL + JWT)
 
@@ -175,7 +175,7 @@ docker-compose up -d
 
 ### Module graph (drill-down)
 
-- On the main map, **click an Application node** to open `/map/apps/{applicationId}`: Cytoscape shows the **Module** tree (`CONTAINS` edges) for that app.
+- On the main map, **click an Application node** to open `/map/apps/{applicationId}`: React Flow shows the **Module** tree (`CONTAINS` edges) for that app.
 - API: `GET /api/applications/{id}/module-graph`. Same JSON shape as `GET /api/graph` (`GraphResponseDto`). **404** if the application is unknown; **200** with the application root only if there are no modules.
 - Optional env (backend): **`APP_MODULE_GRAPH_MAX_DEPTH`** (default **10**) — max `CONTAINS` hops in Cypher (hard-capped at 50 in code).
 
