@@ -1689,8 +1689,17 @@ body.is-diagram-grown .layout {
 
 /* Cartography accent theming (Production / Sandbox / My views via mode class) */
 .map-graph-panel .graph-display-toggle {
+  border-color: #cbd5e1;
   border-radius: 10px;
   background: #fff;
+  box-shadow: var(--ss-bubble-shadow);
+}
+
+.map-graph-panel .history-date-picker,
+.map-graph-panel .graph-export-menu-trigger {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  box-shadow: var(--ss-bubble-shadow);
 }
 
 .map-graph-panel .graph-display-toggle-btn {
@@ -1726,6 +1735,12 @@ body.is-diagram-grown .layout {
 .map-graph-panel .self-service-burger:hover {
   border-color: #94a3b8;
   background: #f8fafc;
+}
+
+.map-graph-panel .self-service-burger.is-open {
+  background: #ffffff;
+  color: #334155;
+  box-shadow: var(--ss-bubble-shadow);
 }
 
 .map-graph-panel .self-service-burger.is-open:hover {
@@ -2143,13 +2158,6 @@ body.is-diagram-grown .layout {
   cursor: pointer;
 }
 
-.self-service-burger:hover,
-.self-service-burger.is-open {
-  background: #f1f5f9;
-  color: #334155;
-  box-shadow: none;
-}
-
 .self-service-burger:hover {
   transform: translateY(-1px);
   box-shadow: var(--ss-bubble-shadow-hover);
@@ -2243,15 +2251,15 @@ body.is-diagram-grown .layout {
 }
 
 .map-graph-panel.is-menu-open .self-service-side-menu-shell {
-  position: absolute;
-  top: 4.25rem;
-  right: 0.75rem;
-  bottom: 0.5rem;
-  z-index: 21;
-  flex: none;
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  z-index: auto;
+  flex: 0 0 min(360px, 92vw);
   width: min(360px, 92vw);
-  overflow: visible;
-  pointer-events: none;
+  overflow: hidden;
+  pointer-events: auto;
 }
 
 .self-service-side-menu {
@@ -2388,12 +2396,6 @@ body.is-diagram-grown .layout {
   gap: 0.55rem;
 }
 
-/* Room around the bubbles so their shadows are not cut by the scroll areas. */
-.map-graph-panel:not(.is-views-mode):not(.is-sandbox-mode) .self-service-tool-detail {
-  padding: 4px 12px 16px;
-  margin: -4px -12px -16px;
-}
-
 .self-service-tool-detail .graph-filter-drawer--embedded,
 .self-service-tool-detail .graph-filter-detail-panel {
   overflow: visible;
@@ -2419,61 +2421,14 @@ body.is-diagram-grown .layout {
   margin: 0 -12px;
 }
 
-/* The value view header and its Select all row float as bubbles too. */
-.map-graph-panel:not(.is-views-mode):not(.is-sandbox-mode) .self-service-tool-detail .graph-filter-drawer-header {
-  padding: 0.25rem 0.9rem 0.25rem 0.25rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  background: #ffffff;
-  box-shadow: var(--ss-bubble-shadow);
-  flex-wrap: nowrap;
-  pointer-events: auto;
-}
-
-.map-graph-panel:not(.is-views-mode):not(.is-sandbox-mode) .self-service-tool-detail .graph-filter-select-all-row {
-  margin: 0;
-  padding: 0.4rem 0.7rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  background: #ffffff;
-  box-shadow: var(--ss-bubble-shadow);
-  pointer-events: auto;
-}
-
 .graph-filter-drawer-header .graph-filter-compact-btn {
   flex: 0 0 auto;
   padding: 0 0.9rem;
   box-shadow: none;
 }
 
-/* On the map the action buttons sit in one floating pill bar. */
-.map-graph-panel:not(.is-views-mode):not(.is-sandbox-mode) .self-service-tool-detail .graph-filter-compact-actions {
-  padding: 0.25rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
-  background: #ffffff;
-  box-shadow: var(--ss-bubble-shadow);
-  pointer-events: auto;
-}
-
-.map-graph-panel:not(.is-views-mode):not(.is-sandbox-mode) .graph-filter-compact-actions .graph-filter-compact-btn:not(.graph-filter-compact-btn--pin):not(.graph-filter-compact-btn--primary):not(:hover) {
-  box-shadow: none;
-}
-
-/* My views and Sandbox use the solid docked menu. Bubbles stay on Cartography. */
-.map-graph-panel:is(.is-views-mode, .is-sandbox-mode).is-menu-open .self-service-side-menu-shell {
-  position: relative;
-  top: auto;
-  right: auto;
-  bottom: auto;
-  z-index: auto;
-  flex: 0 0 min(360px, 92vw);
-  width: min(360px, 92vw);
-  overflow: hidden;
-  pointer-events: auto;
-}
-
-.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-side-menu {
+/* Every mode uses the same solid docked menu. */
+.map-graph-panel .self-service-side-menu {
   gap: 0;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -2483,25 +2438,35 @@ body.is-diagram-grown .layout {
   pointer-events: auto;
 }
 
-.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-tool-detail > :not(.graph-filter-drawer) {
+.map-graph-panel .self-service-tool-detail > :not(.graph-filter-drawer) {
   background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
 }
 
-.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-side-menu-body {
+.map-graph-panel .self-service-side-menu-body {
   gap: 0;
   overflow: hidden;
   padding: 0.55rem 0.65rem;
 }
 
-.map-graph-panel:is(.is-views-mode, .is-sandbox-mode) .self-service-tool-detail {
+.map-graph-panel .self-service-tool-detail {
   flex: 1;
   gap: 0.35rem;
   margin-top: 0.4rem;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+/* The docked menu keeps the filter lists inside its own width, so it never scrolls sideways. */
+.map-graph-panel .self-service-tool-detail {
+  overflow-x: hidden;
+}
+
+.map-graph-panel .self-service-tool-detail .graph-filter-root-list,
+.map-graph-panel .self-service-tool-detail .graph-filter-detail-list {
+  margin: 0;
 }
 
 .self-service-tool-bar-btn:hover::after,
@@ -2554,7 +2519,7 @@ body.is-diagram-grown .layout {
   gap: 0.4rem;
   min-height: 3.5rem;
   padding: 0.45rem;
-  border: 1px dashed #cbd5e1;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #f8fafc;
 }
@@ -7518,27 +7483,12 @@ body.is-diagram-grown .layout {
   }
 
   .map-graph-panel.is-menu-open .self-service-side-menu-shell {
-    top: auto;
-    right: 0.5rem;
-    left: 0.5rem;
-    width: auto;
-    max-height: min(52vh, 28rem);
-  }
-
-  .map-graph-panel.is-views-mode.is-menu-open .self-service-side-menu-shell {
-    position: relative;
-    top: auto;
-    right: auto;
-    left: auto;
-    bottom: auto;
     flex: 0 0 auto;
     width: 100%;
     margin: 0 0.75rem 0.75rem;
-    overflow: hidden;
-    pointer-events: auto;
   }
 
-  .map-graph-panel.is-views-mode .self-service-side-menu {
+  .map-graph-panel .self-service-side-menu {
     border-radius: 18px 18px 0 0;
     box-shadow: 0 -8px 24px rgb(15 23 42 / 8%);
   }

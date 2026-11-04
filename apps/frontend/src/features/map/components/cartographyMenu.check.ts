@@ -158,8 +158,6 @@ assert.match(css, /\.graph-filter-neighbours-text \{[^}]*flex-direction: row/);
 
 assert.match(css, /--ss-bubble-shadow-hover: 0 6px 14px rgb\(15 23 42 \/ 14%\)/);
 assert.doesNotMatch(css, /box-shadow: 0 6px 14px rgb\(15 23 42 \/ 14%\)/);
-// The flat resting look of the bar buttons must not cancel their hover shadow.
-assert.match(css, /graph-filter-compact-btn--primary\):not\(:hover\) \{[^}]*box-shadow: none/);
 
 // One solid docked menu in every mode: Cartography, Tables, My views and Sandbox look alike.
 assert.doesNotMatch(css, /\.map-graph-panel:is\(\.is-views-mode, \.is-sandbox-mode\)/);
