@@ -23,7 +23,7 @@ assert.match(
 );
 assert.match(
   css,
-  /\.graph-filter-compact-btn:not\(\.graph-filter-compact-btn--primary\):not\(\.graph-filter-compact-btn--pin\):not\(\.graph-filter-compact-btn--neutral\):not\(\.graph-filter-compact-btn--views\)/,
+  /\.graph-filter-compact-btn--ghost:hover:not\(:disabled\) \{[^}]*color: #b91c1c/,
 );
 assert.match(
   readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8'),
@@ -47,7 +47,7 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(css, /\.graph-filter-compact-actions > \.graph-filter-compact-btn \{[^}]*flex: 1 1 0/);
 assert.match(css, /\.graph-filter-neighbours \{[^}]*gap: 0\.45rem[^}]*font-size: 0\.85rem[^}]*font-weight: 500[^}]*color: #334155/);
-assert.match(readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8'), /with neighbours/);
+assert.match(readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8'), /With neighbours/);
 const sideTools = readFileSync(new URL('./graphCanvasSideTools.tsx', import.meta.url), 'utf8');
 assert.doesNotMatch(sideTools, /showWithNeighbours=\{!isSandbox\}/);
 assert.match(sideTools, /initialWithNeighbours=\{isSandbox \? Boolean\(activeSandboxFilters\.withNeighbours\)/);
@@ -63,7 +63,7 @@ assert.match(css, /\.sandbox-pane \{[^}]*border: 1px solid #e2e8f0[^}]*border-ra
 assert.match(css, /\.sandbox-pane\.is-active \{[^}]*border-left: 3px solid var\(--ss-accent\)[^}]*box-shadow: 0 8px 24px rgb\(15 23 42 \/ 6%\)/);
 assert.match(css, /\.map-graph-panel:not\(\.is-views-mode\) \.graph-canvas:not\(\.is-sandbox\) \{[^}]*border-left: 3px solid var\(--ss-accent\)[^}]*box-shadow: 0 8px 24px rgb\(15 23 42 \/ 6%\)/);
 assert.match(css, /\.sandbox-pane__title \{[^}]*font-size: 0\.92rem[^}]*font-weight: 700[^}]*color: #0f172a/);
-assert.match(css, /\.graph-filter-compact-btn \{[^}]*font-size: 0\.85rem[^}]*border-radius: 8px/);
+assert.match(css, /\.graph-filter-compact-btn \{[^}]*font-size: 0\.85rem[^}]*border-radius: 999px/);
 assert.match(css, /\.graph-drawer-action-danger-solid \{[^}]*background: #ffffff/);
 assert.doesNotMatch(css, /linear-gradient\(180deg, #ef4444/);
 
@@ -119,7 +119,13 @@ assert.match(css, /\.self-service-tool-detail \{[^}]*flex: 0 1 auto[^}]*overflow
 assert.doesNotMatch(css, /\.self-service-tool-detail \.graph-filter-detail-list \{[^}]*overflow: visible/);
 
 // One shape for Back, Clear, My views, Pin view and Done.
-assert.match(css, /\.graph-filter-compact-actions \{[^}]*display: grid[^}]*grid-template-columns: repeat\(auto-fit, minmax\(0, 1fr\)\)/);
+assert.match(css, /\.graph-filter-compact-actions \{[^}]*display: flex[^}]*gap: 0\.4rem/);
+assert.match(css, /\.graph-filter-compact-btn \{[^}]*flex: 1 1 0/);
+assert.match(css, /\.graph-filter-compact-btn--ghost \{[^}]*flex: 0 0 auto[^}]*background: transparent[^}]*box-shadow: none/);
+assert.equal((filterDrawer.match(/graph-filter-compact-btn--ghost/g) ?? []).length, 2);
+assert.match(css, /\.graph-filter-neighbours:has\(input:checked\) \{[^}]*background: var\(--ss-accent-surface\)/);
+assert.match(css, /\.graph-filter-neighbours-icon \{[^}]*border-radius: 50%/);
+assert.match(filterDrawer, /graph-filter-neighbours-hint/);
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*min-height: 2\.25rem[^}]*padding: 0 0\.75rem/);
 assert.doesNotMatch(css, /\.graph-filter-back-btn \{/);
 const filterDrawer = readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8');
