@@ -1654,6 +1654,10 @@ body.is-diagram-grown .layout {
   --ss-views-focus: #22c55e;
   --ss-bubble-shadow: 0 4px 12px rgb(15 23 42 / 10%);
   --ss-bubble-shadow-hover: 0 6px 14px rgb(15 23 42 / 14%);
+  --burger-size: 36px;
+  --burger-top: 0.85rem;
+  --burger-gap: 0.5rem;
+  --views-indent: 1.5rem;
   position: relative;
   display: flex;
   flex-direction: row;
@@ -1718,11 +1722,11 @@ body.is-diagram-grown .layout {
 
 .map-graph-panel .self-service-burger {
   position: absolute;
-  top: 0.85rem;
+  top: var(--burger-top);
   right: 1rem;
   z-index: 30;
-  width: 36px;
-  height: 36px;
+  width: var(--burger-size);
+  height: var(--burger-size);
   border: 1px solid #cbd5e1;
   border-radius: 999px;
   background: #ffffff;
@@ -1857,14 +1861,14 @@ body.is-diagram-grown .layout {
 }
 
 .map-graph-panel.is-views-mode .graph-views-pane {
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
+  padding-left: var(--views-indent);
+  padding-right: var(--views-indent);
   background: transparent;
   box-shadow: none;
 }
 
 .map-graph-panel.is-views-mode .graph-view-header {
-  padding-left: calc(1.5rem - 0.65rem);
+  padding-left: calc(var(--views-indent) - 0.65rem);
 }
 
 .map-graph-panel.is-views-mode .graph-views-item--view .graph-views-item-btn:hover,
@@ -1928,7 +1932,7 @@ body.is-diagram-grown .layout {
   justify-content: flex-end;
   gap: 0.5rem;
   flex-shrink: 0;
-  margin-right: calc(36px + 0.5rem);
+  margin-right: calc(var(--burger-size) + var(--burger-gap));
 }
 
 .history-date-picker {
@@ -2459,7 +2463,7 @@ body.is-diagram-grown .layout {
 .map-graph-panel .self-service-side-menu-body {
   gap: 0;
   overflow: hidden;
-  padding: calc(0.85rem + 36px + 0.5rem) 0.65rem 0.55rem;
+  padding: calc(var(--burger-top) + var(--burger-size) + var(--burger-gap)) 0.65rem 0.55rem;
 }
 
 .map-graph-panel .self-service-tool-detail {

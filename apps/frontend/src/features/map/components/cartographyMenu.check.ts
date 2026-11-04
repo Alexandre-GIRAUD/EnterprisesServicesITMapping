@@ -69,13 +69,15 @@ assert.match(css, /\.sandbox-pane__header \{[^}]*position: absolute[^}]*top: 0\.
 assert.match(css, /\.sandbox-pane\.is-top-row \.sandbox-pane__header \{[^}]*top: var\(--map-drawer-top\)/);
 assert.match(readFileSync(new URL('./SandboxPane.tsx', import.meta.url), 'utf8'), /is-top-row/);
 // The burger floats at a fixed spot: the close cross replaces it exactly, the menu starts below.
-assert.match(css, /\.map-graph-panel \.self-service-burger \{[^}]*position: absolute[^}]*top: 0\.85rem[^}]*right: 1rem[^}]*z-index: 30/);
-assert.match(css, /\.map-graph-panel \.self-service-side-menu-body \{[^}]*padding: calc\(0\.85rem \+ 36px \+ 0\.5rem\) 0\.65rem 0\.55rem/);
+assert.match(css, /\.map-graph-panel \.self-service-burger \{[^}]*position: absolute[^}]*top: var\(--burger-top\)[^}]*right: 1rem[^}]*z-index: 30/);
+assert.match(css, /\.map-graph-panel \.self-service-side-menu-body \{[^}]*padding: calc\(var\(--burger-top\) \+ var\(--burger-size\) \+ var\(--burger-gap\)\) 0\.65rem 0\.55rem/);
+assert.match(css, /\.graph-view-header-actions \{[^}]*margin-right: calc\(var\(--burger-size\) \+ var\(--burger-gap\)\)/);
+assert.match(css, /--burger-size: 36px[^}]*--burger-top: 0\.85rem[^}]*--burger-gap: 0\.5rem[^}]*--views-indent: 1\.5rem/);
 assert.equal((readFileSync(new URL('./GraphCanvas.tsx', import.meta.url), 'utf8').match(/<SelfServiceBurger/g) ?? []).length, 1);
 // My views is indented like the Data Model page.
-assert.match(css, /\.map-graph-panel\.is-views-mode \.graph-views-pane \{[^}]*padding-left: 1\.5rem[^}]*padding-right: 1\.5rem/);
+assert.match(css, /\.map-graph-panel\.is-views-mode \.graph-views-pane \{[^}]*padding-left: var\(--views-indent\)[^}]*padding-right: var\(--views-indent\)/);
 // The title text carries 0.65rem of its own padding: the header gives the rest so title and list share one edge.
-assert.match(css, /\.map-graph-panel\.is-views-mode \.graph-view-header \{[^}]*padding-left: calc\(1\.5rem - 0\.65rem\)/);
+assert.match(css, /\.map-graph-panel\.is-views-mode \.graph-view-header \{[^}]*padding-left: calc\(var\(--views-indent\) - 0\.65rem\)/);
 assert.match(css, /\.graph-views-item-btn \{[^}]*border: 1px solid #e2e8f0[^}]*border-radius: 12px/);
 assert.match(css, /\.sandbox-pane__title \{[^}]*font-size: 0\.92rem[^}]*font-weight: 700[^}]*color: #0f172a/);
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*font-size: 0\.85rem[^}]*border-radius: 999px/);
