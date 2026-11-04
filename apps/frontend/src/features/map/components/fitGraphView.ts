@@ -113,7 +113,8 @@ function readLegendFitPadding(): FitViewPadding {
   const menu = document.querySelector(OPEN_MENU_SELECTOR);
   return computeLegendFitPadding(
     legend ? legend.getBoundingClientRect().right - paneRect.left : undefined,
-    menu ? paneRect.right - menu.getBoundingClientRect().left : undefined
+    menu ? paneRect.right - menu.getBoundingClientRect().left : undefined,
+    paneRect.width
   );
 }
 
