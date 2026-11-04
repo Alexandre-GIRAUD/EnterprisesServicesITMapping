@@ -60,8 +60,22 @@ assert.match(css, /\.map-graph-panel \.graph-display-toggle-btn\.is-active \{[^}
 assert.match(css, /\.map-graph-panel \.self-service-tool-bar-btn\.is-active \{[^}]*background: var\(--ss-accent\)[^}]*color: #fff/);
 assert.match(css, /\.graph-canvas \{[^}]*border: 1px solid #e2e8f0[^}]*border-radius: 12px/);
 assert.match(css, /\.sandbox-pane \{[^}]*border: 1px solid #e2e8f0[^}]*border-radius: 12px/);
-assert.match(css, /\.sandbox-pane\.is-active \{[^}]*border-left: 3px solid var\(--ss-accent\)[^}]*box-shadow: 0 8px 24px rgb\(15 23 42 \/ 6%\)/);
-assert.match(css, /\.map-graph-panel:not\(\.is-views-mode\) \.graph-canvas:not\(\.is-sandbox\) \{[^}]*border-left: 3px solid var\(--ss-accent\)[^}]*box-shadow: 0 8px 24px rgb\(15 23 42 \/ 6%\)/);
+// No coloured left border: the active Sandbox is the one whose title is underlined in the accent.
+assert.doesNotMatch(css, /border-left: 3px solid var\(--ss-accent\)/);
+assert.match(css, /\.sandbox-pane\.is-active \{[^}]*box-shadow: 0 8px 24px rgb\(15 23 42 \/ 6%\)/);
+assert.match(css, /\.sandbox-pane\.is-active \.sandbox-pane__title \{[^}]*text-decoration: underline[^}]*text-decoration-color: var\(--ss-accent\)/);
+// Sandbox titles float near the top of their board, below the floating chrome on the top row.
+assert.match(css, /\.sandbox-pane__header \{[^}]*position: absolute[^}]*top: 0\.6rem/);
+assert.match(css, /\.sandbox-pane\.is-top-row \.sandbox-pane__header \{[^}]*top: var\(--map-drawer-top\)/);
+assert.match(readFileSync(new URL('./SandboxPane.tsx', import.meta.url), 'utf8'), /is-top-row/);
+// The burger floats at a fixed spot: the close cross replaces it exactly, the menu starts below.
+assert.match(css, /\.map-graph-panel \.self-service-burger \{[^}]*position: absolute[^}]*top: 0\.85rem[^}]*right: 1rem[^}]*z-index: 30/);
+assert.match(css, /\.map-graph-panel \.self-service-side-menu-body \{[^}]*padding: calc\(0\.85rem \+ 36px \+ 0\.5rem\) 0\.65rem 0\.55rem/);
+assert.equal((readFileSync(new URL('./GraphCanvas.tsx', import.meta.url), 'utf8').match(/<SelfServiceBurger/g) ?? []).length, 1);
+// My views is indented like the Data Model page.
+assert.match(css, /\.map-graph-panel\.is-views-mode \.graph-views-pane \{[^}]*padding-left: 1\.5rem[^}]*padding-right: 1\.5rem/);
+assert.match(css, /\.map-graph-panel\.is-views-mode \.graph-view-header \{[^}]*padding-left: 1\.5rem/);
+assert.match(css, /\.graph-views-item-btn \{[^}]*border: 1px solid #e2e8f0[^}]*border-radius: 12px/);
 assert.match(css, /\.sandbox-pane__title \{[^}]*font-size: 0\.92rem[^}]*font-weight: 700[^}]*color: #0f172a/);
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*font-size: 0\.85rem[^}]*border-radius: 999px/);
 assert.match(css, /\.graph-drawer-action-danger-solid \{[^}]*background: #ffffff/);
@@ -127,7 +141,9 @@ assert.match(css, /\.graph-filter-compact-btn--ghost \{[^}]*flex: 0 0 auto[^}]*b
 assert.equal((filterDrawer.match(/graph-filter-compact-btn--ghost/g) ?? []).length, 2);
 assert.match(css, /\.graph-filter-neighbours:has\(input:checked\) \{[^}]*background: var\(--ss-accent-surface\)/);
 assert.match(css, /\.graph-filter-neighbours-icon \{[^}]*border-radius: 50%/);
-assert.match(filterDrawer, /graph-filter-neighbours-hint/);
+// The long hint shows only on hover, as a tooltip.
+assert.doesNotMatch(filterDrawer, /graph-filter-neighbours-hint/);
+assert.match(filterDrawer, /className="graph-filter-neighbours" title="Also show applications linked by a feed/);
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*min-height: 2\.25rem[^}]*padding: 0 0\.75rem/);
 assert.doesNotMatch(css, /\.graph-filter-back-btn \{/);
 assert.match(filterDrawer, /graph-filter-compact-btn graph-filter-compact-btn--neutral"[\s\S]{0,300}‹ Back/);

@@ -17,7 +17,7 @@ assert.deepEqual(frames[0], { x: -28, y: -18, width: 216, height: 104 });
 assert.deepEqual(frames[1], { x: 372, y: -18, width: 216, height: 104 });
 
 /** Frames of two islands stay at least this far apart (zone padding excluded). */
-const MIN_ISLAND_GAP = 24;
+const MIN_ISLAND_GAP = 32;
 const ZONE_PADDING = 28;
 const CROWD_SIZE = 40;
 const CROWD_ASPECT = 1.6;
@@ -31,6 +31,10 @@ assert.ok((wide[1]?.x ?? 0) >= box.width + 2 * ZONE_PADDING + MIN_ISLAND_GAP);
 const tall = packComponentOffsets([box, box], 140, 0.25);
 assert.equal(tall[0]?.x, tall[1]?.x);
 assert.ok((tall[1]?.y ?? 0) >= box.height + 2 * ZONE_PADDING + MIN_ISLAND_GAP);
+
+// Islands sit as close as their frames allow: the fit zoom is as large as it can be.
+assert.equal((wide[1]?.x ?? 0) - (wide[0]?.x ?? 0), box.width + 2 * ZONE_PADDING + MIN_ISLAND_GAP);
+assert.equal((tall[1]?.y ?? 0) - (tall[0]?.y ?? 0), box.height + 2 * ZONE_PADDING + MIN_ISLAND_GAP);
 
 const square = packComponentOffsets([box, box, box], 140, 1);
 const rows = new Set(square.map((offset) => offset.y));
