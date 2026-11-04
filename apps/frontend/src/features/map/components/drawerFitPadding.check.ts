@@ -34,4 +34,10 @@ assert.equal(computeLegendFitPadding(undefined), 0.15);
 assert.equal((computeLegendFitPadding(200) as { left: string }).left, `${200 + LEGEND_FIT_GAP_PX}px`);
 assert.equal((computeLegendFitPadding(200) as { top: number }).top, 0.15);
 
+// The open side menu floats over the right edge: the graph is fitted to its left.
+assert.equal((computeLegendFitPadding(200, 360) as { right: string }).right, '384px');
+assert.equal((computeLegendFitPadding(undefined, 360) as { right: string }).right, '384px');
+assert.equal((computeLegendFitPadding(undefined, 360) as { left: number }).left, 0.15);
+assert.equal((computeLegendFitPadding(200) as { right: number }).right, 0.15);
+
 console.log('drawerFitPadding.check: ok');
