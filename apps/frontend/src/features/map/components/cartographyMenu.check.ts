@@ -31,19 +31,19 @@ assert.match(
 );
 assert.match(
   css,
-  /\.map-graph-panel\.is-views-mode\.is-menu-open \.self-service-side-menu-shell \{[^}]*position: relative[^}]*flex: 0 0 min\(360px, 92vw\)[^}]*overflow: hidden/,
+  /\.map-graph-panel:is\(\.is-views-mode, \.is-sandbox-mode\)\.is-menu-open \.self-service-side-menu-shell \{[^}]*position: relative[^}]*flex: 0 0 min\(360px, 92vw\)[^}]*overflow: hidden/,
 );
 assert.match(
   css,
-  /\.map-graph-panel\.is-views-mode \.self-service-side-menu \{[^}]*border: 1px solid #e2e8f0[^}]*border-radius: 8px[^}]*background: #ffffff[^}]*overflow: hidden/,
+  /\.map-graph-panel:is\(\.is-views-mode, \.is-sandbox-mode\) \.self-service-side-menu \{[^}]*border: 1px solid #e2e8f0[^}]*border-radius: 8px[^}]*background: #ffffff[^}]*overflow: hidden/,
 );
 assert.match(
   css,
-  /\.map-graph-panel\.is-views-mode \.self-service-burger \{[^}]*border: 1px solid #e2e8f0[^}]*background: #ffffff/,
+  /\.map-graph-panel:is\(\.is-views-mode, \.is-sandbox-mode\) \.self-service-burger \{[^}]*border: 1px solid #e2e8f0[^}]*background: #ffffff/,
 );
 assert.doesNotMatch(
   css,
-  /\.map-graph-panel\.is-views-mode \.self-service-side-menu \{[^}]*background: transparent/,
+  /\.map-graph-panel:is\(\.is-views-mode, \.is-sandbox-mode\) \.self-service-side-menu \{[^}]*background: transparent/,
 );
 assert.doesNotMatch(css, /\.graph-filter-compact-actions > \.graph-filter-compact-btn \{[^}]*flex: 1 1 0/);
 assert.match(css, /\.graph-filter-neighbours \{[^}]*gap: 0\.45rem[^}]*font-size: 0\.85rem[^}]*font-weight: 500[^}]*color: #334155/);
@@ -63,8 +63,6 @@ assert.match(css, /\.sandbox-pane \{[^}]*border: 1px solid #e2e8f0[^}]*border-ra
 assert.match(css, /\.sandbox-pane\.is-active \{[^}]*border-left: 3px solid var\(--ss-accent\)[^}]*box-shadow: 0 8px 24px rgb\(15 23 42 \/ 6%\)/);
 assert.match(css, /\.map-graph-panel:not\(\.is-views-mode\) \.graph-canvas:not\(\.is-sandbox\) \{[^}]*border-left: 3px solid var\(--ss-accent\)[^}]*box-shadow: 0 8px 24px rgb\(15 23 42 \/ 6%\)/);
 assert.match(css, /\.sandbox-pane__title \{[^}]*font-size: 0\.92rem[^}]*font-weight: 700[^}]*color: #0f172a/);
-assert.match(css, /\.sandbox-pane__icon \{[^}]*border-radius: 999px[^}]*background: var\(--ss-accent-surface\)[^}]*color: var\(--ss-accent\)/);
-assert.match(readFileSync(new URL('./SandboxPane.tsx', import.meta.url), 'utf8'), /sandbox-pane__icon/);
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*font-size: 0\.85rem[^}]*border-radius: 8px/);
 assert.match(css, /\.graph-drawer-action-danger-solid \{[^}]*background: #ffffff/);
 assert.doesNotMatch(css, /linear-gradient\(180deg, #ef4444/);
@@ -97,7 +95,8 @@ for (const mode of ['normal', 'sandbox', 'views'] as const) {
   const html = menu(mode);
   assert.doesNotMatch(html, />Views</);
   assert.doesNotMatch(html, /is-expanded/);
-  assert.match(html, />Cartography</);
+  assert.doesNotMatch(html, />Cartography</);
+  assert.doesNotMatch(html, /graph-drawer-close/);
 }
 const productionMenu = menu('normal');
 assert.doesNotMatch(productionMenu, />Changes</);
@@ -108,9 +107,30 @@ assert.doesNotMatch(productionMenu, />My views</);
 const openBurger = renderToStaticMarkup(createElement(SelfServiceBurger, { isOpen: true, onToggle: () => undefined }));
 assert.match(openBurger, /self-service-burger-icon/);
 assert.doesNotMatch(openBurger, /M18 6/);
+assert.match(css, /\.self-service-burger\.is-open \.self-service-burger-icon::before \{[^}]*rotate\(45deg\)[^}]*box-shadow: none/);
+assert.match(css, /\.self-service-burger\.is-open \.self-service-burger-icon::after \{[^}]*rotate\(-45deg\)/);
 
-const viewsMenu = menu('views');
-assert.match(viewsMenu, /M18 6/);
+assert.match(css, /--ss-bubble-shadow: 0 4px 12px rgb\(15 23 42 \/ 10%\)/);
+assert.match(css, /\.self-service-tool-detail \.graph-filter-root-row,[^{]*\{[^}]*box-shadow: var\(--ss-bubble-shadow\)/);
+assert.match(css, /\.self-service-tool-bar-btn \{[^}]*box-shadow: var\(--ss-bubble-shadow\)/);
+assert.match(css, /\.graph-filter-compact-btn \{[^}]*box-shadow: var\(--ss-bubble-shadow\)/);
+
+// Filter values scroll inside the menu instead of running off the screen.
+assert.match(css, /\.self-service-tool-detail \{[^}]*flex: 0 1 auto[^}]*overflow-y: auto/);
+assert.doesNotMatch(css, /\.self-service-tool-detail \.graph-filter-detail-list \{[^}]*overflow: visible/);
+
+// One shape for Back, Clear, My views, Pin view and Done.
+assert.match(css, /\.graph-filter-compact-actions \{[^}]*display: grid[^}]*grid-template-columns: repeat\(auto-fit, minmax\(0, 1fr\)\)/);
+assert.match(css, /\.graph-filter-compact-btn \{[^}]*min-height: 2\.25rem[^}]*padding: 0 0\.75rem/);
+assert.doesNotMatch(css, /\.graph-filter-back-btn \{/);
+const filterDrawer = readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8');
+assert.match(filterDrawer, /graph-filter-compact-btn graph-filter-compact-btn--neutral[^>]*>\s*‹ Back/);
+
+// With neighbours sits under the search as a switch row, not above the list.
+assert.ok(filterDrawer.indexOf('graph-filter-search-input') < filterDrawer.indexOf('graph-filter-neighbours'));
+assert.match(css, /\.graph-filter-neighbours \{[^}]*justify-content: space-between/);
+assert.match(css, /\.graph-filter-neighbours input \{[^}]*appearance: none/);
+
 
 console.log('cartographyMenu.check: ok');
 assert.doesNotMatch(css, /\.sandbox-pane__icon/);
