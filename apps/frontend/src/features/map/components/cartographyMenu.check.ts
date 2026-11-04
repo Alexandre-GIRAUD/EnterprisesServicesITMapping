@@ -39,7 +39,7 @@ assert.match(
 );
 assert.match(
   css,
-  /\.map-graph-panel \.graph-view-header \.self-service-burger \{[^}]*border: 1px solid #cbd5e1[^}]*background: #fff/,
+  /\.map-graph-panel \.self-service-burger \{[^}]*border: 1px solid #cbd5e1[^}]*background: #ffffff/,
 );
 assert.doesNotMatch(
   css,

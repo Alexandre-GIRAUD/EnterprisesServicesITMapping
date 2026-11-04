@@ -1653,6 +1653,7 @@ body.is-diagram-grown .layout {
   --ss-views-accent-dark: #15803d;
   --ss-views-focus: #22c55e;
   --ss-bubble-shadow: 0 4px 12px rgb(15 23 42 / 10%);
+  --ss-bubble-shadow-hover: 0 6px 14px rgb(15 23 42 / 14%);
   position: relative;
   display: flex;
   flex-direction: row;
@@ -2121,11 +2122,6 @@ body.is-diagram-grown .layout {
   background: rgb(248 250 252 / 84%);
 }
 
-.map-graph-panel .graph-view-header .self-service-burger {
-  border: 1px solid #cbd5e1;
-  background: #fff;
-}
-
 .graph-view-header-description.is-error {
   color: #b91c1c;
 }
@@ -2156,7 +2152,7 @@ body.is-diagram-grown .layout {
 
 .self-service-burger:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgb(15 23 42 / 14%);
+  box-shadow: var(--ss-bubble-shadow-hover);
 }
 
 .self-service-burger:focus:not(:focus-visible) {
@@ -2344,7 +2340,7 @@ body.is-diagram-grown .layout {
   border-color: #cbd5e1;
   color: #334155;
   transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgb(15 23 42 / 14%);
+  box-shadow: var(--ss-bubble-shadow-hover);
 }
 
 .self-service-tool-bar-btn.is-active {
@@ -3149,7 +3145,7 @@ body.is-diagram-grown .layout {
   background: #f8fafc;
   color: #334155;
   transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgb(15 23 42 / 14%);
+  box-shadow: var(--ss-bubble-shadow-hover);
 }
 
 .graph-filter-compact-btn:active:not(:disabled),
