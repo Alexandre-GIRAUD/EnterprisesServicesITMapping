@@ -119,8 +119,10 @@ assert.match(css, /\.self-service-tool-detail \{[^}]*flex: 0 1 auto[^}]*overflow
 assert.doesNotMatch(css, /\.self-service-tool-detail \.graph-filter-detail-list \{[^}]*overflow: visible/);
 
 // One shape for Back, Clear, My views, Pin view and Done.
+const filterDrawer = readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8');
 assert.match(css, /\.graph-filter-compact-actions \{[^}]*display: flex[^}]*gap: 0\.4rem/);
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*flex: 1 1 0/);
+assert.match(css, /not\(\.is-sandbox-mode\) \.self-service-tool-detail \.graph-filter-compact-actions \{[^}]*padding: 0\.25rem[^}]*border-radius: 999px[^}]*box-shadow: var\(--ss-bubble-shadow\)/);
 assert.match(css, /\.graph-filter-compact-btn--ghost \{[^}]*flex: 0 0 auto[^}]*background: transparent[^}]*box-shadow: none/);
 assert.equal((filterDrawer.match(/graph-filter-compact-btn--ghost/g) ?? []).length, 2);
 assert.match(css, /\.graph-filter-neighbours:has\(input:checked\) \{[^}]*background: var\(--ss-accent-surface\)/);
@@ -128,7 +130,6 @@ assert.match(css, /\.graph-filter-neighbours-icon \{[^}]*border-radius: 50%/);
 assert.match(filterDrawer, /graph-filter-neighbours-hint/);
 assert.match(css, /\.graph-filter-compact-btn \{[^}]*min-height: 2\.25rem[^}]*padding: 0 0\.75rem/);
 assert.doesNotMatch(css, /\.graph-filter-back-btn \{/);
-const filterDrawer = readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8');
 assert.match(filterDrawer, /graph-filter-compact-btn graph-filter-compact-btn--neutral"[\s\S]{0,300}‹ Back/);
 
 // With neighbours sits under the search as a switch row, not above the list.
