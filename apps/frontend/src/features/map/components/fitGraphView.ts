@@ -112,12 +112,12 @@ function readLegendFitPadding(): FitViewPadding {
   const paneRect = pane.getBoundingClientRect();
   const legend = document.querySelector(LEGEND_SELECTOR);
   const menu = document.querySelector(OPEN_MENU_SELECTOR);
-  return computeLegendFitPadding(
-    legend ? legend.getBoundingClientRect().right - paneRect.left : undefined,
-    menu ? paneRect.right - menu.getBoundingClientRect().left : undefined,
-    paneRect.width,
-    readHeaderBottom(paneRect)
-  );
+  return computeLegendFitPadding({
+    legendRightPx: legend ? legend.getBoundingClientRect().right - paneRect.left : undefined,
+    menuWidthPx: menu ? paneRect.right - menu.getBoundingClientRect().left : undefined,
+    paneWidthPx: paneRect.width,
+    headerBottomPx: readHeaderBottom(paneRect),
+  });
 }
 
 /** How far down the pane the title and its buttons reach, so the first fit starts below them. */

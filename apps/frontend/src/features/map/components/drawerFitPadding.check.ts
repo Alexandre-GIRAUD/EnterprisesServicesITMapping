@@ -33,24 +33,24 @@ assert.equal((computeDrawerFitPadding(true, { paneWidthPx: 500 }) as { right: st
 assert.equal((computeDrawerFitPadding(true, { paneWidthPx: 500, drawerWidthPx: 200 }) as { right: string }).right, `${200 + DRAWER_FIT_GAP_PX}px`);
 
 // The legend sits over the pane's left edge: the graph is fitted to its right.
-assert.equal(computeLegendFitPadding(undefined), 0.06);
-assert.equal((computeLegendFitPadding(200) as { left: string }).left, `${200 + LEGEND_FIT_GAP_PX}px`);
-assert.equal((computeLegendFitPadding(200) as { top: number }).top, 0.06);
+assert.equal(computeLegendFitPadding(), 0.06);
+assert.equal((computeLegendFitPadding({ legendRightPx: 200 }) as { left: string }).left, `${200 + LEGEND_FIT_GAP_PX}px`);
+assert.equal((computeLegendFitPadding({ legendRightPx: 200 }) as { top: number }).top, 0.06);
 
 // The open side menu floats over the right edge: the graph is fitted to its left.
-assert.equal((computeLegendFitPadding(200, 360) as { right: string }).right, '384px');
-assert.equal((computeLegendFitPadding(undefined, 360) as { right: string }).right, '384px');
-assert.equal((computeLegendFitPadding(undefined, 360) as { left: number }).left, 0.06);
-assert.equal((computeLegendFitPadding(200) as { right: number }).right, 0.06);
+assert.equal((computeLegendFitPadding({ legendRightPx: 200, menuWidthPx: 360 }) as { right: string }).right, '384px');
+assert.equal((computeLegendFitPadding({ menuWidthPx: 360 }) as { right: string }).right, '384px');
+assert.equal((computeLegendFitPadding({ menuWidthPx: 360 }) as { left: number }).left, 0.06);
+assert.equal((computeLegendFitPadding({ legendRightPx: 200 }) as { right: number }).right, 0.06);
 
 // On a narrow pane the legend and menu insets give way to the plain margin so the graph keeps room.
-assert.equal(computeLegendFitPadding(200, 360, 500), 0.06);
-assert.equal((computeLegendFitPadding(200, 360, 1200) as { left: string }).left, '224px');
+assert.equal(computeLegendFitPadding({ legendRightPx: 200, menuWidthPx: 360, paneWidthPx: 500 }), 0.06);
+assert.equal((computeLegendFitPadding({ legendRightPx: 200, menuWidthPx: 360, paneWidthPx: 1200 }) as { left: string }).left, '224px');
 
 // The header floating over the top edge pushes the fitted graph down, in Cartography too.
-assert.equal((computeLegendFitPadding(undefined, undefined, 1200, 70) as { top: string }).top, `${70 + TITLE_FIT_GAP_PX}px`);
-assert.equal((computeLegendFitPadding(200, undefined, 1200, 70) as { left: string }).left, '224px');
-assert.equal(computeLegendFitPadding(undefined, undefined, 1200, 0), 0.06);
+assert.equal((computeLegendFitPadding({ paneWidthPx: 1200, headerBottomPx: 70 }) as { top: string }).top, `${70 + TITLE_FIT_GAP_PX}px`);
+assert.equal((computeLegendFitPadding({ legendRightPx: 200, paneWidthPx: 1200, headerBottomPx: 70 }) as { left: string }).left, '224px');
+assert.equal(computeLegendFitPadding({ paneWidthPx: 1200, headerBottomPx: 0 }), 0.06);
 
 // Islands are packed for the area the fit really uses: the pane minus its margins, legend and menu.
 assert.equal(computeFitAreaAspectRatio(800, 600, 0.06), 800 / 600);

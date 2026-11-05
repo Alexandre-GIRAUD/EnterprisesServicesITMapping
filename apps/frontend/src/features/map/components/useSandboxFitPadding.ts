@@ -3,6 +3,9 @@ import { FIT_RATIO, computeChromeFitPadding, type FitViewPadding } from './drawe
 
 const TITLE_BAR_SELECTOR = '.sandbox-pane__bar';
 const LEGEND_SELECTOR = '.graph-legend';
+/** React Flow measures its boxes one frame after mounting and the legend settles another: wait two. */
+const SETTLE_FRAME_COUNT = 2;
+export const SETTLE_REFIT_DURATION_MS = 150;
 
 function readBox(element: Element | null) {
   if (!element) return null;
@@ -41,7 +44,14 @@ export function useSandboxFitPadding(
       setPadding(settled);
       onSettled(settled);
     };
-    const frame = requestAnimationFrame(() => requestAnimationFrame(settle));
+    let framesLeft = SETTLE_FRAME_COUNT;
+    let frame = 0;
+    const waitThenSettle = () => {
+      framesLeft -= 1;
+      if (framesLeft > 0) frame = requestAnimationFrame(waitThenSettle);
+      else settle();
+    };
+    frame = requestAnimationFrame(waitThenSettle);
     return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one settle after mount
   }, [paneRef]);

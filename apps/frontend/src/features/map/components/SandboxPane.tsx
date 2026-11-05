@@ -39,7 +39,7 @@ import {
 } from '../utils/sandboxDocuments';
 import { CloseIcon } from './CloseIcon';
 import { SandboxCanvasMenu } from './SandboxCanvasMenu';
-import { useSandboxFitPadding } from './useSandboxFitPadding';
+import { SETTLE_REFIT_DURATION_MS, useSandboxFitPadding } from './useSandboxFitPadding';
 
 type Props = {
   doc: SandboxDocument;
@@ -475,7 +475,7 @@ function SandboxPaneInner({
   const placing = Boolean(placingIconKey || placingText);
   const isTopRow = useIsTopRow(paneRef);
   const fitPadding = useSandboxFitPadding(paneRef, (padding) => {
-    void fitView({ padding, duration: 150 });
+    void fitView({ padding, duration: SETTLE_REFIT_DURATION_MS });
   });
 
   return (
