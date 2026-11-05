@@ -30,18 +30,58 @@ export const LEGEND_FIT_GAP_PX = 24;
 export function computeLegendFitPadding(
   legendRightPx?: number,
   menuWidthPx?: number,
-  paneWidthPx?: number
+  paneWidthPx?: number,
+  headerBottomPx?: number
 ): FitViewPadding {
   const hasLegend = legendRightPx !== undefined && legendRightPx > 0;
   const hasMenu = menuWidthPx !== undefined && menuWidthPx > 0;
-  if (!hasLegend && !hasMenu) return FIT_RATIO;
+  const hasHeader = headerBottomPx !== undefined && headerBottomPx > 0;
+  if (!hasLegend && !hasMenu && !hasHeader) return FIT_RATIO;
   const insetPx = (hasLegend ? legendRightPx : 0) + (hasMenu ? menuWidthPx : 0) + 2 * LEGEND_FIT_GAP_PX;
   if (paneWidthPx !== undefined && insetPx > paneWidthPx * MAX_CHROME_SHARE) return FIT_RATIO;
   return {
-    top: FIT_RATIO,
+    top: hasHeader ? `${Math.ceil(headerBottomPx + TITLE_FIT_GAP_PX)}px` : FIT_RATIO,
     bottom: FIT_RATIO,
     left: hasLegend ? `${Math.ceil(legendRightPx + LEGEND_FIT_GAP_PX)}px` : FIT_RATIO,
     right: hasMenu ? `${Math.ceil(menuWidthPx + LEGEND_FIT_GAP_PX)}px` : FIT_RATIO,
+  };
+}
+
+/** Air between a floating sandbox title and the fitted graph. */
+export const TITLE_FIT_GAP_PX = 12;
+
+/** A rectangle in screen pixels. */
+export type ChromeBox = { left: number; top: number; right: number; bottom: number };
+
+function boxesOverlap(first: ChromeBox, second: ChromeBox): boolean {
+  return (
+    first.left < second.right &&
+    first.right > second.left &&
+    first.top < second.bottom &&
+    first.bottom > second.top
+  );
+}
+
+/**
+ * Fit a sandbox below its floating title and to the right of the legend when that legend floats
+ * over it, so neither hides a box. An inset that would eat most of the pane gives way to the margin.
+ */
+export function computeChromeFitPadding(
+  pane: ChromeBox,
+  titleBar: ChromeBox | null,
+  legend: ChromeBox | null,
+): FitViewPadding {
+  const paneWidth = pane.right - pane.left;
+  const paneHeight = pane.bottom - pane.top;
+  const titleInset = titleBar ? titleBar.bottom - pane.top + TITLE_FIT_GAP_PX : 0;
+  const legendInset = legend && boxesOverlap(legend, pane) ? legend.right - pane.left + LEGEND_FIT_GAP_PX : 0;
+  const hasTitleRoom = titleInset > 0 && titleInset <= paneHeight * MAX_CHROME_SHARE;
+  const hasLegendRoom = legendInset > 0 && legendInset <= paneWidth * MAX_CHROME_SHARE;
+  return {
+    top: hasTitleRoom ? `${Math.ceil(titleInset)}px` : FIT_RATIO,
+    bottom: FIT_RATIO,
+    left: hasLegendRoom ? `${Math.ceil(legendInset)}px` : FIT_RATIO,
+    right: FIT_RATIO,
   };
 }
 

@@ -29,9 +29,6 @@ export function ChangesListPage() {
       <header className="changes-list-header">
         <div>
           <h1>Changes</h1>
-          <p className="changes-list-lead">
-            Review GitHub webhook suggestions and AI writes blocked by human field overrides.
-          </p>
         </div>
         <Link
           to="/map"

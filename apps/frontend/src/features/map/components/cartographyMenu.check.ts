@@ -65,14 +65,14 @@ assert.doesNotMatch(css, /border-left: 3px solid var\(--ss-accent\)/);
 assert.match(css, /\.sandbox-pane\.is-active \{[^}]*box-shadow: 0 8px 24px rgb\(15 23 42 \/ 6%\)/);
 assert.match(css, /\.sandbox-pane\.is-active \.sandbox-pane__title \{[^}]*text-decoration: underline[^}]*text-decoration-color: var\(--ss-accent\)/);
 // Sandbox titles float near the top of their board, below the floating chrome on the top row.
-assert.match(css, /\.sandbox-pane__header \{[^}]*position: absolute[^}]*top: 0\.6rem/);
-assert.match(css, /\.sandbox-pane\.is-top-row \.sandbox-pane__header \{[^}]*top: var\(--map-drawer-top\)/);
+assert.match(css, /\.sandbox-pane__bar \{[^}]*position: absolute[^}]*top: 0\.6rem/);
+assert.match(css, /\.sandbox-pane\.is-top-row \.sandbox-pane__bar \{[^}]*top: var\(--map-drawer-top\)/);
 assert.match(readFileSync(new URL('./SandboxPane.tsx', import.meta.url), 'utf8'), /is-top-row/);
 // The burger floats at a fixed spot: the close cross replaces it exactly, the menu starts below.
 assert.match(css, /\.map-graph-panel \.self-service-burger \{[^}]*position: absolute[^}]*top: var\(--burger-top\)[^}]*right: 1rem[^}]*z-index: 30/);
 assert.match(css, /\.map-graph-panel \.self-service-side-menu-body \{[^}]*padding: calc\(var\(--burger-top\) \+ var\(--burger-size\) \+ var\(--burger-gap\)\) 0\.65rem 0\.55rem/);
 assert.match(css, /\.graph-view-header-actions \{[^}]*margin-right: calc\(var\(--burger-size\) \+ var\(--burger-gap\)\)/);
-assert.match(css, /--burger-size: 36px[^}]*--burger-top: 0\.85rem[^}]*--burger-gap: 0\.5rem[^}]*--views-indent: 1\.5rem/);
+assert.match(css, /--burger-size: 36px[^}]*--burger-top: calc\(var\(--page-gutter\) - 0\.2rem\)[^}]*--burger-gap: 0\.5rem[^}]*--views-indent: 1\.5rem/);
 assert.equal((readFileSync(new URL('./GraphCanvas.tsx', import.meta.url), 'utf8').match(/<SelfServiceBurger/g) ?? []).length, 1);
 // My views is indented like the Data Model page.
 assert.match(css, /\.map-graph-panel\.is-views-mode \.graph-views-pane \{[^}]*padding-left: var\(--views-indent\)[^}]*padding-right: var\(--views-indent\)/);
@@ -161,7 +161,7 @@ assert.match(css, /\.graph-filter-neighbours input \{[^}]*appearance: none/);
 assert.doesNotMatch(css, /\.sandbox-pane__icon/);
 assert.doesNotMatch(readFileSync(new URL('./SandboxPane.tsx', import.meta.url), 'utf8'), /sandbox-pane__icon/);
 assert.match(css, /\.sandbox-pane__title \{[^}]*text-align: center/);
-assert.match(css, /\.sandbox-pane__close \{[^}]*position: absolute/);
+assert.match(css, /\.sandbox-pane__bar \{[^}]*display: flex[^}]*gap: 0\.4rem/);
 
 // The tool tabs sit in a click-through menu: they must take clicks themselves (Chat and Corrections did not).
 assert.match(css, /\.self-service-tool-bar \{[^}]*pointer-events: auto/);

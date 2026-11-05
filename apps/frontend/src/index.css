@@ -282,12 +282,17 @@ body.is-diagram-grown .layout {
   color: #334155;
 }
 
+/* One gap between the top-left corner of any page and its title, Cartography included. */
+:root {
+  --page-gutter: 1.5rem;
+}
+
 .layout-main {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 1.5rem;
+  padding: var(--page-gutter);
   overflow: auto;
 }
 
@@ -327,13 +332,6 @@ body.is-diagram-grown .layout {
   font-weight: 700;
   color: #0f172a;
   letter-spacing: -0.03em;
-}
-
-.github-import-subtitle {
-  margin: 0.55rem 0 0;
-  max-width: 52ch;
-  color: #475569;
-  font-size: 0.92rem;
 }
 
 .github-import-account {
@@ -970,7 +968,6 @@ body.is-diagram-grown .layout {
   margin-bottom: 0;
 }
 
-.changes-list-header h1,
 .change-detail-heading {
   margin: 0 0 0.35rem;
   font-size: 1.85rem;
@@ -983,7 +980,6 @@ body.is-diagram-grown .layout {
   margin-top: 0.45rem;
 }
 
-.changes-list-lead,
 .change-detail-lead {
   margin: 0;
   max-width: 62ch;
@@ -1518,6 +1514,7 @@ body.is-diagram-grown .layout {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  padding: 0 var(--page-gutter) var(--page-gutter);
   overflow: hidden;
 }
 
@@ -1557,7 +1554,7 @@ body.is-diagram-grown .layout {
 .graph-table-panel,
 .graph-table-panel--light {
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 12px;
   background: #ffffff;
   box-shadow: none;
   padding: 0.65rem 0.75rem;
@@ -1594,15 +1591,16 @@ body.is-diagram-grown .layout {
   padding: 0.45rem 0.6rem;
   font-weight: 600;
   color: #334155;
-  border-bottom: 1px solid #cbd5e1;
+  border-bottom: 1px solid #e2e8f0;
   background: #ffffff;
 }
 
 .graph-table tbody td {
   padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid #cbd5e1;
+  border-bottom: 1px solid #e2e8f0;
   vertical-align: top;
   max-width: 14rem;
+  overflow-wrap: anywhere;
 }
 
 .graph-table-row {
@@ -1620,7 +1618,7 @@ body.is-diagram-grown .layout {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.72rem;
   color: #475569;
-  word-break: break-all;
+  white-space: nowrap;
 }
 
 .graph-table-id--sandbox {
@@ -1655,7 +1653,7 @@ body.is-diagram-grown .layout {
   --ss-bubble-shadow: 0 4px 12px rgb(15 23 42 / 10%);
   --ss-bubble-shadow-hover: 0 6px 14px rgb(15 23 42 / 14%);
   --burger-size: 36px;
-  --burger-top: 0.85rem;
+  --burger-top: calc(var(--page-gutter) - 0.2rem);
   --burger-gap: 0.5rem;
   --views-indent: 1.5rem;
   position: relative;
@@ -1884,7 +1882,9 @@ body.is-diagram-grown .layout {
 
 .map-graph-main {
   --map-chrome-clearance: 8.5rem;
-  --map-drawer-top: 4.25rem;
+  /* Where tables, views and modules start: the title's height plus the gap Data Model leaves under its own. */
+  --map-content-top: 5.1rem;
+  --map-drawer-top: 4.7rem;
   position: relative;
   flex: 1;
   min-width: 0;
@@ -1905,7 +1905,7 @@ body.is-diagram-grown .layout {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.65rem;
-  padding: 0.85rem 1rem 0;
+  padding: calc(var(--page-gutter) - 0.2rem) calc(var(--page-gutter) - 0.65rem) 0;
   margin-bottom: 0;
   pointer-events: none;
 }
@@ -2130,14 +2130,17 @@ body.is-diagram-grown .layout {
   top: var(--map-chrome-clearance);
 }
 
+/* Cartography and Sandbox park the legend on the same spot: under the title, on its left edge. */
 .map-graph-main .react-flow__panel.top.left {
   top: var(--map-drawer-top);
+  left: var(--page-gutter);
+  margin: 0;
 }
 
 .map-graph-main .graph-tables-view,
 .map-graph-main .graph-module-drilldown,
 .map-graph-main .graph-views-pane {
-  padding-top: var(--map-chrome-clearance);
+  padding-top: var(--map-content-top);
   box-sizing: border-box;
 }
 
@@ -2358,6 +2361,23 @@ body.is-diagram-grown .layout {
     box-shadow 160ms ease;
 }
 
+/* Only the open tab shows its name: the rail reads as navigation, the links under it as actions. */
+.self-service-tool-bar-label {
+  display: none;
+  margin-left: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.self-service-tool-bar-btn.is-active {
+  flex: 2.4;
+}
+
+.self-service-tool-bar-btn.is-active .self-service-tool-bar-label {
+  display: inline;
+}
+
 .self-service-tool-bar-btn:hover:not(.is-active) {
   background: #ffffff;
   border-color: #cbd5e1;
@@ -2533,9 +2553,9 @@ body.is-diagram-grown .layout {
   flex-direction: column;
   gap: 0.4rem;
   min-height: 3.5rem;
-  padding: 0.45rem;
+  padding: 0.55rem;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 12px;
   background: #f8fafc;
 }
 
@@ -2569,9 +2589,9 @@ body.is-diagram-grown .layout {
   align-items: center;
   justify-content: space-between;
   gap: 0.4rem;
-  padding: 0.35rem 0.45rem;
+  padding: 0.4rem 0.55rem;
   border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border-radius: 10px;
   background: #fff;
   cursor: grab;
 }
@@ -3136,6 +3156,44 @@ body.is-diagram-grown .layout {
 .graph-filter-compact-btn--ghost:hover:not(:disabled) {
   border-color: #fca5a5;
   background: #fef2f2;
+  color: #b91c1c;
+}
+
+/* Clear and My views are quiet text links, not a second row of pills under the tabs. */
+.graph-filter-compact-actions--links {
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0 0.15rem;
+}
+
+.graph-filter-compact-actions--links .graph-filter-compact-btn--ghost,
+.graph-filter-compact-actions--links .graph-filter-compact-btn--views {
+  flex: 0 0 auto;
+  min-height: 0;
+  padding: 0.1rem 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.8rem;
+  color: var(--ss-accent-text);
+}
+
+.graph-filter-compact-actions--links .graph-filter-compact-btn--ghost {
+  color: #64748b;
+}
+
+.graph-filter-compact-actions--links .graph-filter-compact-btn--ghost:hover:not(:disabled),
+.graph-filter-compact-actions--links .graph-filter-compact-btn--views:hover:not(:disabled) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.graph-filter-compact-actions--links .graph-filter-compact-btn--ghost:hover:not(:disabled) {
   color: #b91c1c;
 }
 
@@ -3982,15 +4040,37 @@ body.is-diagram-grown .layout {
 .sandbox-pane.is-active .sandbox-pane__title {
   text-decoration: underline;
   text-decoration-color: var(--ss-accent);
-  text-decoration-thickness: 2px;
+  text-decoration-thickness: 3px;
   text-underline-offset: 0.3em;
+}
+
+/* The active sandbox is the only one whose title pill is ringed in the accent and carries a dot. */
+.sandbox-pane.is-active .sandbox-pane__header {
+  border-color: var(--ss-accent);
+  background: var(--ss-accent-surface);
+  box-shadow: 0 0 0 3px var(--ss-accent-shadow-strong), var(--ss-bubble-shadow);
+}
+
+.sandbox-pane.is-active .sandbox-pane__header::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.45rem;
+  border-radius: 50%;
+  background: var(--ss-accent);
+}
+
+.sandbox-pane:not(.is-active) .sandbox-pane__title {
+  color: #64748b;
 }
 
 .map-graph-panel:not(.is-views-mode) .graph-canvas:not(.is-sandbox) {
   box-shadow: 0 8px 24px rgb(15 23 42 / 6%);
 }
 
-.sandbox-pane__header {
+/* Title pill and close button float side by side over the canvas, on one row. */
+.sandbox-pane__bar {
   position: absolute;
   top: 0.6rem;
   left: 50%;
@@ -3998,16 +4078,23 @@ body.is-diagram-grown .layout {
   z-index: 5;
   display: flex;
   align-items: center;
+  gap: 0.4rem;
   max-width: calc(100% - 1.5rem);
-  padding: 0.25rem 2.8rem 0.25rem 0.9rem;
+}
+
+.sandbox-pane.is-top-row .sandbox-pane__bar {
+  top: var(--map-drawer-top);
+}
+
+.sandbox-pane__header {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0.25rem 0.9rem;
   border: 1px solid #e2e8f0;
   border-radius: 999px;
   background: #fff;
   box-shadow: var(--ss-bubble-shadow);
-}
-
-.sandbox-pane.is-top-row .sandbox-pane__header {
-  top: var(--map-drawer-top);
 }
 
 .sandbox-pane__title {
@@ -4106,18 +4193,16 @@ body.is-diagram-grown .layout {
 }
 
 .sandbox-pane__close {
-  position: absolute;
-  top: 50%;
-  right: 0.2rem;
-  transform: translateY(-50%);
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: 1px solid #f87171;
-  border-radius: 8px;
+  border-radius: 999px;
+  box-shadow: var(--ss-bubble-shadow);
   background: #ffffff;
   color: #b91c1c;
   cursor: pointer;
@@ -4145,8 +4230,8 @@ body.is-diagram-grown .layout {
 
 .sandbox-shared-legend {
   position: absolute;
-  top: 3.6rem;
-  left: 0.65rem;
+  top: var(--map-drawer-top);
+  left: var(--page-gutter);
   z-index: 5;
   pointer-events: none;
 }
@@ -4438,6 +4523,9 @@ body.is-diagram-grown .layout {
 
 .sandbox-manage-meta .graph-drawer-search-state {
   margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
 }
 
 .sandbox-library-switch {
@@ -4448,7 +4536,7 @@ body.is-diagram-grown .layout {
 .sandbox-library-switch button {
   flex: 1;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #ffffff;
   padding: 0.28rem 0.55rem;
   font: inherit;
@@ -4468,13 +4556,13 @@ body.is-diagram-grown .layout {
 }
 
 .sandbox-library-switch button.is-selected {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: #f8fafc;
+  background: var(--ss-accent);
+  border-color: var(--ss-accent);
+  color: #ffffff;
 }
 
 .sandbox-library-switch button.is-selected:hover:not(:disabled) {
-  background: #1e293b;
+  background: var(--ss-accent-dark);
 }
 
 .sandbox-library-switch button:disabled {
@@ -4640,17 +4728,36 @@ body.is-diagram-grown .layout {
 .sandbox-manage-open {
   display: flex;
   width: 100%;
-  padding: 0.35rem 0.45rem;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
   text-align: left;
   cursor: pointer;
 }
 
+.sandbox-manage-open:hover {
+  border-color: #cbd5e1;
+}
+
+.sandbox-manage-open .graph-drawer-saved-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* The open sandbox is underlined in the accent, exactly like its title on the canvas. */
 .sandbox-manage-open.is-active {
-  border-color: #bfdbfe;
-  background: #eff6ff;
+  border-color: var(--ss-accent);
+  background: var(--ss-accent-surface);
+  box-shadow: 0 0 0 1px var(--ss-accent);
+}
+
+.sandbox-manage-open.is-active .graph-drawer-saved-name {
+  text-decoration: underline;
+  text-decoration-color: var(--ss-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
 }
 
 .sandbox-manage-saved {
@@ -4662,11 +4769,11 @@ body.is-diagram-grown .layout {
 .sandbox-manage-mini {
   flex: 0 0 auto;
   border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: #ffffff;
-  padding: 0.2rem 0.4rem;
+  padding: 0.3rem 0.55rem;
   font: inherit;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: #334155;
   cursor: pointer;
@@ -4707,8 +4814,8 @@ body.is-diagram-grown .layout {
   width: 2.35rem;
   height: 1.85rem;
   padding: 0;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
   background: #fff;
   color: #64748b;
   cursor: pointer;
@@ -5793,6 +5900,7 @@ body.is-diagram-grown .layout {
 
 .react-flow__panel.top.left:has(> .graph-legend.is-concealed) {
   top: auto;
+  left: 15px;
   bottom: var(--graph-legend-launcher-lift);
 }
 
@@ -6239,7 +6347,7 @@ body.is-diagram-grown .layout {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: none;
 }
 
@@ -8431,8 +8539,9 @@ button.chat-citation:hover {
   margin-bottom: 1.25rem;
 }
 
-.data-model-header h1 {
-  margin: 0 0 0.35rem;
+.data-model-header h1,
+.changes-list-header h1 {
+  margin: 0;
   font-size: 1.85rem;
   font-weight: 700;
   letter-spacing: -0.03em;

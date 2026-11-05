@@ -47,7 +47,7 @@ assert.equal(sandboxTabs.length, 3, 'Sandbox keeps three tools');
 assert.doesNotMatch(sandboxHtml, /aria-label="Chat"/);
 assert.match(sandboxHtml, /aria-label="Filters"/);
 assert.match(sandboxHtml, /aria-label="Toolkit"/);
-assert.match(sandboxHtml, /aria-label="My sandboxes"/);
+assert.match(sandboxHtml, /aria-label="Sandboxes"/);
 assert.doesNotMatch(sandboxHtml, /Search applications/);
 
 console.log('SelfServiceToolBar.check: ok');

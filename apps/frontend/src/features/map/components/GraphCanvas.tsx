@@ -1534,7 +1534,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     if (moduleGraphApp) return `Modules — ${moduleGraphApp.label}`;
     if (isViewsMode) return 'My views';
     if (isSandbox) return 'Sandbox';
-    return 'Production';
+    return 'Cartography';
   }, [moduleGraphApp, isViewsMode, isSandbox]);
 
   const tabDescription = useMemo(() => {
@@ -1820,7 +1820,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
           </header>
           {isReadOnly && viewingDay ? (
             <p className="graph-history-banner" role="status">
-              Viewing Production as of {formatViewingDay(viewingDay)}. Read-only.
+              Viewing Cartography as of {formatViewingDay(viewingDay)}. Read-only.
               <button type="button" onClick={() => onViewingDayChange?.(null)}>
                 Back to today
               </button>

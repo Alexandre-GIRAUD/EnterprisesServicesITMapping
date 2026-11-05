@@ -39,7 +39,7 @@ const help = readFileSync(new URL('../../../layouts/helpTopics.ts', import.meta.
 
 assert.match(settings, /BitbucketTokenSettings/);
 assert.match(sources, /Bitbucket/);
-assert.match(sources, /Import repositories from the GitHub or Bitbucket account connected in Settings/);
+assert.doesNotMatch(sources, /Import repositories from the GitHub or Bitbucket account connected in Settings/);
 assert.doesNotMatch(sources, /name="bitbucket-token"/);
 assert.match(help, /Bitbucket/);
 

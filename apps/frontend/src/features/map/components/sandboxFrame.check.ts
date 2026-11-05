@@ -46,6 +46,8 @@ assert.match(solidMenu[0], /background: #ffffff/);
 
 const legend = css.match(/\.sandbox-shared-legend \{[^}]*\}/);
 assert.ok(legend, 'sandbox legend rule missing');
-assert.match(legend[0], /top: 3\.6rem/);
+// The legend parks under the title, where Cartography parks it.
+assert.match(legend[0], /top: var\(--map-drawer-top\)/);
+assert.match(legend[0], /left: var\(--page-gutter\)/);
 
 console.log('sandboxFrame.check: ok');
