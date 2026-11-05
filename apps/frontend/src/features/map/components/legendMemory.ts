@@ -5,6 +5,8 @@ export type RememberedLegend = {
   size: LegendSize;
   /** The size was dragged by hand; otherwise it is the snug default. */
   isUserSized: boolean;
+  /** Folded into its launcher, so the next view shows it folded too. */
+  isConcealed: boolean;
 };
 
 let remembered: RememberedLegend | null = null;

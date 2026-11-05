@@ -1140,6 +1140,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
       closeEdgeDetails();
       setModuleGraphApp({ id: applicationId, label: label ?? applicationId });
       setDisplayMode('graph');
+      setIsSideMenuOpen(false);
     },
     [clearPendingNodeClick, closeApplicationDetails, closeEdgeDetails]
   );
@@ -1556,11 +1557,8 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
   }, [moduleGraphApp, isViewsMode, isSandbox]);
 
   const tabDescription = useMemo(() => {
-    if (moduleGraphApp) {
-      return 'Module dependency tree for this application. Double-click a module to explore further.';
-    }
+    if (moduleGraphApp) return null;
     if (status === 'loading') return 'Loading graph…';
-    if (status === 'error') return message;
     return message;
   }, [moduleGraphApp, status, message]);
 
@@ -1793,7 +1791,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         <div className="map-graph-main">
           <header className="graph-view-header">
             <div className="graph-view-header-text">
-              <h2 className="graph-view-header-title">{activeViewTitle}</h2>
+              <h2 className="graph-view-header-title" title={activeViewTitle}>{activeViewTitle}</h2>
               {tabDescription ? (
                 <p
                   className={`graph-view-header-description${status === 'error' && !isViewsMode ? ' is-error' : ''}`}
@@ -1804,6 +1802,11 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
               ) : null}
             </div>
             <div className="graph-view-header-actions">
+              {moduleGraphApp ? (
+                <button type="button" className="module-map-back" onClick={() => setModuleGraphApp(null)}>
+                  ← Back to graph
+                </button>
+              ) : null}
               {onViewingDayChange && graphMode === 'normal' ? (
                 <HistoryDatePicker day={viewingDay} onChange={onViewingDayChange} />
               ) : null}
@@ -1867,15 +1870,6 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
               />
             ) : moduleGraphApp ? (
             <div className="graph-module-drilldown" role="tabpanel" aria-label="Application module graph">
-              <div className="module-map-toolbar">
-                <button
-                  type="button"
-                  className="module-map-back"
-                  onClick={() => setModuleGraphApp(null)}
-                >
-                  ← Back to graph
-                </button>
-              </div>
               <div className="module-map-canvas">
                 <ApplicationModuleGraph
                   applicationId={moduleGraphApp.id}

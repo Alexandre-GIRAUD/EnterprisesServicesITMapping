@@ -30,6 +30,7 @@ import { ModuleGraphNode, type ModuleNode } from './ModuleGraphNode';
 import { NODE_TYPE_STYLES, type NodeTypeKey } from './graphTheme';
 import { GraphLegend } from './GraphLegend';
 import { fitGraphView } from './fitGraphView';
+import { CenterGraphControl } from './CenterGraphControl';
 import { FullscreenControl } from './FullscreenControl';
 import { FULLSCREEN_REFIT_DELAY_MS, useFullscreen } from './fullscreen';
 import { MODULE_DRAWER_WIDTH_PX, computeDrawerFitPadding } from './drawerFitPadding';
@@ -41,6 +42,7 @@ const KNOWN_NODE_TYPES = Object.keys(NODE_TYPE_STYLES) as NodeTypeKey[];
 const GRID = 16;
 /** The drawer is resized by hand: refit once it has stopped moving. */
 const REFIT_DEBOUNCE_MS = 200;
+const CENTER_ANIMATION_MS = 200;
 
 type Props = {
   applicationId: string;
@@ -132,16 +134,19 @@ export function ApplicationModuleGraph({
   }, []);
   const fullscreen = useFullscreen(wrapRef, refitAfterFullscreen);
 
-  useEffect(() => {
-    if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
-    const paneWidth = containerRef.current?.clientWidth;
+  const fitModules = (duration?: number) =>
     fitGraphView(rfRef.current, {
+      duration,
       padding: computeDrawerFitPadding(isDrawerOpen, {
-        paneWidthPx: paneWidth,
+        paneWidthPx: containerRef.current?.clientWidth,
         drawerWidthPx: debouncedDrawerWidth,
       }),
       nodeIds: fitNodeIds,
     });
+
+  useEffect(() => {
+    if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
+    fitModules();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fitNodeKey stands for fitNodeIds
   }, [status, nodes.length, layoutRevision, isDrawerOpen, debouncedDrawerWidth, fitNodeKey, fullscreenRevision]);
 
@@ -279,7 +284,8 @@ export function ApplicationModuleGraph({
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#e2e8f0" gap={GRID} />
-          <Controls showInteractive={false}>
+          <Controls showInteractive={false} showFitView={false}>
+            <CenterGraphControl onCenter={() => fitModules(CENTER_ANIMATION_MS)} />
             <FullscreenControl isFullscreen={fullscreen.isFullscreen} onToggle={fullscreen.toggle} />
           </Controls>
           {!isDrawerOpen && (
