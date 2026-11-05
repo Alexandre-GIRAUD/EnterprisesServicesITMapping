@@ -63,12 +63,14 @@ type LegendFill = ReturnType<typeof fillLegendFrame>;
 /**
  * `isFilling` stretches the legend over the whole pane (edit mode), then restores its own frame.
  * The frame is the snuggest one until the user drags the resize grip, and it outlives the component.
- * A new `concealSignal` value folds the legend into its launcher.
+ * A new `concealSignal` value folds the legend into its launcher; `startsConcealed` folds it at first
+ * without making that the user's choice to carry to the next view.
  */
 export function useLegendFrame(
   frameRef: RefObject<HTMLDivElement | null>,
   isFilling = false,
   concealSignal = 0,
+  startsConcealed = false,
 ): LegendFrameBindings {
   const [remembered] = useState(recallLegend);
   const [offset, setOffset] = useState<LegendOffset>(remembered?.offset ?? { left: 0, top: 0 });
@@ -77,7 +79,7 @@ export function useLegendFrame(
   );
   const [isUserSized, setIsUserSized] = useState(remembered?.isUserSized ?? false);
   const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
-  const [isConcealed, setIsConcealed] = useState(remembered?.isConcealed ?? false);
+  const [isConcealed, setIsConcealed] = useState(startsConcealed || (remembered?.isConcealed ?? false));
   // The fold a drawer triggers is not the user's choice, so it is not carried to the next view.
   const [isFoldedByUser, setIsFoldedByUser] = useState(remembered?.isConcealed ?? false);
   const [fill, setFill] = useState<LegendFill | null>(null);

@@ -302,7 +302,7 @@ export function ApplicationModuleGraph({
           )}
           {legendNodeTypes.length > 0 && (
             <Panel position="top-left">
-              <GraphLegend nodeTypes={legendNodeTypes} concealSignal={concealSignal} />
+              <GraphLegend nodeTypes={legendNodeTypes} concealSignal={concealSignal} startsConcealed />
             </Panel>
           )}
         </ReactFlow>
