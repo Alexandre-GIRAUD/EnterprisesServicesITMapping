@@ -41,6 +41,7 @@ import {
 } from '../utils/sandboxDocuments';
 import { CloseIcon } from './CloseIcon';
 import { SandboxCanvasMenu } from './SandboxCanvasMenu';
+import { useBreachApplicationIds } from '../hooks/useBreachApplicationIds';
 import { isUserMove } from './sandboxRefit.ts';
 import { SETTLE_REFIT_DURATION_MS, useSandboxFitPadding } from './useSandboxFitPadding';
 
@@ -236,7 +237,8 @@ function SandboxPaneInner({
 
   const hiddenIds = doc.hiddenNodeIds ?? [];
   const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
-  const filterScope = useMemo(() => sandboxFilterScope(doc), [doc]);
+  const breachApplicationIds = useBreachApplicationIds(doc.filters?.breach);
+  const filterScope = useMemo(() => sandboxFilterScope(doc, breachApplicationIds), [doc, breachApplicationIds]);
   const attributeEdgeIds = useMemo(() => {
     const filters = doc.filters;
     const attributes = filters?.edgeAttributes;

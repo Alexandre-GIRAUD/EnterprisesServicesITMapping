@@ -51,7 +51,7 @@ assert.match(readFileSync(new URL('./FilterDrawer.tsx', import.meta.url), 'utf8'
 const sideTools = readFileSync(new URL('./graphCanvasSideTools.tsx', import.meta.url), 'utf8');
 assert.doesNotMatch(sideTools, /showWithNeighbours=\{!isSandbox\}/);
 assert.match(sideTools, /initialWithNeighbours=\{isSandbox \? Boolean\(activeSandboxFilters\.withNeighbours\)/);
-assert.match(sideTools, /withNeighbours: Boolean\(nextWithNeighbours\),\s*\},\s*dirty: true/);
+assert.match(sideTools, /withNeighbours: Boolean\(nextWithNeighbours\),\s*breach: nextBreach \?\? \[\],\s*\},\s*dirty: true/);
 assert.match(css, /\.graph-view-header-title \{[^}]*font-size: 1\.85rem[^}]*font-weight: 700[^}]*letter-spacing: -0\.03em/);
 assert.match(css, /\.graph-view-header-description \{[^}]*font-size: 0\.95rem[^}]*line-height: 1\.5/);
 assert.doesNotMatch(css, /\.graph-view-header \{[^}]*border-bottom/);
@@ -69,7 +69,7 @@ assert.match(css, /\.sandbox-pane__bar \{[^}]*position: absolute[^}]*top: 0\.6re
 assert.match(css, /\.sandbox-pane\.is-top-row \.sandbox-pane__bar \{[^}]*top: var\(--map-drawer-top\)/);
 assert.match(readFileSync(new URL('./SandboxPane.tsx', import.meta.url), 'utf8'), /is-top-row/);
 // The burger floats at a fixed spot: the close cross replaces it exactly, the menu starts below.
-assert.match(css, /\.map-graph-panel \.self-service-burger \{[^}]*position: absolute[^}]*top: var\(--burger-top\)[^}]*right: 1rem[^}]*z-index: 30/);
+assert.match(css, /\.map-graph-panel \.self-service-burger \{[^}]*position: absolute[^}]*top: calc\(var\(--burger-top\)[^;]*;[^}]*right: 1rem[^}]*z-index: 30/);
 assert.match(css, /\.map-graph-panel \.self-service-side-menu-body \{[^}]*padding: calc\(var\(--burger-top\) \+ var\(--burger-size\) \+ var\(--burger-gap\)\) 0\.65rem 0\.55rem/);
 assert.match(css, /\.graph-view-header-actions \{[^}]*margin-right: calc\(var\(--burger-size\) \+ var\(--burger-gap\)\)/);
 assert.match(css, /--burger-size: 36px[^}]*--burger-top: calc\(var\(--page-gutter\) - 0\.2rem\)[^}]*--burger-gap: 0\.5rem[^}]*--views-indent: 1\.5rem/);
