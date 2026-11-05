@@ -5,8 +5,8 @@ export type FitViewPadding = NonNullable<FitViewOptions['padding']>;
 
 export const FIT_RATIO = 0.06;
 
-export const MODULE_DRAWER_WIDTH_PX = 440;
-export const DETAILS_DRAWER_WIDTH_PX = 420;
+/** Default width of every details drawer (application, flow, modules). */
+export const DRAWER_WIDTH_PX = 440;
 
 /** The drawer's margin to the pane edge, with a little air. */
 export const DRAWER_FIT_GAP_PX = 30;
@@ -97,7 +97,7 @@ export function computeChromeFitPadding(
 
 export function computeDrawerFitPadding(
   isDrawerOpen: boolean,
-  { paneWidthPx, drawerWidthPx = MODULE_DRAWER_WIDTH_PX }: DrawerFit = {}
+  { paneWidthPx, drawerWidthPx = DRAWER_WIDTH_PX }: DrawerFit = {}
 ): FitViewPadding {
   if (!isDrawerOpen) return FIT_RATIO;
   const insetPx = drawerWidthPx + DRAWER_FIT_GAP_PX;

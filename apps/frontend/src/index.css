@@ -9724,13 +9724,7 @@ html[data-theme='dark'] .graph-legend__swatch img {
   overflow: hidden;
 }
 
-.module-drawer {
-  width: min(440px, calc(100% - 1.5rem));
-  max-width: calc(100% - 1.5rem);
-}
-
 /* Drag the left edge to resize the drawer. */
-.module-drawer__grip,
 .graph-details-drawer__grip {
   position: absolute;
   top: 0;
@@ -9742,8 +9736,6 @@ html[data-theme='dark'] .graph-legend__swatch img {
   touch-action: none;
 }
 
-.module-drawer__grip:hover,
-.module-drawer__grip:active,
 .graph-details-drawer__grip:hover,
 .graph-details-drawer__grip:active {
   background: linear-gradient(to right, rgb(37 99 235 / 45%) 0 3px, transparent 3px);

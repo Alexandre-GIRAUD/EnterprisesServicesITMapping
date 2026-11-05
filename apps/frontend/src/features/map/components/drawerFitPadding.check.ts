@@ -6,9 +6,8 @@ import assert from 'node:assert/strict';
 import {
   LEGEND_FIT_GAP_PX,
   computeLegendFitPadding,
-  DETAILS_DRAWER_WIDTH_PX,
   DRAWER_FIT_GAP_PX,
-  MODULE_DRAWER_WIDTH_PX,
+  DRAWER_WIDTH_PX,
   computeDrawerFitPadding,
   computeFitAreaAspectRatio,
   computeChromeFitPadding,
@@ -18,14 +17,14 @@ import {
 assert.equal(typeof computeDrawerFitPadding(false), 'number');
 const open = computeDrawerFitPadding(true);
 assert.equal(typeof open, 'object');
-assert.equal((open as { right: string }).right, `${MODULE_DRAWER_WIDTH_PX + DRAWER_FIT_GAP_PX}px`);
-assert.ok(MODULE_DRAWER_WIDTH_PX + DRAWER_FIT_GAP_PX >= 452, 'wider than the 440px drawer plus its margin');
+assert.equal((open as { right: string }).right, `${DRAWER_WIDTH_PX + DRAWER_FIT_GAP_PX}px`);
+assert.ok(DRAWER_WIDTH_PX + DRAWER_FIT_GAP_PX >= 452, 'wider than the 440px drawer plus its margin');
 
-// The drawer width comes from the caller: a resized drawer or the 420px details drawer.
+// The drawer width comes from the caller: a resized drawer or the default drawer width.
 assert.equal((computeDrawerFitPadding(true, { paneWidthPx: 2000, drawerWidthPx: 600 }) as { right: string }).right, `${600 + DRAWER_FIT_GAP_PX}px`);
 assert.equal(
-  (computeDrawerFitPadding(true, { paneWidthPx: 2000, drawerWidthPx: DETAILS_DRAWER_WIDTH_PX }) as { right: string }).right,
-  `${DETAILS_DRAWER_WIDTH_PX + DRAWER_FIT_GAP_PX}px`,
+  (computeDrawerFitPadding(true, { paneWidthPx: 2000, drawerWidthPx: DRAWER_WIDTH_PX }) as { right: string }).right,
+  `${DRAWER_WIDTH_PX + DRAWER_FIT_GAP_PX}px`,
 );
 
 // A narrow pane keeps room for the graph.

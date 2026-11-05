@@ -41,4 +41,9 @@ assert.match(css, /--map-content-top:\s*var\(--map-header-height\)/);
 assert.match(rule('\n.graph-view-header'),/height:\s*var\(--map-header-height\)/);
 assert.match(rule('.graph-view-header-text'), /overflow:\s*hidden/);
 
+// One details drawer: the modules drawer has no width or resize handle of its own.
+assert.doesNotMatch(css, /\.module-drawer \{/);
+assert.doesNotMatch(css, /module-drawer__grip/);
+assert.doesNotMatch(source('./ApplicationModulesDrawer.tsx'), /module-drawer__grip|window\.addEventListener/);
+
 console.log('viewChrome.check: ok');
