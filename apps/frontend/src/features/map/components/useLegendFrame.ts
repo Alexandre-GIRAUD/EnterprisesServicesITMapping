@@ -152,7 +152,12 @@ function useSnugFit({ frameRef, isEnabled, setSize }: SnugFitWatch): void {
     fittedContent.current = content;
     const limit = {
       width: pane.width - LEGEND_SNUG_RIGHT_MARGIN_PX,
-      height: fitLegendHeight(NO_HEIGHT_LIMIT_PX, pane.height, readControlsClearance(findLegendPane(element))),
+      height: fitLegendHeight(
+        NO_HEIGHT_LIMIT_PX,
+        pane.height,
+        readControlsClearance(findLegendPane(element)),
+        pane.insetTop,
+      ),
     };
     const snug = measureSnugLegendSize((frame) => measureLegendContent(element, frame), limit);
     applyLegendFrame(element, snug);
@@ -192,10 +197,10 @@ function useFitDefaultHeight(
     if (!element) return undefined;
     const pane = findLegendPane(element);
     const fit = () => {
-      const paneHeight = readLegendPaneBox(element).height;
-      if (paneHeight <= 0) return;
+      const paneBox = readLegendPaneBox(element);
+      if (paneBox.height <= 0) return;
       const clearance = readControlsClearance(pane);
-      setMaxHeight(legendMaxHeight(paneHeight, clearance));
+      setMaxHeight(legendMaxHeight(paneBox.height, clearance, paneBox.insetTop));
     };
     fit();
     const frame = window.requestAnimationFrame(fit);

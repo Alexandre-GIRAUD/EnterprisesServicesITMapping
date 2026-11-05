@@ -20,6 +20,8 @@ const MAX_SNUG_GROW_PASSES = 4;
 /** A legend taller than its pane widens by this share per pass, so the entries flow in rows. */
 const WIDEN_STEP_RATIO = 0.15;
 const MAX_WIDEN_PASSES = 40;
+/** A column up to this share taller than the pane stays a column instead of turning into rows. */
+const COLUMN_OVERFLOW_RATIO = 0.25;
 /** Sub-pixel rounding of the content height would otherwise bring a scrollbar back. */
 const HEIGHT_SLACK_PX = 2;
 
@@ -73,19 +75,21 @@ function clampToRange(value: number, min: number, max: number): number {
 /**
  * Shorten the height so the legend never reaches the zoom controls.
  * `clearance` is the measured room the controls take; the default is a safe estimate.
+ * `top` is the gap between the pane top and the legend, the room it cannot use.
  */
 export function fitLegendHeight(
   height: number,
   paneHeight: number,
   clearance: number = LEGEND_CONTROLS_CLEARANCE_PX,
+  top: number = LEGEND_TOP_MARGIN_PX,
 ): number {
-  const room = paneHeight - LEGEND_TOP_MARGIN_PX - clearance;
+  const room = paneHeight - top - clearance;
   return Math.max(LEGEND_MIN_HEIGHT_PX, Math.min(height, room));
 }
 
 /** The tallest the legend may be shown in this pane; the size the user chose is kept as it is. */
-export function legendMaxHeight(paneHeight: number, clearance?: number): number {
-  return fitLegendHeight(Number.MAX_SAFE_INTEGER, paneHeight, clearance);
+export function legendMaxHeight(paneHeight: number, clearance?: number, top?: number): number {
+  return fitLegendHeight(Number.MAX_SAFE_INTEGER, paneHeight, clearance, top);
 }
 
 /** Frame covering the whole pane, margin kept so the pane borders stay visible. */
@@ -170,7 +174,13 @@ function widenUntilFits(
   start: LegendSize,
   limit: LegendSize,
 ): LegendSize {
-  if (measure({ width: start.width, height: limit.height }).scrollHeight <= limit.height) return start;
+  const columnHeight = measure({ width: start.width, height: limit.height }).scrollHeight;
+  if (columnHeight <= limit.height) return start;
+  // Only a little too tall: keep the column, a bit shorter than its content, rather than a wide legend.
+  const isColumn = chooseLegendEntryDirection(start.width, limit.height) === 'column';
+  if (isColumn && columnHeight <= limit.height * (1 + COLUMN_OVERFLOW_RATIO)) {
+    return { width: start.width, height: limit.height };
+  }
   let { width } = start;
   for (let pass = 0; pass < MAX_WIDEN_PASSES; pass += 1) {
     // Measured at the tallest frame that still lays the entries out in rows.

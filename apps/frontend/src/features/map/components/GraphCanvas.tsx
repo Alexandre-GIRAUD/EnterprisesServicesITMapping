@@ -2038,6 +2038,8 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                       setTextPlacement(false);
                       setSandboxToast('Text box added — double-click to edit');
                     }}
+                    isFullscreen={fullscreen.isFullscreen}
+                    onToggleFullscreen={fullscreen.toggle}
                     editingTextId={pendingEditTextId}
                     onTextEditStarted={(textId) => {
                       if (pendingEditTextId === textId) setPendingEditTextId(null);

@@ -5795,13 +5795,9 @@ body.is-diagram-grown .layout {
   --graph-legend-launcher-lift: 86px;
 }
 
-/* Cartography draws a fourth zoom button (fullscreen): the folded legend sits that much higher. */
+/* Cartography and Sandbox draw a fourth zoom button (fullscreen): the folded legend sits that much higher. */
 .map-graph-panel {
   --graph-legend-launcher-lift: 112px;
-}
-
-.map-graph-panel.is-sandbox-mode {
-  --graph-legend-launcher-lift: 86px;
 }
 
 .graph-legend {

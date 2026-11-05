@@ -50,4 +50,13 @@ assert.ok(legend, 'sandbox legend rule missing');
 assert.match(legend[0], /top: var\(--map-drawer-top\)/);
 assert.match(legend[0], /left: var\(--page-gutter\)/);
 
+// Sandbox draws the same zoom stack as Cartography, full screen included, so the legend gets the same room.
+const sandboxPane = readFileSync(new URL('./SandboxPane.tsx', import.meta.url), 'utf8');
+assert.match(sandboxPane, /<FullscreenControl /);
+// Same buttons in the same order on both screens: zoom in, zoom out, the target icon, full screen.
+assert.match(sandboxPane, /<Controls showInteractive=\{false\} showFitView=\{false\}>/);
+assert.match(sandboxPane, /<CenterGraphControl\b/);
+assert.ok(sandboxPane.indexOf('<CenterGraphControl') < sandboxPane.indexOf('<FullscreenControl '));
+assert.doesNotMatch(css, /\.map-graph-panel\.is-sandbox-mode \{[^}]*--graph-legend-launcher-lift/);
+
 console.log('sandboxFrame.check: ok');

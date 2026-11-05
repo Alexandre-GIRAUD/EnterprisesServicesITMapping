@@ -25,7 +25,9 @@ import {
 } from 'react';
 import { GRID } from '../hooks/useGraphData';
 import { AppGraphNode } from './AppGraphNode';
+import { CenterGraphControl } from './CenterGraphControl';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
+import { FullscreenControl } from './FullscreenControl';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { OrientedEdge } from './OrientedEdge';
 import { SandboxIconNode } from './SandboxIconNode';
@@ -86,6 +88,8 @@ type Props = {
   /** Text box id that should open in edit mode once (after place). */
   editingTextId?: string | null;
   onTextEditStarted?: (textId: string) => void;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 };
 
 function iconNodesFromDoc(icons: SandboxIcon[], onDelete: (id: string) => void): Node[] {
@@ -140,6 +144,7 @@ function isAnnotationNode(node: Node): boolean {
 }
 
 const TOP_ROW_TOLERANCE_PX = 4;
+const CENTER_ANIMATION_MS = 200;
 
 /** True while the pane touches the top of its board, where the floating chrome overlaps its title. */
 function useIsTopRow(paneRef: RefObject<HTMLDivElement>): boolean {
@@ -199,6 +204,8 @@ function SandboxPaneInner({
   onPlaceText,
   editingTextId,
   onTextEditStarted,
+  isFullscreen = false,
+  onToggleFullscreen,
 }: Props) {
   const { screenToFlowPosition, fitView } = useReactFlow();
   const [editingTitle, setEditingTitle] = useState(false);
@@ -693,7 +700,14 @@ function SandboxPaneInner({
             })}
             edges={displayEdges}
           />
-          <Controls showInteractive={false} />
+          <Controls showInteractive={false} showFitView={false}>
+            <CenterGraphControl
+              onCenter={() => void fitView({ padding: fitPadding, duration: CENTER_ANIMATION_MS })}
+            />
+            {onToggleFullscreen ? (
+              <FullscreenControl isFullscreen={isFullscreen} onToggle={onToggleFullscreen} />
+            ) : null}
+          </Controls>
           {hiddenIds.length > 0 ? (
             <Panel position="top-right">
               <HiddenAppsPicker

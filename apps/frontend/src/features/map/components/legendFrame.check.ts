@@ -121,7 +121,19 @@ assert.deepEqual(pickShownLegendFrame(true, null, ownFrame), ownFrame);
   };
   const wide = measureSnugLegendSize(flowing, { width: 800, height: 500 });
   assert.ok(wide.width >= 400 && wide.height <= 500);
+  // A column only a little taller than the pane stays a column, a bit shorter than its content.
+  const slightlyTall = (frame: { width: number; height: number }) => {
+    const columns = frame.width / frame.height >= LEGEND_WIDE_ASPECT ? 4 : 1;
+    return { scrollWidth: frame.width, scrollHeight: Math.max(frame.height, 540 / columns) };
+  };
+  const column = measureSnugLegendSize(slightlyTall, { width: 800, height: 500 });
+  assert.equal(chooseLegendEntryDirection(column.width, column.height), 'column');
+  assert.equal(column.height, 500);
 }
+
+// The room starts where the legend is anchored, so a tall legend never reaches the zoom controls.
+assert.equal(fitLegendHeight(900, 800, 130, 75), 800 - 75 - 130);
+assert.equal(legendMaxHeight(800, 130, 75), 800 - 75 - 130);
 
 // Only the bottom-right corner is the native resize grip.
 assert.equal(isResizeGrip({ right: 400, bottom: 300 }, 395, 295), true);
