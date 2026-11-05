@@ -37,6 +37,7 @@ import { DRAWER_WIDTH_PX, computeDrawerFitPadding } from './drawerFitPadding';
 import { computeModuleTiers, type ModuleTier } from './moduleFocus';
 import { buildModuleNestedNodes, type ModuleTree } from './moduleNestedLayout';
 import { tierClassName, type FocusTier } from './graphFocus';
+import { MapState } from './MapState';
 
 const KNOWN_NODE_TYPES = Object.keys(NODE_TYPE_STYLES) as NodeTypeKey[];
 const GRID = 16;
@@ -244,19 +245,19 @@ export function ApplicationModuleGraph({
   return (
     <div ref={wrapRef} className="graph-canvas-wrap module-graph-wrap">
       {status === 'loading' && (
-        <p className="graph-canvas-status" role="status">
+        <MapState kind="loading">
           Loading modules…
-        </p>
+        </MapState>
       )}
       {status === 'error' && message && (
-        <p className="graph-canvas-error" role="alert">
+        <MapState kind="error">
           {message}
-        </p>
+        </MapState>
       )}
       {hintText && status !== 'error' && (
-        <p className="graph-canvas-hint module-graph-hint">
+        <MapState kind="empty" className="module-graph-hint">
           {hintText}
-        </p>
+        </MapState>
       )}
       <div
         ref={containerRef}

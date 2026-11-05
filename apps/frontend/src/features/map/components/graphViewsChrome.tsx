@@ -20,6 +20,7 @@ import {
   type LibrarySortKey,
   type LibraryView,
 } from '../utils/viewLibrary';
+import { MapState } from './MapState';
 
 export type InspectedView = {
   id: string;
@@ -384,7 +385,7 @@ export function LibraryTable({
   onContextMenu: (event: ReactMouseEvent, row: LibraryRow) => void;
 }) {
   if (rows.length === 0) {
-    return <p className="graph-views-state">{isSearching ? 'No views match.' : emptyLabel}</p>;
+    return <MapState kind="empty">{isSearching ? 'No views match.' : emptyLabel}</MapState>;
   }
   return (
     <table className="graph-views-table">

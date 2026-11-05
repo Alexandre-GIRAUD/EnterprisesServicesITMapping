@@ -20,6 +20,7 @@ import {
   type CustomTableSetup,
   type SavedCustomTable,
 } from '../utils/customTable';
+import { MapState } from './MapState';
 
 const EMPTY_SETUP: CustomTableSetup = { row: null, column: null, label: null, color: null };
 const TABLE_COPY_NAME_SUFFIX = ' copy';
@@ -279,19 +280,19 @@ export function CreateTablePanel({
             }}
           />
         </div>
-        {shareMessage ? <p className="graph-table-message" role="status">{shareMessage}</p> : null}
+        {shareMessage ? <MapState kind="info">{shareMessage}</MapState> : null}
       </form>
       {missingLabels.length > 0 ? (
-        <p className="graph-table-message" role="status">
+        <MapState kind="info">
           Missing field: {missingLabels.join(', ')}. That axis was cleared.
-        </p>
+        </MapState>
       ) : null}
       {status === 'loading' ? (
-        <p className="graph-table-message" role="status">Loading…</p>
+        <MapState kind="loading">Loading…</MapState>
       ) : status === 'error' ? (
-        <p className="graph-table-message graph-table-message-error" role="alert">
+        <MapState kind="error">
           {errorMessage ?? 'Unable to load the graph.'}
-        </p>
+        </MapState>
       ) : model.status === 'ready' ? (
         <div ref={exportRootRef}>
           <TableLegend model={model} colorKey={activeSetup.color?.key ?? null} colorMap={colorMap} />
@@ -321,7 +322,7 @@ export function CreateTablePanel({
           </div>
         </div>
       ) : (
-        <p className="graph-table-message" role="status">{model.message}</p>
+        <MapState kind="info">{model.message}</MapState>
       )}
     </div>
   );

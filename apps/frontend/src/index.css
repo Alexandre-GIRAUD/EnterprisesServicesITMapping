@@ -1631,19 +1631,6 @@ body.is-diagram-grown .layout {
   color: #b45309;
 }
 
-.graph-table-message {
-  margin: 0.35rem 0.25rem;
-  font-size: 0.88rem;
-  color: #64748b;
-}
-
-.graph-table-message-error {
-  color: #b91c1c;
-  background: #fef2f2;
-  border-radius: 8px;
-  padding: 0.35rem 0.5rem;
-}
-
 .map-graph-panel {
   --ss-accent: #2563eb;
   --ss-accent-dark: #1d4ed8;
@@ -5612,16 +5599,6 @@ button.corner-control:hover:not(:disabled) {
   font: inherit;
 }
 
-.graph-views-state {
-  margin: 0;
-  font-size: 0.88rem;
-  color: #64748b;
-}
-
-.graph-views-state-error {
-  color: #b91c1c;
-}
-
 .graph-views-empty {
   display: flex;
   flex-direction: column;
@@ -7608,19 +7585,14 @@ button.corner-control:hover:not(:disabled) {
 }
 
 /* ===== Graph status messages ===== */
-.graph-canvas-status,
-.graph-canvas-error,
-.graph-canvas-hint {
-  margin: 0 0 0.75rem;
-  font-size: 0.9rem;
-}
-
-.graph-canvas-error {
-  color: #b91c1c;
-}
-
-.graph-canvas-hint {
+.map-state {
+  margin: 0.35rem 0.25rem 0.75rem;
+  font-size: 0.88rem;
   color: #64748b;
+}
+
+.map-state--error {
+  color: #b91c1c;
 }
 
 /* ===== Responsive behavior ===== */

@@ -4,6 +4,8 @@
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 const css = readFileSync(new URL('../../../index.css', import.meta.url), 'utf8');
 
@@ -45,5 +47,22 @@ assert.match(rule('.graph-view-header-text'), /overflow:\s*hidden/);
 assert.doesNotMatch(css, /\.module-drawer \{/);
 assert.doesNotMatch(css, /module-drawer__grip/);
 assert.doesNotMatch(source('./ApplicationModulesDrawer.tsx'), /module-drawer__grip|window\.addEventListener/);
+
+// One loading, empty and error message for every view.
+const { MapState } = await import('./MapState.tsx');
+assert.equal(
+  renderToStaticMarkup(createElement(MapState, { kind: 'loading' }, 'Loading…')),
+  '<p class="map-state map-state--loading" role="status">Loading…</p>',
+);
+assert.equal(
+  renderToStaticMarkup(createElement(MapState, { kind: 'error' }, 'Boom')),
+  '<p class="map-state map-state--error" role="alert">Boom</p>',
+);
+assert.match(renderToStaticMarkup(createElement(MapState, { kind: 'empty' }, 'Nothing')), /map-state--empty/);
+assert.match(rule('.map-state'), /color:/);
+const legacy = /graph-table-message|graph-views-state|graph-canvas-status|graph-canvas-error|graph-canvas-hint/;
+for (const file of ['ApplicationsTablePanel', 'FeedsTablePanel', 'CreateTablePanel', 'GraphViewsPanel', 'graphViewsChrome', 'ApplicationModuleGraph']) {
+  assert.doesNotMatch(source(`./${file}.tsx`), legacy, `${file} uses MapState`);
+}
 
 console.log('viewChrome.check: ok');
