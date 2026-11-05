@@ -78,6 +78,8 @@ export function useLegendFrame(
   const [isUserSized, setIsUserSized] = useState(remembered?.isUserSized ?? false);
   const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
   const [isConcealed, setIsConcealed] = useState(remembered?.isConcealed ?? false);
+  // The fold a drawer triggers is not the user's choice, so it is not carried to the next view.
+  const [isFoldedByUser, setIsFoldedByUser] = useState(remembered?.isConcealed ?? false);
   const [fill, setFill] = useState<LegendFill | null>(null);
   const sizeRef = useRef(size);
   const concealedRef = useRef(isConcealed);
@@ -86,8 +88,8 @@ export function useLegendFrame(
   sizeRef.current = size;
   concealedRef.current = isConcealed;
   useEffect(() => {
-    rememberLegend({ offset, size, isUserSized, isConcealed });
-  }, [offset, size, isUserSized, isConcealed]);
+    rememberLegend({ offset, size, isUserSized, isConcealed: isFoldedByUser });
+  }, [offset, size, isUserSized, isFoldedByUser]);
   useConcealOnSignal(concealSignal, setIsConcealed);
   useSnugFit({ frameRef, isEnabled: !isUserSized && !isConcealed && !isFilling, setSize });
   useFitDefaultHeight(frameRef, setMaxHeight);
@@ -115,6 +117,7 @@ export function useLegendFrame(
     suppressClickRef,
     setOffset,
     setIsConcealed,
+    setIsFoldedByUser,
     setIsUserSized,
   });
 }
@@ -264,6 +267,7 @@ type LegendFrameInput = {
   suppressClickRef: { current: boolean };
   setOffset: (offset: LegendOffset) => void;
   setIsConcealed: (update: (value: boolean) => boolean) => void;
+  setIsFoldedByUser: (isFolded: boolean) => void;
   setIsUserSized: (isUserSized: boolean) => void;
 };
 
@@ -318,7 +322,10 @@ function bindLegendFrame(input: LegendFrameInput): LegendFrameBindings {
       beginLegendDrag(event, session);
     },
     onToggleClick: (event) => {
-      toggleConcealedLegend(event, input.suppressClickRef, input.setIsConcealed);
+      toggleConcealedLegend(event, input.suppressClickRef, () => {
+        input.setIsConcealed((value) => !value);
+        input.setIsFoldedByUser(!input.concealedRef.current);
+      });
     },
   };
 }
@@ -341,10 +348,10 @@ function isOnResizeGrip(event: ReactPointerEvent<HTMLDivElement>): boolean {
 function toggleConcealedLegend(
   event: { preventDefault: () => void },
   suppressClickRef: { current: boolean },
-  setIsConcealed: (update: (value: boolean) => boolean) => void,
+  toggle: () => void,
 ): void {
   if (!suppressClickRef.current) {
-    setIsConcealed((value) => !value);
+    toggle();
     return;
   }
   suppressClickRef.current = false;
