@@ -14,6 +14,8 @@ export const LEGEND_MIN_WIDTH_PX = 128;
 export const LEGEND_MIN_HEIGHT_PX = 80;
 /** The native resize grip is the bottom-right corner of the frame. */
 const RESIZE_GRIP_PX = 18;
+/** Air kept between the widest header button (Edit) and the right edge of a snug legend. */
+export const LEGEND_WIDTH_SLACK_PX = 14;
 const MAX_SNUG_GROW_PASSES = 4;
 /** A legend taller than its pane widens by this share per pass, so the entries flow in rows. */
 const WIDEN_STEP_RATIO = 0.15;
@@ -118,6 +120,14 @@ function clampBetween(value: number, min: number, max: number): number {
  * content needs; the layout can change with the frame, so the frame grows until nothing is cut.
  */
 export function measureSnugLegendSize(
+  measure: (frame: LegendSize) => LegendContentSize,
+  limit: LegendSize,
+): LegendSize {
+  const tight = measureTightLegendSize(measure, limit);
+  return { width: Math.min(limit.width, tight.width + LEGEND_WIDTH_SLACK_PX), height: tight.height };
+}
+
+function measureTightLegendSize(
   measure: (frame: LegendSize) => LegendContentSize,
   limit: LegendSize,
 ): LegendSize {

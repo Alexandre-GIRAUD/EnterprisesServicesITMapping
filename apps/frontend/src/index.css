@@ -1941,12 +1941,27 @@ body.is-diagram-grown .layout {
   gap: 0.4rem;
   min-height: 2rem;
   padding: 0 0.35rem 0 0.65rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: var(--ss-bubble-shadow);
   color: #334155;
   font-size: 0.8rem;
   font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.history-date-picker:hover {
+  border-color: var(--ss-accent-border, #93c5fd);
+  box-shadow: var(--ss-bubble-shadow-hover);
+}
+
+.history-date-picker:focus-within {
+  outline: 2px solid var(--ss-accent-focus, #3b82f6);
+  outline-offset: 2px;
 }
 
 .history-date-picker input {
@@ -1955,6 +1970,7 @@ body.is-diagram-grown .layout {
   color: inherit;
   font: inherit;
   font-weight: 500;
+  cursor: pointer;
 }
 
 .graph-history-banner {
@@ -1990,10 +2006,12 @@ body.is-diagram-grown .layout {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem 1.1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #f8fafc;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem 0.5rem 1.1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: var(--ss-bubble-shadow);
   color: #334155;
   font: inherit;
   font-size: 0.85rem;
@@ -2003,12 +2021,25 @@ body.is-diagram-grown .layout {
   transition:
     background-color 140ms ease,
     border-color 140ms ease,
+    box-shadow 140ms ease,
     color 140ms ease;
+}
+
+/* The chevron says "opens a menu". */
+.graph-export-menu-trigger::after {
+  content: '';
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-top: -0.2rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
 }
 
 .graph-export-menu-trigger:hover:not(:disabled) {
   background: #ffffff;
-  border-color: #cbd5e1;
+  border-color: var(--ss-accent-border, #93c5fd);
+  box-shadow: var(--ss-bubble-shadow-hover);
   color: #0f172a;
 }
 
@@ -3142,66 +3173,65 @@ body.is-diagram-grown .layout {
   color: #b91c1c;
 }
 
-/* Clear, My views and Pin view are quiet text links, not a second row of pills under the tabs. */
+/*
+ * Clear, My views and Pin view are text links in one row, starting on the menu's left edge.
+ * They stay underlined so they read as clickable; the two view actions use the My views green.
+ */
 .graph-filter-compact-actions--links {
   align-items: center;
-  gap: 0.9rem;
-  padding: 0 0.15rem;
+  gap: 1rem;
+  padding: 0;
 }
 
-.graph-filter-compact-actions--links .graph-filter-compact-btn--ghost,
-.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--views,
-.graph-filter-compact-actions--links .graph-filter-compact-btn--pin {
+.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn {
   flex: 0 0 auto;
   min-height: 0;
-  padding: 0.1rem 0;
+  padding: 0.15rem 0.1rem;
   border: 0;
   border-radius: 4px;
   background: transparent;
   box-shadow: none;
   font-size: 0.8rem;
-  color: var(--ss-accent-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
 }
 
-.graph-filter-compact-actions--links .graph-filter-compact-btn--ghost {
-  color: #64748b;
+.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--ghost {
+  color: #475569;
 }
 
-.graph-filter-compact-actions--links .graph-filter-compact-btn--ghost:hover:not(:disabled),
-.graph-filter-compact-actions--links .graph-filter-compact-btn--views:hover:not(:disabled),
-.graph-filter-compact-actions--links .graph-filter-compact-btn--pin:hover:not(:disabled) {
+.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--views,
+.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--pin:not(:disabled) {
+  color: var(--ss-views-accent-dark);
+}
+
+.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn:hover:not(:disabled) {
   border: 0;
-  background: transparent;
+  background: #f1f5f9;
   box-shadow: none;
   transform: none;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
+  text-decoration-thickness: 2px;
 }
 
-.graph-filter-compact-actions--links .graph-filter-compact-btn--ghost:hover:not(:disabled) {
-  color: #b91c1c;
-}
-
-/* Pin view is as quiet as its two neighbours; the map panel's solid green pill is overridden here. */
-.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--pin:not(:disabled) {
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  font-weight: 600;
-  color: var(--ss-accent-text);
-}
-
+.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--views:hover:not(:disabled),
 .map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--pin:not(:disabled):hover {
-  background: transparent;
-  color: var(--ss-accent-text);
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
+  background: #f0fdf4;
+  color: var(--ss-views-accent-dark);
+}
+
+.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--ghost:hover:not(:disabled) {
+  background: #fef2f2;
+  color: #b91c1c;
 }
 
 .map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--pin:disabled {
   border: 0;
   background: transparent;
   box-shadow: none;
+  color: #94a3b8;
 }
 
 .graph-filter-compact-btn:focus-visible {
@@ -6323,7 +6353,12 @@ body.is-diagram-grown .layout {
 
 .graph-drawer--embedded,
 .graph-drawer.graph-drawer--edit.graph-drawer--embedded {
+  /* Flows inside the menu body like the other tools, so it starts on the same left edge. */
+  position: relative;
+  inset: auto;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
