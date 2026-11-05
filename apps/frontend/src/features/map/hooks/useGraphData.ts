@@ -78,7 +78,7 @@ import {
   restyleEdgeColorProperty,
 } from '../components/orientedEdgeBuilders';
 import type { OrientedEdgeType } from '../components/OrientedEdge';
-import { fitGraphView } from '../components/fitGraphView';
+import { fitGraphViewWhenReady } from '../components/fitGraphView';
 
 export type AppNode = AppGraphNodeType;
 
@@ -611,7 +611,7 @@ export function useGraphData({
 
   useEffect(() => {
     if (status !== 'ready' || layoutRevision === 0) return;
-    fitGraphView(rfRef.current);
+    fitGraphViewWhenReady(rfRef);
   }, [status, layoutRevision, rfRef]);
 
   useEffect(() => {

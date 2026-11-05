@@ -70,13 +70,22 @@ function ChatIcon() {
   );
 }
 
+const GRID_PLUS_PATH =
+  'M12 3v17a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1H3 M16 19h6 M19 16v6';
+const GRID_ICON_SIZE = 18;
+const GRID_ICON_STROKE_WIDTH = 1.7;
+
 function SandboxesIcon() {
   return (
-    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
-      <rect x="2.5" y="2.5" width="6.5" height="6.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
-      <rect x="11" y="2.5" width="6.5" height="6.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
-      <rect x="2.5" y="11" width="6.5" height="6.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
-      <rect x="11" y="11" width="6.5" height="6.5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" />
+    <svg viewBox="0 0 24 24" width={GRID_ICON_SIZE} height={GRID_ICON_SIZE} aria-hidden="true" focusable="false">
+      <path
+        d={GRID_PLUS_PATH}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={GRID_ICON_STROKE_WIDTH}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -141,8 +150,8 @@ export function SelfServiceToolBar({
           role="tab"
           className={`self-service-tool-bar-btn${activeTool === 'sandboxes' ? ' is-active' : ''}`}
           aria-selected={activeTool === 'sandboxes'}
-          aria-label="My sandboxes"
-          title="My sandboxes"
+          aria-label="Sandboxes"
+          title="Sandboxes"
           onClick={() => onChange('sandboxes')}
         >
           <SandboxesIcon />

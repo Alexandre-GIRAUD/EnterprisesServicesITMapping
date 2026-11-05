@@ -79,6 +79,7 @@ const DEFAULT_EDGE_FORM_STATE: AddEdgeFormState = {
 type DrawerActionItem = {
   id: DrawerActionId;
   label: string;
+  hint?: string;
 };
 
 const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
@@ -91,7 +92,7 @@ const CORRECTIONS_ACTIONS: DrawerActionItem[] = [
 const DRAWER_COPY: Partial<Record<DrawerView, { title: string; description: string }>> = {
   'add-node-form': {
     title: 'Create App',
-    description: 'Create an Application node (name, description). Business attributes are edited from the node details.',
+    description: 'Create an app (name, description). Business attributes are edited from the app details.',
   },
   'add-icons': {
     title: 'Icons',
@@ -109,7 +110,7 @@ const DRAWER_COPY: Partial<Record<DrawerView, { title: string; description: stri
 
 const EDGE_DRAWER_COPY = {
   title: 'Create Flow',
-  description: 'Create a typed relationship between two nodes already visible in the graph.',
+  description: 'Create a flow between two apps already visible in the graph.',
 };
 
 function readDrawerCopy(view: DrawerView): { title: string; description: string } {
@@ -117,11 +118,84 @@ function readDrawerCopy(view: DrawerView): { title: string; description: string 
 }
 
 const TOOLKIT_ACTIONS: DrawerActionItem[] = [
-  { id: 'add-node', label: 'Nodes' },
-  { id: 'add-edge', label: 'Edges' },
-  { id: 'add-icons', label: 'Icons' },
-  { id: 'add-text', label: 'Text' },
+  { id: 'add-node', label: 'Apps', hint: 'Add an app to the canvas' },
+  { id: 'add-edge', label: 'Flows', hint: 'Link two apps with a flow' },
+  { id: 'add-icons', label: 'Icons', hint: 'Place visual markers' },
+  { id: 'add-text', label: 'Text', hint: 'Annotate the canvas' },
 ];
+
+const TOOLKIT_ICON_PATHS: Partial<Record<DrawerActionId, readonly string[]>> = {
+  'add-node': [
+    'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z',
+    'm3.3 7 8.7 5 8.7-5',
+    'M12 22V12',
+  ],
+  'add-edge': ['m16 3 4 4-4 4', 'M20 7H4', 'm8 21-4-4 4-4', 'M4 17h16'],
+  'add-icons': ['M8 14s1.5 2 4 2 4-2 4-2', 'M9 9h.01', 'M15 9h.01', 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z'],
+  'add-text': ['M4 7V4h16v3', 'M9 20h6', 'M12 4v16'],
+};
+
+const GLYPH_VIEW_BOX = '0 0 24 24';
+const GLYPH_STROKE_WIDTH = 1.8;
+const TOOLKIT_GLYPH_SIZE = 16;
+const CHEVRON_GLYPH_SIZE = 14;
+const CHEVRON_PATH = 'm9 18 6-6-6-6';
+
+function Glyph({
+  paths,
+  size,
+  className,
+}: {
+  paths: readonly string[];
+  size: number;
+  className?: string;
+}) {
+  return (
+    <svg className={className} viewBox={GLYPH_VIEW_BOX} width={size} height={size} aria-hidden="true" focusable="false">
+      {paths.map((d) => (
+        <path
+          key={d}
+          d={d}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={GLYPH_STROKE_WIDTH}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ))}
+    </svg>
+  );
+}
+
+function ToolkitActionCard({
+  action,
+  onClick,
+}: {
+  action: DrawerActionItem;
+  onClick?: () => void;
+}) {
+  const iconPaths = TOOLKIT_ICON_PATHS[action.id];
+  return (
+    <button
+      type="button"
+      className="graph-drawer-action graph-drawer-action--card"
+      role="listitem"
+      onClick={onClick}
+      disabled={!onClick}
+    >
+      {iconPaths ? (
+        <span className="graph-drawer-action-chip">
+          <Glyph paths={iconPaths} size={TOOLKIT_GLYPH_SIZE} />
+        </span>
+      ) : null}
+      <span className="graph-drawer-action-text">
+        <span className="graph-drawer-action-title">{action.label}</span>
+        {action.hint ? <span className="graph-drawer-action-hint">{action.hint}</span> : null}
+      </span>
+      <Glyph className="graph-drawer-action-chevron" paths={[CHEVRON_PATH]} size={CHEVRON_GLYPH_SIZE} />
+    </button>
+  );
+}
 
 function actionHandler(
   id: DrawerActionId,
@@ -605,6 +679,9 @@ export function WorkspaceDrawer({
                 openEditApplication,
                 openEditFlow,
               });
+              if (sandboxMode) {
+                return <ToolkitActionCard key={action.id} action={action} onClick={onClick} />;
+              }
               return (
                 <button
                   key={action.id}
@@ -615,7 +692,6 @@ export function WorkspaceDrawer({
                   disabled={!onClick}
                 >
                   <span className="graph-drawer-action-title">{action.label}</span>
-                  {sandboxMode ? <span className="graph-drawer-action-meta">Open</span> : null}
                 </button>
               );
             })}
@@ -702,7 +778,7 @@ export function WorkspaceDrawer({
               value={nodeFormState.description}
               onChange={(e) => updateNodeField('description', e.target.value)}
               rows={3}
-              placeholder="Functional context for the node"
+              placeholder="Functional context for the app"
             />
           </label>
 

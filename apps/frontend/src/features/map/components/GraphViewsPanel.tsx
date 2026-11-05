@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type MutableRefObject, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type MutableRefObject } from 'react';
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { useGraphSnapshotsList } from '../hooks/useGraphSnapshotsList';
 import type { GraphSnapshotDto, GraphSnapshotFilters, GraphViewFolderDto } from '@/types/api';
@@ -57,16 +57,12 @@ type GraphViewsPanelProps = {
   onApply: (filters: GraphSnapshotFilters, viewName: string) => void;
   onShownView: (view: InspectedView | null, pin: boolean) => void;
   onCreateView: () => void;
-  panelToggle: ReactNode;
   actionsRef: MutableRefObject<ViewLibraryActions | null>;
 };
 
-function renderLibraryStatus(panelToggle: ReactNode, message: string, isError: boolean) {
+function renderLibraryStatus(message: string, isError: boolean) {
   return (
     <div id="graph-views-pane" className="graph-views-pane" role="tabpanel" aria-labelledby="graph-mode-tab-views">
-      <div className="graph-views-toolbar">
-        <div className="graph-views-toolbar-end">{panelToggle}</div>
-      </div>
       <p className={isError ? 'graph-views-state graph-views-state-error' : 'graph-views-state'} role={isError ? 'alert' : 'status'}>
         {message}
       </p>
@@ -89,7 +85,7 @@ type ViewContextMenu = {
   name: string;
 };
 
-export function GraphViewsPanel({ onApply, onShownView, onCreateView, panelToggle, actionsRef }: GraphViewsPanelProps) {
+export function GraphViewsPanel({ onApply, onShownView, onCreateView, actionsRef }: GraphViewsPanelProps) {
   const library = useGraphSnapshotsList();
   const { user } = useAuth();
   const authorName = user?.username ?? 'you';
@@ -388,10 +384,10 @@ export function GraphViewsPanel({ onApply, onShownView, onCreateView, panelToggl
   }
 
   if (library.status === 'loading') {
-    return renderLibraryStatus(panelToggle, 'Loading…', false);
+    return renderLibraryStatus('Loading…', false);
   }
   if (library.status === 'error') {
-    return renderLibraryStatus(panelToggle, library.errorMessage ?? 'Unable to load views.', true);
+    return renderLibraryStatus(library.errorMessage ?? 'Unable to load views.', true);
   }
 
   const isSearching = query.trim().length > 0;
@@ -456,7 +452,6 @@ export function GraphViewsPanel({ onApply, onShownView, onCreateView, panelToggl
           <span aria-hidden="true">+</span>
           New folder
         </button>
-        {panelToggle}
       </div>
       <FolderCrumbs
         crumbs={crumbs}

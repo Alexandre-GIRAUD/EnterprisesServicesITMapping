@@ -23,11 +23,12 @@ assert.doesNotMatch(layout, /WorkspaceModeNav/);
 assert.doesNotMatch(layout, /My views/);
 assert.doesNotMatch(layout, />Production</);
 assert.match(icons, /sandbox:\s*\{[^}]*paths:/);
+assert.match(icons, /sandbox:\s*\{[^}]*'M8.5 2h7'/, 'sandbox icon is a flask');
 assert.match(filterDrawer, /My views/);
 assert.match(css, /\.self-service-side-menu \{[^}]*background: transparent/);
 assert.match(
   css,
-  /\.map-graph-panel\.is-menu-open \.self-service-side-menu-shell \{[^}]*position: absolute[^}]*min\(360px/,
+  /\.map-graph-panel\.is-menu-open \.self-service-side-menu-shell \{[^}]*position: relative[^}]*min\(360px/,
 );
 assert.match(
   css,

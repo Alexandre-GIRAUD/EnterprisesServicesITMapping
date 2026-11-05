@@ -346,9 +346,6 @@ export function GitHubImportPage() {
       <header className="github-import-header">
         <div>
           <h1 className="github-import-title">Import sources</h1>
-          <p className="github-import-subtitle">
-            Import repositories from the GitHub or Bitbucket account connected in Settings.
-          </p>
         </div>
         <Link className="github-import-back" to="/map">
           Back to map

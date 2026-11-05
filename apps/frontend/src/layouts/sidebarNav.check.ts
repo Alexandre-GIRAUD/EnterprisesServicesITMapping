@@ -11,7 +11,7 @@ const settingsMenu = readFileSync(new URL('./SettingsMenu.tsx', import.meta.url)
 const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
 const sidebarCss = readFileSync(new URL('./sidebar.css', import.meta.url), 'utf8');
 
-assert.match(layout, /<aside[\s\S]*?className="layout-sidebar"/);
+assert.match(layout, /<aside[\s\S]*?'layout-sidebar/);
 assert.doesNotMatch(layout, /<header/);
 assert.doesNotMatch(css, /\.layout-header/);
 

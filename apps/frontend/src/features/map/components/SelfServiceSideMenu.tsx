@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { CloseIcon } from './CloseIcon';
 import type { GraphMode } from './GraphModeTabs';
 import { SelfServiceToolBar, type SideMenuTool } from './SelfServiceToolBar';
 import {
@@ -17,7 +16,6 @@ type SelfServiceBurgerProps = {
 
 type SelfServiceSideMenuProps = {
   isOpen: boolean;
-  onToggle: () => void;
   graphMode: GraphMode;
   filtersActive: boolean;
   activeTool: SideMenuTool;
@@ -37,7 +35,7 @@ const TOOL_DETAIL_TITLES: Record<SideMenuTool, string> = {
   changes: 'Pending changes',
   filters: 'Filters',
   actions: 'Corrections',
-  sandboxes: 'My sandboxes',
+  sandboxes: 'Sandboxes',
   chat: 'Chat',
 };
 
@@ -157,7 +155,6 @@ export function SelfServiceBurger({ isOpen, onToggle }: SelfServiceBurgerProps) 
 
 export function SelfServiceSideMenu({
   isOpen,
-  onToggle,
   graphMode,
   filtersActive,
   activeTool,
@@ -212,18 +209,6 @@ export function SelfServiceSideMenu({
         className="self-service-side-menu"
         aria-label="Cartography navigation"
       >
-        <header className="self-service-side-menu-header">
-          <p className="graph-drawer-eyebrow">Cartography</p>
-          <button
-            type="button"
-            className="graph-drawer-close"
-            onClick={onToggle}
-            aria-label="Close menu"
-          >
-            <CloseIcon />
-          </button>
-        </header>
-
         <div className="self-service-side-menu-body">
           {graphMode === 'views' ? (
             <div className="self-service-tool-detail" role="region" aria-label="View details">

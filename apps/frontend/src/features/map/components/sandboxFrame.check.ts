@@ -38,4 +38,16 @@ const edgeLayer = Number(edges[0].match(/z-index:\s*(\d+)/)?.[1]);
 const labelLayer = Number(labels[0].match(/z-index:\s*(\d+)/)?.[1]);
 assert.ok(labelLayer > edgeLayer);
 
+const solidMenu = css.match(
+  /\.map-graph-panel \.self-service-side-menu \{[^}]*\}/,
+);
+assert.ok(solidMenu, 'sandbox mode must share the solid docked side menu');
+assert.match(solidMenu[0], /background: #ffffff/);
+
+const legend = css.match(/\.sandbox-shared-legend \{[^}]*\}/);
+assert.ok(legend, 'sandbox legend rule missing');
+// The legend parks under the title, where Cartography parks it.
+assert.match(legend[0], /top: var\(--map-drawer-top\)/);
+assert.match(legend[0], /left: var\(--page-gutter\)/);
+
 console.log('sandboxFrame.check: ok');
