@@ -10,6 +10,8 @@ type SourceMappingAlertProps = {
 
 export function SourceMappingAlert({ onOpenMapping, refreshKey = 0 }: SourceMappingAlertProps) {
   const [alerts, setAlerts] = useState<SourceMappingAlertDto[]>([]);
+  /** Hidden until the page mounts the alert again. */
+  const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,9 +27,18 @@ export function SourceMappingAlert({ onOpenMapping, refreshKey = 0 }: SourceMapp
     };
   }, [refreshKey]);
 
-  if (alerts.length === 0) return null;
+  if (isDismissed || alerts.length === 0) return null;
   return (
     <div className="source-mapping-alert" role="alert">
+      <button
+        type="button"
+        className="source-mapping-alert-close"
+        aria-label="Close"
+        title="Close"
+        onClick={() => setIsDismissed(true)}
+      >
+        ×
+      </button>
       {alerts.map((alert) => (
         <p key={alert.sourceId}>
           <strong>{alert.sourceName}</strong>: {alert.applications.length} application
