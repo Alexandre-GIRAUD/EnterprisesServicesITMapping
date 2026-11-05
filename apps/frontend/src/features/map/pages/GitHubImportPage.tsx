@@ -72,6 +72,22 @@ function normalizeName(s: string): string {
   return s.trim().toLowerCase();
 }
 
+/** Name an imported repository gets on the map unless the user types another one. */
+function defaultApplicationName(repo: ListedRepo): string {
+  return repo.host === 'bitbucket'
+    ? applicationNameForBitbucketRepo(repo.name)
+    : applicationNameForGitHubRepo(repo.name);
+}
+
+/** New application for one repository; the description keeps the repository link. */
+function newApplicationRequest(repo: ListedRepo, name: string) {
+  const description =
+    repo.host === 'bitbucket'
+      ? applicationDescriptionForBitbucketRepo(repo.description, repo.htmlUrl)
+      : applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl);
+  return { name, description };
+}
+
 function GitHubMark() {
   return (
     <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
@@ -105,18 +121,24 @@ export function GitHubImportPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [scanningApplicationIds, setScanningApplicationIds] = useState<Set<string>>(new Set());
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [sourceMode, setSourceMode] = useState<'github' | 'bitbucket' | 'third-party' | 'data-sources'>(
     searchParams.get('tab') === 'data-sources' ? 'data-sources' : 'github',
   );
   const [targetApplicationId, setTargetApplicationId] = useState('');
-  const [groupName, setGroupName] = useState<string | null>(null);
+  const [applicationNameDraft, setApplicationNameDraft] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
 
   const isHostMode = sourceMode === 'github' || sourceMode === 'bitbucket';
   const repos = sourceMode === 'bitbucket' ? bitbucketRepos : githubRepos;
   const hostError = sourceMode === 'bitbucket' ? bitbucketError : githubError;
+  const reposToImport = repos.filter((repo) => selected.has(repo.id) && !isImported(repo));
+  const nameHint =
+    reposToImport.length === 1
+      ? 'Name of the application on the map. It stays linked to the repository.'
+      : 'Name the application that owns these repositories.';
 
   function isImported(repo: ListedRepo): boolean {
     return applicationForRepo(repo) != null;
@@ -217,18 +239,18 @@ export function GitHubImportPage() {
   }
 
   useEffect(() => {
-    if (groupName === null) return;
+    if (applicationNameDraft === null) return;
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') setGroupName(null);
+      if (event.key === 'Escape') setApplicationNameDraft(null);
     }
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [groupName]);
+  }, [applicationNameDraft]);
 
   async function handleImportSelection(confirmedName?: string) {
     setSuccessMessage(null);
     setImportErrors([]);
-    const toCreate = repos.filter((r) => selected.has(r.id) && !isImported(r));
+    const toCreate = reposToImport;
     if (toCreate.length === 0) {
       setImportErrors(['No repository selected (or all are already imported).']);
       return;
@@ -238,9 +260,9 @@ export function GitHubImportPage() {
     const createdNames: string[] = [];
     const target = importedApplications.find((application) => application.id === targetApplicationId);
 
-    if (!target && toCreate.length > 1 && confirmedName === undefined) {
+    if (!target && confirmedName === undefined) {
       setNameError(null);
-      setGroupName('');
+      setApplicationNameDraft(toCreate.length === 1 ? defaultApplicationName(toCreate[0]) : '');
       return;
     }
 
@@ -258,12 +280,7 @@ export function GitHubImportPage() {
           });
           setApplications((prev) => prev.map((application) => (application.id === updated.id ? updated : application)));
           createdNames.push(normalizeName(target.name));
-          await rescanApplication(updated.id, errors);
-          setSuccessMessage(
-            errors.length === 0
-              ? `Added ${toCreate.length} repository(ies) to ${target.name}. The scan is running again on every linked repository.`
-              : `Added ${toCreate.length} repository(ies) to ${target.name}.`
-          );
+          setSuccessMessage(`Added ${toCreate.length} repository(ies) to ${target.name}. Scan it when ready.`);
         } catch (e) {
           errors.push(`${target.name}: ${e instanceof Error ? e.message : 'failed'}`);
         }
@@ -279,48 +296,26 @@ export function GitHubImportPage() {
           });
           setApplications((prev) => [...prev, created]);
           createdNames.push(normalizeName(name));
-          await rescanApplication(created.id, errors);
         } catch (e) {
           errors.push(`${name}: ${e instanceof Error ? e.message : 'failed'}`);
         }
       } else {
-        for (const repo of toCreate) {
-          try {
-            const created = await createApplication(
-              repo.host === 'bitbucket'
-                ? {
-                    name: applicationNameForBitbucketRepo(repo.name),
-                    description: applicationDescriptionForBitbucketRepo(repo.description, repo.htmlUrl),
-                  }
-                : {
-                    name: applicationNameForGitHubRepo(repo.name),
-                    description: applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
-                  },
-            );
-            setApplications((prev) => [...prev, created]);
-            createdNames.push(
-              normalizeName(
-                repo.host === 'bitbucket'
-                  ? applicationNameForBitbucketRepo(repo.name)
-                  : applicationNameForGitHubRepo(repo.name),
-              ),
-            );
-            await rescanApplication(created.id, errors);
-          } catch (e) {
-            errors.push(`${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`);
-          }
+        const repo = toCreate[0];
+        const name = confirmedName ?? defaultApplicationName(repo);
+        try {
+          const created = await createApplication(newApplicationRequest(repo, name));
+          setApplications((prev) => [...prev, created]);
+          createdNames.push(normalizeName(name));
+        } catch (e) {
+          errors.push(`${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`);
         }
       }
 
       if (createdNames.length > 0) {
         setSelected(new Set());
-        setGroupName(null);
+        setApplicationNameDraft(null);
         if (!target) {
-          setSuccessMessage(
-            errors.length === 0
-              ? `${createdNames.length} application(s) created. Modules, connections, and attributes were scanned.`
-              : `${createdNames.length} application(s) created.`
-          );
+          setSuccessMessage(`${createdNames.length} application(s) created. Scan each one when ready.`);
         }
       }
       setImportErrors(errors);
@@ -329,8 +324,23 @@ export function GitHubImportPage() {
     }
   }
 
-  async function rescanApplication(applicationId: string, errors: string[]) {
-    errors.push(...(await rescanLinkedApplication(applicationId)));
+  /** Scans the application linked to the repository; repositories of one application share one scan. */
+  async function handleScan(repo: ListedRepo) {
+    const application = applicationForRepo(repo);
+    if (!application) return;
+    setScanningApplicationIds((previousIds) => new Set(previousIds).add(application.id));
+    try {
+      const errors = await rescanLinkedApplication(application.id);
+      const lines = errors.map((line) => `${application.name}: ${line}`);
+      setImportErrors((previousLines) => [...previousLines, ...lines]);
+      if (errors.length === 0) setSuccessMessage(`Scanned ${application.name}.`);
+    } finally {
+      setScanningApplicationIds((previousIds) => {
+        const remainingIds = new Set(previousIds);
+        remainingIds.delete(application.id);
+        return remainingIds;
+      });
+    }
   }
 
   function applicationForRepo(repo: ListedRepo): ApplicationResponse | undefined {
@@ -440,7 +450,7 @@ export function GitHubImportPage() {
           disabled={isImporting || status !== 'ready'}
           onChange={(event) => {
             setTargetApplicationId(event.target.value);
-            setGroupName(null);
+            setApplicationNameDraft(null);
           }}
         >
           <option value="">Create New</option>
@@ -464,11 +474,11 @@ export function GitHubImportPage() {
         <span>{filteredRepos.length} repositories</span>
         <span>{selected.size} selected</span>
       </p>
-      {groupName !== null && targetApplicationId === '' ? (
+      {applicationNameDraft !== null && targetApplicationId === '' ? (
         <div
           className="save-snapshot-dialog-backdrop"
           role="presentation"
-          onClick={() => setGroupName(null)}
+          onClick={() => setApplicationNameDraft(null)}
         >
           <form
             className="save-snapshot-dialog"
@@ -478,12 +488,12 @@ export function GitHubImportPage() {
             onClick={(event) => event.stopPropagation()}
             onSubmit={(event: FormEvent) => {
               event.preventDefault();
-              const name = groupName.trim();
+              const name = applicationNameDraft.trim();
               if (!name) {
-                setNameError('Name the application that owns these repositories.');
+                setNameError(nameHint);
                 return;
               }
-              setGroupName(null);
+              setApplicationNameDraft(null);
               setNameError(null);
               void handleImportSelection(name);
             }}
@@ -491,17 +501,15 @@ export function GitHubImportPage() {
             <h2 id="github-import-name-title" className="save-snapshot-dialog-title">
               Application name
             </h2>
-            <p className="save-snapshot-dialog-hint">
-              Name the application that owns these repositories.
-            </p>
+            <p className="save-snapshot-dialog-hint">{nameHint}</p>
             <label className="save-snapshot-dialog-label" htmlFor="github-import-name">
               Name
             </label>
             <input
               id="github-import-name"
               className="save-snapshot-dialog-input"
-              value={groupName}
-              onChange={(event) => setGroupName(event.target.value)}
+              value={applicationNameDraft}
+              onChange={(event) => setApplicationNameDraft(event.target.value)}
               placeholder="Application name"
               aria-label="Application name"
               disabled={isImporting}
@@ -512,7 +520,7 @@ export function GitHubImportPage() {
               <button
                 type="button"
                 className="save-snapshot-dialog-btn save-snapshot-dialog-btn--secondary"
-                onClick={() => setGroupName(null)}
+                onClick={() => setApplicationNameDraft(null)}
               >
                 Cancel
               </button>
@@ -564,8 +572,10 @@ export function GitHubImportPage() {
 
       <ul className="github-import-list" aria-label={sourceMode === 'bitbucket' ? 'Bitbucket repositories' : 'GitHub repositories'}>
         {filteredRepos.map((repo) => {
-          const imported = isImported(repo);
+          const application = applicationForRepo(repo);
+          const imported = application != null;
           const checked = imported || selected.has(repo.id);
+          const isScanning = application != null && scanningApplicationIds.has(application.id);
           return (
             <li key={repo.id} className={`github-import-card${checked ? ' is-selected' : ''}`}>
               <div className="github-import-row">
@@ -613,6 +623,16 @@ export function GitHubImportPage() {
                     </a>
                   </span>
                 </div>
+                <button
+                  type="button"
+                  className="github-import-primary github-import-scan"
+                  disabled={!imported || isImporting || isScanning}
+                  aria-busy={isScanning}
+                  title={imported ? undefined : 'Import this repository first.'}
+                  onClick={() => void handleScan(repo)}
+                >
+                  {isScanning ? 'Scanning…' : 'Scan'}
+                </button>
               </div>
             </li>
           );
@@ -621,8 +641,8 @@ export function GitHubImportPage() {
 
       <p className="github-import-footnote" role="note">
         {sourceMode === 'bitbucket'
-          ? 'Bitbucket pagination: only the first page is loaded (max 100 most recently updated repositories). An application is already imported when its description contains the Bitbucket URL. A GitHub application with the same name is not treated as this repository. Import scans modules, connections, and attributes.'
-          : 'GitHub pagination: only the first page is loaded (max 100 most recently updated repositories). Existing applications are detected by the repository name, not owner/repo. Import scans modules, connections, and attributes.'}
+          ? 'Bitbucket pagination: only the first page is loaded (max 100 most recently updated repositories). An application is already imported when its description contains the Bitbucket URL. A GitHub application with the same name is not treated as this repository. Import only creates the application; Scan runs the AI pass on modules, connections, and attributes.'
+          : 'GitHub pagination: only the first page is loaded (max 100 most recently updated repositories). Existing applications are detected by the repository name, not owner/repo. Import only creates the application; Scan runs the AI pass on modules, connections, and attributes.'}
       </p>
         </>
       )}

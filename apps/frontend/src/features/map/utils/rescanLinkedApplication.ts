@@ -1,7 +1,7 @@
 import { suggestConnectionsFromGithub, suggestModulesFromGithub } from '../api/applicationsApi';
 import { generateFunctionalDocumentation } from '../api/functionalDocumentationApi';
 
-/** Same pass as a Sources import: documentation, modules, then connections and attributes. */
+/** The AI pass behind Scan and Rescan: documentation, modules, then connections and attributes. */
 export async function rescanLinkedApplication(applicationId: string): Promise<string[]> {
   const errors: string[] = [];
   try {

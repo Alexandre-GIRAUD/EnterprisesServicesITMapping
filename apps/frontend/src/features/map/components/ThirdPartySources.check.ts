@@ -17,7 +17,20 @@ assert.match(sources, /GitHub/);
 assert.match(sources, /Third party/);
 assert.doesNotMatch(sources, /Scan with AI/);
 assert.doesNotMatch(sources, /github-import-ai-btn/);
-assert.match(sources, /await rescanApplication\(created\.id, errors\)/);
+const importHandler = sources.slice(
+  sources.indexOf('async function handleImportSelection'),
+  sources.indexOf('async function handleScan'),
+);
+assert.ok(importHandler.length > 0, 'import handler sits before the scan handler');
+assert.doesNotMatch(importHandler, /rescan/i, 'Import selection loads the application without the AI pass');
+assert.match(sources, /async function handleScan\(repo: ListedRepo\)/);
+assert.match(sources, /await rescanLinkedApplication\(application\.id\)/);
+const card = sources.slice(sources.indexOf('className="github-import-row"'));
+assert.match(card, /className="github-import-primary github-import-scan"/);
+assert.match(card, /disabled=\{!imported \|\| isImporting \|\| isScanning\}/);
+assert.match(card, /\{isScanning \? 'Scanning…' : 'Scan'\}/);
+assert.match(css, /\.github-import-scan \{[^}]*flex-shrink: 0/);
+assert.doesNotMatch(sources, /Import scans modules/);
 assert.doesNotMatch(sources, /Suggest modules \(AI\)/);
 assert.doesNotMatch(sources, /Suggest connections \(AI\)/);
 assert.match(drawer, /Rescan/);
