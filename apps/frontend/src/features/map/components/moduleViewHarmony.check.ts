@@ -40,4 +40,11 @@ assert.match(graph, /<FullscreenControl/);
 const openModuleSource = canvas.slice(canvas.indexOf('const openModuleGraphById'), canvas.indexOf('const openModuleGraph = '));
 assert.match(openModuleSource, /setIsSideMenuOpen\(false\)/);
 
+// A long title is cut with an ellipsis and keeps its full text in a tooltip, so it never wraps over the legend.
+assert.match(canvas, /<h2 className="graph-view-header-title" title=\{activeViewTitle\}>/);
+const titleRule = extractCssRule('.graph-view-header-title');
+assert.match(titleRule, /white-space:\s*nowrap/);
+assert.match(titleRule, /overflow:\s*hidden/);
+assert.match(titleRule, /text-overflow:\s*ellipsis/);
+
 console.log('moduleViewHarmony.check: ok');
