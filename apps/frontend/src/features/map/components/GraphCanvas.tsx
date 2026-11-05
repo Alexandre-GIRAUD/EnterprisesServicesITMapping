@@ -96,6 +96,7 @@ const CENTER_ANIMATION_MS = 200;
 const DEFAULT_FIT_ASPECT_RATIO = 16 / 9;
 import { downloadTableFile, tableToCsv, tableToExcelXml, type TableGrid } from '../utils/tableFile';
 import { customTableExportFormats } from '../utils/customTable';
+import { CornerButton } from './CornerButton';
 import { GraphViewsPanel, ViewInspectPanel, type InspectedView, type ViewLibraryActions } from './GraphViewsPanel';
 import { renderGraphCanvasSideTool } from './graphCanvasSideTools';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
@@ -1803,9 +1804,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
             </div>
             <div className="graph-view-header-actions">
               {moduleGraphApp ? (
-                <button type="button" className="module-map-back" onClick={() => setModuleGraphApp(null)}>
-                  ← Back to graph
-                </button>
+                <CornerButton onClick={() => setModuleGraphApp(null)}>← Back to graph</CornerButton>
               ) : null}
               {onViewingDayChange && graphMode === 'normal' ? (
                 <HistoryDatePicker day={viewingDay} onChange={onViewingDayChange} />

@@ -1661,6 +1661,8 @@ body.is-diagram-grown .layout {
   --burger-size: 36px;
   --burger-top: calc(var(--page-gutter) - 0.2rem);
   --burger-gap: 0.5rem;
+  --corner-control-height: 2.25rem;
+  --corner-control-radius: 10px;
   --views-indent: 1.5rem;
   position: relative;
   display: flex;
@@ -1763,6 +1765,35 @@ body.is-diagram-grown .layout {
 
 .map-graph-panel .self-service-burger:focus-visible {
   outline-color: var(--ss-accent-focus);
+}
+
+.map-graph-panel .corner-control {
+  box-sizing: border-box;
+  height: var(--corner-control-height);
+  border: 1px solid #cbd5e1;
+  border-radius: var(--corner-control-radius);
+  background: #ffffff;
+  box-shadow: var(--ss-bubble-shadow);
+  color: #334155;
+}
+
+button.corner-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0 1rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+button.corner-control:hover:not(:disabled) {
+  border-color: var(--ss-accent-border, #94a3b8);
+  box-shadow: var(--ss-bubble-shadow-hover);
+  color: #0f172a;
 }
 
 .map-graph-panel .self-service-tool-bar-btn.is-active {
@@ -7690,26 +7721,6 @@ body.is-diagram-grown .layout {
 }
 
 /* ===== Module map page ===== */
-/* Same look as the Export and Display buttons next to it. */
-.module-map-back {
-  padding: 0.5rem 1rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: var(--ss-bubble-shadow);
-  color: #334155;
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  line-height: 1.2;
-  cursor: pointer;
-}
-
-.module-map-back:hover {
-  border-color: #94a3b8;
-  color: #0f172a;
-}
-
 .graph-module-drilldown {
   flex: 1;
   min-height: 0;

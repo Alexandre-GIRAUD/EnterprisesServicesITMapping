@@ -9,7 +9,7 @@ type TableContentToggleProps = {
 
 export function TableContentToggle({ value, onChange }: TableContentToggleProps) {
   return (
-    <div className="graph-display-toggle" role="tablist" aria-label="Table content">
+    <div className="graph-display-toggle corner-control" role="tablist" aria-label="Table content">
       <TableTab label="Apps" pressed={value === 'apps'} onClick={() => onChange('apps')} />
       <TableTab label="Flows" pressed={value === 'flows'} onClick={() => onChange('flows')} />
       <TableTab label="Custom table" pressed={value === 'custom'} onClick={() => onChange('custom')} />
