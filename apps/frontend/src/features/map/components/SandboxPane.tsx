@@ -39,6 +39,7 @@ import {
 } from '../utils/sandboxDocuments';
 import { CloseIcon } from './CloseIcon';
 import { SandboxCanvasMenu } from './SandboxCanvasMenu';
+import { isUserMove } from './sandboxRefit.ts';
 import { SETTLE_REFIT_DURATION_MS, useSandboxFitPadding } from './useSandboxFitPadding';
 
 type Props = {
@@ -474,7 +475,7 @@ function SandboxPaneInner({
 
   const placing = Boolean(placingIconKey || placingText);
   const isTopRow = useIsTopRow(paneRef);
-  const fitPadding = useSandboxFitPadding(paneRef, (padding) => {
+  const { padding: fitPadding, cancelRefit } = useSandboxFitPadding(paneRef, (padding) => {
     void fitView({ padding, duration: SETTLE_REFIT_DURATION_MS });
   });
 
@@ -640,6 +641,9 @@ function SandboxPaneInner({
           onPaneClick={handlePaneClick}
           fitView
           fitViewOptions={{ padding: fitPadding }}
+          onMoveStart={(event) => {
+            if (isUserMove(event)) cancelRefit();
+          }}
           onNodeDragStop={(_e, node) => {
             if (String(node.id).startsWith('sandbox-icon-')) {
               onIconMove(node.id, node.position.x, node.position.y);
