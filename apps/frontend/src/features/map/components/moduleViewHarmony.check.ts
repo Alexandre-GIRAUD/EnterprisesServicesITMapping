@@ -23,12 +23,13 @@ assert.doesNotMatch(description, /Module dependency tree/);
 // "Back to graph" lives in the header actions, beside the other buttons, never under the title.
 const header = canvas.slice(canvas.indexOf('<header className="graph-view-header">'), canvas.indexOf('</header>'));
 assert.match(header, /Back to graph/);
+assert.match(header, /<CornerButton/);
 assert.doesNotMatch(canvas, /module-map-toolbar/);
-assert.match(extractCssRule('.module-map-back'), /box-shadow:\s*var\(--ss-bubble-shadow\)/);
-assert.match(extractCssRule('.module-map-back'), /border:\s*1px solid #cbd5e1/);
+assert.match(extractCssRule('.map-graph-panel .corner-control'), /box-shadow:\s*var\(--ss-bubble-shadow\)/);
+assert.match(extractCssRule('.map-graph-panel .corner-control'), /border:\s*1px solid #cbd5e1/);
 
 // The canvas fills the stage like Cartography's: nothing is padded above it, and the drawer starts at the same top.
-assert.doesNotMatch(cssSource.slice(cssSource.indexOf('.map-graph-main .graph-tables-view,'), cssSource.indexOf('.map-page .graph-canvas,')), /graph-module-drilldown/);
+assert.doesNotMatch(cssSource.slice(cssSource.indexOf('.map-graph-main .graph-tables-view,'), cssSource.indexOf('.map-page :is(.graph-canvas,')), /graph-module-drilldown/);
 assert.match(extractCssRule('.module-map-canvas'), /height:\s*100%/);
 
 // Same zoom stack as Cartography: zoom, center and full screen, no fit-view button.
