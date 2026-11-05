@@ -105,7 +105,7 @@ export function GitHubImportPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [scanningIds, setScanningIds] = useState<Set<string>>(new Set());
+  const [scanningApplicationIds, setScanningApplicationIds] = useState<Set<string>>(new Set());
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [sourceMode, setSourceMode] = useState<'github' | 'bitbucket' | 'third-party' | 'data-sources'>(
@@ -300,7 +300,7 @@ export function GitHubImportPage() {
                   : applicationNameForGitHubRepo(repo.name),
               ),
             );
-            } catch (e) {
+          } catch (e) {
             errors.push(`${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`);
           }
         }
@@ -319,21 +319,21 @@ export function GitHubImportPage() {
     }
   }
 
+  /** Scans the application linked to the repository; repositories of one application share one scan. */
   async function handleScan(repo: ListedRepo) {
     const application = applicationForRepo(repo);
     if (!application) return;
-    setSuccessMessage(null);
-    setImportErrors([]);
-    setScanningIds((prev) => new Set(prev).add(repo.id));
+    setScanningApplicationIds((previousIds) => new Set(previousIds).add(application.id));
     try {
       const errors = await rescanLinkedApplication(application.id);
-      setImportErrors(errors.map((line) => `${application.name}: ${line}`));
+      const lines = errors.map((line) => `${application.name}: ${line}`);
+      setImportErrors((previousLines) => [...previousLines, ...lines]);
       if (errors.length === 0) setSuccessMessage(`Scanned ${application.name}.`);
     } finally {
-      setScanningIds((prev) => {
-        const next = new Set(prev);
-        next.delete(repo.id);
-        return next;
+      setScanningApplicationIds((previousIds) => {
+        const remainingIds = new Set(previousIds);
+        remainingIds.delete(application.id);
+        return remainingIds;
       });
     }
   }
@@ -569,9 +569,10 @@ export function GitHubImportPage() {
 
       <ul className="github-import-list" aria-label={sourceMode === 'bitbucket' ? 'Bitbucket repositories' : 'GitHub repositories'}>
         {filteredRepos.map((repo) => {
-          const imported = isImported(repo);
+          const application = applicationForRepo(repo);
+          const imported = application != null;
           const checked = imported || selected.has(repo.id);
-          const scanning = scanningIds.has(repo.id);
+          const isScanning = application != null && scanningApplicationIds.has(application.id);
           return (
             <li key={repo.id} className={`github-import-card${checked ? ' is-selected' : ''}`}>
               <div className="github-import-row">
@@ -622,12 +623,12 @@ export function GitHubImportPage() {
                 <button
                   type="button"
                   className="github-import-primary github-import-scan"
-                  disabled={!imported || isImporting || scanning}
-                  aria-busy={scanning}
+                  disabled={!imported || isImporting || isScanning}
+                  aria-busy={isScanning}
                   title={imported ? undefined : 'Import this repository first.'}
                   onClick={() => void handleScan(repo)}
                 >
-                  {scanning ? 'Scanning…' : 'Scan'}
+                  {isScanning ? 'Scanning…' : 'Scan'}
                 </button>
               </div>
             </li>
