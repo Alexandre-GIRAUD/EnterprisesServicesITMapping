@@ -1917,10 +1917,11 @@ button.corner-control:hover:not(:disabled) {
 
 .map-graph-main {
   --map-chrome-clearance: 8.5rem;
-  /* Where tables, views and modules start: the title's height plus the gap Data Model leaves under its own. */
-  --map-content-top: 5.1rem;
+  /* The title strip is this tall in every view, so what sits under it starts at the same place. */
+  --map-header-height: 5.1rem;
+  --map-content-top: var(--map-header-height);
   --map-canvas-bg: #f8fafc;
-  --map-drawer-top: 4.7rem;
+  --map-drawer-top: var(--map-header-height);
   position: relative;
   flex: 1;
   min-width: 0;
@@ -1937,6 +1938,7 @@ button.corner-control:hover:not(:disabled) {
   right: 0;
   left: 0;
   z-index: 22;
+  height: var(--map-header-height);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1960,6 +1962,9 @@ button.corner-control:hover:not(:disabled) {
   padding: 0.2rem 0.65rem 0.45rem;
   border-radius: 12px;
   background: rgb(248 250 252 / 88%);
+  /* A message under the title never pushes the header taller. */
+  max-height: calc(var(--map-header-height) - var(--page-gutter) + 0.2rem);
+  overflow: hidden;
 }
 
 .graph-view-header-actions {

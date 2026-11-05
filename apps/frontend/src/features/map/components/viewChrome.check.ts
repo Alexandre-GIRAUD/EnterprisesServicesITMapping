@@ -34,4 +34,11 @@ for (const file of ['./HistoryDatePicker.tsx', './GraphDisplayToggle.tsx', './Ta
 }
 assert.doesNotMatch(css, /\.module-map-back/);
 
+// One header height: the legend, the drawers and the tables start under it, whatever the title says.
+assert.match(css, /--map-header-height:\s*5\.1rem/);
+assert.match(css, /--map-drawer-top:\s*var\(--map-header-height\)/);
+assert.match(css, /--map-content-top:\s*var\(--map-header-height\)/);
+assert.match(rule('\n.graph-view-header'),/height:\s*var\(--map-header-height\)/);
+assert.match(rule('.graph-view-header-text'), /overflow:\s*hidden/);
+
 console.log('viewChrome.check: ok');
