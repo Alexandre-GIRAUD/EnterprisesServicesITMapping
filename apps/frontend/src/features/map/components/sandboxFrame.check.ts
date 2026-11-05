@@ -55,8 +55,8 @@ const sandboxPane = readFileSync(new URL('./SandboxPane.tsx', import.meta.url), 
 assert.match(sandboxPane, /<FullscreenControl /);
 // Same buttons in the same order on both screens: zoom in, zoom out, the target icon, full screen.
 assert.match(sandboxPane, /<Controls showInteractive=\{false\} showFitView=\{false\}>/);
-assert.match(sandboxPane, /<CenterGraphControl /);
-assert.ok(sandboxPane.indexOf('<CenterGraphControl ') < sandboxPane.indexOf('<FullscreenControl '));
+assert.match(sandboxPane, /<CenterGraphControl\b/);
+assert.ok(sandboxPane.indexOf('<CenterGraphControl') < sandboxPane.indexOf('<FullscreenControl '));
 assert.doesNotMatch(css, /\.map-graph-panel\.is-sandbox-mode \{[^}]*--graph-legend-launcher-lift/);
 
 console.log('sandboxFrame.check: ok');

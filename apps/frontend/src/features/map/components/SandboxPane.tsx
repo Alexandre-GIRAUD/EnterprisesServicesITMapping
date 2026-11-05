@@ -25,6 +25,7 @@ import {
 } from 'react';
 import { GRID } from '../hooks/useGraphData';
 import { AppGraphNode } from './AppGraphNode';
+import { CenterGraphControl } from './CenterGraphControl';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
 import { FullscreenControl } from './FullscreenControl';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
@@ -143,6 +144,7 @@ function isAnnotationNode(node: Node): boolean {
 }
 
 const TOP_ROW_TOLERANCE_PX = 4;
+const CENTER_ANIMATION_MS = 200;
 
 /** True while the pane touches the top of its board, where the floating chrome overlaps its title. */
 function useIsTopRow(paneRef: RefObject<HTMLDivElement>): boolean {
@@ -698,7 +700,10 @@ function SandboxPaneInner({
             })}
             edges={displayEdges}
           />
-          <Controls showInteractive={false}>
+          <Controls showInteractive={false} showFitView={false}>
+            <CenterGraphControl
+              onCenter={() => void fitView({ padding: fitPadding, duration: CENTER_ANIMATION_MS })}
+            />
             {onToggleFullscreen ? (
               <FullscreenControl isFullscreen={isFullscreen} onToggle={onToggleFullscreen} />
             ) : null}
