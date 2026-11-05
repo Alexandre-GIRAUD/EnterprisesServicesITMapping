@@ -105,6 +105,7 @@ export function GitHubImportPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [scanningIds, setScanningIds] = useState<Set<string>>(new Set());
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [sourceMode, setSourceMode] = useState<'github' | 'bitbucket' | 'third-party' | 'data-sources'>(
@@ -258,12 +259,7 @@ export function GitHubImportPage() {
           });
           setApplications((prev) => prev.map((application) => (application.id === updated.id ? updated : application)));
           createdNames.push(normalizeName(target.name));
-          await rescanApplication(updated.id, errors);
-          setSuccessMessage(
-            errors.length === 0
-              ? `Added ${toCreate.length} repository(ies) to ${target.name}. The scan is running again on every linked repository.`
-              : `Added ${toCreate.length} repository(ies) to ${target.name}.`
-          );
+          setSuccessMessage(`Added ${toCreate.length} repository(ies) to ${target.name}. Scan it when ready.`);
         } catch (e) {
           errors.push(`${target.name}: ${e instanceof Error ? e.message : 'failed'}`);
         }
@@ -279,7 +275,6 @@ export function GitHubImportPage() {
           });
           setApplications((prev) => [...prev, created]);
           createdNames.push(normalizeName(name));
-          await rescanApplication(created.id, errors);
         } catch (e) {
           errors.push(`${name}: ${e instanceof Error ? e.message : 'failed'}`);
         }
@@ -305,8 +300,7 @@ export function GitHubImportPage() {
                   : applicationNameForGitHubRepo(repo.name),
               ),
             );
-            await rescanApplication(created.id, errors);
-          } catch (e) {
+            } catch (e) {
             errors.push(`${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`);
           }
         }
@@ -316,11 +310,7 @@ export function GitHubImportPage() {
         setSelected(new Set());
         setGroupName(null);
         if (!target) {
-          setSuccessMessage(
-            errors.length === 0
-              ? `${createdNames.length} application(s) created. Modules, connections, and attributes were scanned.`
-              : `${createdNames.length} application(s) created.`
-          );
+          setSuccessMessage(`${createdNames.length} application(s) created. Scan each one when ready.`);
         }
       }
       setImportErrors(errors);
@@ -329,8 +319,23 @@ export function GitHubImportPage() {
     }
   }
 
-  async function rescanApplication(applicationId: string, errors: string[]) {
-    errors.push(...(await rescanLinkedApplication(applicationId)));
+  async function handleScan(repo: ListedRepo) {
+    const application = applicationForRepo(repo);
+    if (!application) return;
+    setSuccessMessage(null);
+    setImportErrors([]);
+    setScanningIds((prev) => new Set(prev).add(repo.id));
+    try {
+      const errors = await rescanLinkedApplication(application.id);
+      setImportErrors(errors.map((line) => `${application.name}: ${line}`));
+      if (errors.length === 0) setSuccessMessage(`Scanned ${application.name}.`);
+    } finally {
+      setScanningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(repo.id);
+        return next;
+      });
+    }
   }
 
   function applicationForRepo(repo: ListedRepo): ApplicationResponse | undefined {
@@ -566,6 +571,7 @@ export function GitHubImportPage() {
         {filteredRepos.map((repo) => {
           const imported = isImported(repo);
           const checked = imported || selected.has(repo.id);
+          const scanning = scanningIds.has(repo.id);
           return (
             <li key={repo.id} className={`github-import-card${checked ? ' is-selected' : ''}`}>
               <div className="github-import-row">
@@ -613,6 +619,16 @@ export function GitHubImportPage() {
                     </a>
                   </span>
                 </div>
+                <button
+                  type="button"
+                  className="github-import-primary github-import-scan"
+                  disabled={!imported || isImporting || scanning}
+                  aria-busy={scanning}
+                  title={imported ? undefined : 'Import this repository first.'}
+                  onClick={() => void handleScan(repo)}
+                >
+                  {scanning ? 'Scanning…' : 'Scan'}
+                </button>
               </div>
             </li>
           );
@@ -621,8 +637,8 @@ export function GitHubImportPage() {
 
       <p className="github-import-footnote" role="note">
         {sourceMode === 'bitbucket'
-          ? 'Bitbucket pagination: only the first page is loaded (max 100 most recently updated repositories). An application is already imported when its description contains the Bitbucket URL. A GitHub application with the same name is not treated as this repository. Import scans modules, connections, and attributes.'
-          : 'GitHub pagination: only the first page is loaded (max 100 most recently updated repositories). Existing applications are detected by the repository name, not owner/repo. Import scans modules, connections, and attributes.'}
+          ? 'Bitbucket pagination: only the first page is loaded (max 100 most recently updated repositories). An application is already imported when its description contains the Bitbucket URL. A GitHub application with the same name is not treated as this repository. Import only creates the application; Scan runs the AI pass on modules, connections, and attributes.'
+          : 'GitHub pagination: only the first page is loaded (max 100 most recently updated repositories). Existing applications are detected by the repository name, not owner/repo. Import only creates the application; Scan runs the AI pass on modules, connections, and attributes.'}
       </p>
         </>
       )}
