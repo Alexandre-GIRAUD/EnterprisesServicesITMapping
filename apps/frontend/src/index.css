@@ -2175,7 +2175,6 @@ body.is-diagram-grown .layout {
 }
 
 .map-graph-main .graph-tables-view,
-.map-graph-main .graph-module-drilldown,
 .map-graph-main .graph-views-pane {
   padding-top: var(--map-content-top);
   box-sizing: border-box;
@@ -7686,28 +7685,24 @@ body.is-diagram-grown .layout {
 }
 
 /* ===== Module map page ===== */
-.module-map-toolbar {
-  flex-shrink: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1rem;
-  margin-bottom: 0.75rem;
-}
-
+/* Same look as the Export and Display buttons next to it. */
 .module-map-back {
-  border: 1px solid #f87171;
-  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
   background: #ffffff;
-  color: #b91c1c;
-  text-decoration: none;
-  font-weight: 500;
-  padding: 0.2rem 0.5rem;
+  box-shadow: var(--ss-bubble-shadow);
+  color: #334155;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
 }
 
 .module-map-back:hover {
-  border-color: #ef4444;
-  color: #991b1b;
+  border-color: #94a3b8;
+  color: #0f172a;
 }
 
 .graph-module-drilldown {
@@ -7720,7 +7715,7 @@ body.is-diagram-grown .layout {
 
 .module-map-canvas {
   flex: 0 0 auto;
-  height: min(58vh, 640px);
+  height: 100%;
   min-height: 280px;
   display: flex;
   flex-direction: column;
@@ -7846,16 +7841,6 @@ body.is-diagram-grown .layout {
 .functional-doc-analyzed summary {
   cursor: pointer;
   font-weight: 600;
-}
-
-.graph-module-drilldown .module-map-toolbar {
-  margin-bottom: 0.5rem;
-  padding: 0 0.25rem;
-}
-
-.graph-module-drilldown .module-map-back {
-  cursor: pointer;
-  font: inherit;
 }
 
 .module-graph-wrap {

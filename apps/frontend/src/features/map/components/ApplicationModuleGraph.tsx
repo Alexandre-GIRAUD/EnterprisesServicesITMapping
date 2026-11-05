@@ -30,6 +30,7 @@ import { ModuleGraphNode, type ModuleNode } from './ModuleGraphNode';
 import { NODE_TYPE_STYLES, type NodeTypeKey } from './graphTheme';
 import { GraphLegend } from './GraphLegend';
 import { fitGraphView } from './fitGraphView';
+import { CenterGraphControl } from './CenterGraphControl';
 import { FullscreenControl } from './FullscreenControl';
 import { FULLSCREEN_REFIT_DELAY_MS, useFullscreen } from './fullscreen';
 import { MODULE_DRAWER_WIDTH_PX, computeDrawerFitPadding } from './drawerFitPadding';
@@ -41,6 +42,7 @@ const KNOWN_NODE_TYPES = Object.keys(NODE_TYPE_STYLES) as NodeTypeKey[];
 const GRID = 16;
 /** The drawer is resized by hand: refit once it has stopped moving. */
 const REFIT_DEBOUNCE_MS = 200;
+const CENTER_ANIMATION_MS = 200;
 
 type Props = {
   applicationId: string;
@@ -279,7 +281,19 @@ export function ApplicationModuleGraph({
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#e2e8f0" gap={GRID} />
-          <Controls showInteractive={false}>
+          <Controls showInteractive={false} showFitView={false}>
+            <CenterGraphControl
+              onCenter={() =>
+                fitGraphView(rfRef.current, {
+                  duration: CENTER_ANIMATION_MS,
+                  padding: computeDrawerFitPadding(isDrawerOpen, {
+                    paneWidthPx: containerRef.current?.clientWidth,
+                    drawerWidthPx: debouncedDrawerWidth,
+                  }),
+                  nodeIds: fitNodeIds,
+                })
+              }
+            />
             <FullscreenControl isFullscreen={fullscreen.isFullscreen} onToggle={fullscreen.toggle} />
           </Controls>
           {!isDrawerOpen && (
