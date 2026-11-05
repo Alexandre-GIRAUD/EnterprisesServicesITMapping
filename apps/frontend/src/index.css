@@ -1867,8 +1867,6 @@ body.is-diagram-grown .layout {
 .map-graph-panel.is-views-mode .graph-views-pane {
   padding-left: var(--views-indent);
   padding-right: var(--views-indent);
-  background: transparent;
-  box-shadow: none;
 }
 
 .map-graph-panel.is-views-mode .graph-view-header {
@@ -1890,6 +1888,7 @@ body.is-diagram-grown .layout {
   --map-chrome-clearance: 8.5rem;
   /* Where tables, views and modules start: the title's height plus the gap Data Model leaves under its own. */
   --map-content-top: 5.1rem;
+  --map-canvas-bg: #f8fafc;
   --map-drawer-top: 4.7rem;
   position: relative;
   flex: 1;
@@ -2184,9 +2183,11 @@ body.is-diagram-grown .layout {
   box-sizing: border-box;
 }
 
-.map-page .graph-canvas,
-.map-page .graph-views-pane {
+.map-page :is(.graph-canvas, .graph-tables-view, .graph-views-pane, .module-graph-wrap) {
+  border: none;
   border-radius: 0;
+  box-shadow: none;
+  background: var(--map-canvas-bg);
 }
 
 .map-page .graph-details-drawer:not(.is-embedded) {
