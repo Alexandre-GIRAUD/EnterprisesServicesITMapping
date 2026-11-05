@@ -2361,23 +2361,6 @@ body.is-diagram-grown .layout {
     box-shadow 160ms ease;
 }
 
-/* Only the open tab shows its name: the rail reads as navigation, the links under it as actions. */
-.self-service-tool-bar-label {
-  display: none;
-  margin-left: 0.4rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.self-service-tool-bar-btn.is-active {
-  flex: 2.4;
-}
-
-.self-service-tool-bar-btn.is-active .self-service-tool-bar-label {
-  display: inline;
-}
-
 .self-service-tool-bar-btn:hover:not(.is-active) {
   background: #ffffff;
   border-color: #cbd5e1;
@@ -3159,7 +3142,7 @@ body.is-diagram-grown .layout {
   color: #b91c1c;
 }
 
-/* Clear and My views are quiet text links, not a second row of pills under the tabs. */
+/* Clear, My views and Pin view are quiet text links, not a second row of pills under the tabs. */
 .graph-filter-compact-actions--links {
   align-items: center;
   gap: 0.9rem;
@@ -3167,7 +3150,8 @@ body.is-diagram-grown .layout {
 }
 
 .graph-filter-compact-actions--links .graph-filter-compact-btn--ghost,
-.graph-filter-compact-actions--links .graph-filter-compact-btn--views {
+.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--views,
+.graph-filter-compact-actions--links .graph-filter-compact-btn--pin {
   flex: 0 0 auto;
   min-height: 0;
   padding: 0.1rem 0;
@@ -3184,7 +3168,8 @@ body.is-diagram-grown .layout {
 }
 
 .graph-filter-compact-actions--links .graph-filter-compact-btn--ghost:hover:not(:disabled),
-.graph-filter-compact-actions--links .graph-filter-compact-btn--views:hover:not(:disabled) {
+.graph-filter-compact-actions--links .graph-filter-compact-btn--views:hover:not(:disabled),
+.graph-filter-compact-actions--links .graph-filter-compact-btn--pin:hover:not(:disabled) {
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -3195,6 +3180,28 @@ body.is-diagram-grown .layout {
 
 .graph-filter-compact-actions--links .graph-filter-compact-btn--ghost:hover:not(:disabled) {
   color: #b91c1c;
+}
+
+/* Pin view is as quiet as its two neighbours; the map panel's solid green pill is overridden here. */
+.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--pin:not(:disabled) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-weight: 600;
+  color: var(--ss-accent-text);
+}
+
+.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--pin:not(:disabled):hover {
+  background: transparent;
+  color: var(--ss-accent-text);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.map-graph-panel .graph-filter-compact-actions--links .graph-filter-compact-btn--pin:disabled {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .graph-filter-compact-btn:focus-visible {
@@ -5752,6 +5759,15 @@ body.is-diagram-grown .layout {
   --graph-legend-launcher-lift: 86px;
 }
 
+/* Cartography draws a fourth zoom button (fullscreen): the folded legend sits that much higher. */
+.map-graph-panel {
+  --graph-legend-launcher-lift: 112px;
+}
+
+.map-graph-panel.is-sandbox-mode {
+  --graph-legend-launcher-lift: 86px;
+}
+
 .graph-legend {
   display: flex;
   flex-direction: column;
@@ -5901,7 +5917,7 @@ body.is-diagram-grown .layout {
 .react-flow__panel.top.left:has(> .graph-legend.is-concealed) {
   top: auto;
   left: 15px;
-  bottom: var(--graph-legend-launcher-lift);
+  bottom: calc(15px + var(--graph-legend-launcher-lift));
 }
 
 .sandbox-shared-legend:has(.graph-legend.is-concealed) {

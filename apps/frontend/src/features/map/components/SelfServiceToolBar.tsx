@@ -112,7 +112,6 @@ export function SelfServiceToolBar({
         onClick={() => onChange('filters')}
       >
         <FiltersIcon />
-        <span className="self-service-tool-bar-label">Filters</span>
         {filtersActive ? (
           <span className="self-service-tool-bar-badge" aria-hidden="true">
             On
@@ -130,7 +129,6 @@ export function SelfServiceToolBar({
           onClick={() => onChange('actions')}
         >
           <ActionsIcon />
-          <span className="self-service-tool-bar-label">{actionsLabel}</span>
         </button>
       ) : null}
       {isExplorer ? (
@@ -144,7 +142,6 @@ export function SelfServiceToolBar({
           onClick={() => onChange('chat')}
         >
           <ChatIcon />
-          <span className="self-service-tool-bar-label">Chat</span>
         </button>
       ) : null}
       {graphMode === 'sandbox' ? (
@@ -158,7 +155,6 @@ export function SelfServiceToolBar({
           onClick={() => onChange('sandboxes')}
         >
           <SandboxesIcon />
-          <span className="self-service-tool-bar-label">Sandboxes</span>
         </button>
       ) : null}
     </div>
