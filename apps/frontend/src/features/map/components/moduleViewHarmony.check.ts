@@ -46,5 +46,7 @@ const titleRule = extractCssRule('.graph-view-header-title');
 assert.match(titleRule, /white-space:\s*nowrap/);
 assert.match(titleRule, /overflow:\s*hidden/);
 assert.match(titleRule, /text-overflow:\s*ellipsis/);
+// The title box keeps a floor width, otherwise the actions squeeze it down to nothing.
+assert.match(extractCssRule('.graph-view-header-text'), /min-width:\s*9rem/);
 
 console.log('moduleViewHarmony.check: ok');

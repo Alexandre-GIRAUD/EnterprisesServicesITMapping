@@ -77,7 +77,7 @@ export function useLegendFrame(
   );
   const [isUserSized, setIsUserSized] = useState(remembered?.isUserSized ?? false);
   const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined);
-  const [isConcealed, setIsConcealed] = useState(false);
+  const [isConcealed, setIsConcealed] = useState(remembered?.isConcealed ?? false);
   const [fill, setFill] = useState<LegendFill | null>(null);
   const sizeRef = useRef(size);
   const concealedRef = useRef(isConcealed);
@@ -86,8 +86,8 @@ export function useLegendFrame(
   sizeRef.current = size;
   concealedRef.current = isConcealed;
   useEffect(() => {
-    rememberLegend({ offset, size, isUserSized });
-  }, [offset, size, isUserSized]);
+    rememberLegend({ offset, size, isUserSized, isConcealed });
+  }, [offset, size, isUserSized, isConcealed]);
   useConcealOnSignal(concealSignal, setIsConcealed);
   useSnugFit({ frameRef, isEnabled: !isUserSized && !isConcealed && !isFilling, setSize });
   useFitDefaultHeight(frameRef, setMaxHeight);

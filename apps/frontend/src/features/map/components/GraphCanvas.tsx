@@ -1791,7 +1791,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         <div className="map-graph-main">
           <header className="graph-view-header">
             <div className="graph-view-header-text">
-              <h2 className="graph-view-header-title">{activeViewTitle}</h2>
+              <h2 className="graph-view-header-title" title={activeViewTitle}>{activeViewTitle}</h2>
               {tabDescription ? (
                 <p
                   className={`graph-view-header-description${status === 'error' && !isViewsMode ? ' is-error' : ''}`}
