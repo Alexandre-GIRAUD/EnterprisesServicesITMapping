@@ -1559,7 +1559,6 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
   const tabDescription = useMemo(() => {
     if (moduleGraphApp) return null;
     if (status === 'loading') return 'Loading graph…';
-    if (status === 'error') return message;
     return message;
   }, [moduleGraphApp, status, message]);
 

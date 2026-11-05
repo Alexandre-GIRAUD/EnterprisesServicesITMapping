@@ -134,16 +134,19 @@ export function ApplicationModuleGraph({
   }, []);
   const fullscreen = useFullscreen(wrapRef, refitAfterFullscreen);
 
-  useEffect(() => {
-    if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
-    const paneWidth = containerRef.current?.clientWidth;
+  const fitModules = (duration?: number) =>
     fitGraphView(rfRef.current, {
+      duration,
       padding: computeDrawerFitPadding(isDrawerOpen, {
-        paneWidthPx: paneWidth,
+        paneWidthPx: containerRef.current?.clientWidth,
         drawerWidthPx: debouncedDrawerWidth,
       }),
       nodeIds: fitNodeIds,
     });
+
+  useEffect(() => {
+    if (status !== 'ready' || nodes.length === 0 || layoutRevision === 0) return;
+    fitModules();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fitNodeKey stands for fitNodeIds
   }, [status, nodes.length, layoutRevision, isDrawerOpen, debouncedDrawerWidth, fitNodeKey, fullscreenRevision]);
 
@@ -282,18 +285,7 @@ export function ApplicationModuleGraph({
         >
           <Background color="#e2e8f0" gap={GRID} />
           <Controls showInteractive={false} showFitView={false}>
-            <CenterGraphControl
-              onCenter={() =>
-                fitGraphView(rfRef.current, {
-                  duration: CENTER_ANIMATION_MS,
-                  padding: computeDrawerFitPadding(isDrawerOpen, {
-                    paneWidthPx: containerRef.current?.clientWidth,
-                    drawerWidthPx: debouncedDrawerWidth,
-                  }),
-                  nodeIds: fitNodeIds,
-                })
-              }
-            />
+            <CenterGraphControl onCenter={() => fitModules(CENTER_ANIMATION_MS)} />
             <FullscreenControl isFullscreen={fullscreen.isFullscreen} onToggle={fullscreen.toggle} />
           </Controls>
           {!isDrawerOpen && (
