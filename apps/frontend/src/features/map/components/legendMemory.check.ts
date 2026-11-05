@@ -13,7 +13,9 @@ assert.deepEqual(recallLegend(), frame);
 
 // Folded or open, the legend comes back the way the user left it in the next view.
 const frameHook = readFileSync(new URL('./useLegendFrame.ts', import.meta.url), 'utf8');
-assert.match(frameHook, /useState\(remembered\?\.isConcealed \?\? false\)/);
-assert.match(frameHook, /rememberLegend\(\{ offset, size, isUserSized, isConcealed \}\)/);
+assert.match(frameHook, /\[isFoldedByUser, setIsFoldedByUser\] = useState\(remembered\?\.isConcealed \?\? false\)/);
+// Only the user's own fold is remembered: the automatic fold when a drawer opens is not.
+assert.match(frameHook, /rememberLegend\(\{ offset, size, isUserSized, isConcealed: isFoldedByUser \}\)/);
+assert.match(frameHook, /setIsFoldedByUser\(!input\.concealedRef\.current\)/);
 
 console.log('legendMemory.check: ok');
