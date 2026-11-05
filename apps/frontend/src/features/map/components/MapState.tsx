@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type MapStateKind = 'loading' | 'empty' | 'error' | 'info';
+type MapStateKind = 'loading' | 'empty' | 'error' | 'info';
 
 type MapStateProps = { kind: MapStateKind; className?: string; children?: ReactNode };
 
