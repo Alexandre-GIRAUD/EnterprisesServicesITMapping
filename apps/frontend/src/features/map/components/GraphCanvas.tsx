@@ -47,6 +47,7 @@ import {
   NODE_HEIGHT,
 } from '../hooks/useGraphData';
 import { useGraphFilters } from '../hooks/useGraphFilters';
+import { useBreachMarks } from '@/features/breach/useBreachMarks';
 import { useGraphMode } from '../hooks/useGraphMode';
 import { useSandboxes } from '../hooks/useSandboxes';
 import { SandboxIconGlyph } from './SandboxIconGlyph';
@@ -324,6 +325,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     matchNothing,
     withNeighbours,
     blankedDimensions,
+    breach,
     filtersActive: productionFiltersActive,
     applyGraphFilters,
     currentGraphFilters,
@@ -384,6 +386,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     edgeIds,
     matchNothing,
     withNeighbours,
+    breach: isReadOnly ? undefined : breach,
     filtersActive: productionFiltersActive,
     graphReloadNonce,
     hiddenNodeIds: hiddenNodeIdsForLegend,
@@ -435,6 +438,10 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     applyLegendSetup,
     deleteLegendSetup,
   } = data;
+  const breachMarks = useBreachMarks(
+    filters.shouldShowBreaches && !isSandbox && !isViewsMode && !isReadOnly,
+    graphNodes
+  );
 
   const legendCodingRef = useRef({
     colorPropertyKey,
@@ -935,6 +942,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
           ...n.data,
           iconKey: source ? (nodeIcons.iconKeyOf(source) ?? undefined) : undefined,
           labelScale: nodeIcons.labelScale,
+          breachRuleNames: breachMarks.applications.get(n.id),
           onHide:
             n.data.nodeType === 'Application'
               ? () => collapseHandlersRef.current.hideNode(n.id)
@@ -943,7 +951,16 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         className: nodeClassName(n.className, focusTier(focus, focusedId, n.id), activeEdgeEndpoints?.has(n.id)),
       };
     });
-  }, [nodes, focus, focusedId, activeEdgeEndpoints, iconSourceById, nodeIcons.iconKeyOf, nodeIcons.labelScale]);
+  }, [
+    nodes,
+    focus,
+    focusedId,
+    activeEdgeEndpoints,
+    iconSourceById,
+    nodeIcons.iconKeyOf,
+    nodeIcons.labelScale,
+    breachMarks.applications,
+  ]);
 
   const labelById = useMemo(() => {
     const map = new Map<string, string>();
@@ -1255,13 +1272,14 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
           ...data,
           hovered: isHovered && !data?.indirect,
           tier: focus ? (isFocused ? 'focus' : 'faded') : undefined,
+          breachRuleNames: breachMarks.flows.get(e.id),
           onSelect: data?.indirect
             ? undefined
             : () => openEdgeByIdRef.current(e.id),
         },
       };
     });
-  }, [edges, focus, hoveredEdgeId, isEdgeDetailsDrawerOpen, selectedEdge?.id]);
+  }, [edges, focus, hoveredEdgeId, isEdgeDetailsDrawerOpen, selectedEdge?.id, breachMarks.flows]);
 
   const handleNodeDoubleClick = useCallback(
     (_: ReactMouseEvent, node: AppNode) => {

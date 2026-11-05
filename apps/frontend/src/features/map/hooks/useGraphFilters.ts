@@ -29,9 +29,12 @@ export function useGraphFilters({
   const [matchNothing, setMatchNothing] = useState(false);
   const [withNeighbours, setWithNeighbours] = useState(false);
   const [blankedDimensions, setBlankedDimensions] = useState<string[]>([]);
+  const [breach, setBreach] = useState<string[]>([]);
+  const [shouldShowBreaches, setShouldShowBreaches] = useState(false);
 
   const filtersActive =
     matchNothing ||
+    breach.length > 0 ||
     edgeIds.length > 0 ||
     applicationIds.length > 0 ||
     Object.keys(nodeAttributes).length > 0 ||
@@ -53,6 +56,8 @@ export function useGraphFilters({
       setMatchNothing(false);
       setWithNeighbours(false);
       setBlankedDimensions([]);
+      setBreach([]);
+      setShouldShowBreaches(false);
     },
     [graphModeRef, setGraphMode, setSandboxDirty, setIsDrawerOpen]
   );
@@ -79,6 +84,10 @@ export function useGraphFilters({
     setWithNeighbours,
     blankedDimensions,
     setBlankedDimensions,
+    breach,
+    setBreach,
+    shouldShowBreaches,
+    setShouldShowBreaches,
     filtersActive,
     applyGraphFilters,
     currentGraphFilters,

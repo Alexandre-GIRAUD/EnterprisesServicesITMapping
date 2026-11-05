@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.feature.graph.presentation;
 
+import com.enterprise.itmapping.feature.breach.application.BreachRuleService;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributePatchService;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeLinkService;
 import com.enterprise.itmapping.feature.graph.application.GraphNeighborhoodService;
@@ -50,18 +51,21 @@ public class GraphController {
   private final GraphEdgeAttributePatchService edgeAttributePatchService;
   private final GraphEdgeLinkService edgeLinkService;
   private final GraphNeighborhoodService neighborhoodService;
+  private final BreachRuleService breachRuleService;
 
   public GraphController(
       GraphService graphService,
       GraphNodeFilterFacetService nodeFilterFacetService,
       GraphEdgeAttributePatchService edgeAttributePatchService,
       GraphEdgeLinkService edgeLinkService,
-      GraphNeighborhoodService neighborhoodService) {
+      GraphNeighborhoodService neighborhoodService,
+      BreachRuleService breachRuleService) {
     this.graphService = graphService;
     this.nodeFilterFacetService = nodeFilterFacetService;
     this.edgeAttributePatchService = edgeAttributePatchService;
     this.edgeLinkService = edgeLinkService;
     this.neighborhoodService = neighborhoodService;
+    this.breachRuleService = breachRuleService;
   }
 
   /**
@@ -73,20 +77,26 @@ public class GraphController {
    *   <li>{@code ref.<nodeRefKey>} — NODE_REF catalogue ids via {@code CLASSIFIED_AS};
    *   <li>{@code edge.<edgeKey>} — flat EDGE props on {@code DEPENDS_ON}; when set, only apps
    *       incident to a matching edge remain.
+   *   <li>{@code breach} (repeatable) — a breach rule id, or {@code any}; keeps only the breaches.
    * </ul>
    */
   @GetMapping
   public ResponseEntity<GraphResponseDto> getGraph(
       @RequestParam(required = false) List<String> applicationIds,
       @RequestParam(required = false) String applicationId,
+      @RequestParam(required = false) List<String> breach,
       @RequestParam MultiValueMap<String, String> allParams
   ) {
-    return ResponseEntity.ok(
+    GraphResponseDto graph =
         graphService.getGraph(
             mergeFilterParams(applicationIds, applicationId),
             prefixedFilters(allParams, NODE_ATTRIBUTE_PARAM_PREFIX),
             prefixedFilters(allParams, NODE_REF_PARAM_PREFIX),
-            prefixedFilters(allParams, EDGE_ATTRIBUTE_PARAM_PREFIX)));
+            prefixedFilters(allParams, EDGE_ATTRIBUTE_PARAM_PREFIX));
+    if (breach == null || breach.isEmpty()) {
+      return ResponseEntity.ok(graph);
+    }
+    return ResponseEntity.ok(breachRuleService.narrowToBreaches(graph, breach));
   }
 
   /**

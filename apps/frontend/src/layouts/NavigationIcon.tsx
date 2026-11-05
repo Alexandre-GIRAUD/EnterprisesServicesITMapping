@@ -1,3 +1,5 @@
+import { FLAME_PATH } from '@/features/breach/flamePath';
+
 const ICON_STROKE_WIDTH = 1.8;
 
 type IconMark = {
@@ -29,6 +31,9 @@ const NAVIGATION_ICONS = {
   },
   changes: {
     paths: ['M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2'],
+  },
+  breach: {
+    paths: [FLAME_PATH],
   },
   settings: {
     paths: [

@@ -18,6 +18,8 @@ import {
   shortSha,
 } from '@/features/map/utils/changeDetectionUi';
 import type { MapLocationState } from '@/features/map/utils/mapNavigation';
+import { canHaveBreachImpact } from '@/features/breach/breachRules';
+import { BreachImpactSection } from '@/features/breach/components/BreachImpactSection';
 
 function edgeLabelsFromFields(fields: DataModelFieldDto[]): Map<string, string> {
   const labels = new Map<string, string>();
@@ -291,6 +293,8 @@ export function ChangeDetailPage() {
           </ul>
         </section>
       ) : null}
+
+      {canHaveBreachImpact(item) ? <BreachImpactSection runId={run.id} itemId={item.id} /> : null}
 
       <div className="change-detail-actions">
         {isPending ? (

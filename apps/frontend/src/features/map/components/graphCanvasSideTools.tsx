@@ -17,6 +17,9 @@ import type { SideMenuTool } from './SelfServiceToolBar';
 import type { CartographyChatTurn } from '../utils/mapNavigation';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
 
+/** Sandboxes and past days never filter on breaches; a stable empty list keeps the drawer still. */
+const NO_BREACH_SELECTION: string[] = [];
+
 type GraphCanvasSideToolInput = {
   graphMode: GraphMode;
   activeSideMenuTool: SideMenuTool;
@@ -173,6 +176,9 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
             initialBlankedDimensions={
               isSandbox ? activeSandboxFilters.blankedDimensions ?? [] : blankedDimensions
             }
+            showBreach={!isSandbox && !isReadOnly}
+            initialBreach={isSandbox || isReadOnly ? NO_BREACH_SELECTION : filters.breach}
+            initialShouldShowBreaches={filters.shouldShowBreaches}
             edges={graphEdges}
             onApply={({
               applicationIds: appIds,
@@ -183,6 +189,8 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
               matchNothing: nextMatchNothing,
               blankedDimensions: nextBlanked,
               withNeighbours: nextWithNeighbours,
+              breach: nextBreach,
+              shouldShowBreaches: nextShouldShowBreaches,
             }) => {
               if (isSandbox) {
                 const id = sandboxes.activeId ?? sandboxes.activeDoc?.id;
@@ -210,6 +218,8 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
               filters.setMatchNothing(Boolean(nextMatchNothing));
               filters.setWithNeighbours(Boolean(nextWithNeighbours));
               filters.setBlankedDimensions(nextBlanked ?? []);
+              filters.setBreach(nextBreach ?? []);
+              filters.setShouldShowBreaches(Boolean(nextShouldShowBreaches));
             }}
             showPinView={isExplorer && !isReadOnly}
             pinViewDisabled={status !== 'ready'}

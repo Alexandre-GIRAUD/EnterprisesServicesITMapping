@@ -49,8 +49,13 @@ export async function fetchGraph(params?: {
   nodeAttributes?: Record<string, string[]>;
   nodeRefs?: Record<string, string[]>;
   edgeAttributes?: Record<string, string[]>;
+  /** Breach rule ids, or `any`: keep only what is in breach. */
+  breach?: string[];
 }): Promise<GraphResponseDto> {
   const sp = new URLSearchParams();
+  for (const selector of params?.breach ?? []) {
+    if (selector) sp.append('breach', selector);
+  }
   for (const id of params?.applicationIds ?? []) {
     if (id) sp.append('applicationIds', id);
   }

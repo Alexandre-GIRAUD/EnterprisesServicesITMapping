@@ -315,6 +315,10 @@ export type GraphFilters = {
   edgeIds?: string[];
   /** Client-only: also show applications linked by a feed to a filtered application. */
   withNeighbours?: boolean;
+  /** Live map only: breach rule ids, or `any`, whose breaches the graph keeps. Not saved in views. */
+  breach?: string[];
+  /** Client-only: draw the breach flames and flow colour; off by default, like `withNeighbours`. */
+  shouldShowBreaches?: boolean;
 };
 
 /** One filterable dimension from GET /api/graph/node-filters. */
@@ -541,3 +545,79 @@ export type SourceMappingAlertDto = {
   sourceName: string;
   applications: { id: string; name: string }[];
 };
+
+export type BreachSubject = 'APPLICATION' | 'FLOW';
+export type BreachCombinator = 'AND' | 'OR';
+export type BreachScope =
+  | 'SELF'
+  | 'ANY_FLOW_IN'
+  | 'ANY_FLOW_OUT'
+  | 'ANY_FLOW'
+  | 'FLOW'
+  | 'SOURCE'
+  | 'TARGET'
+  | 'SOURCE_OR_TARGET';
+export type BreachOperator =
+  | 'EQUALS'
+  | 'NOT_EQUALS'
+  | 'GREATER_THAN'
+  | 'GREATER_OR_EQUAL'
+  | 'LESS_THAN'
+  | 'LESS_OR_EQUAL'
+  | 'CONTAINS'
+  | 'IS_EMPTY'
+  | 'IS_NOT_EMPTY';
+
+export type BreachConditionDto = {
+  scope: BreachScope;
+  attribute: string;
+  operator: BreachOperator;
+  value: string;
+};
+
+export type BreachGroupDto = { combinator: BreachCombinator; conditions: BreachConditionDto[] };
+
+export type BreachDefinitionDto = { combinator: BreachCombinator; groups: BreachGroupDto[] };
+
+/** Body of {@code POST /api/breach-rules} and {@code PUT /api/breach-rules/{id}}. */
+export type BreachRuleRequest = { name: string; subject: BreachSubject; definition: BreachDefinitionDto };
+
+/** {@code GET /api/breach-rules} item. */
+export type BreachRuleDto = BreachRuleRequest & {
+  id: string;
+  breachCount: number;
+  unknownCount: number;
+  updatedAt: string;
+  /** Username of the last editor; null when that user was deleted. */
+  updatedBy: string | null;
+};
+
+export type BreachTestedValueDto = { scope: BreachScope; attribute: string; values: string[] };
+
+export type BreachElementDto = {
+  kind: BreachSubject;
+  id: string;
+  label: string;
+  /** Flows only. */
+  source?: BreachEndpointDto;
+  /** Flows only. */
+  target?: BreachEndpointDto;
+  values: BreachTestedValueDto[];
+};
+
+export type BreachEndpointDto = { id: string; label: string };
+
+/** {@code GET /api/breach-rules/{id}/evaluation} */
+export type BreachResultDto = { ruleId: string; breaches: BreachElementDto[]; unknown: BreachElementDto[] };
+
+/** {@code GET /api/breach-rules/evaluation}: rule ids by application id and by flow id, and rule names. */
+export type BreachSummaryDto = {
+  applications: Record<string, string[]>;
+  flows: Record<string, string[]>;
+  ruleNames: Record<string, string>;
+};
+
+export type BreachImpactDto = { ruleId: string; ruleName: string; element: BreachElementDto };
+
+/** {@code GET /api/change-detections/{runId}/items/{itemId}/breach-impact} */
+export type BreachImpactResponseDto = { entering: BreachImpactDto[]; leaving: BreachImpactDto[] };

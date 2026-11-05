@@ -27,3 +27,11 @@ _Avoid_: shared junction, merged endpoint, shared tip
 **Node side**:
 One of the four borders of a box (top, right, bottom, left) that arrows may touch.
 _Avoid_: edge of the node (ambiguous with graph edge/flow)
+
+**Breach rule**:
+A named rule, shared by every user and edited by admins, whose subject is applications or flows. An element of that subject for which the rule's conditions hold is **in breach**.
+_Avoid_: alert, violation, policy
+
+**Not evaluable**:
+An element a breach rule cannot decide on, because a value it reads is missing or is not a number. It is listed apart and never counted as in breach. The code calls it `unknown`.
+_Avoid_: failed, error

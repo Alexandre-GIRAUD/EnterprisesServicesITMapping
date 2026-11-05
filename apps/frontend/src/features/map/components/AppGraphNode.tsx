@@ -2,6 +2,8 @@
 import { Handle, NodeResizer, Position, type Node, type NodeProps } from '@xyflow/react';
 import { nodeColorForType } from './graphTheme';
 import { NodeIconGlyph } from './NodeIconGlyph';
+import { FlameIcon } from '@/features/breach/components/FlameIcon';
+import { describeBreachRules } from '@/features/breach/breachRules';
 
 /** Smallest box the user can shrink to; text and icon keep their size. */
 const MIN_BOX_WIDTH_PX = 80;
@@ -29,6 +31,8 @@ export type AppGraphNodeData = {
   displayLabel?: string;
   /** When set, single-click on the title edits the displayed label only. */
   onDisplayLabelChange?: (label: string) => void;
+  /** Names of the application rules this box is in breach of; a flame shows when non-empty. */
+  breachRuleNames?: string[];
 };
 
 export type AppGraphNodeType = Node<AppGraphNodeData, 'app'>;
@@ -99,6 +103,11 @@ export function AppGraphNode({ data }: NodeProps<AppGraphNodeType>) {
         >
           −
         </button>
+      ) : null}
+      {data.breachRuleNames && data.breachRuleNames.length > 0 ? (
+        <span className="graph-node-breach" title={describeBreachRules(data.breachRuleNames)}>
+          <FlameIcon size="badge" title={describeBreachRules(data.breachRuleNames)} />
+        </span>
       ) : null}
       {editing ? (
         <input

@@ -2,6 +2,7 @@ import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useStat
 import { CloseIcon } from './CloseIcon';
 import type { ApplicationResponse, GraphEdgeDto, GraphFilters, GraphNodeFilterDto } from '@/types/api';
 import {
+  BREACH_FILTER_VIEW,
   type FilterView,
   isGraphBlankedBySelection,
   keepApplicationsForCheckedFlows,
@@ -15,6 +16,10 @@ import {
   toggleSortedValue,
 } from './filterDimensionUtils';
 import { displayFilterValue, searchFilterHits, type FilterSearchHit } from './filterSearch';
+import { BreachFilterDetail, BreachFilterRow } from '@/features/breach/components/BreachFilterDetail';
+import { useBreachRuleChoices } from '@/features/breach/useBreachRuleChoices';
+import { toggleBreachSelector } from '@/features/breach/breachRules';
+import { FlameIcon } from '@/features/breach/components/FlameIcon';
 
 export type { GraphFilters };
 
@@ -34,6 +39,10 @@ type FilterDrawerProps = {
   initialBlankedDimensions?: string[];
   showWithNeighbours?: boolean;
   initialWithNeighbours?: boolean;
+  /** Live map only: offer the Breaches dimension and the "breaches" marks toggle. */
+  showBreach?: boolean;
+  initialBreach?: string[];
+  initialShouldShowBreaches?: boolean;
   edges?: GraphEdgeDto[];
   onApply: (filters: GraphFilters) => void;
   showPinView?: boolean;
@@ -50,6 +59,8 @@ type FilterDrawerProps = {
 function applyRootToggle(catalog: string[], selected: string[]): string[] {
   return dimensionMode(selected, catalog) === 'none' ? selectAllCatalog(catalog) : [];
 }
+
+const NO_BREACH: string[] = [];
 
 function NeighboursIcon() {
   return (
@@ -124,6 +135,9 @@ export function FilterDrawer({
   initialBlankedDimensions = [],
   showWithNeighbours = false,
   initialWithNeighbours = false,
+  showBreach = false,
+  initialBreach = NO_BREACH,
+  initialShouldShowBreaches = false,
   edges = [],
   onApply,
   showPinView = false,
@@ -138,6 +152,9 @@ export function FilterDrawer({
   const [valueQuery, setValueQuery] = useState('');
   const [selectedFlowIds, setSelectedFlowIds] = useState(initialEdgeIds);
   const [withNeighbours, setWithNeighbours] = useState(initialWithNeighbours);
+  const [selectedBreach, setSelectedBreach] = useState(initialBreach);
+  const [shouldShowBreaches, setShouldShowBreaches] = useState(initialShouldShowBreaches);
+  const breachRules = useBreachRuleChoices(showBreach);
   const hasEditedFilters = useRef(false);
 
   const appCatalog = useMemo(
@@ -185,6 +202,8 @@ export function FilterDrawer({
     setValueQuery('');
     setSelectedFlowIds(initialEdgeIds);
     setWithNeighbours(initialWithNeighbours);
+    setSelectedBreach(initialBreach);
+    setShouldShowBreaches(initialShouldShowBreaches);
     setSelectedApplicationIds(
       blanked.includes('applications')
         ? []
@@ -217,6 +236,8 @@ export function FilterDrawer({
     initialEdgeAttributes,
     initialEdgeIds,
     initialWithNeighbours,
+    initialBreach,
+    initialShouldShowBreaches,
     initialBlankedDimensions,
     initialMatchNothing,
     appCatalog,
@@ -243,10 +264,20 @@ export function FilterDrawer({
       matchNothing: blanked.length > 0,
       blankedDimensions: blanked,
       withNeighbours,
+      breach: selectedBreach,
+      shouldShowBreaches,
     });
     // collectAttributeFilters closes over the same selection state as this effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedApplicationIds, selectedNodeValues, selectedFlowIds, withNeighbours, isOpen]);
+  }, [
+    selectedApplicationIds,
+    selectedNodeValues,
+    selectedFlowIds,
+    withNeighbours,
+    selectedBreach,
+    shouldShowBreaches,
+    isOpen,
+  ]);
 
   const detailKey = nodeAttributeKeyFromView(view);
   const detailDimension = nodeFilters.find((dimension) => dimension.key === detailKey) ?? null;
@@ -272,8 +303,17 @@ export function FilterDrawer({
     setView(next);
   }
 
+  function toggleBreach(selector: string) {
+    hasEditedFilters.current = true;
+    setSelectedBreach((current) => toggleBreachSelector(current, selector));
+  }
+
   function clearDetailDimension() {
     hasEditedFilters.current = true;
+    if (view === BREACH_FILTER_VIEW) {
+      setSelectedBreach([]);
+      return;
+    }
     if (view === 'applications') {
       setSelectedApplicationIds(selectAllCatalog(appCatalog));
       return;
@@ -318,6 +358,8 @@ export function FilterDrawer({
   function onReset() {
     hasEditedFilters.current = true;
     setSelectedFlowIds([]);
+    setSelectedBreach([]);
+    setShouldShowBreaches(false);
     setWithNeighbours(false);
     setSelectedApplicationIds(selectAllCatalog(appCatalog));
     setSelectedNodeValues(
@@ -369,7 +411,7 @@ export function FilterDrawer({
         : detailDimension
           ? (selectedNodeValues[detailDimension.key] ?? []).length
           : 0;
-    const doneLabel = detailMode === 'some' ? `Done (${selectedCount})` : 'Done';
+    const doneLabel = view !== BREACH_FILTER_VIEW && detailMode === 'some' ? `Done (${selectedCount})` : 'Done';
 
     return (
       <div className="graph-filter-compact-actions">
@@ -563,7 +605,9 @@ export function FilterDrawer({
       ? 'Filters'
       : view === 'applications'
         ? 'Applications'
-        : (detailDimension?.label ?? 'Filters');
+        : view === BREACH_FILTER_VIEW
+          ? 'Breaches'
+          : (detailDimension?.label ?? 'Filters');
 
   const isEmbedded = variant === 'embedded';
   const showHeader = !isEmbedded || view !== 'root';
@@ -733,6 +777,23 @@ export function FilterDrawer({
               </label>
             ) : null}
 
+            {showBreach ? (
+              <label className="graph-filter-neighbours" title="Show the breach flames on applications and colour flows in breach">
+                <span className="graph-filter-neighbours-icon" aria-hidden="true">
+                  <FlameIcon size="heading" />
+                </span>
+                <input
+                  type="checkbox"
+                  checked={shouldShowBreaches}
+                  onChange={(event) => {
+                    hasEditedFilters.current = true;
+                    setShouldShowBreaches(event.target.checked);
+                  }}
+                />
+                <span className="graph-filter-neighbours-text">Breaches</span>
+              </label>
+            ) : null}
+
             {renderRootRow({
               key: 'applications',
               view: 'applications',
@@ -741,6 +802,10 @@ export function FilterDrawer({
               selected: selectedApplicationIds,
               catalog: appCatalog,
             })}
+
+            {showBreach && breachRules.length > 0 ? (
+              <BreachFilterRow rules={breachRules} selected={selectedBreach} onOpen={() => openDetail(BREACH_FILTER_VIEW)} />
+            ) : null}
 
             {nodeFilters.map((dimension) =>
               renderRootRow({
@@ -769,6 +834,8 @@ export function FilterDrawer({
           </div>
         ) : view === 'applications' ? (
           renderApplicationsDetail()
+        ) : view === BREACH_FILTER_VIEW ? (
+          <BreachFilterDetail rules={breachRules} selected={selectedBreach} onToggle={toggleBreach} />
         ) : detailDimension ? (
           renderNodeAttributeDetail(detailDimension)
         ) : null}
