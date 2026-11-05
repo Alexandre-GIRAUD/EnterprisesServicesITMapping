@@ -21,6 +21,7 @@ import {
   useState,
   type KeyboardEvent,
   type MouseEvent as ReactMouseEvent,
+  type RefObject,
 } from 'react';
 import { GRID } from '../hooks/useGraphData';
 import { AppGraphNode } from './AppGraphNode';
@@ -38,6 +39,8 @@ import {
 } from '../utils/sandboxDocuments';
 import { CloseIcon } from './CloseIcon';
 import { SandboxCanvasMenu } from './SandboxCanvasMenu';
+import { isUserMove } from './sandboxRefit.ts';
+import { SETTLE_REFIT_DURATION_MS, useSandboxFitPadding } from './useSandboxFitPadding';
 
 type Props = {
   doc: SandboxDocument;
@@ -136,6 +139,28 @@ function isAnnotationNode(node: Node): boolean {
   return node.type === 'sandboxIcon' || node.type === 'sandboxText';
 }
 
+const TOP_ROW_TOLERANCE_PX = 4;
+
+/** True while the pane touches the top of its board, where the floating chrome overlaps its title. */
+function useIsTopRow(paneRef: RefObject<HTMLDivElement>): boolean {
+  const [isTopRow, setIsTopRow] = useState(true);
+
+  useEffect(() => {
+    const pane = paneRef.current;
+    const board = pane?.parentElement;
+    if (!pane || !board) return;
+    const refreshIsTopRow = () =>
+      setIsTopRow(pane.getBoundingClientRect().top - board.getBoundingClientRect().top < TOP_ROW_TOLERANCE_PX);
+    refreshIsTopRow();
+    const observer = new ResizeObserver(refreshIsTopRow);
+    observer.observe(pane);
+    observer.observe(board);
+    return () => observer.disconnect();
+  }, [paneRef]);
+
+  return isTopRow;
+}
+
 function SandboxPaneInner({
   doc,
   active,
@@ -175,13 +200,14 @@ function SandboxPaneInner({
   editingTextId,
   onTextEditStarted,
 }: Props) {
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, fitView } = useReactFlow();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(doc.name);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [isContextShareOpen, setIsContextShareOpen] = useState(false);
   const [shareUsername, setShareUsername] = useState('');
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+  const paneRef = useRef<HTMLDivElement>(null);
   const lastNodeClickRef = useRef<{ nodeId: string; time: number } | null>(null);
   const nodeClickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const DOUBLE_CLICK_MS = 400;
@@ -448,10 +474,15 @@ function SandboxPaneInner({
   }
 
   const placing = Boolean(placingIconKey || placingText);
+  const isTopRow = useIsTopRow(paneRef);
+  const { padding: fitPadding, cancelRefit } = useSandboxFitPadding(paneRef, (padding) => {
+    void fitView({ padding, duration: SETTLE_REFIT_DURATION_MS });
+  });
 
   return (
     <div
-      className={`sandbox-pane${active ? ' is-active' : ''}${placing ? ' is-placing-icon' : ''}`}
+      ref={paneRef}
+      className={`sandbox-pane${active ? ' is-active' : ''}${isTopRow ? ' is-top-row' : ''}${placing ? ' is-placing-icon' : ''}`}
       onMouseDown={onActivate}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -463,40 +494,42 @@ function SandboxPaneInner({
       role="group"
       aria-label={doc.name}
     >
-      <header
-        className="sandbox-pane__header"
-        onDoubleClick={(event) => {
-          if ((event.target as HTMLElement).closest('button')) return;
-          event.stopPropagation();
-          setTitleDraft(doc.name);
-          setEditingTitle(true);
-        }}
-      >
-        {editingTitle ? (
-          <input
-            className="sandbox-pane__title-input"
-            value={titleDraft}
-            autoFocus
-            onChange={(e) => setTitleDraft(e.target.value)}
-            onBlur={commitTitle}
-            onKeyDown={onTitleKeyDown}
-            onClick={(e) => e.stopPropagation()}
-            aria-label="Sandbox name"
-          />
-        ) : (
-          <span
-            className="sandbox-pane__title"
-            title="Double-click to rename"
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              setTitleDraft(doc.name);
-              setEditingTitle(true);
-            }}
-          >
-            {doc.name}
-            {doc.dirty ? ' •' : ''}
-          </span>
-        )}
+      <div className="sandbox-pane__bar">
+        <header
+          className="sandbox-pane__header"
+          onDoubleClick={(event) => {
+            if ((event.target as HTMLElement).closest('button')) return;
+            event.stopPropagation();
+            setTitleDraft(doc.name);
+            setEditingTitle(true);
+          }}
+        >
+          {editingTitle ? (
+            <input
+              className="sandbox-pane__title-input"
+              value={titleDraft}
+              autoFocus
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={onTitleKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Sandbox name"
+            />
+          ) : (
+            <span
+              className="sandbox-pane__title"
+              title="Double-click to rename"
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                setTitleDraft(doc.name);
+                setEditingTitle(true);
+              }}
+            >
+              {doc.name}
+              {doc.dirty ? ' •' : ''}
+            </span>
+          )}
+        </header>
         <button
           type="button"
           className="sandbox-pane__close"
@@ -509,7 +542,7 @@ function SandboxPaneInner({
         >
           <CloseIcon />
         </button>
-      </header>
+      </div>
       {active && toast ? (
         <div className="sandbox-pane__toast" role="status">
           {toast}
@@ -607,6 +640,10 @@ function SandboxPaneInner({
           onNodeDoubleClick={handleNodeDoubleClick}
           onPaneClick={handlePaneClick}
           fitView
+          fitViewOptions={{ padding: fitPadding }}
+          onMoveStart={(event) => {
+            if (isUserMove(event)) cancelRefit();
+          }}
           onNodeDragStop={(_e, node) => {
             if (String(node.id).startsWith('sandbox-icon-')) {
               onIconMove(node.id, node.position.x, node.position.y);

@@ -35,7 +35,7 @@ const TOOL_DETAIL_TITLES: Record<SideMenuTool, string> = {
   changes: 'Pending changes',
   filters: 'Filters',
   actions: 'Corrections',
-  sandboxes: 'My sandboxes',
+  sandboxes: 'Sandboxes',
   chat: 'Chat',
 };
 

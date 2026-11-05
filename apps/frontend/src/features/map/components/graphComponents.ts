@@ -99,14 +99,8 @@ export function normalizeComponentLayout(
   return { width: maxX, height: maxY };
 }
 
-/**
- * Same ratio as `FIT_VIEW_PADDING` in fitGraphView. Duplicated so this module
- * does not import the fitter (that import would cycle through the layout).
- */
-const FIT_PADDING = 0.15;
-
-/** Frames stay apart even when the fit margin is smaller than the zone padding. */
-const MIN_ISLAND_GAP = 24;
+/** Frames sit this far apart: the closest the islands go, so the fit zoom is as large as it can be. */
+const MIN_ISLAND_GAP = 32;
 
 /** Row widths tried when packing islands for the fit-to-view zoom. */
 const SHELF_LIMIT_STEPS = 40;
@@ -135,11 +129,10 @@ export function packComponentOffsets(
   let best: Pos[] = shelfPack(bounds, gap);
   for (const limit of shelfWidthLimits(items)) {
     const rows = shelvesOf(items, limit);
-    const gapSize = gapMatchingFit(rows, aspectRatio);
-    const fit = fitZoom(rows, gapSize, aspectRatio);
+    const fit = fitZoom(rows, MIN_ISLAND_GAP, aspectRatio);
     if (fit > bestFit) {
       bestFit = fit;
-      best = placeRows(rows, gapSize);
+      best = placeRows(rows, MIN_ISLAND_GAP);
     }
   }
   return best;
@@ -177,24 +170,6 @@ function fitZoom(rows: IndexedSize[][], gap: number, aspectRatio: number): numbe
   const width = spanX + gapsX * (2 * ZONE_PADDING + gap);
   const height = spanY + gapsY * (2 * ZONE_PADDING + gap);
   return Math.min(aspectRatio / width, 1 / height);
-}
-
-function gapMatchingFit(rows: IndexedSize[][], aspectRatio: number): number {
-  const { spanX, gapsX, spanY, gapsY } = rowSpans(rows);
-  const paddingRatio = FIT_PADDING / (1 - 2 * FIT_PADDING);
-  const seedW = spanX + gapsX * (2 * ZONE_PADDING + MIN_ISLAND_GAP);
-  const seedH = spanY + gapsY * (2 * ZONE_PADDING + MIN_ISLAND_GAP);
-  const widthLimits = seedH <= 0 || seedW / seedH >= aspectRatio;
-  const span = widthLimits ? spanX : spanY;
-  const gaps = widthLimits ? gapsX : gapsY;
-  if (gaps === 0) return MIN_ISLAND_GAP;
-  // ponytail: more gaps than the fit padding can absorb has no finite equal margin.
-  // Keep the minimum gap so a large graph still fits on screen.
-  const denom = 1 - paddingRatio * gaps;
-  if (denom <= 0.25) return MIN_ISLAND_GAP;
-  const solved = (paddingRatio * span + ZONE_PADDING * (2 * paddingRatio * gaps - 1)) / denom;
-  const cap = span / gaps;
-  return Math.min(cap, Math.max(MIN_ISLAND_GAP, solved));
 }
 
 function rowSpans(rows: IndexedSize[][]) {

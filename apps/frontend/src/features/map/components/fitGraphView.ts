@@ -1,7 +1,7 @@
 import { NODE_HEIGHT, NODE_WIDTH } from '../hooks/useGraphData';
-import { computeLegendFitPadding, type FitViewPadding } from './drawerFitPadding';
+import { FIT_RATIO, computeLegendFitPadding, computeFitAreaAspectRatio, type FitViewPadding } from './drawerFitPadding';
 
-export const FIT_VIEW_PADDING = 0.15;
+export const FIT_VIEW_PADDING = FIT_RATIO;
 
 /** Inset (px) from the pane edges when deciding if a node is “on screen”. */
 const VISIBILITY_PADDING_PX = 12;
@@ -77,6 +77,7 @@ const LEGEND_WAIT_FRAMES = 30;
 const LEGEND_SELECTOR = '.graph-legend';
 const PANE_SELECTOR = '.react-flow';
 const OPEN_MENU_SELECTOR = '.map-graph-panel.is-menu-open .self-service-side-menu-shell';
+const HEADER_SELECTOR = '.graph-view-header-text, .graph-view-header-actions';
 
 /** Same as {@link fitGraphView}, for a caller whose instance may not exist yet. */
 export function fitGraphViewWhenReady(
@@ -111,11 +112,28 @@ function readLegendFitPadding(): FitViewPadding {
   const paneRect = pane.getBoundingClientRect();
   const legend = document.querySelector(LEGEND_SELECTOR);
   const menu = document.querySelector(OPEN_MENU_SELECTOR);
-  return computeLegendFitPadding(
-    legend ? legend.getBoundingClientRect().right - paneRect.left : undefined,
-    menu ? paneRect.right - menu.getBoundingClientRect().left : undefined,
-    paneRect.width
+  return computeLegendFitPadding({
+    legendRightPx: legend ? legend.getBoundingClientRect().right - paneRect.left : undefined,
+    menuWidthPx: menu ? paneRect.right - menu.getBoundingClientRect().left : undefined,
+    paneWidthPx: paneRect.width,
+    headerBottomPx: readHeaderBottom(paneRect),
+  });
+}
+
+/** How far down the pane the title and its buttons reach, so the first fit starts below them. */
+function readHeaderBottom(paneRect: DOMRect): number | undefined {
+  const bottoms = Array.from(document.querySelectorAll(HEADER_SELECTOR)).map(
+    (element) => element.getBoundingClientRect().bottom - paneRect.top
   );
+  return bottoms.length > 0 ? Math.max(...bottoms) : undefined;
+}
+
+/** Aspect ratio of the area the next fit fills, for packing islands to the zoom they will get. */
+export function readFitAspectRatio(): number | undefined {
+  const pane = typeof document === 'undefined' ? null : document.querySelector(PANE_SELECTOR);
+  if (!pane) return undefined;
+  const { width, height } = pane.getBoundingClientRect();
+  return computeFitAreaAspectRatio(width, height, readLegendFitPadding());
 }
 
 function nodeSize(node: NodeLike): { width: number; height: number } {

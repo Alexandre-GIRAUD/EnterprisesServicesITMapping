@@ -201,9 +201,6 @@ export function DataModelPage() {
       <header className="data-model-header">
         <div>
           <h1>Data Model</h1>
-          <p className="data-model-lead">
-            Define the attributes available on the nodes and connections of your graph.
-          </p>
         </div>
         {isAdmin ? (
           <button type="button" className="data-model-primary-btn data-model-add-btn" onClick={addRow}>

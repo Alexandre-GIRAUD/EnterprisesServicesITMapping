@@ -26,7 +26,7 @@ export function HistoryDatePicker({ day, onChange }: HistoryDatePickerProps) {
   }, []);
 
   return (
-    <label className="history-date-picker" title="Show Production as it stood on this day">
+    <label className="history-date-picker" title="Show Cartography as it stood on this day">
       <span className="history-date-picker__label">Date</span>
       <input
         type="date"

@@ -333,7 +333,7 @@ export function FilterDrawer({
 
   function renderRootActions() {
     return (
-      <div className="graph-filter-compact-actions">
+      <div className="graph-filter-compact-actions graph-filter-compact-actions--links">
         <button type="button" className="graph-filter-compact-btn graph-filter-compact-btn--ghost" onClick={onReset}>
           Clear
         </button>
@@ -729,7 +729,6 @@ export function FilterDrawer({
                 />
                 <span className="graph-filter-neighbours-text">
                   With neighbours
-                  <span className="graph-filter-neighbours-hint">Also show linked applications</span>
                 </span>
               </label>
             ) : null}

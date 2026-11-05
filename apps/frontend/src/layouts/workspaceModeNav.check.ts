@@ -28,7 +28,7 @@ assert.match(filterDrawer, /My views/);
 assert.match(css, /\.self-service-side-menu \{[^}]*background: transparent/);
 assert.match(
   css,
-  /\.map-graph-panel\.is-menu-open \.self-service-side-menu-shell \{[^}]*position: absolute[^}]*min\(360px/,
+  /\.map-graph-panel\.is-menu-open \.self-service-side-menu-shell \{[^}]*position: relative[^}]*min\(360px/,
 );
 assert.match(
   css,

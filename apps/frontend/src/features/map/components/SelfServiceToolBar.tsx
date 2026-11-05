@@ -150,8 +150,8 @@ export function SelfServiceToolBar({
           role="tab"
           className={`self-service-tool-bar-btn${activeTool === 'sandboxes' ? ' is-active' : ''}`}
           aria-selected={activeTool === 'sandboxes'}
-          aria-label="My sandboxes"
-          title="My sandboxes"
+          aria-label="Sandboxes"
+          title="Sandboxes"
           onClick={() => onChange('sandboxes')}
         >
           <SandboxesIcon />

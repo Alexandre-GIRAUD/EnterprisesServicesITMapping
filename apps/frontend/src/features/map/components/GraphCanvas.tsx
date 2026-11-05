@@ -88,10 +88,11 @@ import { SelfServiceBurger, SelfServiceSideMenu, type SideMenuTool } from './Sel
 import { GraphDisplayToggle, type GraphDisplayMode } from './GraphDisplayToggle';
 import { TableContentToggle, type TableContentMode, type TableViewMode } from './TableContentToggle';
 import { CreateTablePanel, type CreateTableExportState } from './CreateTablePanel';
-import { fitGraphView, ensureNodesVisible } from './fitGraphView';
+import { fitGraphView, ensureNodesVisible, readFitAspectRatio } from './fitGraphView';
 import { CenterGraphControl } from './CenterGraphControl';
 
 const CENTER_ANIMATION_MS = 200;
+const DEFAULT_FIT_ASPECT_RATIO = 16 / 9;
 import { downloadTableFile, tableToCsv, tableToExcelXml, type TableGrid } from '../utils/tableFile';
 import { customTableExportFormats } from '../utils/customTable';
 import { GraphViewsPanel, ViewInspectPanel, type InspectedView, type ViewLibraryActions } from './GraphViewsPanel';
@@ -725,7 +726,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
       if (status !== 'ready' || graphNodes.length === 0) return;
       const gen = ++collapseGenerationRef.current;
       const rect = containerRef.current?.getBoundingClientRect();
-      const aspectRatio = rect && rect.height > 0 ? rect.width / rect.height : 16 / 9;
+      const aspectRatio = readFitAspectRatio() ?? (rect && rect.height > 0 ? rect.width / rect.height : DEFAULT_FIT_ASPECT_RATIO);
       const coding = legendCodingRef.current;
       const laid = await layoutCollapsedAppGraph({
         graphNodes,
@@ -1533,7 +1534,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
     if (moduleGraphApp) return `Modules — ${moduleGraphApp.label}`;
     if (isViewsMode) return 'My views';
     if (isSandbox) return 'Sandbox';
-    return 'Production';
+    return 'Cartography';
   }, [moduleGraphApp, isViewsMode, isSandbox]);
 
   const tabDescription = useMemo(() => {
@@ -1815,14 +1816,11 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
               {showGraphDisplayToggle ? (
                 <GraphDisplayToggle displayMode={displayMode} onChange={setDisplayMode} />
               ) : null}
-              {isViewsMode ? null : (
-                <SelfServiceBurger isOpen={isSideMenuOpen} onToggle={handleSideMenuToggle} />
-              )}
             </div>
           </header>
           {isReadOnly && viewingDay ? (
             <p className="graph-history-banner" role="status">
-              Viewing Production as of {formatViewingDay(viewingDay)}. Read-only.
+              Viewing Cartography as of {formatViewingDay(viewingDay)}. Read-only.
               <button type="button" onClick={() => onViewingDayChange?.(null)}>
                 Back to today
               </button>
@@ -1847,7 +1845,6 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
                   mode.switchToNormalMode();
                   setIsSaveSnapshotOpen(true);
                 }}
-                panelToggle={<SelfServiceBurger isOpen={isSideMenuOpen} onToggle={handleSideMenuToggle} />}
                 actionsRef={viewActionsRef}
               />
             ) : moduleGraphApp ? (
@@ -2354,6 +2351,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
         </div>
         </div>
 
+        <SelfServiceBurger isOpen={isSideMenuOpen} onToggle={handleSideMenuToggle} />
         <SelfServiceSideMenu
           isOpen={isSideMenuOpen}
           graphMode={graphMode}
