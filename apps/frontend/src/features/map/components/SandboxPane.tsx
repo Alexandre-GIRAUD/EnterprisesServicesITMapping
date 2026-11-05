@@ -26,6 +26,7 @@ import {
 import { GRID } from '../hooks/useGraphData';
 import { AppGraphNode } from './AppGraphNode';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
+import { FullscreenControl } from './FullscreenControl';
 import { HiddenAppsPicker } from './HiddenAppsPicker';
 import { OrientedEdge } from './OrientedEdge';
 import { SandboxIconNode } from './SandboxIconNode';
@@ -86,6 +87,8 @@ type Props = {
   /** Text box id that should open in edit mode once (after place). */
   editingTextId?: string | null;
   onTextEditStarted?: (textId: string) => void;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 };
 
 function iconNodesFromDoc(icons: SandboxIcon[], onDelete: (id: string) => void): Node[] {
@@ -199,6 +202,8 @@ function SandboxPaneInner({
   onPlaceText,
   editingTextId,
   onTextEditStarted,
+  isFullscreen = false,
+  onToggleFullscreen,
 }: Props) {
   const { screenToFlowPosition, fitView } = useReactFlow();
   const [editingTitle, setEditingTitle] = useState(false);
@@ -693,7 +698,11 @@ function SandboxPaneInner({
             })}
             edges={displayEdges}
           />
-          <Controls showInteractive={false} />
+          <Controls showInteractive={false}>
+            {onToggleFullscreen ? (
+              <FullscreenControl isFullscreen={isFullscreen} onToggle={onToggleFullscreen} />
+            ) : null}
+          </Controls>
           {hiddenIds.length > 0 ? (
             <Panel position="top-right">
               <HiddenAppsPicker
