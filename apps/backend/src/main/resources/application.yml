@@ -8,7 +8,7 @@ spring:
       chat:
         options:
           model: ${SPRING_AI_MODEL:gpt-4o}
-          temperature: 0.2
+          temperature: ${SPRING_AI_TEMPERATURE:0.2}
       embedding:
         options:
           model: ${SPRING_AI_EMBEDDING_MODEL:text-embedding-3-small}
