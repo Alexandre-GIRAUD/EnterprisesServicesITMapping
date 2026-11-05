@@ -18,7 +18,7 @@ import {
 import { displayFilterValue, searchFilterHits, type FilterSearchHit } from './filterSearch';
 import { BreachFilterDetail, BreachFilterRow } from '@/features/breach/components/BreachFilterDetail';
 import { useBreachRuleChoices } from '@/features/breach/useBreachRuleChoices';
-import { toggleBreachSelector } from '@/features/breach/breachRules';
+import { pruneBreachSelection, toggleBreachSelector } from '@/features/breach/breachRules';
 import { FlameIcon } from '@/features/breach/components/FlameIcon';
 
 export type { GraphFilters };
@@ -154,7 +154,9 @@ export function FilterDrawer({
   const [withNeighbours, setWithNeighbours] = useState(initialWithNeighbours);
   const [selectedBreach, setSelectedBreach] = useState(initialBreach);
   const [shouldShowBreaches, setShouldShowBreaches] = useState(initialShouldShowBreaches);
-  const breachRules = useBreachRuleChoices(showBreach);
+  const loadedBreachRules = useBreachRuleChoices(showBreach);
+  const breachRules = loadedBreachRules ?? [];
+  const hasBreachRules = breachRules.length > 0;
   const hasEditedFilters = useRef(false);
 
   const appCatalog = useMemo(
@@ -182,6 +184,20 @@ export function FilterDrawer({
     [nodeFilters, selectedNodeValues, nodeCatalogs]
   );
   const isGraphBlank = isGraphBlankedBySelection([appMode, ...nodeModes]);
+
+  // A deleted rule must not keep filtering the map from a row nobody can see.
+  useEffect(() => {
+    if (!loadedBreachRules) return;
+    const kept = pruneBreachSelection(selectedBreach, loadedBreachRules);
+    if (kept.length !== selectedBreach.length) {
+      hasEditedFilters.current = true;
+      setSelectedBreach(kept);
+    }
+    if (loadedBreachRules.length === 0 && shouldShowBreaches) {
+      hasEditedFilters.current = true;
+      setShouldShowBreaches(false);
+    }
+  }, [loadedBreachRules, selectedBreach, shouldShowBreaches]);
 
   const detailSelectAllRef = useRef<HTMLInputElement | null>(null);
 
@@ -777,7 +793,7 @@ export function FilterDrawer({
               </label>
             ) : null}
 
-            {showBreach ? (
+            {showBreach && hasBreachRules ? (
               <label className="graph-filter-neighbours" title="Show the breach flames on applications and colour flows in breach">
                 <span className="graph-filter-neighbours-icon" aria-hidden="true">
                   <FlameIcon size="heading" />
@@ -790,7 +806,7 @@ export function FilterDrawer({
                     setShouldShowBreaches(event.target.checked);
                   }}
                 />
-                <span className="graph-filter-neighbours-text">Breaches</span>
+                <span className="graph-filter-neighbours-text">Display breaches</span>
               </label>
             ) : null}
 
@@ -803,7 +819,7 @@ export function FilterDrawer({
               catalog: appCatalog,
             })}
 
-            {showBreach && breachRules.length > 0 ? (
+            {showBreach && hasBreachRules ? (
               <BreachFilterRow rules={breachRules} selected={selectedBreach} onOpen={() => openDetail(BREACH_FILTER_VIEW)} />
             ) : null}
 

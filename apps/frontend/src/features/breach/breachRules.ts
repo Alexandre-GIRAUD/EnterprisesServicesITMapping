@@ -169,6 +169,13 @@ export function toggleBreachSelector(selected: string[], selector: string): stri
   return [...selected.filter((value) => value !== ANY_BREACH_RULE), selector];
 }
 
+/** Drops selected rules that no longer exist, so a hidden stale selection cannot empty the map. */
+export function pruneBreachSelection(selected: string[], rules: { id: string }[]): string[] {
+  return selected.filter(
+    (selector) => rules.length > 0 && (selector === ANY_BREACH_RULE || rules.some((rule) => rule.id === selector))
+  );
+}
+
 export function breachFilterLabel(selected: string[], rules: { id: string; name: string }[]): string {
   if (selected.length === 0) return FILTER_LABELS.off;
   if (selected.includes(ANY_BREACH_RULE)) return FILTER_LABELS.anyRule;

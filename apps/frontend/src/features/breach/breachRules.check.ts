@@ -11,6 +11,7 @@ import {
   canHaveBreachImpact,
   changeSubject,
   describeBreachRules,
+  pruneBreachSelection,
   toggleBreachSelector,
   findDraftIssue,
   elementTitle,
@@ -138,6 +139,12 @@ assert.deepEqual(toggleBreachSelector([], ANY_BREACH_RULE), [ANY_BREACH_RULE]);
 assert.deepEqual(toggleBreachSelector([ANY_BREACH_RULE], 'r1'), ['r1']);
 assert.deepEqual(toggleBreachSelector(['r1'], ANY_BREACH_RULE), [ANY_BREACH_RULE]);
 assert.deepEqual(toggleBreachSelector(['r1', 'r2'], 'r1'), ['r2']);
+// A selected rule that no longer exists must not keep filtering the map invisibly.
+assert.deepEqual(pruneBreachSelection(['r1', 'gone'], ruleNames), ['r1']);
+assert.deepEqual(pruneBreachSelection(['gone'], ruleNames), []);
+assert.deepEqual(pruneBreachSelection([ANY_BREACH_RULE], ruleNames), [ANY_BREACH_RULE]);
+assert.deepEqual(pruneBreachSelection([ANY_BREACH_RULE], []), []);
+assert.deepEqual(pruneBreachSelection([], ruleNames), []);
 assert.equal(breachFilterLabel([], ruleNames), 'Off');
 assert.equal(breachFilterLabel([ANY_BREACH_RULE], ruleNames), 'Any rule');
 assert.equal(breachFilterLabel(['r2'], ruleNames), 'FTP flows');
