@@ -1648,6 +1648,8 @@ body.is-diagram-grown .layout {
   --burger-size: 36px;
   --burger-top: calc(var(--page-gutter) - 0.2rem);
   --burger-gap: 0.5rem;
+  /* The title is one line this tall; the corner controls and the burger centre on it. */
+  --map-title-line: 2.75rem;
   --corner-control-height: 2.25rem;
   --corner-control-radius: 10px;
   --views-indent: 1.5rem;
@@ -1715,7 +1717,8 @@ body.is-diagram-grown .layout {
 
 .map-graph-panel .self-service-burger {
   position: absolute;
-  top: var(--burger-top);
+  top: calc(var(--burger-top) + 0.2rem + (var(--map-title-line) - var(--corner-control-height)) / 2);
+  padding: 0;
   right: 1rem;
   z-index: 30;
   width: var(--burger-size);
@@ -1963,6 +1966,8 @@ button.corner-control:hover:not(:disabled) {
   justify-content: flex-end;
   gap: 0.5rem;
   flex-shrink: 0;
+  height: var(--map-title-line);
+  margin-top: 0.2rem;
   margin-right: calc(var(--burger-size) + var(--burger-gap));
 }
 
@@ -2173,6 +2178,7 @@ button.corner-control:hover:not(:disabled) {
 }
 
 .graph-view-header-title {
+  line-height: var(--map-title-line);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -2215,7 +2221,7 @@ button.corner-control:hover:not(:disabled) {
   background: var(--map-canvas-bg);
 }
 
-.map-page :is(.graph-tables-view, .graph-views-pane) {
+.map-page .graph-views-pane {
   background: var(--map-dot-grid);
 }
 
@@ -2263,7 +2269,7 @@ button.corner-control:hover:not(:disabled) {
 .self-service-burger-icon {
   position: relative;
   width: 1rem;
-  height: 0.72rem;
+  height: 12px;
 }
 
 .self-service-burger-icon::before,

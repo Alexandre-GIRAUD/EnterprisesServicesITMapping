@@ -48,6 +48,19 @@ assert.doesNotMatch(css, /\.module-drawer \{/);
 assert.doesNotMatch(css, /module-drawer__grip/);
 assert.doesNotMatch(source('./ApplicationModulesDrawer.tsx'), /module-drawer__grip|window\.addEventListener/);
 
+// The corner controls, the title line and the burger cross share one centre line.
+assert.match(css, /--map-title-line:\s*2\.75rem/);
+assert.match(rule('\n.graph-view-header-title'), /line-height:\s*var\(--map-title-line\)/);
+assert.match(css, /\.graph-view-header-actions \{[^}]*height:\s*var\(--map-title-line\)/);
+assert.match(rule('.map-graph-panel .self-service-burger'), /top:\s*calc\(var\(--burger-top\) \+ 0\.2rem \+ \(var\(--map-title-line\) - var\(--corner-control-height\)\) \/ 2\)/);
+// A square corner button has no side padding, so its icon sits in the middle.
+assert.match(rule('.map-graph-panel .self-service-burger'), /padding:\s*0;/);
+assert.match(rule('.self-service-burger-icon'), /height:\s*12px/);
+
+// Tables use the plain Cartography background; only My views keeps the dots.
+assert.doesNotMatch(css, /\.map-page :is\(\.graph-tables-view, \.graph-views-pane\) \{/);
+assert.match(rule('.map-page .graph-views-pane'), /background:\s*var\(--map-dot-grid\)/);
+
 // One loading, empty and error message for every view.
 const { MapState } = await import('./MapState.tsx');
 assert.equal(
@@ -67,6 +80,6 @@ for (const file of ['ApplicationsTablePanel', 'FeedsTablePanel', 'CreateTablePan
 
 // Tables and My views carry the same dot grid as the graph canvases (gap 16, dots #e2e8f0).
 assert.match(css, /--map-dot-grid:\s*radial-gradient\([^;]*#e2e8f0[^;]*16px 16px/);
-assert.match(rule('.map-page :is(.graph-tables-view, .graph-views-pane)'), /background:\s*var\(--map-dot-grid\)/);
+
 
 console.log('viewChrome.check: ok');
