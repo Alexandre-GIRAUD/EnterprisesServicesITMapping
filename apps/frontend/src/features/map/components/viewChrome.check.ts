@@ -65,4 +65,8 @@ for (const file of ['ApplicationsTablePanel', 'FeedsTablePanel', 'CreateTablePan
   assert.doesNotMatch(source(`./${file}.tsx`), legacy, `${file} uses MapState`);
 }
 
+// Tables and My views carry the same dot grid as the graph canvases (gap 16, dots #e2e8f0).
+assert.match(css, /--map-dot-grid:\s*radial-gradient\([^;]*#e2e8f0[^;]*16px 16px/);
+assert.match(rule('.map-page :is(.graph-tables-view, .graph-views-pane)'), /background:\s*var\(--map-dot-grid\)/);
+
 console.log('viewChrome.check: ok');

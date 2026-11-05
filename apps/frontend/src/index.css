@@ -1908,6 +1908,8 @@ button.corner-control:hover:not(:disabled) {
   --map-header-height: 5.1rem;
   --map-content-top: var(--map-header-height);
   --map-canvas-bg: #f8fafc;
+  /* Same dots as the React Flow background of the graph canvases. */
+  --map-dot-grid: radial-gradient(circle, #e2e8f0 1px, transparent 1.5px) 0 0 / 16px 16px, var(--map-canvas-bg);
   --map-drawer-top: var(--map-header-height);
   position: relative;
   flex: 1;
@@ -2211,6 +2213,10 @@ button.corner-control:hover:not(:disabled) {
   border-radius: 0;
   box-shadow: none;
   background: var(--map-canvas-bg);
+}
+
+.map-page :is(.graph-tables-view, .graph-views-pane) {
+  background: var(--map-dot-grid);
 }
 
 .map-page .graph-details-drawer:not(.is-embedded) {
