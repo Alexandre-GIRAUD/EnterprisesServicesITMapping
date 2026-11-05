@@ -16,7 +16,8 @@ import java.util.List;
 public record GraphNodeFilterDto(
     String key,
     String label,
-    List<String> values,
+    /** Always serialized, even empty: the filter menu iterates it. */
+    @JsonInclude(JsonInclude.Include.ALWAYS) List<String> values,
     boolean fromAllowedValues,
     String kind,
     boolean multiple,
