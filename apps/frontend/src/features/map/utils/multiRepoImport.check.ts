@@ -46,7 +46,7 @@ assert.equal(
 );
 
 const page = readFileSync(new URL('../pages/GitHubImportPage.tsx', import.meta.url), 'utf8');
-assert.match(page, /name: applicationNameForGitHubRepo\(repo\.name\)/);
+assert.match(page, /: applicationNameForGitHubRepo\(repo\.name\)/);
 assert.match(page, /applicationDescriptionForGitHubRepos\(toCreate\)/);
 assert.match(page, /Create New/);
 assert.match(page, /role="dialog"/);

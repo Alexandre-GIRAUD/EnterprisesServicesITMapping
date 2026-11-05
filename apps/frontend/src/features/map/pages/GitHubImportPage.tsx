@@ -72,6 +72,13 @@ function normalizeName(s: string): string {
   return s.trim().toLowerCase();
 }
 
+/** Name an imported repository gets on the map unless the user types another one. */
+function defaultApplicationName(repo: ListedRepo): string {
+  return repo.host === 'bitbucket'
+    ? applicationNameForBitbucketRepo(repo.name)
+    : applicationNameForGitHubRepo(repo.name);
+}
+
 function GitHubMark() {
   return (
     <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
@@ -116,6 +123,10 @@ export function GitHubImportPage() {
   const [nameError, setNameError] = useState<string | null>(null);
 
   const isHostMode = sourceMode === 'github' || sourceMode === 'bitbucket';
+  const nameHint =
+    selected.size === 1
+      ? 'Name of the application on the map. It stays linked to the repository.'
+      : 'Name the application that owns these repositories.';
   const repos = sourceMode === 'bitbucket' ? bitbucketRepos : githubRepos;
   const hostError = sourceMode === 'bitbucket' ? bitbucketError : githubError;
 
@@ -239,9 +250,9 @@ export function GitHubImportPage() {
     const createdNames: string[] = [];
     const target = importedApplications.find((application) => application.id === targetApplicationId);
 
-    if (!target && toCreate.length > 1 && confirmedName === undefined) {
+    if (!target && confirmedName === undefined) {
       setNameError(null);
-      setGroupName('');
+      setGroupName(toCreate.length === 1 ? defaultApplicationName(toCreate[0]) : '');
       return;
     }
 
@@ -279,30 +290,20 @@ export function GitHubImportPage() {
           errors.push(`${name}: ${e instanceof Error ? e.message : 'failed'}`);
         }
       } else {
-        for (const repo of toCreate) {
-          try {
-            const created = await createApplication(
+        const repo = toCreate[0];
+        const name = confirmedName?.trim() || defaultApplicationName(repo);
+        try {
+          const created = await createApplication({
+            name,
+            description:
               repo.host === 'bitbucket'
-                ? {
-                    name: applicationNameForBitbucketRepo(repo.name),
-                    description: applicationDescriptionForBitbucketRepo(repo.description, repo.htmlUrl),
-                  }
-                : {
-                    name: applicationNameForGitHubRepo(repo.name),
-                    description: applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
-                  },
-            );
-            setApplications((prev) => [...prev, created]);
-            createdNames.push(
-              normalizeName(
-                repo.host === 'bitbucket'
-                  ? applicationNameForBitbucketRepo(repo.name)
-                  : applicationNameForGitHubRepo(repo.name),
-              ),
-            );
-          } catch (e) {
-            errors.push(`${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`);
-          }
+                ? applicationDescriptionForBitbucketRepo(repo.description, repo.htmlUrl)
+                : applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
+          });
+          setApplications((prev) => [...prev, created]);
+          createdNames.push(normalizeName(name));
+        } catch (e) {
+          errors.push(`${repo.fullName}: ${e instanceof Error ? e.message : 'failed'}`);
         }
       }
 
@@ -485,7 +486,7 @@ export function GitHubImportPage() {
               event.preventDefault();
               const name = groupName.trim();
               if (!name) {
-                setNameError('Name the application that owns these repositories.');
+                setNameError(nameHint);
                 return;
               }
               setGroupName(null);
@@ -496,9 +497,7 @@ export function GitHubImportPage() {
             <h2 id="github-import-name-title" className="save-snapshot-dialog-title">
               Application name
             </h2>
-            <p className="save-snapshot-dialog-hint">
-              Name the application that owns these repositories.
-            </p>
+            <p className="save-snapshot-dialog-hint">{nameHint}</p>
             <label className="save-snapshot-dialog-label" htmlFor="github-import-name">
               Name
             </label>
