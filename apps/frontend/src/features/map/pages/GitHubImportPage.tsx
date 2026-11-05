@@ -79,6 +79,15 @@ function defaultApplicationName(repo: ListedRepo): string {
     : applicationNameForGitHubRepo(repo.name);
 }
 
+/** New application for one repository; the description keeps the repository link. */
+function newApplicationRequest(repo: ListedRepo, name: string) {
+  const description =
+    repo.host === 'bitbucket'
+      ? applicationDescriptionForBitbucketRepo(repo.description, repo.htmlUrl)
+      : applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl);
+  return { name, description };
+}
+
 function GitHubMark() {
   return (
     <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
@@ -119,16 +128,17 @@ export function GitHubImportPage() {
     searchParams.get('tab') === 'data-sources' ? 'data-sources' : 'github',
   );
   const [targetApplicationId, setTargetApplicationId] = useState('');
-  const [groupName, setGroupName] = useState<string | null>(null);
+  const [applicationNameDraft, setApplicationNameDraft] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
 
   const isHostMode = sourceMode === 'github' || sourceMode === 'bitbucket';
-  const nameHint =
-    selected.size === 1
-      ? 'Name of the application on the map. It stays linked to the repository.'
-      : 'Name the application that owns these repositories.';
   const repos = sourceMode === 'bitbucket' ? bitbucketRepos : githubRepos;
   const hostError = sourceMode === 'bitbucket' ? bitbucketError : githubError;
+  const reposToImport = repos.filter((repo) => selected.has(repo.id) && !isImported(repo));
+  const nameHint =
+    reposToImport.length === 1
+      ? 'Name of the application on the map. It stays linked to the repository.'
+      : 'Name the application that owns these repositories.';
 
   function isImported(repo: ListedRepo): boolean {
     return applicationForRepo(repo) != null;
@@ -229,18 +239,18 @@ export function GitHubImportPage() {
   }
 
   useEffect(() => {
-    if (groupName === null) return;
+    if (applicationNameDraft === null) return;
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') setGroupName(null);
+      if (event.key === 'Escape') setApplicationNameDraft(null);
     }
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [groupName]);
+  }, [applicationNameDraft]);
 
   async function handleImportSelection(confirmedName?: string) {
     setSuccessMessage(null);
     setImportErrors([]);
-    const toCreate = repos.filter((r) => selected.has(r.id) && !isImported(r));
+    const toCreate = reposToImport;
     if (toCreate.length === 0) {
       setImportErrors(['No repository selected (or all are already imported).']);
       return;
@@ -252,7 +262,7 @@ export function GitHubImportPage() {
 
     if (!target && confirmedName === undefined) {
       setNameError(null);
-      setGroupName(toCreate.length === 1 ? defaultApplicationName(toCreate[0]) : '');
+      setApplicationNameDraft(toCreate.length === 1 ? defaultApplicationName(toCreate[0]) : '');
       return;
     }
 
@@ -291,15 +301,9 @@ export function GitHubImportPage() {
         }
       } else {
         const repo = toCreate[0];
-        const name = confirmedName?.trim() || defaultApplicationName(repo);
+        const name = confirmedName ?? defaultApplicationName(repo);
         try {
-          const created = await createApplication({
-            name,
-            description:
-              repo.host === 'bitbucket'
-                ? applicationDescriptionForBitbucketRepo(repo.description, repo.htmlUrl)
-                : applicationDescriptionForGitHubRepo(repo.description, repo.htmlUrl),
-          });
+          const created = await createApplication(newApplicationRequest(repo, name));
           setApplications((prev) => [...prev, created]);
           createdNames.push(normalizeName(name));
         } catch (e) {
@@ -309,7 +313,7 @@ export function GitHubImportPage() {
 
       if (createdNames.length > 0) {
         setSelected(new Set());
-        setGroupName(null);
+        setApplicationNameDraft(null);
         if (!target) {
           setSuccessMessage(`${createdNames.length} application(s) created. Scan each one when ready.`);
         }
@@ -446,7 +450,7 @@ export function GitHubImportPage() {
           disabled={isImporting || status !== 'ready'}
           onChange={(event) => {
             setTargetApplicationId(event.target.value);
-            setGroupName(null);
+            setApplicationNameDraft(null);
           }}
         >
           <option value="">Create New</option>
@@ -470,11 +474,11 @@ export function GitHubImportPage() {
         <span>{filteredRepos.length} repositories</span>
         <span>{selected.size} selected</span>
       </p>
-      {groupName !== null && targetApplicationId === '' ? (
+      {applicationNameDraft !== null && targetApplicationId === '' ? (
         <div
           className="save-snapshot-dialog-backdrop"
           role="presentation"
-          onClick={() => setGroupName(null)}
+          onClick={() => setApplicationNameDraft(null)}
         >
           <form
             className="save-snapshot-dialog"
@@ -484,12 +488,12 @@ export function GitHubImportPage() {
             onClick={(event) => event.stopPropagation()}
             onSubmit={(event: FormEvent) => {
               event.preventDefault();
-              const name = groupName.trim();
+              const name = applicationNameDraft.trim();
               if (!name) {
                 setNameError(nameHint);
                 return;
               }
-              setGroupName(null);
+              setApplicationNameDraft(null);
               setNameError(null);
               void handleImportSelection(name);
             }}
@@ -504,8 +508,8 @@ export function GitHubImportPage() {
             <input
               id="github-import-name"
               className="save-snapshot-dialog-input"
-              value={groupName}
-              onChange={(event) => setGroupName(event.target.value)}
+              value={applicationNameDraft}
+              onChange={(event) => setApplicationNameDraft(event.target.value)}
               placeholder="Application name"
               aria-label="Application name"
               disabled={isImporting}
@@ -516,7 +520,7 @@ export function GitHubImportPage() {
               <button
                 type="button"
                 className="save-snapshot-dialog-btn save-snapshot-dialog-btn--secondary"
-                onClick={() => setGroupName(null)}
+                onClick={() => setApplicationNameDraft(null)}
               >
                 Cancel
               </button>

@@ -36,8 +36,8 @@ assert.doesNotMatch(page, /name: repo\.fullName/);
 
 // A single repo can be imported under another name: the dialog opens prefilled with the repo name.
 assert.match(page, /if \(!target && confirmedName === undefined\) \{/);
-assert.match(page, /setGroupName\(toCreate\.length === 1 \? defaultApplicationName\(toCreate\[0\]\) : ''\)/);
-assert.match(page, /const name = confirmedName\?\.trim\(\) \|\| defaultApplicationName\(repo\);/);
+assert.match(page, /setApplicationNameDraft\(toCreate\.length === 1 \? defaultApplicationName\(toCreate\[0\]\) : ''\)/);
+assert.match(page, /const name = confirmedName \?\? defaultApplicationName\(repo\);/);
 assert.match(page, /It stays linked to the repository\./);
 
 console.log('githubImportName.check: ok');
