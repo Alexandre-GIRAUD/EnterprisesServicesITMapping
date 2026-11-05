@@ -103,6 +103,13 @@ assert.deepEqual(pickShownLegendFrame(true, null, ownFrame), ownFrame);
   });
   assert.deepEqual(measureSnugLegendSize(measure, { width: 800, height: 600 }), { width: 150 + LEGEND_WIDTH_SLACK_PX, height: 200 });
   assert.deepEqual(measureSnugLegendSize(measure, { width: 140, height: 150 }), { width: 140, height: 150 });
+  // A fractional browser zoom rounds sizes up by a pixel: that is not content, so the frame stays snug.
+  const rounded = (frame: { width: number; height: number }) => ({
+    scrollWidth: Math.max(frame.width, content.width) + 1,
+    scrollHeight: Math.max(frame.height, content.height) + 1,
+  });
+  const zoomed = measureSnugLegendSize(rounded, { width: 800, height: 340 });
+  assert.ok(zoomed.height <= content.height + 8, `snug height at a fractional zoom, got ${zoomed.height}`);
   // Content smaller than the minimum frame keeps the minimum, plus the breathing room.
   assert.deepEqual(measureSnugLegendSize(() => ({ scrollWidth: 10, scrollHeight: 10 }), { width: 800, height: 600 }), {
     width: LEGEND_MIN_WIDTH_PX + LEGEND_WIDTH_SLACK_PX,

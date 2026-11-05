@@ -24,6 +24,8 @@ const MAX_WIDEN_PASSES = 40;
 const COLUMN_OVERFLOW_RATIO = 0.25;
 /** Sub-pixel rounding of the content height would otherwise bring a scrollbar back. */
 const HEIGHT_SLACK_PX = 2;
+/** A fractional browser zoom rounds a measured size up by a pixel or two: that is not content. */
+const SIZE_ROUNDING_PX = 2;
 
 export type LegendOffset = { left: number; top: number };
 export type LegendSize = { width: number; height: number };
@@ -114,6 +116,11 @@ export function pickShownLegendFrame(
 
 export type LegendContentSize = { scrollWidth: number; scrollHeight: number };
 
+/** The size the content needs, or the current one when it only exceeds it by rounding. */
+function grownSize(measured: number, current: number): number {
+  return measured <= current + SIZE_ROUNDING_PX ? current : measured;
+}
+
 function clampBetween(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(value, max));
 }
@@ -141,8 +148,8 @@ function measureTightLegendSize(
   let height = clampBetween(short.scrollHeight, LEGEND_MIN_HEIGHT_PX, limit.height);
   for (let pass = 0; pass < MAX_SNUG_GROW_PASSES; pass += 1) {
     const seen = measure({ width, height });
-    const grownWidth = clampBetween(seen.scrollWidth, width, limit.width);
-    const grownHeight = clampBetween(seen.scrollHeight, height, limit.height);
+    const grownWidth = clampBetween(grownSize(seen.scrollWidth, width), width, limit.width);
+    const grownHeight = clampBetween(grownSize(seen.scrollHeight, height), height, limit.height);
     if (grownWidth === width && grownHeight === height) break;
     width = grownWidth;
     height = grownHeight;
@@ -158,7 +165,7 @@ function settleHeight(
 ): number {
   let height = clampBetween(measure({ width, height: LEGEND_MIN_HEIGHT_PX }).scrollHeight, LEGEND_MIN_HEIGHT_PX, maxHeight);
   for (let pass = 0; pass < MAX_SNUG_GROW_PASSES; pass += 1) {
-    const grown = clampBetween(measure({ width, height }).scrollHeight, height, maxHeight);
+    const grown = clampBetween(grownSize(measure({ width, height }).scrollHeight, height), height, maxHeight);
     if (grown === height) break;
     height = grown;
   }
@@ -175,7 +182,7 @@ function widenUntilFits(
   limit: LegendSize,
 ): LegendSize {
   const columnHeight = measure({ width: start.width, height: limit.height }).scrollHeight;
-  if (columnHeight <= limit.height) return start;
+  if (columnHeight <= limit.height + SIZE_ROUNDING_PX) return start;
   // Only a little too tall: keep the column, a bit shorter than its content, rather than a wide legend.
   const isColumn = chooseLegendEntryDirection(start.width, limit.height) === 'column';
   if (isColumn && columnHeight <= limit.height * (1 + COLUMN_OVERFLOW_RATIO)) {
@@ -186,7 +193,7 @@ function widenUntilFits(
     // Measured at the tallest frame that still lays the entries out in rows.
     const rowHeight = clampBetween(Math.floor(width / LEGEND_WIDE_ASPECT), LEGEND_MIN_HEIGHT_PX, limit.height);
     const seen = measure({ width, height: rowHeight });
-    if (seen.scrollHeight <= rowHeight || width >= limit.width) break;
+    if (seen.scrollHeight <= rowHeight + SIZE_ROUNDING_PX || width >= limit.width) break;
     width = Math.min(limit.width, Math.ceil(width * (1 + WIDEN_STEP_RATIO)));
   }
   const height = settleHeight(measure, width, limit.height);
