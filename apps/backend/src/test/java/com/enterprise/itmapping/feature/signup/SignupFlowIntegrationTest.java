@@ -46,7 +46,7 @@ import org.testcontainers.utility.DockerImageName;
 class SignupFlowIntegrationTest {
 
   private static final String PUBLIC_URL = "https://app.example.test";
-  private static final String PASSWORD = "correct-horse-1";
+  private static final String PASSWORD = "example-pass-1";
   private static final int SIGNUPS_PER_HOUR = 5;
   private static final int RESENDS_PER_HOUR = 3;
   private static final AtomicInteger NEXT_ADDRESS = new AtomicInteger(1);
