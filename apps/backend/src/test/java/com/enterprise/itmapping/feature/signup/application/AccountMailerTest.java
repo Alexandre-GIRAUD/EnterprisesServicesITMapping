@@ -26,7 +26,9 @@ class AccountMailerTest {
     when(provider.getObject()).thenReturn(sender);
     AccountMailer mailer = new AccountMailer(provider, "no-reply@example.test");
 
-    mailer.sendVerificationLink("ada@example.test", "https://app.example.test/verify-email?token=abc");
+    mailer.send(
+        "ada@example.test",
+        AccountEmails.emailVerification("https://app.example.test/verify-email?token=abc"));
 
     ArgumentCaptor<MimeMessage> sent = ArgumentCaptor.forClass(MimeMessage.class);
     verify(sender).send(sent.capture());

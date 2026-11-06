@@ -20,7 +20,8 @@ import org.springframework.test.web.servlet.MockMvc;
     controllers = PublicConfigController.class,
     excludeAutoConfiguration = SecurityAutoConfiguration.class)
 @Import(PublicConfigControllerWebMvcTest.Properties.class)
-@TestPropertySource(properties = "app.signup.enabled=true")
+@TestPropertySource(
+    properties = {"app.signup.enabled=true", "spring.mail.host=smtp.example.test"})
 class PublicConfigControllerWebMvcTest {
 
   /** The as-of filter is part of every MVC slice; the tests never read a past view. */
@@ -29,11 +30,12 @@ class PublicConfigControllerWebMvcTest {
   @Autowired MockMvc mockMvc;
 
   @Test
-  void tellsTheUiWhetherSignupIsOpen() throws Exception {
+  void tellsTheUiWhetherSignupIsOpenAndMailCanBeSent() throws Exception {
     mockMvc
         .perform(get("/config"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.signupEnabled").value(true));
+        .andExpect(jsonPath("$.signupEnabled").value(true))
+        .andExpect(jsonPath("$.mailEnabled").value(true));
   }
 
   @EnableConfigurationProperties(SignupProperties.class)
