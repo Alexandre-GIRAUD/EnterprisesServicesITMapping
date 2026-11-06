@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 
 import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
-import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import com.enterprise.itmapping.feature.datamodel.infrastructure.persistence.DataModelEntity;
 import com.enterprise.itmapping.feature.datamodel.infrastructure.persistence.DataModelRepository;
 import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelFieldDto;
