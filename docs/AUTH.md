@@ -44,3 +44,9 @@ Le joker `*` est accepté (patterns Spring) : l’API renvoie l’origine réell
 ## Docker Compose
 
 Le service `postgres` expose le port hôte `5432` par défaut (`POSTGRES_HOST_PORT` pour le modifier). Le service `backend` attend Postgres **et** Neo4j healthy avant de démarrer.
+
+## Connexions GitHub et Bitbucket
+
+Le token GitHub et le token Bitbucket appartiennent au workspace : un admin les colle dans Paramètres, ils sont chiffrés en base avec une clé dérivée de `JWT_SECRET`. Changer `JWT_SECRET` rend ces tokens (et les secrets de webhook) illisibles : il faut alors les coller de nouveau. `GITHUB_TOKEN` et `BITBUCKET_TOKEN` ne sont plus utilisés (un avertissement s’affiche au démarrage s’ils sont définis).
+
+Chaque workspace reçoit les pushes GitHub sur sa propre URL (`/api/webhooks/github/{workspaceId}`) avec son propre secret, visibles par les admins dans Paramètres. L’ancienne URL `/api/webhooks/github` ne sert plus que le workspace Default, tant que `GITHUB_WEBHOOK_SECRET` est défini.

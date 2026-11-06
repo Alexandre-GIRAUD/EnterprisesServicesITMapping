@@ -53,7 +53,7 @@ public class GitHubIntegrationController {
   }
 
   /**
-   * Proxies GitHub {@code GET /user/repos} using the server-configured token.
+   * Proxies GitHub {@code GET /user/repos} using the workspace connection token.
    */
   @GetMapping("/repos")
   public List<GitHubRepoDto> listRepos() {
