@@ -4,9 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.enterprise.itmapping.feature.history.application.PastSystemView;
-import com.enterprise.itmapping.feature.signup.application.EmailVerificationService;
 import com.enterprise.itmapping.feature.signup.application.SignupProperties;
-import com.enterprise.itmapping.feature.signup.application.SignupService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
@@ -27,9 +25,6 @@ class SignupDisabledWebMvcTest {
   /** The as-of filter is part of every MVC slice; the tests never read a past view. */
   @MockBean PastSystemView pastSystemView;
 
-  @MockBean SignupService signupService;
-  @MockBean EmailVerificationService emailVerificationService;
-
   @Autowired MockMvc mockMvc;
 
   @Test
@@ -40,6 +35,13 @@ class SignupDisabledWebMvcTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     "{\"email\":\"a@example.test\",\"password\":\"password12\",\"workspaceName\":\"W\"}"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void aMalformedSignupStillAnswersNotFound() throws Exception {
+    mockMvc
+        .perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isNotFound());
   }
 

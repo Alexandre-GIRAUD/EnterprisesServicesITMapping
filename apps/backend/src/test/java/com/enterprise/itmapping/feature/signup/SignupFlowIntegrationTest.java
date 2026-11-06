@@ -94,7 +94,9 @@ class SignupFlowIntegrationTest {
     signUp(email, "Acme Bank", nextAddress())
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.email").value(email));
-    logIn(email).andExpect(status().isForbidden());
+    logIn(email)
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("EMAIL_NOT_VERIFIED"));
 
     String token = tokenFromLink(sentLink(email));
     mockMvc
@@ -112,6 +114,43 @@ class SignupFlowIntegrationTest {
                     + " WHERE u.email = ? AND w.name = 'Acme Bank'",
                 Integer.class,
                 email))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void aLongEmailCanSignInOnceConfirmed() throws Exception {
+    String email = "a-rather-long-mailbox-name-" + UUID.randomUUID() + "@subsidiary.example.test";
+    signUp(email, "Long", nextAddress()).andExpect(status().isAccepted());
+    mockMvc
+        .perform(
+            json(post("/auth/verify-email"), "{\"token\":\"" + tokenFromLink(sentLink(email)) + "\"}"))
+        .andExpect(status().isOk());
+
+    logIn(email).andExpect(status().isOk());
+  }
+
+  @Test
+  void theNightlyPurgeKeepsAWorkspaceThatStillHasOtherUsers() throws Exception {
+    String stale = uniqueEmail();
+    signUp(stale, "Shared", nextAddress()).andExpect(status().isAccepted());
+    UUID workspace =
+        jdbcTemplate.queryForObject("SELECT workspace_id FROM users WHERE email = ?", UUID.class, stale);
+    jdbcTemplate.update(
+        "INSERT INTO users (id, username, password_hash, role, workspace_id) VALUES (?, ?, 'x', 'USER', ?)",
+        UUID.randomUUID(),
+        uniqueEmail(),
+        workspace);
+    jdbcTemplate.update(
+        "UPDATE users SET created_at = ? WHERE email = ?",
+        Timestamp.from(Instant.now().minus(8, ChronoUnit.DAYS)),
+        stale);
+
+    pendingAccountPurge.purgeExpired();
+
+    assertThat(countUsers(stale)).isZero();
+    assertThat(
+            jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM workspaces WHERE id = ?", Integer.class, workspace))
         .isEqualTo(1);
   }
 
