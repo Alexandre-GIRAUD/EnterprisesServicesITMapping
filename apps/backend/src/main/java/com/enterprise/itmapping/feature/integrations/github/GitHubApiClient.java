@@ -1,12 +1,8 @@
 package com.enterprise.itmapping.feature.integrations.github;
 
-import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubAccountService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -26,49 +22,21 @@ public class GitHubApiClient {
 
   private final GitHubIntegrationProperties properties;
   private final GitHubAccountService accounts;
-  private final UserRepository users;
 
   @Autowired
-  public GitHubApiClient(
-      GitHubIntegrationProperties properties, GitHubAccountService accounts, UserRepository users) {
+  public GitHubApiClient(GitHubIntegrationProperties properties, GitHubAccountService accounts) {
     this.properties = properties;
     this.accounts = accounts;
-    this.users = users;
   }
 
-  /** Tests that only need the server token. */
+  /** Tests that never call GitHub. */
   public GitHubApiClient(GitHubIntegrationProperties properties) {
-    this(properties, null, null);
+    this(properties, null);
   }
 
-  /**
-   * Token for the signed-in user when they have connected GitHub. Otherwise the server token.
-   * A webhook or other anonymous call keeps the server token.
-   */
+  /** The current workspace connection token; empty when the workspace has none. */
   public String token() {
-    String personal = personalToken();
-    if (StringUtils.hasText(personal)) {
-      return personal;
-    }
-    return properties.token() != null ? properties.token().trim() : "";
-  }
-
-  private String personalToken() {
-    if (accounts == null || users == null) {
-      return "";
-    }
-    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-    if (auth == null
-        || !auth.isAuthenticated()
-        || auth instanceof AnonymousAuthenticationToken
-        || !StringUtils.hasText(auth.getName())
-        || "anonymousUser".equals(auth.getName())) {
-      return "";
-    }
-    return users
-        .findBySessionSubject(auth.getName())
-        .map(accounts::accessToken)
-        .orElse("");
+    return accounts == null ? "" : accounts.accessToken();
   }
 
   public boolean hasToken() {

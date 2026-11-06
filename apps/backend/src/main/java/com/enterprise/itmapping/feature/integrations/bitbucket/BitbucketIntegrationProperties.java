@@ -4,8 +4,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * Server-side Bitbucket Cloud access. {@code token} is the shared fallback. A signed-in user with a
- * Bitbucket connection uses their token instead.
+ * Bitbucket Cloud API settings. Calls use the workspace connection; {@code token}
+ * (BITBUCKET_TOKEN) is only read to warn at startup that it is ignored.
  */
 @ConfigurationProperties(prefix = "app.integrations.bitbucket")
 public record BitbucketIntegrationProperties(

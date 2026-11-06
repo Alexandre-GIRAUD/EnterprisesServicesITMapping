@@ -47,20 +47,6 @@ public class UserEntity {
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
-  @Column(name = "github_login")
-  private String githubLogin;
-
-  /** AES-GCM ciphertext. Empty when this user has not connected GitHub. */
-  @Column(name = "github_access_token")
-  private String githubAccessToken;
-
-  @Column(name = "bitbucket_username")
-  private String bitbucketUsername;
-
-  /** AES-GCM ciphertext. Empty when this user has not connected Bitbucket. */
-  @Column(name = "bitbucket_access_token")
-  private String bitbucketAccessToken;
-
   @PrePersist
   void prePersist() {
     if (id == null) {
@@ -140,35 +126,4 @@ public class UserEntity {
     return createdAt;
   }
 
-  public String getGithubLogin() {
-    return githubLogin;
-  }
-
-  public void setGithubLogin(String githubLogin) {
-    this.githubLogin = githubLogin;
-  }
-
-  public String getGithubAccessToken() {
-    return githubAccessToken;
-  }
-
-  public void setGithubAccessToken(String githubAccessToken) {
-    this.githubAccessToken = githubAccessToken;
-  }
-
-  public String getBitbucketUsername() {
-    return bitbucketUsername;
-  }
-
-  public void setBitbucketUsername(String bitbucketUsername) {
-    this.bitbucketUsername = bitbucketUsername;
-  }
-
-  public String getBitbucketAccessToken() {
-    return bitbucketAccessToken;
-  }
-
-  public void setBitbucketAccessToken(String bitbucketAccessToken) {
-    this.bitbucketAccessToken = bitbucketAccessToken;
-  }
 }

@@ -29,8 +29,12 @@ A named container, owned by one user, that holds saved views and other view fold
 _Avoid_: Group, collection, directory
 
 **GitHub connection**:
-A GitHub login linked to one Flowra user. Listing, cloning, and reading that user's repositories use their token. The server token remains the fallback when nobody is connected, including push webhooks.
-_Avoid_: shared personal token, pasting a token in the browser
+The GitHub login a workspace works with, set by one of its admins by pasting a token in Settings. Listing, cloning and reading repositories in that workspace use its token; there is no personal or server-wide token. A Bitbucket connection works the same way.
+_Avoid_: personal token, server token
+
+**Workspace webhook**:
+The URL and secret GitHub delivers a workspace's pushes to. Each workspace has its own; admins see and regenerate the secret in Settings.
+_Avoid_: global webhook
 
 **Anchor point**:
 The exact point on a node side where one arrow endpoint attaches. At most one arrow may use a given anchor point. Several arrows may still attach to the same node side, each on its own anchor point along that side.

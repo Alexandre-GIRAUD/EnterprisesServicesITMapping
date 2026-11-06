@@ -1,6 +1,5 @@
 package com.enterprise.itmapping.feature.integrations.bitbucket.presentation;
 
-import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
 import com.enterprise.itmapping.feature.integrations.bitbucket.application.BitbucketAccountService;
 import com.enterprise.itmapping.feature.integrations.bitbucket.application.BitbucketConnectionStatus;
 import com.enterprise.itmapping.feature.integrations.bitbucket.application.BitbucketReposService;
@@ -8,6 +7,7 @@ import com.enterprise.itmapping.feature.integrations.bitbucket.dto.BitbucketRepo
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,28 +23,28 @@ public class BitbucketIntegrationController {
 
   private final BitbucketReposService repos;
   private final BitbucketAccountService accounts;
-  private final CurrentUserResolver currentUser;
 
   public BitbucketIntegrationController(
-      BitbucketReposService repos, BitbucketAccountService accounts, CurrentUserResolver currentUser) {
+      BitbucketReposService repos, BitbucketAccountService accounts) {
     this.repos = repos;
     this.accounts = accounts;
-    this.currentUser = currentUser;
   }
 
   @GetMapping("/connection")
   public BitbucketConnectionStatus connection() {
-    return accounts.status(currentUser.requireCurrentUser());
+    return accounts.status();
   }
 
   @PutMapping("/connection")
+  @PreAuthorize("hasRole('ADMIN')")
   public BitbucketConnectionStatus saveToken(@RequestBody BitbucketTokenRequest body) {
-    return accounts.saveToken(currentUser.requireCurrentUser(), body == null ? null : body.token());
+    return accounts.saveToken(body == null ? null : body.token());
   }
 
   @DeleteMapping("/connection")
+  @PreAuthorize("hasRole('ADMIN')")
   public void disconnect() {
-    accounts.disconnect(currentUser.requireCurrentUser());
+    accounts.disconnect();
   }
 
   @GetMapping("/repos")

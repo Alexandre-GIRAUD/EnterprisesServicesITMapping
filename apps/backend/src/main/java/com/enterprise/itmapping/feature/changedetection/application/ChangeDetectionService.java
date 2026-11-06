@@ -19,8 +19,8 @@ import com.enterprise.itmapping.feature.changedetection.presentation.dto.ChangeD
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.integrations.github.GitHubIntegrationProperties;
-import com.enterprise.itmapping.feature.integrations.github.application.GitHubCommitDiffService;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubCommitDiffService.DiffResult;
+import com.enterprise.itmapping.feature.integrations.github.application.GitHubCommitDiffService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -128,7 +128,7 @@ public class ChangeDetectionService {
     Optional<ApplicationGraphNodeProjection> app =
         linkedApplicationResolver.findByRepoFullName(repoFullName);
     if (app.isEmpty()) {
-      // Each workspace sees the push; only those linking the repository keep a trace of it.
+      // Only a workspace linking the repository keeps a trace of the push.
       log.debug("GitHub push ignored (no linked application): repo={}", repoFullName);
       return List.of();
     }

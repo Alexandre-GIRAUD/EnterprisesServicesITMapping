@@ -65,7 +65,8 @@ management:
       show-details: when-authorized
 
 app:
-  # GitHub: GITHUB_TOKEN is the shared fallback (webhooks, users who have not connected).
+  # GitHub and Bitbucket tokens belong to each workspace (Settings). GITHUB_TOKEN and BITBUCKET_TOKEN are
+  # only read to warn that they are ignored.
   integrations:
     github:
       token: ${GITHUB_TOKEN:}

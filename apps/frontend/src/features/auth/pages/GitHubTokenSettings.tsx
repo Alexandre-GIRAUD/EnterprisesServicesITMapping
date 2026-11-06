@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import {
   disconnectGitHub,
   fetchGitHubConnection,
@@ -7,8 +8,9 @@ import {
 } from '@/features/map/api/integrationsGithubApi';
 
 export function GitHubTokenSettings() {
+  const { isAdmin } = useAuth();
   const [connection, setConnection] = useState<GitHubConnection | null>(null);
-  const [personalToken, setPersonalToken] = useState('');
+  const [workspaceToken, setWorkspaceToken] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -21,7 +23,9 @@ export function GitHubTokenSettings() {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setErrorMessage(error instanceof Error ? error.message : 'Unable to load the GitHub connection.');
+          setErrorMessage(
+            error instanceof Error ? error.message : 'Unable to load the GitHub connection.',
+          );
         }
       });
     return () => {
@@ -29,14 +33,14 @@ export function GitHubTokenSettings() {
     };
   }, []);
 
-  async function savePersonalToken(event: FormEvent<HTMLFormElement>) {
+  async function saveWorkspaceToken(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       setIsConnecting(true);
       setErrorMessage(null);
-      const linked = await saveGitHubToken(personalToken);
+      const linked = await saveGitHubToken(workspaceToken);
       setConnection(linked);
-      setPersonalToken('');
+      setWorkspaceToken('');
       setSuccessMessage(linked.login ? `Connected as ${linked.login}.` : 'GitHub account saved.');
     } catch (error: unknown) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to save the GitHub token.');
@@ -59,47 +63,65 @@ export function GitHubTokenSettings() {
     }
   }
 
+  function renderConnection() {
+    if (connection?.connected) {
+      return (
+        <div className="github-import-account">
+          <span>Connected as {connection.login} (workspace connection)</span>
+          {isAdmin ? (
+            <button
+              type="button"
+              className="github-import-text-button"
+              disabled={isConnecting}
+              onClick={() => void disconnectAccount()}
+            >
+              Disconnect
+            </button>
+          ) : null}
+        </div>
+      );
+    }
+    if (!isAdmin) {
+      return (
+        <p className="admin-users-lead">Not connected. Ask an administrator to connect GitHub.</p>
+      );
+    }
+    return (
+      <form
+        className="github-import-token-form"
+        onSubmit={(event) => void saveWorkspaceToken(event)}
+      >
+        <input
+          className="github-import-search-input"
+          type="password"
+          name="github-token"
+          autoComplete="off"
+          placeholder="GitHub token"
+          aria-label="GitHub token"
+          value={workspaceToken}
+          disabled={isConnecting}
+          onChange={(event) => setWorkspaceToken(event.target.value)}
+        />
+        <button
+          type="submit"
+          className="github-import-primary"
+          disabled={isConnecting || workspaceToken.trim().length === 0}
+        >
+          Save token
+        </button>
+      </form>
+    );
+  }
+
   return (
     <section className="admin-users-panel" aria-label="GitHub token">
       <h2>GitHub</h2>
       <p className="admin-users-lead">
-        Paste a GitHub personal access token to list your repositories. It is stored on your account
-        only and is not shown again.
+        {isAdmin
+          ? 'Paste a GitHub personal access token for the whole workspace. It is stored encrypted and is not shown again.'
+          : 'The workspace administrators manage this connection.'}
       </p>
-      {connection?.connected ? (
-        <div className="github-import-account">
-          <span>Connected as {connection.login}</span>
-          <button
-            type="button"
-            className="github-import-text-button"
-            disabled={isConnecting}
-            onClick={() => void disconnectAccount()}
-          >
-            Disconnect
-          </button>
-        </div>
-      ) : (
-        <form className="github-import-token-form" onSubmit={(event) => void savePersonalToken(event)}>
-          <input
-            className="github-import-search-input"
-            type="password"
-            name="github-token"
-            autoComplete="off"
-            placeholder="GitHub token"
-            aria-label="GitHub token"
-            value={personalToken}
-            disabled={isConnecting}
-            onChange={(event) => setPersonalToken(event.target.value)}
-          />
-          <button
-            type="submit"
-            className="github-import-primary"
-            disabled={isConnecting || personalToken.trim().length === 0}
-          >
-            Save token
-          </button>
-        </form>
-      )}
+      {renderConnection()}
       {errorMessage ? (
         <p className="github-import-state github-import-state-error" role="alert">
           {errorMessage}

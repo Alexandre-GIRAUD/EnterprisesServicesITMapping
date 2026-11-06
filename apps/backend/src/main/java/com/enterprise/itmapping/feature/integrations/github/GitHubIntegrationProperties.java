@@ -4,8 +4,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * Configuration for server-side GitHub API access. {@code token} is the shared fallback. A signed-in
- * user with a GitHub connection uses their token instead.
+ * GitHub API and webhook settings. Calls use the workspace connection; {@code token}
+ * (GITHUB_TOKEN) is only read to warn at startup that it is ignored, and {@code webhookSecret}
+ * only serves the legacy webhook URL of the Default workspace.
  */
 @ConfigurationProperties(prefix = "app.integrations.github")
 public record GitHubIntegrationProperties(

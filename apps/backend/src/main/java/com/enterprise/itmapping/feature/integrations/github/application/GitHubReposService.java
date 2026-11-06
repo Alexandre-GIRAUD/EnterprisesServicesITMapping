@@ -12,8 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient.ResponseSpec;
-import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -28,7 +28,7 @@ public class GitHubReposService {
   }
 
   /**
-   * Lists repositories accessible to the configured token ({@code /user/repos}).
+   * Lists repositories the workspace connection can access ({@code /user/repos}).
    *
    * <p>Pagination: only the first page is fetched ({@code per_page} capped by {@link
    * GitHubIntegrationProperties#maxRepos()}). Follow {@code Link rel="next"} for full catalog (TODO).
@@ -37,7 +37,7 @@ public class GitHubReposService {
     if (!apiClient.hasToken()) {
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE,
-          "Connect your GitHub account, or set GITHUB_TOKEN on the server.");
+          "This workspace has no GitHub connection. An admin connects GitHub in Settings.");
     }
 
     int limit = Math.min(Math.max(properties.maxRepos(), 1), 100);

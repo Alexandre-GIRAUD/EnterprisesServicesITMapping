@@ -7,8 +7,8 @@ export type GitHubConnection = {
 };
 
 /**
- * Proxies through the backend. A connected user uses their GitHub account; otherwise the server
- * token. The browser never sees a GitHub token.
+ * Proxies through the backend, which uses the workspace GitHub connection. The browser never sees
+ * a GitHub token.
  */
 export async function fetchGitHubConnection(): Promise<GitHubConnection> {
   const res = await authenticatedFetch(resolveApiUrl('/api/integrations/github/connection'), {
@@ -20,7 +20,7 @@ export async function fetchGitHubConnection(): Promise<GitHubConnection> {
   return res.json();
 }
 
-/** Saves a token the signed-in user pasted. The response does not include the token. */
+/** Saves the workspace token an admin pasted. The response does not include the token. */
 export async function saveGitHubToken(token: string): Promise<GitHubConnection> {
   const res = await authenticatedFetch(resolveApiUrl('/api/integrations/github/connection'), {
     method: 'PUT',
@@ -51,6 +51,32 @@ async function githubError(label: string, res: Response): Promise<string> {
     // The body is not JSON.
   }
   return `${label} ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 400)}` : ''}`;
+}
+
+/** `path` is relative to the origin the browser uses for the app. */
+export type GitHubWebhookSettings = { path: string; secret: string };
+
+const WEBHOOK_SETTINGS_PATH = '/api/integrations/github/webhook';
+
+export async function fetchGitHubWebhookSettings(): Promise<GitHubWebhookSettings> {
+  const response = await authenticatedFetch(resolveApiUrl(WEBHOOK_SETTINGS_PATH), {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    throw new Error(await githubError('GitHub webhook', response));
+  }
+  return response.json();
+}
+
+export async function regenerateGitHubWebhookSecret(): Promise<GitHubWebhookSettings> {
+  const response = await authenticatedFetch(resolveApiUrl(`${WEBHOOK_SETTINGS_PATH}/secret`), {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    throw new Error(await githubError('GitHub webhook secret', response));
+  }
+  return response.json();
 }
 
 export async function fetchGitHubRepos(): Promise<GitHubRepoDto[]> {

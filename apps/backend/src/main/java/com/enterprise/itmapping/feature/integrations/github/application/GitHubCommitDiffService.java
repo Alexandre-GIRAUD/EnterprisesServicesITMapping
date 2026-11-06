@@ -44,7 +44,7 @@ public class GitHubCommitDiffService {
   private DiffResult fetchDiff(String owner, String repo, String uri, String ref) {
     if (!apiClient.hasToken()) {
       throw new ResponseStatusException(
-          HttpStatus.SERVICE_UNAVAILABLE, "GITHUB_TOKEN is not configured.");
+          HttpStatus.SERVICE_UNAVAILABLE, "This workspace has no GitHub connection. An admin connects GitHub in Settings.");
     }
     JsonNode body;
     try {
