@@ -1,6 +1,12 @@
 spring:
   application:
     name: enterprise-it-mapping-backend
+  # Outgoing mail (signup verification). Dev: the Mailpit service in docker-compose.
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
   ai:
     openai:
       api-key: ${OPENAI_API_KEY:}
@@ -129,6 +135,10 @@ app:
     bootstrap-admin:
       username: ${ADMIN_BOOTSTRAP_USERNAME:}
       password: ${ADMIN_BOOTSTRAP_PASSWORD:}
+  # Self-service signup (cloud). Off by default: on-premise keeps admin-created accounts only.
+  signup:
+    enabled: ${APP_SIGNUP_ENABLED:false}
+    public-url: ${APP_PUBLIC_URL:}
   cors:
     # Patterns: localhost vs 127.0.0.1 are different Origins; * ports cover Vite (3000) and 5173.
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*}

@@ -79,11 +79,27 @@ services:
       # Log final functional-doc JSON (truncated). Set false on shared/prod hosts.
       APP_FUNCTIONAL_DOC_LOG_FINAL_PAYLOAD: ${APP_FUNCTIONAL_DOC_LOG_FINAL_PAYLOAD:-true}
       LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: ${LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY:-INFO}
+      # Self-service signup (cloud). Off by default; when on, GITHUB_TOKEN must be empty.
+      APP_SIGNUP_ENABLED: ${APP_SIGNUP_ENABLED:-false}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
+      # Defaults point at the Mailpit service below; set a real SMTP relay in production.
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy
       neo4j:
         condition: service_healthy
+
+  # Catches outgoing mail in development: web inbox on http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.21
+    container_name: itmapping-mailpit
+    ports:
+      - "${MAILPIT_WEB_PORT:-8025}:8025"
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
 
   frontend:
     build:

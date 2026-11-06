@@ -51,6 +51,8 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers(antMatcher(HttpMethod.POST, "/auth/login"))
                     .permitAll()
+                    .requestMatchers(antMatcher(HttpMethod.GET, "/config"))
+                    .permitAll()
                     .requestMatchers(antMatcher(HttpMethod.POST, "/webhooks/github"))
                     .permitAll()
                     .requestMatchers(antMatcher("/error"))
