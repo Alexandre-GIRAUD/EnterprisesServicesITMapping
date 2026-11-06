@@ -33,10 +33,11 @@ import { fitGraphView } from './fitGraphView';
 import { CenterGraphControl } from './CenterGraphControl';
 import { FullscreenControl } from './FullscreenControl';
 import { FULLSCREEN_REFIT_DELAY_MS, useFullscreen } from './fullscreen';
-import { MODULE_DRAWER_WIDTH_PX, computeDrawerFitPadding } from './drawerFitPadding';
+import { DRAWER_WIDTH_PX, computeDrawerFitPadding } from './drawerFitPadding';
 import { computeModuleTiers, type ModuleTier } from './moduleFocus';
 import { buildModuleNestedNodes, type ModuleTree } from './moduleNestedLayout';
 import { tierClassName, type FocusTier } from './graphFocus';
+import { MapState } from './MapState';
 
 const KNOWN_NODE_TYPES = Object.keys(NODE_TYPE_STYLES) as NodeTypeKey[];
 const GRID = 16;
@@ -85,8 +86,8 @@ export function ApplicationModuleGraph({
   const [layoutRevision, setLayoutRevision] = useState(0);
   const [drawerModules, setDrawerModules] = useState<DrawerModule[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
-  const [drawerWidth, setDrawerWidth] = useState(MODULE_DRAWER_WIDTH_PX);
-  const [debouncedDrawerWidth, setDebouncedDrawerWidth] = useState(MODULE_DRAWER_WIDTH_PX);
+  const [drawerWidth, setDrawerWidth] = useState(DRAWER_WIDTH_PX);
+  const [debouncedDrawerWidth, setDebouncedDrawerWidth] = useState(DRAWER_WIDTH_PX);
   const [concealSignal, setConcealSignal] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
   const [applicationDescription, setApplicationDescription] = useState('');
@@ -244,19 +245,19 @@ export function ApplicationModuleGraph({
   return (
     <div ref={wrapRef} className="graph-canvas-wrap module-graph-wrap">
       {status === 'loading' && (
-        <p className="graph-canvas-status" role="status">
+        <MapState kind="loading">
           Loading modules…
-        </p>
+        </MapState>
       )}
       {status === 'error' && message && (
-        <p className="graph-canvas-error" role="alert">
+        <MapState kind="error">
           {message}
-        </p>
+        </MapState>
       )}
       {hintText && status !== 'error' && (
-        <p className="graph-canvas-hint module-graph-hint">
+        <MapState kind="empty" className="module-graph-hint">
           {hintText}
-        </p>
+        </MapState>
       )}
       <div
         ref={containerRef}
@@ -301,7 +302,7 @@ export function ApplicationModuleGraph({
           )}
           {legendNodeTypes.length > 0 && (
             <Panel position="top-left">
-              <GraphLegend nodeTypes={legendNodeTypes} concealSignal={concealSignal} />
+              <GraphLegend nodeTypes={legendNodeTypes} concealSignal={concealSignal} startsConcealed />
             </Panel>
           )}
         </ReactFlow>

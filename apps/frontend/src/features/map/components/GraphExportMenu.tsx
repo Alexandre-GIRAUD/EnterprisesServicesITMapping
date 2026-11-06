@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GraphImageFormat } from '../utils/exportGraphImage';
+import { CornerButton } from './CornerButton';
 
 type GraphExportMenuProps = {
   disabled?: boolean;
@@ -38,8 +39,7 @@ export function GraphExportMenu({ disabled = false, busy = false, onExport }: Gr
 
   return (
     <div className="graph-export-menu" ref={rootRef}>
-      <button
-        type="button"
+      <CornerButton
         className="graph-export-menu-trigger"
         aria-label="Export diagram"
         aria-haspopup="menu"
@@ -49,7 +49,7 @@ export function GraphExportMenu({ disabled = false, busy = false, onExport }: Gr
         onClick={() => setOpen((v) => !v)}
       >
         {busy ? 'Exporting…' : 'Export'}
-      </button>
+      </CornerButton>
 
       {open ? (
         <div className="graph-export-menu-popover" role="menu" aria-label="Export format">

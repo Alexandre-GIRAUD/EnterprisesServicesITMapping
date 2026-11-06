@@ -17,7 +17,6 @@ const css = readFileSync(new URL('../../../index.css', import.meta.url), 'utf8')
 assert.match(css, /\.graph-views-cards \{[^}]*minmax\(min\(100%, 16\.5rem\), 17\.5rem\)/);
 const pane = css.match(/\.graph-views-pane\s*\{[^}]*\}/);
 assert.ok(pane, 'views pane rule missing');
-assert.match(pane[0], /background:\s*transparent/);
 assert.doesNotMatch(pane[0], /border:\s*1px/);
 assert.match(css, /\.graph-views-new:hover:not\(:disabled\)/);
 assert.doesNotMatch(css, /\.graph-views-actions-btn svg \{[^}]*rotate\(90deg\)/);

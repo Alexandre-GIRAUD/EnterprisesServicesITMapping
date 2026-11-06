@@ -1358,144 +1358,6 @@ body.is-diagram-grown .layout {
   line-height: 1.5;
 }
 
-/* ===== Application search bar ===== */
-.application-search {
-  position: relative;
-  max-width: 560px;
-  margin: 0;
-  flex: 1 1 460px;
-}
-
-.application-search-label {
-  display: block;
-  margin: 0 0 0.35rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #334155;
-}
-
-.application-search-input {
-  width: 100%;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 0.65rem 0.75rem;
-  font-size: 0.95rem;
-  outline: none;
-  background: #fff;
-}
-
-.application-search-input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgb(37 99 235 / 15%);
-}
-
-.application-search-dropdown {
-  position: absolute;
-  top: calc(100% + 0.35rem);
-  left: 0;
-  right: 0;
-  z-index: 20;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 10px 30px rgb(15 23 42 / 14%);
-  overflow: hidden;
-}
-
-.application-search-state,
-.application-search-error {
-  margin: 0;
-  padding: 0.75rem;
-  font-size: 0.9rem;
-}
-
-.application-search-state {
-  color: #64748b;
-}
-
-.application-search-error {
-  color: #b91c1c;
-}
-
-.application-search-item {
-  width: 100%;
-  border: 0;
-  border-top: 1px solid #f1f5f9;
-  background: #fff;
-  text-align: left;
-  cursor: pointer;
-  padding: 0.6rem 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.application-search-item:hover {
-  background: #f8fafc;
-}
-
-.application-search-item-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.application-search-item-id {
-  color: #64748b;
-  font-size: 0.8rem;
-}
-
-.application-search--canvas {
-  max-width: none;
-  flex: none;
-  width: 100%;
-}
-
-.application-search-sr-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.application-search--canvas .application-search-input {
-  padding: 0.55rem 0.85rem;
-  font-size: 0.82rem;
-  border-radius: 999px;
-  border-color: #e2e8f0;
-  background: rgb(255 255 255 / 94%);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgb(15 23 42 / 10%);
-}
-
-.application-search--canvas .application-search-input:focus {
-  border-color: #93c5fd;
-  box-shadow:
-    0 4px 12px rgb(15 23 42 / 10%),
-    0 0 0 3px rgb(37 99 235 / 12%);
-}
-
-.application-search--canvas .application-search-dropdown {
-  border-radius: 12px;
-}
-
-@media (max-width: 640px) {
-
-  .application-search {
-    max-width: 100%;
-  }
-}
-
 /* ===== Graph canvas workspace ===== */
 .graph-canvas-wrap {
   position: relative;
@@ -1631,19 +1493,6 @@ body.is-diagram-grown .layout {
   color: #b45309;
 }
 
-.graph-table-message {
-  margin: 0.35rem 0.25rem;
-  font-size: 0.88rem;
-  color: #64748b;
-}
-
-.graph-table-message-error {
-  color: #b91c1c;
-  background: #fef2f2;
-  border-radius: 8px;
-  padding: 0.35rem 0.5rem;
-}
-
 .map-graph-panel {
   --ss-accent: #2563eb;
   --ss-accent-dark: #1d4ed8;
@@ -1661,6 +1510,10 @@ body.is-diagram-grown .layout {
   --burger-size: 36px;
   --burger-top: calc(var(--page-gutter) - 0.2rem);
   --burger-gap: 0.5rem;
+  /* The title is one line this tall; the corner controls and the burger centre on it. */
+  --map-title-line: 2.75rem;
+  --corner-control-height: 2.25rem;
+  --corner-control-radius: 10px;
   --views-indent: 1.5rem;
   position: relative;
   display: flex;
@@ -1726,7 +1579,8 @@ body.is-diagram-grown .layout {
 
 .map-graph-panel .self-service-burger {
   position: absolute;
-  top: var(--burger-top);
+  top: calc(var(--burger-top) + 0.2rem + (var(--map-title-line) - var(--corner-control-height)) / 2);
+  padding: 0;
   right: 1rem;
   z-index: 30;
   width: var(--burger-size);
@@ -1763,6 +1617,35 @@ body.is-diagram-grown .layout {
 
 .map-graph-panel .self-service-burger:focus-visible {
   outline-color: var(--ss-accent-focus);
+}
+
+.map-graph-panel .corner-control {
+  box-sizing: border-box;
+  height: var(--corner-control-height);
+  border: 1px solid #cbd5e1;
+  border-radius: var(--corner-control-radius);
+  background: #ffffff;
+  box-shadow: var(--ss-bubble-shadow);
+  color: #334155;
+}
+
+button.corner-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0 1rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+button.corner-control:hover:not(:disabled) {
+  border-color: var(--ss-accent-border, #94a3b8);
+  box-shadow: var(--ss-bubble-shadow-hover);
+  color: #0f172a;
 }
 
 .map-graph-panel .self-service-tool-bar-btn.is-active {
@@ -1867,8 +1750,6 @@ body.is-diagram-grown .layout {
 .map-graph-panel.is-views-mode .graph-views-pane {
   padding-left: var(--views-indent);
   padding-right: var(--views-indent);
-  background: transparent;
-  box-shadow: none;
 }
 
 .map-graph-panel.is-views-mode .graph-view-header {
@@ -1888,9 +1769,13 @@ body.is-diagram-grown .layout {
 
 .map-graph-main {
   --map-chrome-clearance: 8.5rem;
-  /* Where tables, views and modules start: the title's height plus the gap Data Model leaves under its own. */
-  --map-content-top: 5.1rem;
-  --map-drawer-top: 4.7rem;
+  /* The title strip is this tall in every view, so what sits under it starts at the same place. */
+  --map-header-height: 5.1rem;
+  --map-content-top: var(--map-header-height);
+  --map-canvas-bg: #f8fafc;
+  /* Same dots as the React Flow background of the graph canvases. */
+  --map-dot-grid: radial-gradient(circle, #e2e8f0 1px, transparent 1.5px) 0 0 / 16px 16px, var(--map-canvas-bg);
+  --map-drawer-top: var(--map-header-height);
   position: relative;
   flex: 1;
   min-width: 0;
@@ -1907,6 +1792,7 @@ body.is-diagram-grown .layout {
   right: 0;
   left: 0;
   z-index: 22;
+  height: var(--map-header-height);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1930,6 +1816,9 @@ body.is-diagram-grown .layout {
   padding: 0.2rem 0.65rem 0.45rem;
   border-radius: 12px;
   background: rgb(248 250 252 / 88%);
+  /* A message under the title never pushes the header taller. */
+  max-height: calc(var(--map-header-height) - var(--page-gutter) + 0.2rem);
+  overflow: hidden;
 }
 
 .graph-view-header-actions {
@@ -1939,6 +1828,8 @@ body.is-diagram-grown .layout {
   justify-content: flex-end;
   gap: 0.5rem;
   flex-shrink: 0;
+  height: var(--map-title-line);
+  margin-top: 0.2rem;
   margin-right: calc(var(--burger-size) + var(--burger-gap));
 }
 
@@ -2149,6 +2040,7 @@ body.is-diagram-grown .layout {
 }
 
 .graph-view-header-title {
+  line-height: var(--map-title-line);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -2184,9 +2076,15 @@ body.is-diagram-grown .layout {
   box-sizing: border-box;
 }
 
-.map-page .graph-canvas,
-.map-page .graph-views-pane {
+.map-page :is(.graph-canvas, .graph-tables-view, .graph-views-pane, .module-graph-wrap) {
+  border: none;
   border-radius: 0;
+  box-shadow: none;
+  background: var(--map-canvas-bg);
+}
+
+.map-page .graph-views-pane {
+  background: var(--map-dot-grid);
 }
 
 .map-page .graph-details-drawer:not(.is-embedded) {
@@ -2233,7 +2131,7 @@ body.is-diagram-grown .layout {
 .self-service-burger-icon {
   position: relative;
   width: 1rem;
-  height: 0.72rem;
+  height: 12px;
 }
 
 .self-service-burger-icon::before,
@@ -2669,18 +2567,6 @@ body.is-diagram-grown .layout {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #64748b;
-}
-
-.application-search--menu {
-  max-width: none;
-  flex: none;
-  width: 100%;
-}
-
-.application-search--menu .application-search-input {
-  padding: 0.52rem 0.7rem;
-  font-size: 0.8rem;
-  border-radius: 10px;
 }
 
 .map-graph-body {
@@ -5575,16 +5461,6 @@ body.is-diagram-grown .layout {
   font: inherit;
 }
 
-.graph-views-state {
-  margin: 0;
-  font-size: 0.88rem;
-  color: #64748b;
-}
-
-.graph-views-state-error {
-  color: #b91c1c;
-}
-
 .graph-views-empty {
   display: flex;
   flex-direction: column;
@@ -7571,19 +7447,14 @@ body.is-diagram-grown .layout {
 }
 
 /* ===== Graph status messages ===== */
-.graph-canvas-status,
-.graph-canvas-error,
-.graph-canvas-hint {
-  margin: 0 0 0.75rem;
-  font-size: 0.9rem;
-}
-
-.graph-canvas-error {
-  color: #b91c1c;
-}
-
-.graph-canvas-hint {
+.map-state {
+  margin: 0.35rem 0.25rem 0.75rem;
+  font-size: 0.88rem;
   color: #64748b;
+}
+
+.map-state--error {
+  color: #b91c1c;
 }
 
 /* ===== Responsive behavior ===== */
@@ -7689,26 +7560,6 @@ body.is-diagram-grown .layout {
 }
 
 /* ===== Module map page ===== */
-/* Same look as the Export and Display buttons next to it. */
-.module-map-back {
-  padding: 0.5rem 1rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: var(--ss-bubble-shadow);
-  color: #334155;
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  line-height: 1.2;
-  cursor: pointer;
-}
-
-.module-map-back:hover {
-  border-color: #94a3b8;
-  color: #0f172a;
-}
-
 .graph-module-drilldown {
   flex: 1;
   min-height: 0;
@@ -9707,13 +9558,7 @@ html[data-theme='dark'] .graph-legend__swatch img {
   overflow: hidden;
 }
 
-.module-drawer {
-  width: min(440px, calc(100% - 1.5rem));
-  max-width: calc(100% - 1.5rem);
-}
-
 /* Drag the left edge to resize the drawer. */
-.module-drawer__grip,
 .graph-details-drawer__grip {
   position: absolute;
   top: 0;
@@ -9725,8 +9570,6 @@ html[data-theme='dark'] .graph-legend__swatch img {
   touch-action: none;
 }
 
-.module-drawer__grip:hover,
-.module-drawer__grip:active,
 .graph-details-drawer__grip:hover,
 .graph-details-drawer__grip:active {
   background: linear-gradient(to right, rgb(37 99 235 / 45%) 0 3px, transparent 3px);

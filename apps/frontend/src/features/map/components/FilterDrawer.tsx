@@ -41,6 +41,8 @@ type FilterDrawerProps = {
   initialWithNeighbours?: boolean;
   /** Live map only: offer the Breaches dimension and the "breaches" marks toggle. */
   showBreach?: boolean;
+  /** The "Display breaches" switch draws flames on the live map only. */
+  showBreachMarks?: boolean;
   initialBreach?: string[];
   initialShouldShowBreaches?: boolean;
   edges?: GraphEdgeDto[];
@@ -136,6 +138,7 @@ export function FilterDrawer({
   showWithNeighbours = false,
   initialWithNeighbours = false,
   showBreach = false,
+  showBreachMarks = true,
   initialBreach = NO_BREACH,
   initialShouldShowBreaches = false,
   edges = [],
@@ -793,7 +796,7 @@ export function FilterDrawer({
               </label>
             ) : null}
 
-            {showBreach && hasBreachRules ? (
+            {showBreach && showBreachMarks && hasBreachRules ? (
               <label className="graph-filter-neighbours" title="Show the breach flames on applications and colour flows in breach">
                 <span className="graph-filter-neighbours-icon" aria-hidden="true">
                   <FlameIcon size="heading" />

@@ -6,7 +6,6 @@ import { useSandboxes } from '../hooks/useSandboxes';
 import { MAX_OPEN_SANDBOXES, type SandboxDocFilters } from '../utils/sandboxDocuments';
 import type { ApplicationUpdatePatch } from './ApplicationDetailsDrawer';
 import { ApplicationDetailsDrawer } from './ApplicationDetailsDrawer';
-import { ApplicationSearchBar } from './ApplicationSearchBar';
 import { EdgeDetailsDrawer } from './EdgeDetailsDrawer';
 import { FilterDrawer } from './FilterDrawer';
 import type { GraphMode } from './GraphModeTabs';
@@ -148,8 +147,6 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
         );
       case 'filters':
         return (
-          <>
-            {isSandbox ? <ApplicationSearchBar variant="menu" /> : null}
             <FilterDrawer
             key={
               isSandbox
@@ -176,8 +173,11 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
             initialBlankedDimensions={
               isSandbox ? activeSandboxFilters.blankedDimensions ?? [] : blankedDimensions
             }
-            showBreach={!isSandbox && !isReadOnly}
-            initialBreach={isSandbox || isReadOnly ? NO_BREACH_SELECTION : filters.breach}
+            showBreach={!isReadOnly}
+            showBreachMarks={!isSandbox}
+            initialBreach={
+              isReadOnly ? NO_BREACH_SELECTION : isSandbox ? activeSandboxFilters.breach ?? NO_BREACH_SELECTION : filters.breach
+            }
             initialShouldShowBreaches={filters.shouldShowBreaches}
             edges={graphEdges}
             onApply={({
@@ -205,6 +205,7 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
                     matchNothing: Boolean(nextMatchNothing),
                     blankedDimensions: nextBlanked ?? [],
                     withNeighbours: Boolean(nextWithNeighbours),
+                    breach: nextBreach ?? [],
                   },
                   dirty: true,
                 });
@@ -226,7 +227,6 @@ export function renderGraphCanvasSideTool(input: GraphCanvasSideToolInput): Reac
             onPinView={() => setIsSaveSnapshotOpen(true)}
             onOpenMyViews={onOpenMyViews}
           />
-          </>
         );
       case 'actions':
         return (

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CornerButton } from './CornerButton';
 
 export type TableFileFormat = 'csv' | 'excel' | 'png' | 'pdf';
 
@@ -50,8 +51,7 @@ export function TableExportMenu({ disabled = false, mode = 'grid', onExport }: T
 
   return (
     <div className="graph-export-menu" ref={rootRef}>
-      <button
-        type="button"
+      <CornerButton
         className="graph-export-menu-trigger"
         aria-label="Export table"
         aria-haspopup="menu"
@@ -61,7 +61,7 @@ export function TableExportMenu({ disabled = false, mode = 'grid', onExport }: T
         onClick={() => setOpen((value) => !value)}
       >
         Export
-      </button>
+      </CornerButton>
       {open ? (
         <div className="graph-export-menu-popover" role="menu" aria-label="Export format">
           {items.map((item) => (

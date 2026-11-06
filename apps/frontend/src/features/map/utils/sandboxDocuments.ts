@@ -20,6 +20,8 @@ export type SandboxDocFilters = {
   matchNothing?: boolean;
   blankedDimensions?: string[];
   withNeighbours?: boolean;
+  /** Breach rule ids, or `any`: keep only the applications in breach. */
+  breach?: string[];
 };
 
 export const EMPTY_SANDBOX_FILTERS: SandboxDocFilters = {
@@ -32,6 +34,7 @@ export function sandboxFiltersActive(filters?: SandboxDocFilters | null): boolea
   if (!filters) return false;
   return (
     Boolean(filters.matchNothing) ||
+    (filters.breach?.length ?? 0) > 0 ||
     (filters.edgeIds?.length ?? 0) > 0 ||
     Object.keys(filters.edgeAttributes ?? {}).length > 0 ||
     filters.applicationIds.length > 0 ||
@@ -43,9 +46,18 @@ export function sandboxFiltersActive(filters?: SandboxDocFilters | null): boolea
 /** Client-side match for per-sandbox filters (same AND/OR idea as API GraphFilters). */
 export function graphNodeMatchesSandboxFilters(
   node: GraphNodeDto,
-  filters: SandboxDocFilters
+  filters: SandboxDocFilters,
+  breachApplicationIds?: ReadonlySet<string> | null,
 ): boolean {
   if (filters.matchNothing) return false;
+  if (
+    (filters.breach?.length ?? 0) > 0 &&
+    breachApplicationIds &&
+    node.type === 'Application' &&
+    !breachApplicationIds.has(node.id)
+  ) {
+    return false;
+  }
   if (
     filters.applicationIds.length > 0 &&
     node.type === 'Application' &&
@@ -101,11 +113,11 @@ export function sandboxFilterScope(doc: {
   graphNodes: GraphNodeDto[];
   graphEdges: GraphEdgeDto[];
   filters?: SandboxDocFilters;
-}): SandboxFilterScope | null {
+}, breachApplicationIds?: ReadonlySet<string> | null): SandboxFilterScope | null {
   const filters = doc.filters ?? EMPTY_SANDBOX_FILTERS;
   if (!sandboxFiltersActive(filters)) return null;
   const selected = new Set(
-    doc.graphNodes.filter((n) => graphNodeMatchesSandboxFilters(n, filters)).map((n) => n.id)
+    doc.graphNodes.filter((n) => graphNodeMatchesSandboxFilters(n, filters, breachApplicationIds)).map((n) => n.id)
   );
   if (!filters.withNeighbours) {
     return { nodeIds: selected, showsEdge: (source, target) => selected.has(source) && selected.has(target) };

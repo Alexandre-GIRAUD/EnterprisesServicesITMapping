@@ -43,7 +43,7 @@ function TableIcon() {
 export function GraphDisplayToggle({ displayMode, onChange }: GraphDisplayToggleProps) {
   return (
     <div
-      className="graph-display-toggle"
+      className="graph-display-toggle corner-control"
       role="tablist"
       aria-label="Graph display mode"
     >

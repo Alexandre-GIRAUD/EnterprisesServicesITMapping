@@ -142,7 +142,7 @@ export function SelfServiceBurger({ isOpen, onToggle }: SelfServiceBurgerProps) 
   return (
     <button
       type="button"
-      className={`self-service-burger${isOpen ? ' is-open' : ''}`}
+      className={`self-service-burger corner-control${isOpen ? ' is-open' : ''}`}
       onClick={onToggle}
       aria-expanded={isOpen}
       aria-controls="self-service-side-menu"

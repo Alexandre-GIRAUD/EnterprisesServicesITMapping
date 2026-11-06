@@ -80,7 +80,7 @@ import { GraphLegend } from './GraphLegend';
 import { AppGraphNode } from './AppGraphNode';
 import { OrientedEdge } from './OrientedEdge';
 import { computeFocus, focusTier, tierClassName, type FocusTier } from './graphFocus';
-import { DETAILS_DRAWER_WIDTH_PX, computeDrawerFitPadding } from './drawerFitPadding';
+import { DRAWER_WIDTH_PX, computeDrawerFitPadding } from './drawerFitPadding';
 import { applicationResponseFromGraphNode, isSandboxId } from '../utils/sandboxGraph';
 import { ApplicationModuleGraph } from './ApplicationModuleGraph';
 import { ApplicationFunctionalDocPanel } from './ApplicationFunctionalDocPanel';
@@ -96,6 +96,7 @@ const CENTER_ANIMATION_MS = 200;
 const DEFAULT_FIT_ASPECT_RATIO = 16 / 9;
 import { downloadTableFile, tableToCsv, tableToExcelXml, type TableGrid } from '../utils/tableFile';
 import { customTableExportFormats } from '../utils/customTable';
+import { CornerButton } from './CornerButton';
 import { GraphViewsPanel, ViewInspectPanel, type InspectedView, type ViewLibraryActions } from './GraphViewsPanel';
 import { renderGraphCanvasSideTool } from './graphCanvasSideTools';
 import { ComponentZoneOverlay } from './ComponentZoneOverlay';
@@ -195,8 +196,8 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
   const [menuEditKind, setMenuEditKind] = useState<'application' | 'flow' | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdgeDetails | null>(null);
   const [isEdgeDetailsDrawerOpen, setIsEdgeDetailsDrawerOpen] = useState(false);
-  const [detailsDrawerWidth, setDetailsDrawerWidth] = useState(DETAILS_DRAWER_WIDTH_PX);
-  const detailsDrawerWidthRef = useRef(DETAILS_DRAWER_WIDTH_PX);
+  const [detailsDrawerWidth, setDetailsDrawerWidth] = useState(DRAWER_WIDTH_PX);
+  const detailsDrawerWidthRef = useRef(DRAWER_WIDTH_PX);
   detailsDrawerWidthRef.current = detailsDrawerWidth;
   const [applications, setApplications] = useState<ApplicationResponse[]>([]);
   const [nodeFilters, setNodeFilters] = useState<GraphNodeFilterDto[]>([]);
@@ -1803,9 +1804,7 @@ export function GraphCanvas({ viewingDay = null, onViewingDayChange }: GraphCanv
             </div>
             <div className="graph-view-header-actions">
               {moduleGraphApp ? (
-                <button type="button" className="module-map-back" onClick={() => setModuleGraphApp(null)}>
-                  ← Back to graph
-                </button>
+                <CornerButton onClick={() => setModuleGraphApp(null)}>← Back to graph</CornerButton>
               ) : null}
               {onViewingDayChange && graphMode === 'normal' ? (
                 <HistoryDatePicker day={viewingDay} onChange={onViewingDayChange} />

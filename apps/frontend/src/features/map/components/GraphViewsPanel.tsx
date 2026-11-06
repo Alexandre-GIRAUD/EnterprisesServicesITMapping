@@ -46,6 +46,7 @@ import {
   type DragItem,
   type InspectedView,
 } from './graphViewsChrome';
+import { MapState } from './MapState';
 
 /** The list shows one folder at a time: folders open by entering them, never inline. */
 const NO_EXPANDED_FOLDERS: ReadonlySet<string> = new Set();
@@ -63,9 +64,7 @@ type GraphViewsPanelProps = {
 function renderLibraryStatus(message: string, isError: boolean) {
   return (
     <div id="graph-views-pane" className="graph-views-pane" role="tabpanel" aria-labelledby="graph-mode-tab-views">
-      <p className={isError ? 'graph-views-state graph-views-state-error' : 'graph-views-state'} role={isError ? 'alert' : 'status'}>
-        {message}
-      </p>
+      <MapState kind={isError ? 'error' : 'loading'}>{message}</MapState>
     </div>
   );
 }
@@ -462,13 +461,13 @@ export function GraphViewsPanel({ onApply, onShownView, onCreateView, actionsRef
         }}
       />
       {library.errorMessage ? (
-        <p className="graph-views-state graph-views-state-error" role="alert">{library.errorMessage}</p>
+        <MapState kind="error">{library.errorMessage}</MapState>
       ) : notice ? (
-        <p className="graph-views-state" role="status">{notice}</p>
+        <MapState kind="info">{notice}</MapState>
       ) : null}
       {isListingEmpty ? (
         isSearching ? (
-          <p className="graph-views-state">No views match.</p>
+          <MapState kind="empty">No views match.</MapState>
         ) : (
           <ViewsEmptyState title={emptyTitle} onCreate={onCreateView} />
         )

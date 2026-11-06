@@ -77,6 +77,8 @@ type Props = {
   onSandboxIconLabelChange?: (id: string, label: string) => void;
   /** A new value folds the legend into its launcher (a drawer was opened). */
   concealSignal?: number;
+  /** Starts folded into its launcher, unless the user already chose otherwise. */
+  startsConcealed?: boolean;
 };
 
 function nodeValueLabel(propertyKey: string, value: string): string {
@@ -156,10 +158,11 @@ export function GraphLegend({
   sandboxIcons = [],
   onSandboxIconLabelChange,
   concealSignal = 0,
+  startsConcealed = false,
 }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const frameRef = useRef<HTMLDivElement>(null);
-  const frame = useLegendFrame(frameRef, isEditing, concealSignal);
+  const frame = useLegendFrame(frameRef, isEditing, concealSignal, startsConcealed);
 
   const showCoding =
     colorPropertyOptions.length > 0 &&

@@ -4,6 +4,7 @@ import { storedAttributeText } from '../utils/attributeValue';
 import { isSandboxId } from '../utils/sandboxGraph';
 import type { TableGrid } from '../utils/tableFile';
 import type { TableColumnDef } from '../utils/tableColumns';
+import { MapState } from './MapState';
 
 type FeedsTablePanelProps = {
   isOpen: boolean;
@@ -117,20 +118,20 @@ export function FeedsTablePanel({
       aria-label="Flows table"
     >
       {status === 'loading' && (
-        <p className="graph-table-message" role="status">
+        <MapState kind="loading">
           Loading…
-        </p>
+        </MapState>
       )}
       {status === 'error' && (
-        <p className="graph-table-message graph-table-message-error" role="alert">
+        <MapState kind="error">
           {errorMessage ?? 'Unable to load the graph.'}
-        </p>
+        </MapState>
       )}
       {status === 'ready' && rows.length === 0 && (
-        <p className="graph-table-message">No flows to display.</p>
+        <MapState kind="empty">No flows to display.</MapState>
       )}
       {status === 'ready' && rows.length > 0 && columns.length === 0 && (
-        <p className="graph-table-message">No columns to display. Open the menu to choose columns.</p>
+        <MapState kind="empty">No columns to display. Open the menu to choose columns.</MapState>
       )}
       {status === 'ready' && rows.length > 0 && columns.length > 0 && (
         <div className="graph-table-scroll">

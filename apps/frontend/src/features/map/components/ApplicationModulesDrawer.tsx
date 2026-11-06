@@ -22,7 +22,7 @@ import { AttributeHistorySection } from './AttributeHistorySection';
 import { CloseIcon } from './CloseIcon';
 import { ModuleCard } from './ModuleCard';
 import { ModuleEditForm, type ModuleForm } from './ModuleEditForm';
-import { dragDrawerWidth } from './drawerWidth';
+import { trackDrawerResize } from './drawerWidth';
 import { scopedModule } from './moduleDrawerScope';
 
 type DrawerModule = ModuleDetails & { colorSlot: number | null };
@@ -189,16 +189,7 @@ export function ApplicationModulesDrawer({
 
   function startResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.preventDefault();
-    const paneWidth = drawerRef.current?.parentElement?.clientWidth ?? window.innerWidth;
-    const drag = { startWidth: width, startX: event.clientX, paneWidth };
-    const onMove = (moveEvent: PointerEvent) =>
-      onWidthChange(dragDrawerWidth({ ...drag, x: moveEvent.clientX }));
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    trackDrawerResize(event.clientX, drawerRef.current, width, onWidthChange);
   }
 
   function renderCard(module: DrawerModule) {
@@ -244,7 +235,7 @@ export function ApplicationModulesDrawer({
       aria-label="Application modules panel"
     >
       <div
-        className="module-drawer__grip"
+        className="graph-details-drawer__grip"
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize modules panel"
