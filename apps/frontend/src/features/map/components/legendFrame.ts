@@ -29,7 +29,8 @@ const SIZE_ROUNDING_PX = 2;
 
 export type LegendOffset = { left: number; top: number };
 export type LegendSize = { width: number; height: number };
-export type LegendPane = LegendSize & { insetLeft?: number; insetTop?: number };
+/** `coveredTop` is the height an overlay (the map header) hides at the top of the pane. */
+export type LegendPane = LegendSize & { insetLeft?: number; insetTop?: number; coveredTop?: number };
 export type LegendFrame = { offset: LegendOffset; size: LegendSize };
 export type LegendEntryDirection = 'row' | 'column';
 
@@ -99,9 +100,10 @@ export function fillLegendFrame(
   pane: LegendPane,
   margin: number,
 ): LegendFrame {
+  const coveredTop = pane.coveredTop ?? 0;
   return {
-    offset: { left: margin - (pane.insetLeft ?? 0), top: margin - (pane.insetTop ?? 0) },
-    size: { width: pane.width - 2 * margin, height: pane.height - 2 * margin },
+    offset: { left: margin - (pane.insetLeft ?? 0), top: margin + coveredTop - (pane.insetTop ?? 0) },
+    size: { width: pane.width - 2 * margin, height: pane.height - 2 * margin - coveredTop },
   };
 }
 

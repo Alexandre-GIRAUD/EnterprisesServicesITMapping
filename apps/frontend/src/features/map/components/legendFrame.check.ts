@@ -86,6 +86,15 @@ assert.deepEqual(
   fillLegendFrame({ width: 800, height: 600 }, 8),
   { offset: { left: 8, top: 8 }, size: { width: 784, height: 584 } },
 );
+// The map header covers the top of the pane: the filled legend starts below it, so its Apply stays visible.
+assert.deepEqual(
+  fillLegendFrame({ width: 800, height: 600, coveredTop: 82 }, 8),
+  { offset: { left: 8, top: 90 }, size: { width: 784, height: 502 } },
+);
+assert.deepEqual(
+  fillLegendFrame({ width: 800, height: 600, insetLeft: 10, insetTop: 10, coveredTop: 82 }, 8),
+  { offset: { left: -2, top: 80 }, size: { width: 784, height: 502 } },
+);
 
 // Leaving edit mode shows the own frame again, even while the stale fill is still stored.
 const ownFrame = { offset: { left: 4, top: 6 }, size: { width: 220, height: 360 } };
