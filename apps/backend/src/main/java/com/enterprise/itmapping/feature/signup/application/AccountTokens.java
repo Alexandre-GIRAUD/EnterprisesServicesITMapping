@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.signup.application;
 
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
+import com.enterprise.itmapping.feature.signup.domain.TokenPurpose;
 import com.enterprise.itmapping.feature.signup.infrastructure.persistence.AccountTokenEntity;
 import com.enterprise.itmapping.feature.signup.infrastructure.persistence.AccountTokenRepository;
 import java.nio.charset.StandardCharsets;
@@ -8,8 +9,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Optional;
@@ -21,7 +20,6 @@ public class AccountTokens {
 
   private static final int TOKEN_BYTES = 32;
   private static final String HASH_ALGORITHM = "SHA-256";
-  static final Duration VALIDITY = Duration.ofHours(24);
 
   private final AccountTokenRepository repository;
   private final Clock clock;
@@ -33,25 +31,29 @@ public class AccountTokens {
   }
 
   /** @return the raw token for the link; only its hash is kept */
-  public String issue(UserEntity user) {
+  public String issue(UserEntity user, TokenPurpose purpose) {
+    return issue(user, purpose, null);
+  }
+
+  /** As {@link #issue(UserEntity, TokenPurpose)}, carrying the address an email change confirms. */
+  public String issue(UserEntity user, TokenPurpose purpose, String newEmail) {
     byte[] bytes = new byte[TOKEN_BYTES];
     random.nextBytes(bytes);
     String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    Instant now = clock.instant();
-    repository.save(new AccountTokenEntity(user, hash(token), now, now.plus(VALIDITY)));
+    repository.save(new AccountTokenEntity(user, purpose, newEmail, hash(token), clock.instant()));
     return token;
   }
 
   /**
-   * The token's user, once: the token is spent. Empty when unknown, used or expired. Spending is a
-   * single conditional update, so two simultaneous clicks cannot both succeed.
+   * The token, once: it is spent. Empty when unknown, used, expired or issued for another purpose.
+   * Spending is a single conditional update, so two simultaneous clicks cannot both succeed.
    */
-  public Optional<UserEntity> redeem(String token) {
+  public Optional<AccountTokenEntity> redeem(String token, TokenPurpose purpose) {
     String tokenHash = hash(token);
-    if (repository.spendIfUsable(tokenHash, clock.instant()) == 0) {
+    if (repository.spendIfUsable(tokenHash, purpose, clock.instant()) == 0) {
       return Optional.empty();
     }
-    return repository.findByTokenHash(tokenHash).map(AccountTokenEntity::getUser);
+    return repository.findByTokenHash(tokenHash);
   }
 
   public static String hash(String token) {

@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.feature.signup.infrastructure.persistence;
 
+import com.enterprise.itmapping.feature.signup.domain.TokenPurpose;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,7 +19,11 @@ public interface AccountTokenRepository
   @Query(
       """
       UPDATE AccountTokenEntity t SET t.usedAt = :now
-      WHERE t.tokenHash = :tokenHash AND t.usedAt IS NULL AND t.expiresAt > :now
+      WHERE t.tokenHash = :tokenHash AND t.purpose = :purpose
+        AND t.usedAt IS NULL AND t.expiresAt > :now
       """)
-  int spendIfUsable(@Param("tokenHash") String tokenHash, @Param("now") Instant now);
+  int spendIfUsable(
+      @Param("tokenHash") String tokenHash,
+      @Param("purpose") TokenPurpose purpose,
+      @Param("now") Instant now);
 }

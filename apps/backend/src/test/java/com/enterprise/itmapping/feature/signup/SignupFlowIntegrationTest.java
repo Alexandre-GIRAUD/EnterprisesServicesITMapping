@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.signup;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -11,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.enterprise.itmapping.feature.signup.application.AccountEmail;
 import com.enterprise.itmapping.feature.signup.application.AccountMailer;
 import com.enterprise.itmapping.feature.signup.application.AccountTokens;
 import com.enterprise.itmapping.feature.signup.application.PendingAccountPurge;
@@ -19,6 +21,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -50,6 +54,8 @@ class SignupFlowIntegrationTest {
   private static final int SIGNUPS_PER_HOUR = 5;
   private static final int RESENDS_PER_HOUR = 3;
   private static final AtomicInteger NEXT_ADDRESS = new AtomicInteger(1);
+  private static final Pattern VERIFY_LINK =
+      Pattern.compile(Pattern.quote(PUBLIC_URL + "/verify-email?token=") + "[A-Za-z0-9_-]+");
 
   @Container
   static PostgreSQLContainer<?> postgres =
@@ -80,11 +86,11 @@ class SignupFlowIntegrationTest {
   @Autowired MockMvc mockMvc;
   @Autowired JdbcTemplate jdbcTemplate;
   @Autowired PendingAccountPurge pendingAccountPurge;
-  @MockBean AccountMailer verificationMailer;
+  @MockBean AccountMailer accountMailer;
 
   @BeforeEach
   void forgetSentMail() {
-    reset(verificationMailer);
+    reset(accountMailer);
   }
 
   @Test
@@ -212,8 +218,7 @@ class SignupFlowIntegrationTest {
         .perform(json(post("/auth/resend-verification"), "{\"email\":\"" + uniqueEmail() + "\"}"))
         .andExpect(status().isAccepted());
 
-    verify(verificationMailer, times(1 + RESENDS_PER_HOUR))
-        .sendVerificationLink(eq(email), anyString());
+    verify(accountMailer, times(1 + RESENDS_PER_HOUR)).send(eq(email), any(AccountEmail.class));
   }
 
   @Test
@@ -249,7 +254,7 @@ class SignupFlowIntegrationTest {
                 post("/auth/signup"),
                 "{\"email\":\"" + uniqueEmail() + "\",\"password\":\"short\",\"workspaceName\":\"W\"}"))
         .andExpect(status().isBadRequest());
-    verify(verificationMailer, never()).sendVerificationLink(anyString(), anyString());
+    verify(accountMailer, never()).send(anyString(), any(AccountEmail.class));
   }
 
   private ResultActions signUp(String email, String workspaceName, String address) throws Exception {
@@ -273,10 +278,11 @@ class SignupFlowIntegrationTest {
   }
 
   private String sentLink(String email) {
-    ArgumentCaptor<String> link = ArgumentCaptor.forClass(String.class);
-    verify(verificationMailer).sendVerificationLink(eq(email), link.capture());
-    assertThat(link.getValue()).startsWith(PUBLIC_URL + "/verify-email?token=");
-    return link.getValue();
+    ArgumentCaptor<AccountEmail> sent = ArgumentCaptor.forClass(AccountEmail.class);
+    verify(accountMailer).send(eq(email), sent.capture());
+    Matcher link = VERIFY_LINK.matcher(sent.getValue().text());
+    assertThat(link.find()).isTrue();
+    return link.group();
   }
 
   private static String tokenFromLink(String link) {

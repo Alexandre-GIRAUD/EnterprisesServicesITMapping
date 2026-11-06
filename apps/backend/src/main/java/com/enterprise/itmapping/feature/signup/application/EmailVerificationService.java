@@ -5,6 +5,8 @@ import com.enterprise.itmapping.feature.auth.domain.UserStatus;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
 import com.enterprise.itmapping.feature.auth.presentation.dto.LoginResponse;
+import com.enterprise.itmapping.feature.signup.domain.TokenPurpose;
+import com.enterprise.itmapping.feature.signup.infrastructure.persistence.AccountTokenEntity;
 import java.time.Clock;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -41,7 +43,8 @@ public class EmailVerificationService {
   public LoginResponse verify(String token) {
     UserEntity user =
         tokens
-            .redeem(token)
+            .redeem(token, TokenPurpose.VERIFY_EMAIL)
+            .map(AccountTokenEntity::getUser)
             .orElseThrow(
                 () ->
                     new ResponseStatusException(
