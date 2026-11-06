@@ -20,7 +20,8 @@ import org.springframework.stereotype.Component;
 public class VerificationTokens {
 
   private static final int TOKEN_BYTES = 32;
-  private static final Duration VALIDITY = Duration.ofHours(24);
+  private static final String HASH_ALGORITHM = "SHA-256";
+  static final Duration VALIDITY = Duration.ofHours(24);
 
   private final EmailVerificationTokenRepository repository;
   private final Clock clock;
@@ -41,22 +42,21 @@ public class VerificationTokens {
     return token;
   }
 
-  /** The token's user, once: the token is spent. Empty when unknown, used or expired. */
+  /**
+   * The token's user, once: the token is spent. Empty when unknown, used or expired. Spending is a
+   * single conditional update, so two simultaneous clicks cannot both succeed.
+   */
   public Optional<UserEntity> redeem(String token) {
-    Instant now = clock.instant();
-    return repository
-        .findByTokenHash(hash(token))
-        .filter(stored -> stored.isUsableAt(now))
-        .map(
-            stored -> {
-              stored.markUsed(now);
-              return stored.getUser();
-            });
+    String tokenHash = hash(token);
+    if (repository.spendIfUsable(tokenHash, clock.instant()) == 0) {
+      return Optional.empty();
+    }
+    return repository.findByTokenHash(tokenHash).map(EmailVerificationTokenEntity::getUser);
   }
 
   public static String hash(String token) {
     try {
-      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      MessageDigest digest = MessageDigest.getInstance(HASH_ALGORITHM);
       return HexFormat.of().formatHex(digest.digest(token.getBytes(StandardCharsets.UTF_8)));
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException("SHA-256 is required by every Java runtime.", e);

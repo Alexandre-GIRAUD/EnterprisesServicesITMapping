@@ -6,7 +6,6 @@ import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEnti
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
 import com.enterprise.itmapping.feature.auth.presentation.dto.LoginResponse;
 import java.time.Clock;
-import java.time.Duration;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,8 +33,7 @@ public class EmailVerificationService {
     this.verificationLinks = verificationLinks;
     this.userRepository = userRepository;
     this.authService = authService;
-    this.resendsPerEmail =
-        new SlidingWindowLimiter(RESENDS_PER_EMAIL_PER_HOUR, Duration.ofHours(1), clock);
+    this.resendsPerEmail = SlidingWindowLimiter.perHour(RESENDS_PER_EMAIL_PER_HOUR, clock);
   }
 
   /** Activates the account behind {@code token} and signs it in. */

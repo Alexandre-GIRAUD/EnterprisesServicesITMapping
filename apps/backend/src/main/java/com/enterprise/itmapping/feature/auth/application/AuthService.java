@@ -54,7 +54,7 @@ public class AuthService {
     }
     // Checked after the password, so the answer reveals nothing to someone without it.
     if (user.getStatus() == UserStatus.PENDING) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Email not verified.");
+      throw new EmailNotVerifiedException();
     }
     return openSession(user);
   }

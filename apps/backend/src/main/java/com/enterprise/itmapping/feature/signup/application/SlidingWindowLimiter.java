@@ -25,6 +25,10 @@ public class SlidingWindowLimiter {
     this.clock = clock;
   }
 
+  public static SlidingWindowLimiter perHour(int maxAttempts, Clock clock) {
+    return new SlidingWindowLimiter(maxAttempts, Duration.ofHours(1), clock);
+  }
+
   /** Records an attempt for {@code key} and says whether it is within the limit. */
   public boolean tryAcquire(String key) {
     Instant now = clock.instant();

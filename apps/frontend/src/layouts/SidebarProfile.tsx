@@ -42,7 +42,7 @@ export function SidebarProfile({
     <div className="sidebar-profile" ref={rootRef}>
       <ProfileTrigger
         username={username}
-        roleLabel={detailLabel}
+        detailLabel={detailLabel}
         isOpen={isOpen}
         menuId={menuId}
         triggerRef={triggerRef}
@@ -96,14 +96,14 @@ export function SidebarProfile({
 
 function ProfileTrigger({
   username,
-  roleLabel,
+  detailLabel,
   isOpen,
   menuId,
   triggerRef,
   onToggle,
 }: {
   username: string;
-  roleLabel: string | null;
+  detailLabel: string | null;
   isOpen: boolean;
   menuId: string;
   triggerRef: { current: HTMLButtonElement | null };
@@ -126,9 +126,9 @@ function ProfileTrigger({
         <span className="sidebar-profile-name" title={username}>
           {username}
         </span>
-        {roleLabel ? (
-          <span className="sidebar-profile-role" title={roleLabel}>
-            {roleLabel}
+        {detailLabel ? (
+          <span className="sidebar-profile-role" title={detailLabel}>
+            {detailLabel}
           </span>
         ) : null}
       </span>

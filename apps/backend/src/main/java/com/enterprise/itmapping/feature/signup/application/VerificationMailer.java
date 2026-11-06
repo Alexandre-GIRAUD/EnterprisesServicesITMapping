@@ -23,22 +23,25 @@ public class VerificationMailer {
       Confirm your email address to open your workspace:
       %s
 
-      This link expires in 24 hours. If you did not sign up, ignore this email.
+      This link expires in %d hours. If you did not sign up, ignore this email.
       """;
   private static final String HTML_BODY =
       """
       <p>Welcome to Flowra.</p>
       <p><a href="%1$s">Confirm your email address</a> to open your workspace.</p>
       <p>Or paste this link into your browser:<br>%1$s</p>
-      <p>This link expires in 24 hours. If you did not sign up, ignore this email.</p>
+      <p>This link expires in %2$d hours. If you did not sign up, ignore this email.</p>
       """;
+
+  private static final boolean MULTIPART = true;
 
   // A provider: on-premise installs have no SMTP host, hence no JavaMailSender bean.
   private final ObjectProvider<JavaMailSender> mailSender;
   private final String from;
 
   public VerificationMailer(
-      ObjectProvider<JavaMailSender> mailSender, @Value("${app.signup.mail-from}") String from) {
+      ObjectProvider<JavaMailSender> mailSender,
+      @Value("${app.signup.mail-from:Flowra <no-reply@localhost>}") String from) {
     this.mailSender = mailSender;
     this.from = from;
   }
@@ -47,11 +50,15 @@ public class VerificationMailer {
     JavaMailSender sender = mailSender.getObject();
     MimeMessage message = sender.createMimeMessage();
     try {
-      MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
+      MimeMessageHelper helper =
+          new MimeMessageHelper(message, MULTIPART, StandardCharsets.UTF_8.name());
       helper.setFrom(from);
       helper.setTo(email);
       helper.setSubject(SUBJECT);
-      helper.setText(TEXT_BODY.formatted(link), HTML_BODY.formatted(HtmlUtils.htmlEscape(link)));
+      long validHours = VerificationTokens.VALIDITY.toHours();
+      helper.setText(
+          TEXT_BODY.formatted(link, validHours),
+          HTML_BODY.formatted(HtmlUtils.htmlEscape(link), validHours));
     } catch (MessagingException e) {
       throw new MailSendException("Could not build the verification email for " + email, e);
     }

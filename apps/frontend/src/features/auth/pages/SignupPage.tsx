@@ -1,11 +1,10 @@
 import { FormEvent, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { signupRequest } from '@/features/auth/api/authApi';
+import { MIN_PASSWORD_LENGTH, signupRequest } from '@/features/auth/api/authApi';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { CheckInbox } from '@/features/auth/components/CheckInbox';
 import { useAuth } from '@/features/auth/context/AuthContext';
-
-const MIN_PASSWORD_LENGTH = 8;
+import { HOME_PATH } from '@/features/auth/routes';
 
 export function SignupPage() {
   const { user } = useAuth();
@@ -17,7 +16,7 @@ export function SignupPage() {
   const [sentTo, setSentTo] = useState<string | null>(null);
 
   if (user) {
-    return <Navigate to="/map" replace />;
+    return <Navigate to={HOME_PATH} replace />;
   }
 
   async function onSubmit(event: FormEvent) {
@@ -27,8 +26,8 @@ export function SignupPage() {
     try {
       const accepted = await signupRequest(email.trim(), password, workspaceName.trim());
       setSentTo(accepted.email);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Signup failed.');
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Signup failed.');
     } finally {
       setIsBusy(false);
     }
@@ -54,7 +53,7 @@ export function SignupPage() {
             type="email"
             autoComplete="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
             required
           />
         </label>
@@ -66,7 +65,7 @@ export function SignupPage() {
             autoComplete="new-password"
             minLength={MIN_PASSWORD_LENGTH}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(event) => setPassword(event.target.value)}
             required
           />
         </label>
@@ -77,7 +76,7 @@ export function SignupPage() {
             autoComplete="organization"
             placeholder="Your company"
             value={workspaceName}
-            onChange={(e) => setWorkspaceName(e.target.value)}
+            onChange={(event) => setWorkspaceName(event.target.value)}
             required
           />
         </label>

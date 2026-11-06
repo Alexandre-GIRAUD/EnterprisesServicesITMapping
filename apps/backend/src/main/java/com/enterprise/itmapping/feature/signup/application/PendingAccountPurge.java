@@ -14,8 +14,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Removes accounts never confirmed within a week, with the workspace they created, so the email
- * can sign up again. A pending account cannot sign in, so its workspace holds no data.
+ * Removes accounts never confirmed within a week, so the email can sign up again, and the workspace
+ * they created once nobody else belongs to it. A pending account cannot sign in, so that workspace
+ * holds no data.
  */
 @Component
 public class PendingAccountPurge {
@@ -42,8 +43,10 @@ public class PendingAccountPurge {
         userRepository.findAllByStatusAndCreatedAtBefore(UserStatus.PENDING, deadline)) {
       userRepository.delete(user);
       userRepository.flush();
-      workspaceRepository.deleteById(user.getWorkspaceId());
-      log.info("Removed unconfirmed account {} and its workspace.", user.getUsername());
+      log.info("Removed unconfirmed account {}.", user.getUsername());
+      if (!userRepository.existsByWorkspaceId(user.getWorkspaceId())) {
+        workspaceRepository.deleteById(user.getWorkspaceId());
+      }
     }
   }
 }

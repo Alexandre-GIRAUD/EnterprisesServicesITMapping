@@ -20,6 +20,8 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
   boolean existsByEmailIgnoreCase(String email);
 
+  boolean existsByWorkspaceId(UUID workspaceId);
+
   Optional<UserEntity> findByEmailIgnoreCase(String email);
 
   List<UserEntity> findAllByStatusAndCreatedAtBefore(UserStatus status, Instant createdBefore);

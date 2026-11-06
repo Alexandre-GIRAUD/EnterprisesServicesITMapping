@@ -19,7 +19,7 @@ const profile = read('../../layouts/SidebarProfile.tsx');
 assert.match(app, /path="\/signup"/);
 assert.match(app, /path="\/verify-email"/);
 
-assert.match(login, /signupEnabled/);
+assert.match(login, /isSignupEnabled/);
 assert.match(login, /to="\/signup"/);
 assert.match(login, /Email or username/);
 assert.match(login, /EmailNotVerifiedError/);
@@ -39,7 +39,7 @@ assert.match(authApi, /\/api\/config/);
 assert.match(authApi, /\/api\/auth\/signup/);
 assert.match(authApi, /\/api\/auth\/verify-email/);
 assert.match(authApi, /\/api\/auth\/resend-verification/);
-assert.match(authApi, /status === 403/);
+assert.match(authApi, /EMAIL_NOT_VERIFIED/);
 
 assert.match(api, /workspaceName: string/);
 assert.match(profile, /workspaceName/);

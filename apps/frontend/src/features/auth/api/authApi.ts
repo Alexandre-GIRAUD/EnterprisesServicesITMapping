@@ -13,6 +13,17 @@ export type UserSummaryDto = {
 
 const JSON_HEADERS = { Accept: 'application/json', 'Content-Type': 'application/json' };
 
+const HTTP_BAD_REQUEST = 400;
+const HTTP_FORBIDDEN = 403;
+const HTTP_CONFLICT = 409;
+const HTTP_TOO_MANY_REQUESTS = 429;
+
+/** Code the backend puts on a sign-in refused for an unconfirmed email. */
+const EMAIL_NOT_VERIFIED_CODE = 'EMAIL_NOT_VERIFIED';
+
+/** Same rule as the backend signup request. */
+export const MIN_PASSWORD_LENGTH = 8;
+
 /** Sign-in refused because the account's email is not confirmed yet. */
 export class EmailNotVerifiedError extends Error {
   constructor() {
@@ -37,7 +48,7 @@ export async function loginRequest(username: string, password: string): Promise<
     headers: JSON_HEADERS,
     body: JSON.stringify({ username, password }),
   });
-  if (res.status === 403) {
+  if (res.status === HTTP_FORBIDDEN && (await readErrorCode(res)) === EMAIL_NOT_VERIFIED_CODE) {
     throw new EmailNotVerifiedError();
   }
   if (!res.ok) {
@@ -99,7 +110,7 @@ export async function signupRequest(
   if (res.ok) {
     return res.json() as Promise<{ email: string }>;
   }
-  throw new Error(await signupFailureMessage(res));
+  throw new Error(await describeSignupFailure(res));
 }
 
 export async function verifyEmailRequest(token: string): Promise<LoginResponseDto> {
@@ -125,16 +136,18 @@ export async function resendVerificationRequest(email: string): Promise<void> {
   }
 }
 
-async function signupFailureMessage(res: Response): Promise<string> {
-  if (res.status === 409) {
-    return 'An account already uses this email. Sign in instead.';
-  }
-  if (res.status === 429) {
-    return 'Too many signups from this network. Try again in an hour.';
-  }
-  if (res.status === 400) {
-    return 'Check the form: a valid email, a password of at least 8 characters and a workspace name.';
+async function readErrorCode(res: Response): Promise<string | undefined> {
+  const body = (await res.clone().json().catch(() => null)) as { code?: string } | null;
+  return body?.code;
+}
+
+async function describeSignupFailure(res: Response): Promise<string> {
+  if (res.status === HTTP_BAD_REQUEST) {
+    return `Check the form: a valid email, a password of at least ${MIN_PASSWORD_LENGTH} characters and a workspace name.`;
   }
   const body = (await res.json().catch(() => null)) as { message?: string } | null;
-  return body?.message ?? `Signup failed (${res.status}).`;
+  if (body?.message && (res.status === HTTP_CONFLICT || res.status === HTTP_TOO_MANY_REQUESTS)) {
+    return body.message;
+  }
+  return `Signup failed (${res.status}).`;
 }

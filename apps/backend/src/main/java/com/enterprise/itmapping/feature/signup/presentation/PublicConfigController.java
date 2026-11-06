@@ -15,7 +15,7 @@ public class PublicConfigController {
   }
 
   @GetMapping("/config")
-  public PublicConfigResponse config() {
+  public PublicConfigResponse getPublicConfig() {
     return new PublicConfigResponse(signupProperties.enabled());
   }
 

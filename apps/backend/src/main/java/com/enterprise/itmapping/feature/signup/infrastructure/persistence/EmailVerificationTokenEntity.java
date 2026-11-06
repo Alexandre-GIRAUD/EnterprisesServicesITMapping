@@ -50,12 +50,4 @@ public class EmailVerificationTokenEntity {
   public UserEntity getUser() {
     return user;
   }
-
-  public boolean isUsableAt(Instant now) {
-    return usedAt == null && now.isBefore(expiresAt);
-  }
-
-  public void markUsed(Instant now) {
-    this.usedAt = now;
-  }
 }

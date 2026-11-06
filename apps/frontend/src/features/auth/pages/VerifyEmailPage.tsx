@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { verifyEmailRequest } from '@/features/auth/api/authApi';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { useAuth } from '@/features/auth/context/AuthContext';
+import { HOME_PATH } from '@/features/auth/routes';
 
 /** Target of the emailed link: confirms the address, signs in, opens the map. */
 export function VerifyEmailPage() {
@@ -20,10 +21,10 @@ export function VerifyEmailPage() {
     verifyEmailRequest(token)
       .then((session) => {
         login(session);
-        navigate('/map', { replace: true });
+        navigate(HOME_PATH, { replace: true });
       })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'This link could not be used.');
+      .catch((failure: unknown) => {
+        setError(failure instanceof Error ? failure.message : 'This link could not be used.');
       });
   }, [token, login, navigate]);
 

@@ -9,6 +9,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class VerificationLinks {
 
   private static final String VERIFY_PATH = "/verify-email";
+  /** Read by the frontend /verify-email page. */
+  private static final String TOKEN_PARAMETER = "token";
 
   private final VerificationTokens tokens;
   private final VerificationMailer mailer;
@@ -25,7 +27,7 @@ public class VerificationLinks {
     String link =
         UriComponentsBuilder.fromUriString(signupProperties.publicUrl())
             .path(VERIFY_PATH)
-            .queryParam("token", tokens.issue(user))
+            .queryParam(TOKEN_PARAMETER, tokens.issue(user))
             .build()
             .toUriString();
     mailer.sendVerificationLink(user.getEmail(), link);

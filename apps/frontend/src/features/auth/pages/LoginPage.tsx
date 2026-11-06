@@ -8,24 +8,25 @@ import {
 } from '@/features/auth/api/authApi';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { CheckInbox } from '@/features/auth/components/CheckInbox';
+import { HOME_PATH } from '@/features/auth/routes';
 
 export function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/map';
+  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? HOME_PATH;
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
-  const [signupEnabled, setSignupEnabled] = useState(false);
+  const [isSignupEnabled, setIsSignupEnabled] = useState(false);
 
   useEffect(() => {
     fetchPublicConfig()
-      .then((config) => setSignupEnabled(config.signupEnabled))
-      .catch(() => setSignupEnabled(false));
+      .then((config) => setIsSignupEnabled(config.signupEnabled))
+      .catch(() => setIsSignupEnabled(false));
   }, []);
 
   if (user) {
@@ -94,7 +95,7 @@ export function LoginPage() {
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
-      {signupEnabled ? (
+      {isSignupEnabled ? (
         <p className="auth-footnote">
           New to Flowra?{' '}
           <Link className="auth-link" to="/signup">

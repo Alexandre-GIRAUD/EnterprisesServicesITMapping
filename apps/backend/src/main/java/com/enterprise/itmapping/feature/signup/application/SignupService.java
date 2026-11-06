@@ -8,7 +8,6 @@ import com.enterprise.itmapping.feature.signup.presentation.dto.SignupRequest;
 import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceEntity;
 import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceRepository;
 import java.time.Clock;
-import java.time.Duration;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -39,8 +38,7 @@ public class SignupService {
     this.workspaceRepository = workspaceRepository;
     this.passwordEncoder = passwordEncoder;
     this.verificationLinks = verificationLinks;
-    this.signupsPerAddress =
-        new SlidingWindowLimiter(SIGNUPS_PER_ADDRESS_PER_HOUR, Duration.ofHours(1), clock);
+    this.signupsPerAddress = SlidingWindowLimiter.perHour(SIGNUPS_PER_ADDRESS_PER_HOUR, clock);
   }
 
   /** @return the normalized email the link was sent to */

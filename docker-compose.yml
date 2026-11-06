@@ -82,9 +82,10 @@ services:
       # Self-service signup (cloud). Off by default; when on, GITHUB_TOKEN must be empty.
       APP_SIGNUP_ENABLED: ${APP_SIGNUP_ENABLED:-false}
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
-      # Defaults point at the Mailpit service below; set a real SMTP relay in production.
-      SMTP_HOST: ${SMTP_HOST:-mailpit}
-      SMTP_PORT: ${SMTP_PORT:-1025}
+      # Empty by default so an open signup cannot boot without a real relay.
+      # Development: SMTP_HOST=mailpit SMTP_PORT=1025 to use the Mailpit service below.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
     depends_on:
