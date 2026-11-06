@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useAuth } from '@/features/auth/context/AuthContext';
 import {
   disconnectBitbucket,
   fetchBitbucketConnection,
@@ -7,8 +8,9 @@ import {
 } from '@/features/map/api/integrationsBitbucketApi';
 
 export function BitbucketTokenSettings() {
+  const { isAdmin } = useAuth();
   const [connection, setConnection] = useState<BitbucketConnection | null>(null);
-  const [personalToken, setPersonalToken] = useState('');
+  const [workspaceToken, setWorkspaceToken] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -21,7 +23,9 @@ export function BitbucketTokenSettings() {
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setErrorMessage(error instanceof Error ? error.message : 'Unable to load the Bitbucket connection.');
+          setErrorMessage(
+            error instanceof Error ? error.message : 'Unable to load the Bitbucket connection.',
+          );
         }
       });
     return () => {
@@ -29,17 +33,21 @@ export function BitbucketTokenSettings() {
     };
   }, []);
 
-  async function savePersonalToken(event: FormEvent<HTMLFormElement>) {
+  async function saveWorkspaceToken(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       setIsConnecting(true);
       setErrorMessage(null);
-      const linked = await saveBitbucketToken(personalToken);
+      const linked = await saveBitbucketToken(workspaceToken);
       setConnection(linked);
-      setPersonalToken('');
-      setSuccessMessage(linked.username ? `Connected as ${linked.username}.` : 'Bitbucket account saved.');
+      setWorkspaceToken('');
+      setSuccessMessage(
+        linked.username ? `Connected as ${linked.username}.` : 'Bitbucket account saved.',
+      );
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to save the Bitbucket token.');
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Unable to save the Bitbucket token.',
+      );
     } finally {
       setIsConnecting(false);
     }
@@ -63,23 +71,33 @@ export function BitbucketTokenSettings() {
     <section className="admin-users-panel" aria-label="Bitbucket token">
       <h2>Bitbucket</h2>
       <p className="admin-users-lead">
-        Paste a Bitbucket API token to list your repositories. It is stored on your account only and
-        is not shown again. Disconnecting Bitbucket leaves the GitHub connection unchanged.
+        {isAdmin
+          ? 'Paste a Bitbucket API token for the whole workspace. It is stored encrypted and is not shown again.'
+          : 'The workspace administrators manage this connection.'}
       </p>
       {connection?.connected ? (
         <div className="github-import-account">
-          <span>Connected as {connection.username}</span>
-          <button
-            type="button"
-            className="github-import-text-button"
-            disabled={isConnecting}
-            onClick={() => void disconnectAccount()}
-          >
-            Disconnect
-          </button>
+          <span>Connected as {connection.username} (workspace connection)</span>
+          {isAdmin ? (
+            <button
+              type="button"
+              className="github-import-text-button"
+              disabled={isConnecting}
+              onClick={() => void disconnectAccount()}
+            >
+              Disconnect
+            </button>
+          ) : null}
         </div>
+      ) : !isAdmin ? (
+        <p className="admin-users-lead">
+          Not connected. Ask an administrator to connect Bitbucket.
+        </p>
       ) : (
-        <form className="github-import-token-form" onSubmit={(event) => void savePersonalToken(event)}>
+        <form
+          className="github-import-token-form"
+          onSubmit={(event) => void saveWorkspaceToken(event)}
+        >
           <input
             className="github-import-search-input"
             type="password"
@@ -87,14 +105,14 @@ export function BitbucketTokenSettings() {
             autoComplete="off"
             placeholder="Bitbucket token"
             aria-label="Bitbucket token"
-            value={personalToken}
+            value={workspaceToken}
             disabled={isConnecting}
-            onChange={(event) => setPersonalToken(event.target.value)}
+            onChange={(event) => setWorkspaceToken(event.target.value)}
           />
           <button
             type="submit"
             className="github-import-primary"
-            disabled={isConnecting || personalToken.trim().length === 0}
+            disabled={isConnecting || workspaceToken.trim().length === 0}
           >
             Save token
           </button>
