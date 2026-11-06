@@ -4,77 +4,46 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
-import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubAccountService;
-import java.util.List;
-import java.util.Optional;
-import org.junit.jupiter.api.AfterEach;
+import com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.AuthorityUtils;
-import org.springframework.security.core.context.SecurityContextHolder;
 
+/** GitHub calls use the current workspace connection, never a server-wide token. */
 class GitHubApiClientTokenTest {
 
-  private final UserRepository users = mock(UserRepository.class);
   private final GitHubAccountService accounts = mock(GitHubAccountService.class);
   private final GitHubApiClient client =
-      new GitHubApiClient(properties("server-token"), accounts, users);
+      new GitHubApiClient(properties("example-ignored-server-token"), accounts);
 
-  @AfterEach
-  void clearSecurity() {
-    SecurityContextHolder.clearContext();
+  @Test
+  void theWorkspaceConnectionTokenIsUsed() {
+    when(accounts.accessToken()).thenReturn("workspace-token");
+
+    assertThat(tokenInSomeWorkspace()).isEqualTo("workspace-token");
   }
 
   @Test
-  void serverTokenIsUsedWhenNobodyIsSignedIn() {
-    assertThat(client.token()).isEqualTo("server-token");
+  void aWorkspaceWithoutConnectionHasNoToken() {
+    when(accounts.accessToken()).thenReturn("");
+
+    assertThat(tokenInSomeWorkspace()).isEmpty();
   }
 
   @Test
-  void connectedUserTokenReplacesTheServerToken() {
-    UserEntity user = new UserEntity();
-    user.setUsername("alex");
-    when(users.findBySessionSubject("alex")).thenReturn(Optional.of(user));
-    when(accounts.accessToken(user)).thenReturn("user-token");
-    SecurityContextHolder.getContext()
-        .setAuthentication(new UsernamePasswordAuthenticationToken("alex", "n/a", List.of()));
-
-    assertThat(client.token()).isEqualTo("user-token");
+  void workOutsideAnyWorkspaceHasNoToken() {
+    assertThat(client.token()).isEmpty();
   }
 
-  @Test
-  void signedInUserWithoutAConnectionUsesTheServerToken() {
-    UserEntity user = new UserEntity();
-    user.setUsername("alex");
-    when(users.findBySessionSubject("alex")).thenReturn(Optional.of(user));
-    when(accounts.accessToken(user)).thenReturn("");
-    SecurityContextHolder.getContext()
-        .setAuthentication(new UsernamePasswordAuthenticationToken("alex", "n/a", List.of()));
-
-    assertThat(client.token()).isEqualTo("server-token");
-  }
-
-  @Test
-  void anonymousRequestUsesTheServerToken() {
-    SecurityContextHolder.getContext()
-        .setAuthentication(
-            new AnonymousAuthenticationToken(
-                "key", "anonymousUser", AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS")));
-
-    assertThat(client.token()).isEqualTo("server-token");
+  private String tokenInSomeWorkspace() {
+    AtomicReference<String> token = new AtomicReference<>();
+    CurrentWorkspace.runAs(UUID.randomUUID(), () -> token.set(client.token()));
+    return token.get();
   }
 
   private static GitHubIntegrationProperties properties(String token) {
     return new GitHubIntegrationProperties(
-        token,
-        "https://api.github.com",
-        100,
-        "",
-        "refs/heads/main",
-        80,
-        512);
+        token, "https://api.github.com", 100, "", "refs/heads/main", 80, 512);
   }
 }

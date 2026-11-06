@@ -12,33 +12,26 @@ class SignupStartupGuardTest {
 
   @Test
   void disabledSignupNeedsNothing() {
-    assertThatCode(() -> SignupStartupGuard.check(false, "", "", "a-server-token"))
+    assertThatCode(() -> SignupStartupGuard.check(false, "", ""))
         .doesNotThrowAnyException();
   }
 
   @Test
   void enabledSignupWithEverythingConfiguredStarts() {
-    assertThatCode(() -> SignupStartupGuard.check(true, PUBLIC_URL, SMTP_HOST, ""))
+    assertThatCode(() -> SignupStartupGuard.check(true, PUBLIC_URL, SMTP_HOST))
         .doesNotThrowAnyException();
   }
 
   @Test
-  void enabledSignupRefusesTheServerGitHubToken() {
-    assertThatThrownBy(() -> SignupStartupGuard.check(true, PUBLIC_URL, SMTP_HOST, "a-server-token"))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("GITHUB_TOKEN");
-  }
-
-  @Test
   void enabledSignupNeedsThePublicUrl() {
-    assertThatThrownBy(() -> SignupStartupGuard.check(true, " ", SMTP_HOST, ""))
+    assertThatThrownBy(() -> SignupStartupGuard.check(true, " ", SMTP_HOST))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("APP_PUBLIC_URL");
   }
 
   @Test
   void enabledSignupNeedsAnSmtpHost() {
-    assertThatThrownBy(() -> SignupStartupGuard.check(true, PUBLIC_URL, "", ""))
+    assertThatThrownBy(() -> SignupStartupGuard.check(true, PUBLIC_URL, ""))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("SMTP_HOST");
   }
