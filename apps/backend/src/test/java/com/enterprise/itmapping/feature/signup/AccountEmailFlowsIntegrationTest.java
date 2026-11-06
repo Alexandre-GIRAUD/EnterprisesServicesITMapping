@@ -289,6 +289,66 @@ class AccountEmailFlowsIntegrationTest {
         .andExpect(status().isForbidden());
   }
 
+  @Test
+  void anEmailAccountMovesToAConfirmedNewAddressAndSignsInWithIt() throws Exception {
+    String oldEmail = createActiveUser();
+    String newEmail = uniqueEmail();
+
+    requestEmailChange(oldEmail, newEmail).andExpect(status().isAccepted());
+    String token = tokenFrom(sentEmail(newEmail), "/confirm-email");
+    confirmEmailChange(token)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.username").value(newEmail));
+
+    logIn(newEmail, OLD_PASSWORD).andExpect(status().isOk());
+    logIn(oldEmail, OLD_PASSWORD).andExpect(status().isUnauthorized());
+    mockMvc
+        .perform(get("/account").with(user(newEmail)))
+        .andExpect(jsonPath("$.email").value(newEmail));
+    confirmEmailChange(token).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void anOlderAccountKeepsItsUsernameWhenItGainsAnEmail() throws Exception {
+    String username = "legacy-" + UUID.randomUUID();
+    jdbcTemplate.update(
+        "INSERT INTO users (id, username, password_hash, role, status, workspace_id)"
+            + " VALUES (?, ?, ?, 'USER', 'ACTIVE', ?)",
+        UUID.randomUUID(),
+        username,
+        passwordEncoder.encode(OLD_PASSWORD),
+        Workspaces.DEFAULT_ID);
+    String email = uniqueEmail();
+
+    requestEmailChange(username, email).andExpect(status().isAccepted());
+    confirmEmailChange(tokenFrom(sentEmail(email), "/confirm-email"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.username").value(username));
+
+    mockMvc
+        .perform(get("/account").with(user(username)))
+        .andExpect(jsonPath("$.email").value(email));
+  }
+
+  @Test
+  void anAddressUsedByAnotherAccountIsRefused() throws Exception {
+    String user = createActiveUser();
+
+    requestEmailChange(user, createActiveUser()).andExpect(status().isConflict());
+    verify(accountMailer, never()).send(anyString(), any(AccountEmail.class));
+  }
+
+  private ResultActions requestEmailChange(String username, String newEmail) throws Exception {
+    return mockMvc.perform(
+        json(post("/account/email"), "{\"email\":\"%s\"}".formatted(newEmail))
+            .with(user(username)));
+  }
+
+  private ResultActions confirmEmailChange(String token) throws Exception {
+    return mockMvc.perform(
+        json(post("/auth/confirm-email-change"), "{\"token\":\"%s\"}".formatted(token)));
+  }
+
   private Admin createWorkspaceAdmin(String workspaceName) {
     UUID workspaceId = UUID.randomUUID();
     jdbcTemplate.update("INSERT INTO workspaces (id, name) VALUES (?, ?)", workspaceId, workspaceName);
