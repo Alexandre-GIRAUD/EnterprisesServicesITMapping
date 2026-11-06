@@ -38,6 +38,8 @@ const LEGEND_DRAG_HANDLE_SELECTOR = '.graph-legend__header';
 const ZOOM_CONTROLS_SELECTOR = '.react-flow__controls';
 const ZOOM_CONTROLS_GAP_PX = 8;
 const LEGEND_PANE_SELECTOR = '.react-flow, .sandbox-stage, #graph-canvas-pane';
+const MAP_VIEW_SELECTOR = '.map-graph-main';
+const MAP_HEADER_SELECTOR = ':scope > .graph-view-header';
 
 type LegendFrameStyle = CSSProperties & { '--legend-font-scale': string };
 
@@ -488,7 +490,15 @@ function readLegendPaneBox(element: HTMLElement): LegendPane {
     height: paneRect.height,
     insetLeft: origin.left - paneRect.left,
     insetTop: origin.top - paneRect.top,
+    coveredTop: readMapHeaderOverlap(element, paneRect),
   };
+}
+
+/** Height of the map header that lies over the top of the pane; 0 where the view has no header. */
+function readMapHeaderOverlap(element: HTMLElement, paneRect: DOMRect): number {
+  const header = element.closest(MAP_VIEW_SELECTOR)?.querySelector(MAP_HEADER_SELECTOR);
+  if (!(header instanceof HTMLElement)) return 0;
+  return Math.max(0, header.getBoundingClientRect().bottom - paneRect.top);
 }
 
 function findLegendPane(element: HTMLElement): HTMLElement {
