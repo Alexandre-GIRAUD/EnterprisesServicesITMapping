@@ -1,4 +1,4 @@
--- Every tenant table gets the owning workspace. Existing rows belong to the Default workspace.
+-- Every workspace-owned table gets its workspace. Existing rows belong to the Default workspace.
 DO $$
 DECLARE
     t TEXT;

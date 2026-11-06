@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.config;
 
 import com.enterprise.itmapping.feature.workspace.domain.Workspaces;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -55,7 +56,7 @@ public class Neo4jIndexConfig implements ApplicationRunner {
     neo4jClient
         .query(ADOPT_ORPHAN_NODES)
         .bind(Workspaces.DEFAULT_ID.toString())
-        .to("workspaceId")
+        .to(WorkspaceGraph.WORKSPACE_PARAMETER)
         .run();
   }
 }

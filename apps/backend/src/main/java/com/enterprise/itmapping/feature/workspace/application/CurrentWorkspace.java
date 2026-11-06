@@ -5,7 +5,7 @@ import java.util.UUID;
 
 /**
  * The workspace the current thread works in. A request binds the signed-in user's workspace;
- * background work binds it explicitly with {@link #runAs}. Nothing bound means no tenant data.
+ * background work binds it explicitly with {@link #runAs}. Nothing bound means no workspace data.
  */
 public final class CurrentWorkspace {
 

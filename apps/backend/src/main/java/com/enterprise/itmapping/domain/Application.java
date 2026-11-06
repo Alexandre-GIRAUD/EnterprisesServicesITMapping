@@ -46,10 +46,6 @@ public class Application {
     this.description = description;
   }
 
-  public String getWorkspaceId() {
-    return workspaceId;
-  }
-
   public void setWorkspaceId(String workspaceId) {
     this.workspaceId = workspaceId;
   }

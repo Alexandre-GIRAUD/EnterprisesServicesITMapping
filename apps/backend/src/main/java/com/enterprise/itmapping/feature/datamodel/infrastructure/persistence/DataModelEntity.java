@@ -21,9 +21,11 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "data_model")
 public class DataModelEntity extends WorkspaceOwned {
 
+  private static final int UUID_TEXT_LENGTH = 36;
+
+  /** The owning workspace id as text: one Data Model per workspace. */
   @Id
-  /** The owning workspace id: one Data Model per workspace. */
-  @Column(nullable = false, updatable = false, length = 36)
+  @Column(nullable = false, updatable = false, length = UUID_TEXT_LENGTH)
   private String id;
 
   protected DataModelEntity() {}

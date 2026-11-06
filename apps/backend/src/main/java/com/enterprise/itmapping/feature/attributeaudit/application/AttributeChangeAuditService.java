@@ -14,7 +14,6 @@ import com.enterprise.itmapping.feature.attributeaudit.presentation.dto.Attribut
 import com.enterprise.itmapping.feature.attributeaudit.presentation.dto.AttributeChangePageResponse;
 import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
-import com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -75,7 +74,6 @@ public class AttributeChangeAuditService {
     Instant to = toDay == null ? NO_UPPER_BOUND : startOf(toDay.plusDays(1));
     Page<AttributeChangeEventEntity> result =
         eventRepository.findForApplication(
-            CurrentWorkspace.requireId(),
             applicationId.trim(),
             from,
             to,

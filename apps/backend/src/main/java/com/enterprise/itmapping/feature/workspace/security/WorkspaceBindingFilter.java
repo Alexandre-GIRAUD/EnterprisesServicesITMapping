@@ -30,7 +30,7 @@ public class WorkspaceBindingFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    Optional<UUID> workspaceId = signedInUserWorkspace();
+    Optional<UUID> workspaceId = findSignedInUserWorkspace();
     if (workspaceId.isEmpty()) {
       filterChain.doFilter(request, response);
       return;
@@ -40,11 +40,13 @@ public class WorkspaceBindingFilter extends OncePerRequestFilter {
     }
   }
 
-  private Optional<UUID> signedInUserWorkspace() {
-    var auth = SecurityContextHolder.getContext().getAuthentication();
-    if (auth == null || !StringUtils.hasText(auth.getName())) {
+  private Optional<UUID> findSignedInUserWorkspace() {
+    var authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (authentication == null || !StringUtils.hasText(authentication.getName())) {
       return Optional.empty();
     }
-    return userRepository.findByUsernameIgnoreCase(auth.getName()).map(UserEntity::getWorkspaceId);
+    return userRepository
+        .findByUsernameIgnoreCase(authentication.getName())
+        .map(UserEntity::getWorkspaceId);
   }
 }
