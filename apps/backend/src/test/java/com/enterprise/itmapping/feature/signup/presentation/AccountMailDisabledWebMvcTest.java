@@ -14,7 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /** Without an SMTP host, the emailed account flows do not exist. */
 @WebMvcTest(
-    controllers = PasswordResetController.class,
+    controllers = {PasswordResetController.class, InvitationAcceptanceController.class},
     excludeAutoConfiguration = SecurityAutoConfiguration.class)
 class AccountMailDisabledWebMvcTest {
 
@@ -22,6 +22,16 @@ class AccountMailDisabledWebMvcTest {
   @MockBean PastSystemView pastSystemView;
 
   @Autowired MockMvc mockMvc;
+
+  @Test
+  void invitationAcceptanceAnswersNotFound() throws Exception {
+    mockMvc
+        .perform(
+            post("/auth/accept-invitation")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"anything\",\"password\":\"example-pass-1\"}"))
+        .andExpect(status().isNotFound());
+  }
 
   @Test
   void forgotPasswordAnswersNotFound() throws Exception {
