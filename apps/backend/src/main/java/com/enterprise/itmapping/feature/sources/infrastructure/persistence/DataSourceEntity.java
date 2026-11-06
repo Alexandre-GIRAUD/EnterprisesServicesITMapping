@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.sources.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.sources.domain.SourceAuthType;
 import com.enterprise.itmapping.feature.sources.domain.SourceKind;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -19,7 +20,7 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "data_sources")
-public class DataSourceEntity {
+public class DataSourceEntity extends WorkspaceOwned {
 
   @Id
   @Column(nullable = false, updatable = false)

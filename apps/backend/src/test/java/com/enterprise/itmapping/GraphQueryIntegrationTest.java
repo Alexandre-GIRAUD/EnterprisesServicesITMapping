@@ -5,6 +5,7 @@ import com.enterprise.itmapping.feature.applications.application.ModuleGraphServ
 import com.enterprise.itmapping.feature.graph.application.GraphService;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.GraphLoader;
+import com.enterprise.itmapping.feature.workspace.InDefaultWorkspace;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.neo4j.core.Neo4jClient;
@@ -31,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@link GraphLoader} because {@link GraphService} only accepts keys declared in the Data Model.
  */
 @SpringBootTest
+@ExtendWith(InDefaultWorkspace.class)
 @Testcontainers(disabledWithoutDocker = true)
 class GraphQueryIntegrationTest {
 

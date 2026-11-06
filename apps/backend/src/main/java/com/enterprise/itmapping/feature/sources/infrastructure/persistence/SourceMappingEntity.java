@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.feature.sources.infrastructure.persistence;
 
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -9,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "data_source_mappings")
-public class SourceMappingEntity {
+public class SourceMappingEntity extends WorkspaceOwned {
 
   @Id
   @Column(nullable = false, updatable = false)

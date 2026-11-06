@@ -9,6 +9,9 @@ import com.enterprise.itmapping.feature.breach.domain.BreachSubject;
 import com.enterprise.itmapping.feature.breach.infrastructure.persistence.BreachRuleEntity;
 import com.enterprise.itmapping.feature.breach.infrastructure.persistence.BreachRuleRepository;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
+import com.enterprise.itmapping.feature.datamodel.infrastructure.persistence.DataModelEntity;
+import com.enterprise.itmapping.feature.datamodel.infrastructure.persistence.DataModelRepository;
+import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelFieldDto;
 import com.enterprise.itmapping.feature.history.application.SystemState;
 import com.enterprise.itmapping.feature.history.infrastructure.persistence.SystemDailyStateEntity;
 import com.enterprise.itmapping.feature.history.infrastructure.persistence.SystemDailyStateRepository;
@@ -64,6 +67,7 @@ class PostgresWorkspaceIsolationIntegrationTest {
   @Autowired JdbcTemplate jdbcTemplate;
   @Autowired BreachRuleRepository breachRules;
   @Autowired DataModelService dataModelService;
+  @Autowired DataModelRepository dataModels;
   @Autowired SystemDailyStateRepository dailyStates;
   @Autowired FunctionalDocChunkRepository chunks;
   @Autowired AttributeChangeAuditService auditService;
@@ -95,12 +99,20 @@ class PostgresWorkspaceIsolationIntegrationTest {
   }
 
   @Test
-  void eachWorkspaceGetsItsOwnDataModel() {
-    CurrentWorkspace.runAs(workspaceA, dataModelService::get);
-    CurrentWorkspace.runAs(workspaceB, dataModelService::get);
+  void eachWorkspaceReadsItsOwnDataModel() {
+    CurrentWorkspace.runAs(
+        workspaceA,
+        () -> {
+          DataModelEntity model = new DataModelEntity(workspaceA.toString());
+          model.setFields(
+              List.of(new DataModelFieldDto("tier", "Tier", "", "", List.of(), false, false).toDomain()));
+          dataModels.save(model);
+        });
 
-    assertThat(countRows("data_model", workspaceA)).isEqualTo(1);
-    assertThat(countRows("data_model", workspaceB)).isEqualTo(1);
+    CurrentWorkspace.runAs(
+        workspaceB, () -> assertThat(dataModelService.get().fields()).isEmpty());
+    CurrentWorkspace.runAs(
+        workspaceA, () -> assertThat(dataModelService.get().fields()).hasSize(1));
   }
 
   @Test

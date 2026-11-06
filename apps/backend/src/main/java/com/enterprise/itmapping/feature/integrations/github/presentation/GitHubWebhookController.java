@@ -3,6 +3,8 @@ package com.enterprise.itmapping.feature.integrations.github.presentation;
 import com.enterprise.itmapping.feature.changedetection.application.ChangeDetectionService;
 import com.enterprise.itmapping.feature.integrations.github.GitHubIntegrationProperties;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubWebhookSignatureVerifier;
+import com.enterprise.itmapping.feature.workspace.application.EveryWorkspace;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -20,14 +22,17 @@ public class GitHubWebhookController {
   private final GitHubWebhookSignatureVerifier signatureVerifier;
   private final GitHubIntegrationProperties properties;
   private final ChangeDetectionService changeDetectionService;
+  private final EveryWorkspace everyWorkspace;
 
   public GitHubWebhookController(
       GitHubWebhookSignatureVerifier signatureVerifier,
       GitHubIntegrationProperties properties,
-      ChangeDetectionService changeDetectionService) {
+      ChangeDetectionService changeDetectionService,
+      EveryWorkspace everyWorkspace) {
     this.signatureVerifier = signatureVerifier;
     this.properties = properties;
     this.changeDetectionService = changeDetectionService;
+    this.everyWorkspace = everyWorkspace;
   }
 
   @PostMapping
@@ -42,7 +47,9 @@ public class GitHubWebhookController {
     if ("ping".equalsIgnoreCase(event)) {
       return ResponseEntity.ok(Map.of("ok", true, "event", "ping"));
     }
-    List<UUID> runIds = changeDetectionService.ingestPushWebhook(rawBody);
+    // A push names a repository, not a workspace: each workspace linking that repository gets a run.
+    List<UUID> runIds = new ArrayList<>();
+    everyWorkspace.run(() -> runIds.addAll(changeDetectionService.ingestPushWebhook(rawBody)));
     return ResponseEntity.accepted().body(Map.of("accepted", true, "runIds", runIds));
   }
 }

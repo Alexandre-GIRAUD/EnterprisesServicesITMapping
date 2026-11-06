@@ -10,6 +10,7 @@ import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelFiel
 import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelPutRequest;
 import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelResponse;
 import com.enterprise.itmapping.feature.sources.infrastructure.persistence.DataSourceRepository;
+import com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -75,16 +76,10 @@ public class DataModelService {
     return response;
   }
 
+  /** The workspace's Data Model, or an unsaved empty one until its first save. */
   private DataModelEntity loadEntity() {
-    return dataModelRepository
-        .findById(DataModelEntity.DEFAULT_ID)
-        .orElseGet(this::createDefault);
-  }
-
-  private DataModelEntity createDefault() {
-    DataModelEntity entity = new DataModelEntity();
-    entity.setFields(List.of());
-    return dataModelRepository.save(entity);
+    String id = CurrentWorkspace.requireId().toString();
+    return dataModelRepository.findById(id).orElseGet(() -> new DataModelEntity(id));
   }
 
   private static DataModelConfig toConfig(DataModelEntity entity) {

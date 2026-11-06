@@ -4,6 +4,7 @@ import com.enterprise.itmapping.feature.attributeaudit.domain.AuditActorType;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditFieldScope;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
 import com.enterprise.itmapping.feature.attributeaudit.domain.HumanChangeReason;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -20,7 +21,7 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "attribute_change_events")
-public class AttributeChangeEventEntity {
+public class AttributeChangeEventEntity extends WorkspaceOwned {
 
   @Id
   @Column(nullable = false, updatable = false)

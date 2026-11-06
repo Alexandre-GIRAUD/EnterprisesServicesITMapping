@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistenc
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.GraphSnapshotLegendDto;
 import com.enterprise.itmapping.feature.graphsnapshot.presentation.dto.NodePositionDto;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -23,7 +24,7 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "graph_snapshots")
-public class GraphSnapshotEntity {
+public class GraphSnapshotEntity extends WorkspaceOwned {
 
   @Id
   @Column(nullable = false, updatable = false)

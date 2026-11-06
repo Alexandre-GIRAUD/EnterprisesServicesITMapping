@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.history.application;
 import com.enterprise.itmapping.feature.history.infrastructure.persistence.SystemDailyStateEntity;
 import com.enterprise.itmapping.feature.history.infrastructure.persistence.SystemDailyStateRepository;
 import com.enterprise.itmapping.feature.history.infrastructure.persistence.SystemGraphState;
+import com.enterprise.itmapping.feature.workspace.application.EveryWorkspace;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -21,19 +22,25 @@ public class SystemStateCaptureService {
   private final SystemGraphState graphState;
   private final SystemDailyStateRepository repository;
   private final Clock clock;
+  private final EveryWorkspace everyWorkspace;
 
   public SystemStateCaptureService(
-      SystemGraphState graphState, SystemDailyStateRepository repository, Clock clock) {
+      SystemGraphState graphState,
+      SystemDailyStateRepository repository,
+      Clock clock,
+      EveryWorkspace everyWorkspace) {
     this.graphState = graphState;
     this.repository = repository;
     this.clock = clock;
+    this.everyWorkspace = everyWorkspace;
   }
 
   // ponytail: changes made between the last run of a day and midnight are credited to the next
   // day; lower app.history.capture-interval to narrow that window.
   @Scheduled(fixedDelayString = "${app.history.capture-interval:PT5M}")
   public void captureToday() {
-    captureFor(LocalDate.now(clock));
+    LocalDate today = LocalDate.now(clock);
+    everyWorkspace.run(() -> captureFor(today));
   }
 
   @Transactional
@@ -41,7 +48,7 @@ public class SystemStateCaptureService {
     SystemState state = graphState.read();
     Instant capturedAt = clock.instant();
     SystemDailyStateEntity row =
-        repository.findById(day).orElseGet(() -> new SystemDailyStateEntity(day, state, capturedAt));
+        repository.findByDay(day).orElseGet(() -> new SystemDailyStateEntity(day, state, capturedAt));
     row.overwrite(state, capturedAt);
     repository.save(row);
   }

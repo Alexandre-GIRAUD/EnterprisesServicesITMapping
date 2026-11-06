@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.graphsnapshot.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -15,7 +16,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "graph_view_folders")
-public class GraphViewFolderEntity {
+public class GraphViewFolderEntity extends WorkspaceOwned {
 
   @Id
   @Column(nullable = false, updatable = false)

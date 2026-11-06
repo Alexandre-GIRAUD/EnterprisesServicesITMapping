@@ -13,11 +13,13 @@ import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeReq
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeDto;
 import com.enterprise.itmapping.feature.history.application.PastSystemView;
 import com.enterprise.itmapping.feature.history.application.SystemStateCaptureService;
+import com.enterprise.itmapping.feature.workspace.InDefaultWorkspace;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.neo4j.core.Neo4jClient;
@@ -32,6 +34,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /** Application, module and flow history, and the read-only view of a past day. */
 @SpringBootTest
+@ExtendWith(InDefaultWorkspace.class)
 @Testcontainers(disabledWithoutDocker = true)
 class SystemHistoryIntegrationTest {
 

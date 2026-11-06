@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.attributeaudit.infrastructure.persisten
 
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
 import com.enterprise.itmapping.feature.attributeaudit.domain.HumanChangeReason;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -19,7 +20,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "human_field_overrides")
 @IdClass(HumanFieldOverrideEntity.Pk.class)
-public class HumanFieldOverrideEntity {
+public class HumanFieldOverrideEntity extends WorkspaceOwned {
 
   @Id
   @Enumerated(EnumType.STRING)

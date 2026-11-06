@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.changedetection.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.changedetection.domain.ChangeDetectionRunStatus;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -20,7 +21,7 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "change_detection_runs")
-public class ChangeDetectionRunEntity {
+public class ChangeDetectionRunEntity extends WorkspaceOwned {
 
   @Id
   @Column(nullable = false, updatable = false)
