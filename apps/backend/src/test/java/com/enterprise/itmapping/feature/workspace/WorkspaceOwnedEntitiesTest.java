@@ -16,8 +16,8 @@ import org.springframework.core.type.filter.AnnotationTypeFilter;
 /** A new table cannot silently escape workspace isolation: every entity carries a tenant id. */
 class WorkspaceOwnedEntitiesTest {
 
-  /** Tables read before any workspace is known: sign-in and the workspace list itself. */
-  private static final Set<String> GLOBAL_ENTITIES = Set.of("UserEntity", "WorkspaceEntity");
+  /** Tables read before any workspace is known: sign-in, signup and the workspace list. */
+  private static final Set<String> GLOBAL_ENTITIES = Set.of("UserEntity", "WorkspaceEntity", "EmailVerificationTokenEntity");
 
   @Test
   void everyEntityExceptUsersAndWorkspacesHasATenantId() throws Exception {

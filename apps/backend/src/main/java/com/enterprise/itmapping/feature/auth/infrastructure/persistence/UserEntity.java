@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.auth.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.auth.domain.UserRole;
+import com.enterprise.itmapping.feature.auth.domain.UserStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -19,8 +20,16 @@ public class UserEntity {
   @Column(nullable = false, updatable = false)
   private UUID id;
 
-  @Column(nullable = false, unique = true, length = 64)
+  @Column(nullable = false, unique = true, length = 255)
   private String username;
+
+  /** Set for self-registered accounts, whose username is this email. */
+  @Column(unique = true)
+  private String email;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 16)
+  private UserStatus status = UserStatus.ACTIVE;
 
   @Column(name = "password_hash", nullable = false)
   private String passwordHash;
@@ -101,6 +110,22 @@ public class UserEntity {
 
   public void setEnabled(boolean enabled) {
     this.enabled = enabled;
+  }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public void setEmail(String email) {
+    this.email = email;
+  }
+
+  public UserStatus getStatus() {
+    return status;
+  }
+
+  public void setStatus(UserStatus status) {
+    this.status = status;
   }
 
   public UUID getWorkspaceId() {

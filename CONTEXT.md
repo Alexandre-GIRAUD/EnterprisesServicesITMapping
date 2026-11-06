@@ -8,6 +8,10 @@ The map of applications and the flows between them, as each user saves and organ
 The world one customer works in: its applications and flows, Data Model, data sources, breach rules, history, views and users. Every user belongs to exactly one workspace and never sees another. Data from before workspaces belongs to the Default workspace.
 _Avoid_: tenant, organisation, environment, account
 
+**Pending account**:
+A self-registered user whose email is not confirmed yet. It cannot sign in. Confirming the emailed link activates it; left unconfirmed for a week, it is removed, and so is the workspace it created when nobody else belongs to it.
+_Avoid_: inactive user, disabled account
+
 **Saved view**:
 A named set of filters and layout that belongs to one user. A shared view is a one-time copy of that preset; the recipient owns the copy.
 _Avoid_: Snapshot, pin, invite

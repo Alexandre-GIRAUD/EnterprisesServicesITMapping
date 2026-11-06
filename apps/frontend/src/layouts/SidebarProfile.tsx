@@ -9,11 +9,19 @@ const NO_ACTIONS: readonly SidebarProfileAction[] = [];
 type SidebarProfileProps = {
   username: string;
   roles: readonly string[];
+  /** Shown next to the role so a cloud user can tell which workspace they are in. */
+  workspaceName?: string;
   onSignOut: () => void;
   actions?: readonly SidebarProfileAction[];
 };
 
-export function SidebarProfile({ username, roles, onSignOut, actions = NO_ACTIONS }: SidebarProfileProps) {
+export function SidebarProfile({
+  username,
+  roles,
+  workspaceName,
+  onSignOut,
+  actions = NO_ACTIONS,
+}: SidebarProfileProps) {
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -29,12 +37,12 @@ export function SidebarProfile({ username, roles, onSignOut, actions = NO_ACTION
     if (sidebar instanceof HTMLElement) primeSidebarTabStops(sidebar);
   }, [isOpen]);
 
-  const roleLabel = profileRoleLabel(roles);
+  const detailLabel = [profileRoleLabel(roles), workspaceName].filter(Boolean).join(' · ') || null;
   return (
     <div className="sidebar-profile" ref={rootRef}>
       <ProfileTrigger
         username={username}
-        roleLabel={roleLabel}
+        detailLabel={detailLabel}
         isOpen={isOpen}
         menuId={menuId}
         triggerRef={triggerRef}
@@ -88,14 +96,14 @@ export function SidebarProfile({ username, roles, onSignOut, actions = NO_ACTION
 
 function ProfileTrigger({
   username,
-  roleLabel,
+  detailLabel,
   isOpen,
   menuId,
   triggerRef,
   onToggle,
 }: {
   username: string;
-  roleLabel: string | null;
+  detailLabel: string | null;
   isOpen: boolean;
   menuId: string;
   triggerRef: { current: HTMLButtonElement | null };
@@ -118,9 +126,9 @@ function ProfileTrigger({
         <span className="sidebar-profile-name" title={username}>
           {username}
         </span>
-        {roleLabel ? (
-          <span className="sidebar-profile-role" title={roleLabel}>
-            {roleLabel}
+        {detailLabel ? (
+          <span className="sidebar-profile-role" title={detailLabel}>
+            {detailLabel}
           </span>
         ) : null}
       </span>

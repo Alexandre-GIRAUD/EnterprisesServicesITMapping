@@ -10,6 +10,7 @@ import com.enterprise.itmapping.feature.integrations.llm.FunctionalDocumentation
 import com.enterprise.itmapping.feature.integrations.llm.MappingChatProperties;
 import com.enterprise.itmapping.feature.integrations.llm.MappingRagProperties;
 import com.enterprise.itmapping.feature.integrations.llm.ModuleDiscoveryProperties;
+import com.enterprise.itmapping.feature.signup.application.SignupProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -25,7 +26,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
   MappingRagProperties.class,
   JwtProperties.class,
   BootstrapAdminProperties.class,
-  CorsProperties.class
+  CorsProperties.class,
+  SignupProperties.class
 })
 public class BackendApplication {
 

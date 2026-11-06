@@ -15,11 +15,13 @@ export function resolveApiUrl(pathWithQuery: string): string {
 const TOKEN_KEY = 'itmapping.jwt';
 const ROLES_KEY = 'itmapping.roles';
 const USER_KEY = 'itmapping.username';
+const WORKSPACE_KEY = 'itmapping.workspaceName';
 
 export type LoginResponseDto = {
   token: string;
   username: string;
   roles: string[];
+  workspaceName: string;
 };
 
 export function getToken(): string | null {
@@ -28,6 +30,10 @@ export function getToken(): string | null {
 
 export function getStoredUsername(): string | null {
   return sessionStorage.getItem(USER_KEY);
+}
+
+export function getStoredWorkspaceName(): string {
+  return sessionStorage.getItem(WORKSPACE_KEY) ?? '';
 }
 
 export function getStoredRoles(): string[] {
@@ -45,12 +51,14 @@ export function setSession(login: LoginResponseDto): void {
   sessionStorage.setItem(TOKEN_KEY, login.token);
   sessionStorage.setItem(USER_KEY, login.username);
   sessionStorage.setItem(ROLES_KEY, JSON.stringify(login.roles));
+  sessionStorage.setItem(WORKSPACE_KEY, login.workspaceName);
 }
 
 export function clearSession(): void {
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(USER_KEY);
   sessionStorage.removeItem(ROLES_KEY);
+  sessionStorage.removeItem(WORKSPACE_KEY);
 }
 
 export function getAuthHeaders(): HeadersInit {
