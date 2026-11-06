@@ -3,6 +3,7 @@ import { AdminUsersPage } from '@/features/auth/pages/AdminUsersPage';
 import { BitbucketTokenSettings } from '@/features/auth/pages/BitbucketTokenSettings';
 import { EmailSettings } from '@/features/auth/pages/EmailSettings';
 import { GitHubTokenSettings } from '@/features/auth/pages/GitHubTokenSettings';
+import { GitHubWebhookSettings } from '@/features/auth/pages/GitHubWebhookSettings';
 import { JiraTokenSettings } from '@/features/auth/pages/JiraTokenSettings';
 
 export function SettingsPage() {
@@ -15,6 +16,7 @@ export function SettingsPage() {
       </div>
       <EmailSettings />
       <GitHubTokenSettings />
+      {isAdmin ? <GitHubWebhookSettings /> : null}
       <BitbucketTokenSettings />
       <JiraTokenSettings />
       {isAdmin ? <AdminUsersPage embedded /> : null}

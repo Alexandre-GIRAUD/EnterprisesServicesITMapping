@@ -17,6 +17,6 @@ assert.match(panel, /Payload URL/);
 assert.match(panel, /Regenerate secret/);
 assert.match(panel, /window\.location\.origin/);
 assert.match(api, /\/api\/integrations\/github\/webhook/);
-assert.match(api, /\/api\/integrations\/github\/webhook\/secret/);
+assert.match(api, /WEBHOOK_SETTINGS_PATH\}\/secret/);
 
 console.log('gitWebhook.check: ok');
