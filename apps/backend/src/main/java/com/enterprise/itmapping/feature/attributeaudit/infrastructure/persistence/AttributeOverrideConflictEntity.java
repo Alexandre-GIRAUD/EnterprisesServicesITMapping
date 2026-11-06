@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.attributeaudit.infrastructure.persisten
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditFieldScope;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
 import com.enterprise.itmapping.feature.attributeaudit.domain.OverrideConflictStatus;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -15,7 +16,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "attribute_override_conflicts")
-public class AttributeOverrideConflictEntity {
+public class AttributeOverrideConflictEntity extends WorkspaceOwned {
 
   @Id
   @Column(nullable = false, updatable = false)

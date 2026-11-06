@@ -1,19 +1,19 @@
 package com.enterprise.itmapping.feature.applications.application;
 
 import com.enterprise.itmapping.feature.attributeaudit.application.EntityLifecycleHistory;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.Map;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Component;
 
 /** Module creation and removal with their history events. */
 @Component
 public class ApplicationModuleLifecycle {
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
   private final EntityLifecycleHistory history;
 
-  public ApplicationModuleLifecycle(Neo4jClient neo4jClient, EntityLifecycleHistory history) {
-    this.neo4jClient = neo4jClient;
+  public ApplicationModuleLifecycle(WorkspaceGraph graph, EntityLifecycleHistory history) {
+    this.graph = graph;
     this.history = history;
   }
 
@@ -23,10 +23,10 @@ public class ApplicationModuleLifecycle {
 
   /** Deletes every module under the application, each one leaving a deletion event. */
   public void removeAll(String applicationId) {
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (:Application {id: $id})-[:CONTAINS*1..50]->(m:Module)
+            MATCH (:Application {workspaceId: $workspaceId, id: $id})-[:CONTAINS*1..50]->(m:Module {workspaceId: $workspaceId})
             RETURN DISTINCT m.id AS id, m.name AS name
             """)
         .bind(applicationId)
@@ -34,10 +34,10 @@ public class ApplicationModuleLifecycle {
         .fetch()
         .all()
         .forEach(module -> recordDeleted(applicationId, module));
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (:Application {id: $id})-[:CONTAINS*1..50]->(m:Module)
+            MATCH (:Application {workspaceId: $workspaceId, id: $id})-[:CONTAINS*1..50]->(m:Module {workspaceId: $workspaceId})
             WITH DISTINCT m
             DETACH DELETE m
             """)

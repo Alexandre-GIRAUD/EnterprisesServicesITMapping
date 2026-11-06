@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.datamodel.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -18,13 +19,20 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "data_model")
-public class DataModelEntity {
+public class DataModelEntity extends WorkspaceOwned {
 
-  public static final String DEFAULT_ID = "default";
+  private static final int UUID_TEXT_LENGTH = 36;
 
+  /** The owning workspace id as text: one Data Model per workspace. */
   @Id
-  @Column(nullable = false, updatable = false, length = 32)
-  private String id = DEFAULT_ID;
+  @Column(nullable = false, updatable = false, length = UUID_TEXT_LENGTH)
+  private String id;
+
+  protected DataModelEntity() {}
+
+  public DataModelEntity(String id) {
+    this.id = id;
+  }
 
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(nullable = false, columnDefinition = "jsonb")

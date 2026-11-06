@@ -7,49 +7,49 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.neo4j.core.Neo4jClient;
 
 @ExtendWith(MockitoExtension.class)
 class ApplicationNodeAttributeWriterTest {
 
   @Test
   void writeSetsDynamicPropsOnApplication() {
-    Neo4jClient neo4jClient = mock(Neo4jClient.class, RETURNS_DEEP_STUBS);
-    ApplicationNodeAttributeWriter writer = new ApplicationNodeAttributeWriter(neo4jClient);
+    WorkspaceGraph graph = mock(WorkspaceGraph.class, RETURNS_DEEP_STUBS);
+    ApplicationNodeAttributeWriter writer = new ApplicationNodeAttributeWriter(graph);
 
     int written =
         writer.write("app-1", Map.of("tier", "T1", "ignored", "x"), Set.of("tier"));
 
     assertThat(written).isEqualTo(1);
     ArgumentCaptor<String> cypherCaptor = ArgumentCaptor.forClass(String.class);
-    verify(neo4jClient).query(cypherCaptor.capture());
-    assertThat(cypherCaptor.getValue()).contains("MATCH (a:Application {id: $id})");
+    verify(graph).query(cypherCaptor.capture());
+    assertThat(cypherCaptor.getValue()).contains("MATCH (a:Application {workspaceId: $workspaceId, id: $id})");
     assertThat(cypherCaptor.getValue()).contains("SET a += $dynamicProps");
   }
 
   @Test
   void writeSkipsWhenNoWhitelistedProps() {
-    Neo4jClient neo4jClient = mock(Neo4jClient.class, RETURNS_DEEP_STUBS);
-    ApplicationNodeAttributeWriter writer = new ApplicationNodeAttributeWriter(neo4jClient);
+    WorkspaceGraph graph = mock(WorkspaceGraph.class, RETURNS_DEEP_STUBS);
+    ApplicationNodeAttributeWriter writer = new ApplicationNodeAttributeWriter(graph);
 
     int written = writer.write("app-1", Map.of("name", "hack"), Set.of("tier"));
 
     assertThat(written).isZero();
-    verify(neo4jClient, never()).query(anyString());
+    verify(graph, never()).query(anyString());
   }
 
   @Test
   void writeSkipsEmptyApplicationId() {
-    Neo4jClient neo4jClient = mock(Neo4jClient.class, RETURNS_DEEP_STUBS);
-    ApplicationNodeAttributeWriter writer = new ApplicationNodeAttributeWriter(neo4jClient);
+    WorkspaceGraph graph = mock(WorkspaceGraph.class, RETURNS_DEEP_STUBS);
+    ApplicationNodeAttributeWriter writer = new ApplicationNodeAttributeWriter(graph);
 
     assertThat(writer.write("", Map.of("tier", "T1"), Set.of("tier"))).isZero();
-    verify(neo4jClient, never()).query(anyString());
+    verify(graph, never()).query(anyString());
   }
 }

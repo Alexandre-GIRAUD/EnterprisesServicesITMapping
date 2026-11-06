@@ -76,7 +76,7 @@ public class SandboxShareService {
     }
     UserEntity recipient =
         userRepository
-            .findByUsernameIgnoreCase(rawUsername.trim())
+            .findByUsernameIgnoreCaseAndWorkspaceId(rawUsername.trim(), sender.getWorkspaceId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilisateur introuvable."));
     if (recipient.getId().equals(sender.getId())) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vous ne pouvez pas partager avec vous-même.");

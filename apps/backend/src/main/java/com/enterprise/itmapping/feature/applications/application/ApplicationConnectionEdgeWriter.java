@@ -1,14 +1,14 @@
 package com.enterprise.itmapping.feature.applications.application;
 
-import java.util.HashMap;
 import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Component;
 
 /**
@@ -36,10 +36,10 @@ public class ApplicationConnectionEdgeWriter {
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationConnectionEdgeWriter.class);
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public ApplicationConnectionEdgeWriter(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public ApplicationConnectionEdgeWriter(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   public enum Outcome {
@@ -105,11 +105,11 @@ public class ApplicationConnectionEdgeWriter {
     params.put("from", discoveredFromApplicationId);
     params.put("dynamicProps", dynamicProps);
 
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (s:Application {id: $s})
-            MATCH (t:Application {id: $t})
+            MATCH (s:Application {workspaceId: $workspaceId, id: $s})
+            MATCH (t:Application {workspaceId: $workspaceId, id: $t})
             CREATE (s)-[r:DEPENDS_ON {
               id: $edgeId,
               direction: $dir,
@@ -156,7 +156,7 @@ public class ApplicationConnectionEdgeWriter {
     params.put("t", targetId);
     String cypher =
         """
-        MATCH (s:Application {id: $s})-[r:DEPENDS_ON]->(t:Application {id: $t})
+        MATCH (s:Application {workspaceId: $workspaceId, id: $s})-[r:DEPENDS_ON]->(t:Application {workspaceId: $workspaceId, id: $t})
         WHERE true
         """
             + unsetAttributeClause(attributeKeys)
@@ -165,7 +165,7 @@ public class ApplicationConnectionEdgeWriter {
             RETURN coalesce(r.id, '') AS id
             LIMIT 1
             """;
-    return neo4jClient
+    return graph
         .query(cypher)
         .bindAll(params)
         .fetch()
@@ -178,10 +178,10 @@ public class ApplicationConnectionEdgeWriter {
     Map<String, Object> params = new HashMap<>();
     params.put("s", sourceId);
     params.put("t", targetId);
-    return neo4jClient
+    return graph
         .query(
             """
-            MATCH (s:Application {id: $s})-[r:DEPENDS_ON]->(t:Application {id: $t})
+            MATCH (s:Application {workspaceId: $workspaceId, id: $s})-[r:DEPENDS_ON]->(t:Application {workspaceId: $workspaceId, id: $t})
             RETURN coalesce(r.id, '') AS id, properties(r) AS props
             """)
         .bindAll(params)
@@ -240,7 +240,7 @@ public class ApplicationConnectionEdgeWriter {
 
     String mergeCypher =
         """
-        MATCH (s:Application {id: $s})-[r:DEPENDS_ON]->(t:Application {id: $t})
+        MATCH (s:Application {workspaceId: $workspaceId, id: $s})-[r:DEPENDS_ON]->(t:Application {workspaceId: $workspaceId, id: $t})
         WHERE true
         """
             + unsetAttributeClause(dynamicProps.keySet())
@@ -254,7 +254,7 @@ public class ApplicationConnectionEdgeWriter {
             + mergeDynamicPropsClause(dynamicProps, params)
             + "\nRETURN coalesce(r.id, '') AS id";
 
-    return neo4jClient
+    return graph
         .query(mergeCypher)
         .bindAll(params)
         .fetch()

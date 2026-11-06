@@ -127,6 +127,11 @@ public class ChangeDetectionService {
 
     Optional<ApplicationGraphNodeProjection> app =
         linkedApplicationResolver.findByRepoFullName(repoFullName);
+    if (app.isEmpty()) {
+      // Each workspace sees the push; only those linking the repository keep a trace of it.
+      log.debug("GitHub push ignored (no linked application): repo={}", repoFullName);
+      return List.of();
+    }
     Optional<ChangeDetectionRunEntity> existing =
         runRepository.findByRepoFullNameIgnoreCaseAndCommitSha(repoFullName, tip);
     if (existing.isPresent()) {
@@ -144,12 +149,8 @@ public class ChangeDetectionService {
     run.setCommitSha(tip);
     run.setBaseSha(base);
     run.setBranchRef(ref);
-    if (app.isPresent()) {
-      run.setApplicationId(app.get().getId());
-      run.setStatus(ChangeDetectionRunStatus.RECEIVED);
-    } else {
-      run.setStatus(ChangeDetectionRunStatus.UNMATCHED);
-    }
+    run.setApplicationId(app.get().getId());
+    run.setStatus(ChangeDetectionRunStatus.RECEIVED);
     run = runRepository.save(run);
     log.info(
         "GitHub push: repo={} base={} commit={} applicationId={} status={}",
@@ -158,18 +159,16 @@ public class ChangeDetectionService {
         shortSha(tip),
         run.getApplicationId(),
         run.getStatus());
-    if (run.getStatus() != ChangeDetectionRunStatus.UNMATCHED) {
-      UUID runId = run.getId();
-      // The analysis thread cannot see this insert until the webhook transaction commits.
-      TransactionSynchronizationManager.registerSynchronization(
-          new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-              self.processRunAsync(runId);
-            }
-          });
-    }
-    return List.of(run.getId());
+    UUID runId = run.getId();
+    // The analysis thread cannot see this insert until the webhook transaction commits.
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            self.processRunAsync(runId);
+          }
+        });
+    return List.of(runId);
   }
 
   @Async

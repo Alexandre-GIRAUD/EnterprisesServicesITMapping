@@ -1,11 +1,11 @@
 package com.enterprise.itmapping.feature.applications.application;
 
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -22,18 +22,18 @@ public class BusinessModelStore {
   public record BusinessModel(
       List<String> businessObjects, String mainJourney, String scope, List<ModuleLink> links) {}
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public BusinessModelStore(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public BusinessModelStore(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   /** Empty when the application does not exist. */
   public Optional<BusinessModel> read(String applicationId) {
-    return neo4jClient
+    return graph
         .query(
             """
-            MATCH (a:Application {id: $appId})
+            MATCH (a:Application {workspaceId: $workspaceId, id: $appId})
             RETURN a.businessObjects AS businessObjects, a.mainJourney AS mainJourney, a.scope AS scope
             """)
         .bind(applicationId)
@@ -52,10 +52,10 @@ public class BusinessModelStore {
   /** Module id to name for every module under the application. */
   public Map<String, String> moduleNames(String applicationId) {
     Map<String, String> names = new LinkedHashMap<>();
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (:Application {id: $appId})-[:CONTAINS*1..50]->(m:Module)
+            MATCH (:Application {workspaceId: $workspaceId, id: $appId})-[:CONTAINS*1..50]->(m:Module {workspaceId: $workspaceId})
             RETURN DISTINCT m.id AS id, m.name AS name
             """)
         .bind(applicationId)
@@ -68,10 +68,10 @@ public class BusinessModelStore {
 
   /** Replaces the lexicon, journey, scope and every FEEDS link between the application modules. */
   public void write(String applicationId, BusinessModel model) {
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application {id: $appId})
+            MATCH (a:Application {workspaceId: $workspaceId, id: $appId})
             SET a.businessObjects = $businessObjects, a.mainJourney = $mainJourney, a.scope = $scope
             """)
         .bind(applicationId)
@@ -83,10 +83,10 @@ public class BusinessModelStore {
         .bind(model.scope())
         .to("scope")
         .run();
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (:Application {id: $appId})-[:CONTAINS*1..50]->(:Module)-[f:FEEDS]->(:Module)
+            MATCH (:Application {workspaceId: $workspaceId, id: $appId})-[:CONTAINS*1..50]->(:Module {workspaceId: $workspaceId})-[f:FEEDS]->(:Module {workspaceId: $workspaceId})
             DELETE f
             """)
         .bind(applicationId)
@@ -98,12 +98,12 @@ public class BusinessModelStore {
   }
 
   private void writeLink(String applicationId, ModuleLink link) {
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application {id: $appId})
-            MATCH (a)-[:CONTAINS*1..50]->(s:Module {id: $sourceId})
-            MATCH (a)-[:CONTAINS*1..50]->(t:Module {id: $targetId})
+            MATCH (a:Application {workspaceId: $workspaceId, id: $appId})
+            MATCH (a)-[:CONTAINS*1..50]->(s:Module {workspaceId: $workspaceId, id: $sourceId})
+            MATCH (a)-[:CONTAINS*1..50]->(t:Module {workspaceId: $workspaceId, id: $targetId})
             MERGE (s)-[:FEEDS {object: $object}]->(t)
             """)
         .bind(applicationId)
@@ -118,10 +118,10 @@ public class BusinessModelStore {
   }
 
   private List<ModuleLink> readLinks(String applicationId) {
-    return neo4jClient
+    return graph
         .query(
             """
-            MATCH (:Application {id: $appId})-[:CONTAINS*1..50]->(s:Module)-[f:FEEDS]->(t:Module)
+            MATCH (:Application {workspaceId: $workspaceId, id: $appId})-[:CONTAINS*1..50]->(s:Module {workspaceId: $workspaceId})-[f:FEEDS]->(t:Module {workspaceId: $workspaceId})
             RETURN DISTINCT s.id AS sourceId, t.id AS targetId, f.object AS object
             """)
         .bind(applicationId)

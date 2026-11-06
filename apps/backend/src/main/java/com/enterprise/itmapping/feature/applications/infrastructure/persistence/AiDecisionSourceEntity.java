@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.feature.applications.infrastructure.persistence;
 
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -14,7 +15,7 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "ai_decision_sources")
-public class AiDecisionSourceEntity {
+public class AiDecisionSourceEntity extends WorkspaceOwned {
 
   @Id
   @Column(nullable = false, updatable = false)

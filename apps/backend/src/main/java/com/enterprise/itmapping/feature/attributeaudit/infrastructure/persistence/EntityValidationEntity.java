@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.attributeaudit.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,7 +17,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "entity_validations")
 @IdClass(EntityValidationEntity.Pk.class)
-public class EntityValidationEntity {
+public class EntityValidationEntity extends WorkspaceOwned {
 
   @Id
   @Enumerated(EnumType.STRING)

@@ -1,24 +1,24 @@
 package com.enterprise.itmapping.feature.attributeaudit.infrastructure.persistence;
 
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.List;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Component;
 
 /** Application that contains a module, so its audit events show up in that application history. */
 @Component
 public class ModuleOwnerLookup {
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public ModuleOwnerLookup(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public ModuleOwnerLookup(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   public List<String> applicationIds(String moduleId) {
-    return neo4jClient
+    return graph
         .query(
             """
-            MATCH (a:Application)-[:CONTAINS*1..50]->(:Module {id: $id})
+            MATCH (a:Application {workspaceId: $workspaceId})-[:CONTAINS*1..50]->(:Module {workspaceId: $workspaceId, id: $id})
             RETURN DISTINCT a.id AS id
             """)
         .bind(moduleId)

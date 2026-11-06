@@ -19,6 +19,9 @@ public class Application {
   private String name;
   private String description;
 
+  /** The owning workspace; queries filter on it. */
+  private String workspaceId;
+
   public String getId() {
     return id;
   }
@@ -41,5 +44,9 @@ public class Application {
 
   public void setDescription(String description) {
     this.description = description;
+  }
+
+  public void setWorkspaceId(String workspaceId) {
+    this.workspaceId = workspaceId;
   }
 }

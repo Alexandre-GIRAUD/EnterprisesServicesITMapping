@@ -1,6 +1,6 @@
 package com.enterprise.itmapping.feature.applications.application;
 
-import org.springframework.data.neo4j.core.Neo4jClient;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -8,20 +8,20 @@ import org.springframework.util.StringUtils;
 @Component
 public class DataModelRefActiveLookup {
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public DataModelRefActiveLookup(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public DataModelRefActiveLookup(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   public boolean existsActive(String fieldKey, String refId) {
     if (!StringUtils.hasText(fieldKey) || !StringUtils.hasText(refId)) {
       return false;
     }
-    return neo4jClient
+    return graph
         .query(
             """
-            MATCH (r:DataModelRef {id: $id, fieldKey: $fieldKey})
+            MATCH (r:DataModelRef {workspaceId: $workspaceId, id: $id, fieldKey: $fieldKey})
             WHERE coalesce(r.active, true) = true
             RETURN count(r) AS c
             """)

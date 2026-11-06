@@ -1,7 +1,8 @@
 package com.enterprise.itmapping.feature.table.infrastructure.persistence;
 
-import com.enterprise.itmapping.feature.table.CustomTableShareLimits;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
+import com.enterprise.itmapping.feature.table.CustomTableShareLimits;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,7 +19,7 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "shared_custom_tables")
-public class SharedCustomTableEntity {
+public class SharedCustomTableEntity extends WorkspaceOwned {
 
   @Id
   @Column(nullable = false, updatable = false)

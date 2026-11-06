@@ -1,20 +1,25 @@
 package com.enterprise.itmapping.feature.history.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.history.application.SystemState;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "system_daily_states")
-public class SystemDailyStateEntity {
+public class SystemDailyStateEntity extends WorkspaceOwned {
 
   @Id
+  @Column(nullable = false, updatable = false)
+  private UUID id = UUID.randomUUID();
+
   @Column(nullable = false, updatable = false)
   private LocalDate day;
 

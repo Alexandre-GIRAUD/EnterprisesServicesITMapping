@@ -4,6 +4,7 @@ import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEnti
 import com.enterprise.itmapping.feature.breach.domain.BreachDefinition;
 import com.enterprise.itmapping.feature.breach.domain.BreachRule;
 import com.enterprise.itmapping.feature.breach.domain.BreachSubject;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -22,7 +23,7 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "breach_rules")
-public class BreachRuleEntity {
+public class BreachRuleEntity extends WorkspaceOwned {
 
   /** Matches {@code breach_rules.subject VARCHAR(16)}. */
   private static final int SUBJECT_LENGTH = 16;

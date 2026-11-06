@@ -4,6 +4,10 @@ The map of applications and the flows between them, as each user saves and organ
 
 ## Language
 
+**Workspace**:
+The world one customer works in: its applications and flows, Data Model, data sources, breach rules, history, views and users. Every user belongs to exactly one workspace and never sees another. Data from before workspaces belongs to the Default workspace.
+_Avoid_: tenant, organisation, environment, account
+
 **Saved view**:
 A named set of filters and layout that belongs to one user. A shared view is a one-time copy of that preset; the recipient owns the copy.
 _Avoid_: Snapshot, pin, invite
@@ -29,7 +33,7 @@ One of the four borders of a box (top, right, bottom, left) that arrows may touc
 _Avoid_: edge of the node (ambiguous with graph edge/flow)
 
 **Breach rule**:
-A named rule, shared by every user and edited by admins, whose subject is applications or flows. An element of that subject for which the rule's conditions hold is **in breach**.
+A named rule, shared by every user of a workspace and edited by its admins, whose subject is applications or flows. An element of that subject for which the rule's conditions hold is **in breach**.
 _Avoid_: alert, violation, policy
 
 **Not evaluable**:

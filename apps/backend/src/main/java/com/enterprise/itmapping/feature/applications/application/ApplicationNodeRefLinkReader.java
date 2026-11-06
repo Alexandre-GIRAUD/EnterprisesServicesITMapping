@@ -1,10 +1,10 @@
 package com.enterprise.itmapping.feature.applications.application;
 
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -12,10 +12,10 @@ import org.springframework.util.StringUtils;
 @Component
 public class ApplicationNodeRefLinkReader {
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public ApplicationNodeRefLinkReader(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public ApplicationNodeRefLinkReader(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   /**
@@ -26,10 +26,10 @@ public class ApplicationNodeRefLinkReader {
       return Map.of();
     }
     Map<String, List<RefSummary>> out = new LinkedHashMap<>();
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application {id: $id})-[rel:CLASSIFIED_AS]->(r:DataModelRef)
+            MATCH (a:Application {workspaceId: $workspaceId, id: $id})-[rel:CLASSIFIED_AS]->(r:DataModelRef {workspaceId: $workspaceId})
             RETURN rel.fieldKey AS fieldKey, r.id AS id, r.name AS name, r.value AS value
             ORDER BY rel.fieldKey, r.name
             """)

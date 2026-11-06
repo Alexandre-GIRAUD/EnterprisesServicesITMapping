@@ -1,17 +1,18 @@
 package com.enterprise.itmapping.feature.applications.application;
 
 import com.enterprise.itmapping.feature.applications.application.ModuleDiscoveryAgent.DiscoveryResult;
-import com.enterprise.itmapping.feature.changedetection.application.DetectedChangeDrafts;
-import com.enterprise.itmapping.feature.changedetection.application.DetectedChangeDrafts.ProposedModule;
 import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload.AiModuleEntry;
 import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload.AiRelationshipEntry;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubRequest;
-import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse.CreatedItem;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse.SkippedItem;
+import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
+import com.enterprise.itmapping.feature.changedetection.application.DetectedChangeDrafts.ProposedModule;
+import com.enterprise.itmapping.feature.changedetection.application.DetectedChangeDrafts;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService;
 import com.enterprise.itmapping.feature.integrations.llm.ModuleDiscoveryProperties;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,7 +29,6 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,7 +59,7 @@ public class ModuleSuggestionService {
   private final GitHubRepoCloneService cloneService;
   private final ModuleDiscoveryAgent moduleDiscoveryAgent;
   private final ModuleDiscoveryProperties properties;
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
   private final ObjectProvider<ModuleSuggestionService> self;
   private final ApplicationModuleSubtreeQuery moduleSubtreeQuery;
   private final AiDecisionSourceService decisionSources;
@@ -71,7 +71,7 @@ public class ModuleSuggestionService {
       GitHubRepoCloneService cloneService,
       ModuleDiscoveryAgent moduleDiscoveryAgent,
       ModuleDiscoveryProperties properties,
-      Neo4jClient neo4jClient,
+      WorkspaceGraph graph,
       ObjectProvider<ModuleSuggestionService> self,
       ApplicationModuleSubtreeQuery moduleSubtreeQuery,
       AiDecisionSourceService decisionSources,
@@ -81,7 +81,7 @@ public class ModuleSuggestionService {
     this.cloneService = cloneService;
     this.moduleDiscoveryAgent = moduleDiscoveryAgent;
     this.properties = properties;
-    this.neo4jClient = neo4jClient;
+    this.graph = graph;
     this.self = self;
     this.moduleSubtreeQuery = moduleSubtreeQuery;
     this.decisionSources = decisionSources;
@@ -316,8 +316,8 @@ public class ModuleSuggestionService {
       params.put("id", neoId);
       params.put("name", e.getValue().getBusinessName());
       params.put("desc", desc);
-      neo4jClient
-          .query("CREATE (m:Module {id: $id, name: $name, description: $desc})")
+      graph
+          .query("CREATE (m:Module {workspaceId: $workspaceId, id: $id, name: $name, description: $desc})")
           .bindAll(params)
           .run();
       moduleLifecycle.recordCreated(applicationId, neoId, e.getValue().getBusinessName());
@@ -418,10 +418,10 @@ public class ModuleSuggestionService {
       return List.of();
     }
     List<String> existingNames =
-        neo4jClient
+        graph
             .query(
                 """
-                MATCH (:Application {id: $id})-[:CONTAINS*1..50]->(m:Module)
+                MATCH (:Application {workspaceId: $workspaceId, id: $id})-[:CONTAINS*1..50]->(m:Module {workspaceId: $workspaceId})
                 RETURN m.name AS name
                 """)
             .bind(applicationId)
@@ -443,10 +443,10 @@ public class ModuleSuggestionService {
     }
     String name = businessName.trim();
     Optional<Map<String, Object>> existing =
-        neo4jClient
+        graph
             .query(
                 """
-                MATCH (:Application {id: $id})-[:CONTAINS*1..50]->(m:Module)
+                MATCH (:Application {workspaceId: $workspaceId, id: $id})-[:CONTAINS*1..50]->(m:Module {workspaceId: $workspaceId})
                 WHERE toLower(m.name) = toLower($name)
                 RETURN m.id AS id
                 LIMIT 1
@@ -465,8 +465,8 @@ public class ModuleSuggestionService {
     params.put("id", neoId);
     params.put("name", name);
     params.put("desc", "Module detected from a commit diff.");
-    neo4jClient
-        .query("CREATE (m:Module {id: $id, name: $name, description: $desc})")
+    graph
+        .query("CREATE (m:Module {workspaceId: $workspaceId, id: $id, name: $name, description: $desc})")
         .bindAll(params)
         .run();
     linkApplicationContains(applicationId, neoId);
@@ -474,11 +474,11 @@ public class ModuleSuggestionService {
   }
 
   private void linkApplicationContains(String applicationId, String moduleNeoId) {
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application {id: $appId})
-            MATCH (m:Module {id: $mid})
+            MATCH (a:Application {workspaceId: $workspaceId, id: $appId})
+            MATCH (m:Module {workspaceId: $workspaceId, id: $mid})
             CREATE (a)-[:CONTAINS]->(m)
             """)
         .bind(applicationId)
@@ -489,11 +489,11 @@ public class ModuleSuggestionService {
   }
 
   private void linkModuleContains(String parentNeoId, String childNeoId) {
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (p:Module {id: $pid})
-            MATCH (c:Module {id: $cid})
+            MATCH (p:Module {workspaceId: $workspaceId, id: $pid})
+            MATCH (c:Module {workspaceId: $workspaceId, id: $cid})
             CREATE (p)-[:CONTAINS]->(c)
             """)
         .bind(parentNeoId)

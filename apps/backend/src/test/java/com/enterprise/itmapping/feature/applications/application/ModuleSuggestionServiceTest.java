@@ -12,19 +12,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 
+import com.enterprise.itmapping.feature.applications.application.ApplicationDetectionDocumentService.StoredDocument;
 import com.enterprise.itmapping.feature.applications.application.ModuleDiscoveryAgent.DiscoveryResult;
-import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload;
 import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload.AiModuleEntry;
 import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload.AiRelationshipEntry;
-import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
+import com.enterprise.itmapping.feature.applications.application.dto.AiModuleSuggestionPayload;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.AiDecisionSourceEntity;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.AiDecisionSourceRepository;
 import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationGraphNodeProjection;
+import com.enterprise.itmapping.feature.applications.infrastructure.persistence.ApplicationRepository;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubRequest;
 import com.enterprise.itmapping.feature.applications.presentation.dto.SuggestModulesFromGithubResponse;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubRepoCloneService;
 import com.enterprise.itmapping.feature.integrations.llm.ModuleDiscoveryProperties;
-import com.enterprise.itmapping.feature.applications.application.ApplicationDetectionDocumentService.StoredDocument;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -37,7 +38,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -70,14 +70,14 @@ class ModuleSuggestionServiceTest {
             decisionSourceRepository.findByTargetTypeAndTargetIdOrderByCreatedAtAsc(
                 anyString(), anyString()))
         .thenAnswer(listSources());
-    Neo4jClient neo4jClient = mock(Neo4jClient.class, RETURNS_DEEP_STUBS);
+    WorkspaceGraph graph = mock(WorkspaceGraph.class, RETURNS_DEEP_STUBS);
     service =
         new ModuleSuggestionService(
             applicationRepository,
             cloneService,
             agent,
             new ModuleDiscoveryProperties(25, 50, 12000, 500, 120),
-            neo4jClient,
+            graph,
             self,
             moduleSubtreeQuery,
             decisionSources,

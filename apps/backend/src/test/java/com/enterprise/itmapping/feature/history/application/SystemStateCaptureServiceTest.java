@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.enterprise.itmapping.feature.history.infrastructure.persistence.SystemDailyStateEntity;
 import com.enterprise.itmapping.feature.history.infrastructure.persistence.SystemDailyStateRepository;
 import com.enterprise.itmapping.feature.history.infrastructure.persistence.SystemGraphState;
+import com.enterprise.itmapping.feature.workspace.application.EveryWorkspace;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -29,6 +30,7 @@ class SystemStateCaptureServiceTest {
 
   @Mock SystemGraphState graphState;
   @Mock SystemDailyStateRepository repository;
+  @Mock EveryWorkspace everyWorkspace;
 
   private SystemStateCaptureService service;
 
@@ -36,7 +38,7 @@ class SystemStateCaptureServiceTest {
   void setUp() {
     service =
         new SystemStateCaptureService(
-            graphState, repository, Clock.fixed(NOON, ZoneOffset.UTC));
+            graphState, repository, Clock.fixed(NOON, ZoneOffset.UTC), everyWorkspace);
   }
 
   @Test
@@ -46,7 +48,7 @@ class SystemStateCaptureServiceTest {
         new SystemDailyStateEntity(day, new SystemState(List.of(), List.of(), List.of()), Instant.EPOCH);
     SystemState next = new SystemState(List.of(Map.of("id", "a")), List.of(), List.of());
     when(graphState.read()).thenReturn(next);
-    when(repository.findById(day)).thenReturn(Optional.of(existing));
+    when(repository.findByDay(day)).thenReturn(Optional.of(existing));
     when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     service.captureFor(day);
@@ -56,5 +58,12 @@ class SystemStateCaptureServiceTest {
     assertThat(saved.getValue()).isSameAs(existing);
     assertThat(saved.getValue().getState()).isEqualTo(next);
     assertThat(saved.getValue().getCapturedAt()).isEqualTo(NOON);
+  }
+
+  @Test
+  void scheduledCaptureRunsOncePerWorkspace() {
+    service.captureToday();
+
+    verify(everyWorkspace).run(any());
   }
 }

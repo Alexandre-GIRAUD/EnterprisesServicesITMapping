@@ -2,6 +2,8 @@ package com.enterprise.itmapping.feature.auth.security;
 
 import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 
+import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
+import com.enterprise.itmapping.feature.workspace.security.WorkspaceBindingFilter;
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -38,7 +40,10 @@ public class SecurityConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(
-      HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+      HttpSecurity http,
+      JwtAuthenticationFilter jwtAuthenticationFilter,
+      UserRepository userRepository)
+      throws Exception {
     http.csrf(AbstractHttpConfigurer::disable)
         .cors(c -> c.configurationSource(corsConfigurationSource()))
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -56,7 +61,9 @@ public class SecurityConfig {
                     .permitAll()
                     .anyRequest()
                     .authenticated())
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        // Built here, not as a bean, so it runs only inside the security chain, after the JWT.
+        .addFilterAfter(new WorkspaceBindingFilter(userRepository), JwtAuthenticationFilter.class);
     return http.build();
   }
 

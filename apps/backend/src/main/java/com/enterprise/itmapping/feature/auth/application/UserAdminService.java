@@ -5,6 +5,7 @@ import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEnti
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
 import com.enterprise.itmapping.feature.auth.presentation.dto.CreateUserRequest;
 import com.enterprise.itmapping.feature.auth.presentation.dto.UserSummaryResponse;
+import com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -38,12 +39,15 @@ public class UserAdminService {
     u.setPasswordHash(passwordEncoder.encode(request.password()));
     u.setRole(UserRole.USER);
     u.setEnabled(true);
+    u.setWorkspaceId(CurrentWorkspace.requireId());
     userRepository.save(u);
     return UserSummaryResponse.from(u);
   }
 
   @Transactional(readOnly = true)
   public List<UserSummaryResponse> listUsers() {
-    return userRepository.findAllByOrderByUsernameAsc().stream().map(UserSummaryResponse::from).toList();
+    return userRepository.findAllByWorkspaceIdOrderByUsernameAsc(CurrentWorkspace.requireId()).stream()
+        .map(UserSummaryResponse::from)
+        .toList();
   }
 }

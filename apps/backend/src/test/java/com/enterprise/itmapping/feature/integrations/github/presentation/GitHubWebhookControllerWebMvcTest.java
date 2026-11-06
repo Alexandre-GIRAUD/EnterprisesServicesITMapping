@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.integrations.github.presentation;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -12,9 +13,11 @@ import com.enterprise.itmapping.feature.changedetection.application.ChangeDetect
 import com.enterprise.itmapping.feature.history.application.PastSystemView;
 import com.enterprise.itmapping.feature.integrations.github.GitHubIntegrationProperties;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubWebhookSignatureVerifier;
+import com.enterprise.itmapping.feature.workspace.application.EveryWorkspace;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
@@ -36,6 +39,17 @@ class GitHubWebhookControllerWebMvcTest {
   @MockBean GitHubWebhookSignatureVerifier signatureVerifier;
   @MockBean GitHubIntegrationProperties properties;
   @MockBean ChangeDetectionService changeDetectionService;
+  @MockBean EveryWorkspace everyWorkspace;
+
+  @BeforeEach
+  void runWebhookWorkInOneWorkspace() {
+    doAnswer(invocation -> {
+          invocation.<Runnable>getArgument(0).run();
+          return null;
+        })
+        .when(everyWorkspace)
+        .run(any());
+  }
 
   @Test
   void acceptsPushAfterSignatureCheck() throws Exception {

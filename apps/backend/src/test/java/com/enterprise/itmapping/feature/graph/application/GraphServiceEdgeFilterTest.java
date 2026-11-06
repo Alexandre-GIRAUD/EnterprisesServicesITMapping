@@ -13,6 +13,7 @@ import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelTarget;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.GraphLoader;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,13 +21,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.neo4j.core.Neo4jClient;
 
 @ExtendWith(MockitoExtension.class)
 class GraphServiceEdgeFilterTest {
 
   @Mock GraphLoader graphLoader;
-  @Mock Neo4jClient neo4jClient;
+  @Mock WorkspaceGraph graph;
   @Mock ApplicationRepository applicationRepository;
   @Mock DataModelService dataModelService;
   @Mock GraphEdgeLinkService edgeLinkService;
@@ -38,7 +38,7 @@ class GraphServiceEdgeFilterTest {
     graphService =
         new GraphService(
             graphLoader,
-            neo4jClient,
+            graph,
             applicationRepository,
             dataModelService,
             new GraphNodeFilterResolver(),

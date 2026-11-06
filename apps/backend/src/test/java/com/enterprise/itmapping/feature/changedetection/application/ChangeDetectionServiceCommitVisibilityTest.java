@@ -7,6 +7,8 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.enterprise.itmapping.feature.applications.application.ApplicationConnectionSuggestionService;
@@ -20,9 +22,9 @@ import com.enterprise.itmapping.feature.changedetection.infrastructure.persisten
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.integrations.github.GitHubIntegrationProperties;
-import com.enterprise.itmapping.feature.integrations.github.application.GitHubCommitDiffService;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubCommitDiffService.DiffFile;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubCommitDiffService.DiffResult;
+import com.enterprise.itmapping.feature.integrations.github.application.GitHubCommitDiffService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -114,6 +116,20 @@ class ChangeDetectionServiceCommitVisibilityTest {
     assertThat(accepted).hasSize(1);
     assertThat(analysisFinished.await(WAIT_SECONDS, TimeUnit.SECONDS)).isTrue();
     assertThat(committed.get(accepted.get(0)).getStatus()).isEqualTo(ChangeDetectionRunStatus.EMPTY);
+  }
+
+  @Test
+  void aPushToARepositoryThisWorkspaceDoesNotLinkLeavesNoRunInIt() {
+    byte[] body =
+        """
+        {"ref":"refs/heads/main","repository":{"full_name":"acme/elsewhere"},"after":"abc123def456"}
+        """
+            .getBytes(StandardCharsets.UTF_8);
+
+    List<UUID> accepted = changeDetectionService.ingestPushWebhook(body);
+
+    assertThat(accepted).isEmpty();
+    verify(runRepository, never()).save(any());
   }
 
   @Test

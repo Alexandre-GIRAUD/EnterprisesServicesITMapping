@@ -5,6 +5,7 @@ import com.enterprise.itmapping.feature.graph.application.AttributeMatch;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeAttributeReader;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeProjection;
 import com.enterprise.itmapping.feature.graph.application.GraphNodeRow;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,11 +13,10 @@ import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Repository;
 
 /**
- * Loads graph structure via Neo4jClient (no Spring Data entity hydration).
+ * Loads graph structure via WorkspaceGraph (no Spring Data entity hydration).
  *
  * <p>Filtering axes: application ids, Data Model {@code NODE} flat props ({@code attr.*}), Data
  * Model {@code NODE_REF} catalogue links ({@code ref.*} → {@code CLASSIFIED_AS}), and Data Model
@@ -32,11 +32,11 @@ public class GraphLoader {
   private static final String NODE_REF_IDENTIFIER_PARAM = "nodeRefIds_";
 
   private static final Set<String> NON_BUSINESS_NODE_KEYS =
-      Set.of("id", "name", "description", "year", "validFrom", "validTo");
+      Set.of("id", "name", "description", "year", "validFrom", "validTo", "workspaceId");
 
   private static final String NODE_MATCH_AND_FILTER =
       """
-      MATCH (a:Application)
+      MATCH (a:Application {workspaceId: $workspaceId})
       WHERE ($filterApplicationIds = false OR a.id IN $applicationIds)
       """;
 
@@ -49,7 +49,7 @@ public class GraphLoader {
   private static final String EDGES_MATCH_PREFIX =
       """
       WITH collect(DISTINCT a.id) AS appIds
-      MATCH (x:Application)-[r:DEPENDS_ON]->(y:Application)
+      MATCH (x:Application {workspaceId: $workspaceId})-[r:DEPENDS_ON]->(y:Application {workspaceId: $workspaceId})
       WHERE x.id IN appIds AND y.id IN appIds
       """;
 
@@ -59,10 +59,10 @@ public class GraphLoader {
              properties(r) AS props
       """;
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public GraphLoader(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public GraphLoader(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   public List<GraphNodeRow> loadNodes() {
@@ -80,7 +80,7 @@ public class GraphLoader {
       Map<String, List<String>> nodeRefFilters) {
     String cypher = buildNodeCypher(nodeAttributeFilters, nodeRefFilters);
     List<GraphNodeRow> rows =
-        neo4jClient
+        graph
             .query(cypher)
             .bindAll(params(applicationIds, nodeAttributeFilters, nodeRefFilters, Map.of()))
             .fetch()
@@ -114,7 +114,7 @@ public class GraphLoader {
       Map<String, List<String>> nodeRefFilters,
       Map<String, List<String>> edgeAttributeFilters) {
     String cypher = buildEdgeCypher(nodeAttributeFilters, nodeRefFilters, edgeAttributeFilters);
-    return neo4jClient
+    return graph
         .query(cypher)
         .bindAll(params(applicationIds, nodeAttributeFilters, nodeRefFilters, edgeAttributeFilters))
         .fetch()
@@ -213,13 +213,13 @@ public class GraphLoader {
         "NOT EXISTS {\n"
             + "    MATCH (a)-[:CLASSIFIED_AS {fieldKey: $"
             + fieldParam
-            + "}]->(:DataModelRef)\n"
+            + "}]->(:DataModelRef {workspaceId: $workspaceId})\n"
             + "  }";
     String listed =
         "EXISTS {\n"
             + "    MATCH (a)-[:CLASSIFIED_AS {fieldKey: $"
             + fieldParam
-            + "}]->(ref:DataModelRef)\n"
+            + "}]->(ref:DataModelRef {workspaceId: $workspaceId})\n"
             + "    WHERE ref.id IN $"
             + identifierParameter
             + "\n"
@@ -293,10 +293,10 @@ public class GraphLoader {
 
   private Map<String, Map<String, List<String>>> loadCatalogueNames(List<String> ids) {
     Map<String, Map<String, List<String>>> byApp = new LinkedHashMap<>();
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application)-[rel:CLASSIFIED_AS]->(r:DataModelRef)
+            MATCH (a:Application {workspaceId: $workspaceId})-[rel:CLASSIFIED_AS]->(r:DataModelRef {workspaceId: $workspaceId})
             WHERE a.id IN $ids
             RETURN a.id AS appId, rel.fieldKey AS fieldKey, r.name AS name, r.value AS value
             ORDER BY r.name

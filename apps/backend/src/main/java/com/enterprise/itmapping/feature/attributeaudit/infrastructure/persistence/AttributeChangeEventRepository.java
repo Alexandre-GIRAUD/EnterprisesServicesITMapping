@@ -20,19 +20,24 @@ public interface AttributeChangeEventRepository
       findByTargetTypeAndTargetIdAndFieldKeyOrderByCreatedAtDesc(
           AuditTargetType targetType, String targetId, String fieldKey, Pageable pageable);
 
-  /** Events of one application, its modules and its flows, created in {@code [from, to)}. */
+  /**
+   * Events of one application, its modules and its flows, created in {@code [from, to)}, in the
+   * current workspace. Native SQL escapes the Hibernate workspace filter, hence the explicit one.
+   */
   @Query(
       value =
           """
           SELECT * FROM attribute_change_events
-          WHERE application_ids @> jsonb_build_array(CAST(:applicationId AS text))
+          WHERE workspace_id = :#{T(com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace).requireId()}
+            AND application_ids @> jsonb_build_array(CAST(:applicationId AS text))
             AND created_at >= :from AND created_at < :to
           ORDER BY created_at DESC
           """,
       countQuery =
           """
           SELECT count(*) FROM attribute_change_events
-          WHERE application_ids @> jsonb_build_array(CAST(:applicationId AS text))
+          WHERE workspace_id = :#{T(com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace).requireId()}
+            AND application_ids @> jsonb_build_array(CAST(:applicationId AS text))
             AND created_at >= :from AND created_at < :to
           """,
       nativeQuery = true)

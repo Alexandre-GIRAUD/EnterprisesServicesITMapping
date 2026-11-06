@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.functionaldoc.infrastructure.persistenc
 
 import com.enterprise.itmapping.feature.functionaldoc.application.dto.AiFunctionalDocPayload;
 import com.enterprise.itmapping.feature.functionaldoc.domain.FunctionalDocStatus;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -19,7 +20,7 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "application_functional_docs")
-public class ApplicationFunctionalDocEntity {
+public class ApplicationFunctionalDocEntity extends WorkspaceOwned {
 
   @Id
   @Column(nullable = false, updatable = false)

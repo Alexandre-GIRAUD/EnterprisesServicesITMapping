@@ -16,6 +16,10 @@ Lorsque la table `users` est **vide** au démarrage, le backend peut créer un c
 
 Si la table n’est pas vide, ces variables sont ignorées.
 
+## Workspaces
+
+Chaque utilisateur appartient à un seul workspace et ne voit que ses données (graphe, Data Model, sources, règles, historique, vues). L’admin bootstrap et toutes les données d’avant les workspaces sont dans le workspace **Default**. Un admin crée des utilisateurs dans son propre workspace, et le partage ne vise que des utilisateurs du même workspace.
+
 ## API
 
 - `POST /api/auth/login` — corps JSON `{ "username", "password" }` — réponse `{ "token", "username", "roles" }`.

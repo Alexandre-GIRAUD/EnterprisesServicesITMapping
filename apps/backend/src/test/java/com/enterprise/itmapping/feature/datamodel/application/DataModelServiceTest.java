@@ -7,14 +7,15 @@ import static org.mockito.Mockito.when;
 
 import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
-import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
 import com.enterprise.itmapping.feature.datamodel.infrastructure.persistence.DataModelEntity;
 import com.enterprise.itmapping.feature.datamodel.infrastructure.persistence.DataModelRepository;
 import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelFieldDto;
 import com.enterprise.itmapping.feature.datamodel.presentation.dto.DataModelPutRequest;
 import com.enterprise.itmapping.feature.sources.infrastructure.persistence.DataSourceRepository;
+import com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -67,8 +68,9 @@ class DataModelServiceTest {
             false);
     DataModelPutRequest request = new DataModelPutRequest(List.of(dto));
 
-    DataModelEntity entity = new DataModelEntity();
-    when(dataModelRepository.findById(DataModelEntity.DEFAULT_ID)).thenReturn(Optional.of(entity));
+    UUID workspaceId = UUID.randomUUID();
+    DataModelEntity entity = new DataModelEntity(workspaceId.toString());
+    when(dataModelRepository.findById(workspaceId.toString())).thenReturn(Optional.of(entity));
     when(currentUserResolver.requireCurrentUser()).thenReturn(user);
     when(validator.normalize(any()))
         .thenAnswer(
@@ -77,7 +79,7 @@ class DataModelServiceTest {
                     List.of(dto.toDomain())));
     when(dataModelRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-    dataModelService.replace(request);
+    CurrentWorkspace.runAs(workspaceId, () -> dataModelService.replace(request));
 
     verify(validator).validatePut(any(), any());
     verify(dataModelRepository).save(entity);

@@ -1,8 +1,8 @@
 package com.enterprise.itmapping.feature.graph.infrastructure.persistence;
 
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.List;
 import java.util.Map;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -14,18 +14,18 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class DependsOnEdgeAttributeFacetQuery {
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public DependsOnEdgeAttributeFacetQuery(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public DependsOnEdgeAttributeFacetQuery(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   public List<String> distinctValues(String validatedKey) {
     String cypher =
         AttributePropertyCypher.distinctValues(
-            "MATCH (:Application)-[r:DEPENDS_ON]->(:Application)", "r", validatedKey);
+            "MATCH (:Application {workspaceId: $workspaceId})-[r:DEPENDS_ON]->(:Application {workspaceId: $workspaceId})", "r", validatedKey);
 
-    return neo4jClient.query(cypher).fetch().all().stream()
+    return graph.query(cypher).fetch().all().stream()
         .map(Neo4jValueMapping::asMap)
         .map(this::asValue)
         .filter(value -> value != null && !value.isBlank())
@@ -35,12 +35,12 @@ public class DependsOnEdgeAttributeFacetQuery {
   public boolean hasBlank(String validatedKey) {
     String cypher =
         """
-        MATCH (:Application)-[r:DEPENDS_ON]->(:Application)
+        MATCH (:Application {workspaceId: $workspaceId})-[r:DEPENDS_ON]->(:Application {workspaceId: $workspaceId})
         WHERE r.`%s` IS NULL OR trim(toString(r.`%s`)) = ''
         RETURN r LIMIT 1
         """
             .formatted(validatedKey, validatedKey);
-    return !neo4jClient.query(cypher).fetch().all().isEmpty();
+    return !graph.query(cypher).fetch().all().isEmpty();
   }
 
   private String asValue(Map<String, Object> row) {

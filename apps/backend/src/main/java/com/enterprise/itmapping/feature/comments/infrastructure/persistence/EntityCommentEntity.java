@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.comments.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.comments.domain.CommentTargetType;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,7 +15,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "entity_comments")
-public class EntityCommentEntity {
+public class EntityCommentEntity extends WorkspaceOwned {
 
   @Id
   @Column(nullable = false, updatable = false)

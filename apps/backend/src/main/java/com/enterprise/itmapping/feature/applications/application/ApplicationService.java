@@ -7,12 +7,13 @@ import com.enterprise.itmapping.feature.applications.presentation.dto.Applicatio
 import com.enterprise.itmapping.feature.applications.presentation.dto.ApplicationResponse;
 import com.enterprise.itmapping.feature.attributeaudit.application.EntityLifecycleHistory;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeLinkService;
+import com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +26,7 @@ public class ApplicationService {
   private static final String DESCRIPTION_FIELD = "description";
 
   private final ApplicationRepository applicationRepository;
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
   private final ApplicationModuleSubtreeQuery moduleSubtreeQuery;
   private final ApplicationNodeAttributeReader nodeAttributeReader;
   private final ApplicationNodeRefLinkReader nodeRefLinkReader;
@@ -35,7 +36,7 @@ public class ApplicationService {
 
   public ApplicationService(
       ApplicationRepository applicationRepository,
-      Neo4jClient neo4jClient,
+      WorkspaceGraph graph,
       ApplicationModuleSubtreeQuery moduleSubtreeQuery,
       ApplicationNodeAttributeReader nodeAttributeReader,
       ApplicationNodeRefLinkReader nodeRefLinkReader,
@@ -43,7 +44,7 @@ public class ApplicationService {
       ApplicationModuleLifecycle moduleLifecycle,
       GraphEdgeLinkService edgeLinkService) {
     this.applicationRepository = applicationRepository;
-    this.neo4jClient = neo4jClient;
+    this.graph = graph;
     this.moduleSubtreeQuery = moduleSubtreeQuery;
     this.nodeAttributeReader = nodeAttributeReader;
     this.nodeRefLinkReader = nodeRefLinkReader;
@@ -79,6 +80,7 @@ public class ApplicationService {
   public ApplicationResponse create(ApplicationRequest request) {
     rejectRepositoryConflicts(request.name(), request.description(), null);
     Application entity = new Application();
+    entity.setWorkspaceId(CurrentWorkspace.requireId().toString());
     entity.setName(request.name());
     entity.setDescription(request.description());
     Application saved = applicationRepository.save(entity);
@@ -106,10 +108,10 @@ public class ApplicationService {
     params.put("id", id);
     params.put("name", request.name());
     params.put("desc", request.description() != null ? request.description() : "");
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application {id: $id})
+            MATCH (a:Application {workspaceId: $workspaceId, id: $id})
             SET a.name = $name, a.description = $desc
             """)
         .bindAll(params)
@@ -171,10 +173,10 @@ public class ApplicationService {
     edgeLinkService.recordDeletionsTouching(id);
     history.applicationDeleted(id, existing.get().getName(), existing.get().getDescription());
 
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application {id: $id})
+            MATCH (a:Application {workspaceId: $workspaceId, id: $id})
             DETACH DELETE a
             """)
         .bind(id)

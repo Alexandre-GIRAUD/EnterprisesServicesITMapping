@@ -13,14 +13,16 @@ import com.enterprise.itmapping.feature.graph.application.dto.CreateGraphEdgeReq
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeDto;
 import com.enterprise.itmapping.feature.history.application.PastSystemView;
 import com.enterprise.itmapping.feature.history.application.SystemStateCaptureService;
+import com.enterprise.itmapping.feature.workspace.InDefaultWorkspace;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.server.ResponseStatusException;
@@ -32,6 +34,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /** Application, module and flow history, and the read-only view of a past day. */
 @SpringBootTest
+@ExtendWith(InDefaultWorkspace.class)
 @Testcontainers(disabledWithoutDocker = true)
 class SystemHistoryIntegrationTest {
 
@@ -64,7 +67,7 @@ class SystemHistoryIntegrationTest {
   @Autowired ApplicationModuleLifecycle moduleLifecycle;
   @Autowired AttributeChangeAuditService auditService;
   @Autowired GraphService graphService;
-  @Autowired Neo4jClient neo4jClient;
+  @Autowired WorkspaceGraph graph;
   @Autowired SystemStateCaptureService captureService;
   @Autowired PastSystemView pastSystemView;
 
@@ -130,11 +133,11 @@ class SystemHistoryIntegrationTest {
 
   private void createModule(String applicationId) {
     String moduleId = UUID.randomUUID().toString();
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application {id: $appId})
-            CREATE (a)-[:CONTAINS]->(:Module {id: $moduleId, name: 'Billing', description: ''})
+            MATCH (a:Application {workspaceId: $workspaceId, id: $appId})
+            CREATE (a)-[:CONTAINS]->(:Module {workspaceId: $workspaceId, id: $moduleId, name: 'Billing', description: ''})
             """)
         .bindAll(Map.of("appId", applicationId, "moduleId", moduleId))
         .run();

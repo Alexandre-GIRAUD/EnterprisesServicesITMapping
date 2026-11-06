@@ -4,6 +4,7 @@ import com.enterprise.itmapping.feature.auth.domain.UserRole;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
 import com.enterprise.itmapping.feature.auth.security.BootstrapAdminProperties;
+import com.enterprise.itmapping.feature.workspace.domain.Workspaces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -61,6 +62,7 @@ public class AdminBootstrapRunner implements ApplicationRunner {
     admin.setPasswordHash(passwordEncoder.encode(p));
     admin.setRole(UserRole.ADMIN);
     admin.setEnabled(true);
+    admin.setWorkspaceId(Workspaces.DEFAULT_ID);
     userRepository.save(admin);
     log.info("Compte administrateur initial cree pour l'utilisateur '{}'.", normalized);
   }

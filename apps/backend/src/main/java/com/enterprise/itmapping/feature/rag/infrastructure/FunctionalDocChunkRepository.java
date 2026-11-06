@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.rag.infrastructure;
 
 import com.enterprise.itmapping.feature.rag.domain.DocChunkDraft;
 import com.enterprise.itmapping.feature.rag.domain.FunctionalDocSearchHit;
+import com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
@@ -27,8 +28,9 @@ public class FunctionalDocChunkRepository {
   public Set<String> findContentHashesByDocId(UUID docId) {
     List<String> hashes =
         jdbcTemplate.queryForList(
-            "SELECT content_hash FROM functional_doc_chunks WHERE doc_id = ?",
+            "SELECT content_hash FROM functional_doc_chunks WHERE workspace_id = ? AND doc_id = ?",
             String.class,
+            CurrentWorkspace.requireId(),
             docId);
     return hashes.stream().collect(Collectors.toSet());
   }
@@ -36,17 +38,25 @@ public class FunctionalDocChunkRepository {
   public int countByDocId(UUID docId) {
     Integer n =
         jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM functional_doc_chunks WHERE doc_id = ?", Integer.class, docId);
+            "SELECT COUNT(*) FROM functional_doc_chunks WHERE workspace_id = ? AND doc_id = ?",
+            Integer.class,
+            CurrentWorkspace.requireId(),
+            docId);
     return n != null ? n : 0;
   }
 
   public void deleteByApplicationId(String applicationId) {
     jdbcTemplate.update(
-        "DELETE FROM functional_doc_chunks WHERE application_id = ?", applicationId);
+        "DELETE FROM functional_doc_chunks WHERE workspace_id = ? AND application_id = ?",
+        CurrentWorkspace.requireId(),
+        applicationId);
   }
 
   public void deleteByDocId(UUID docId) {
-    jdbcTemplate.update("DELETE FROM functional_doc_chunks WHERE doc_id = ?", docId);
+    jdbcTemplate.update(
+        "DELETE FROM functional_doc_chunks WHERE workspace_id = ? AND doc_id = ?",
+        CurrentWorkspace.requireId(),
+        docId);
   }
 
   public void insertAll(
@@ -57,11 +67,12 @@ public class FunctionalDocChunkRepository {
     if (drafts.size() != embeddings.size()) {
       throw new IllegalArgumentException("drafts/embeddings size mismatch");
     }
+    UUID workspaceId = CurrentWorkspace.requireId();
     jdbcTemplate.batchUpdate(
         """
         INSERT INTO functional_doc_chunks
-          (id, application_id, doc_id, section_key, section_title, chunk_index, content, embedding, content_hash, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS vector), ?, NOW(), NOW())
+          (id, application_id, doc_id, section_key, section_title, chunk_index, content, embedding, content_hash, workspace_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS vector), ?, ?, NOW(), NOW())
         """,
         new BatchPreparedStatementSetter() {
           @Override
@@ -76,6 +87,7 @@ public class FunctionalDocChunkRepository {
             ps.setString(7, draft.content());
             ps.setString(8, toVectorLiteral(embeddings.get(i)));
             ps.setString(9, draft.contentHash());
+            ps.setObject(10, workspaceId);
           }
 
           @Override
@@ -87,6 +99,7 @@ public class FunctionalDocChunkRepository {
 
   public List<FunctionalDocSearchHit> search(
       float[] queryEmbedding, String applicationId, int limit) {
+    UUID workspaceId = CurrentWorkspace.requireId();
     String sql;
     Object[] args;
     if (StringUtils.hasText(applicationId)) {
@@ -95,23 +108,24 @@ public class FunctionalDocChunkRepository {
           SELECT application_id, section_key, section_title, content,
                  1 - (embedding <=> CAST(? AS vector)) AS score
           FROM functional_doc_chunks
-          WHERE application_id = ?
+          WHERE workspace_id = ? AND application_id = ?
           ORDER BY embedding <=> CAST(? AS vector)
           LIMIT ?
           """;
       String lit = toVectorLiteral(queryEmbedding);
-      args = new Object[] {lit, applicationId.trim(), lit, limit};
+      args = new Object[] {lit, workspaceId, applicationId.trim(), lit, limit};
     } else {
       sql =
           """
           SELECT application_id, section_key, section_title, content,
                  1 - (embedding <=> CAST(? AS vector)) AS score
           FROM functional_doc_chunks
+          WHERE workspace_id = ?
           ORDER BY embedding <=> CAST(? AS vector)
           LIMIT ?
           """;
       String lit = toVectorLiteral(queryEmbedding);
-      args = new Object[] {lit, lit, limit};
+      args = new Object[] {lit, workspaceId, lit, limit};
     }
     return jdbcTemplate.query(
         sql,

@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.sandbox.application;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,9 +41,13 @@ class SandboxShareServiceTest {
   private final UUID recipientId = UUID.fromString("00000000-0000-0000-0000-000000000002");
   private final ObjectMapper objectMapper = new ObjectMapper();
 
+  /** Recipients are looked up only in the sender's workspace. */
+  private static final UUID WORKSPACE = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
+
   @BeforeEach
   void setUp() {
     when(currentUserResolver.requireCurrentUser()).thenReturn(sender);
+    lenient().when(sender.getWorkspaceId()).thenReturn(WORKSPACE);
   }
 
   @Test
@@ -50,7 +55,7 @@ class SandboxShareServiceTest {
     when(sender.getId()).thenReturn(senderId);
     when(sender.getUsername()).thenReturn("alice");
     when(recipient.getId()).thenReturn(recipientId);
-    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.of(recipient));
+    when(userRepository.findByUsernameIgnoreCaseAndWorkspaceId("bob", WORKSPACE)).thenReturn(Optional.of(recipient));
     JsonNode document = objectMapper.readTree("{\"name\":\"Sketch\",\"note\":\"kept\"}");
 
     sandboxShareService.share(" bob ", " Sketch ", document);
@@ -65,7 +70,7 @@ class SandboxShareServiceTest {
 
   @Test
   void shareRejectsAnUnknownUsername() {
-    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.empty());
+    when(userRepository.findByUsernameIgnoreCaseAndWorkspaceId("bob", WORKSPACE)).thenReturn(Optional.empty());
 
     assertThrows(
         ResponseStatusException.class,

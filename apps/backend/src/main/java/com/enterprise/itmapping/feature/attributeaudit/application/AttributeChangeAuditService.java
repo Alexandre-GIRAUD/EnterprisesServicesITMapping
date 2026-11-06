@@ -74,7 +74,10 @@ public class AttributeChangeAuditService {
     Instant to = toDay == null ? NO_UPPER_BOUND : startOf(toDay.plusDays(1));
     Page<AttributeChangeEventEntity> result =
         eventRepository.findForApplication(
-            applicationId.trim(), from, to, PageRequest.of(safePage, safeSize));
+            applicationId.trim(),
+            from,
+            to,
+            PageRequest.of(safePage, safeSize));
     return new AttributeChangePageResponse(
         result.getContent().stream().map(this::toResponse).toList(),
         safePage,
