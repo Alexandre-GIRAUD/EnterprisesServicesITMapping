@@ -32,6 +32,9 @@ public class UserEntity {
   @Column(nullable = false)
   private boolean enabled = true;
 
+  @Column(name = "workspace_id", nullable = false)
+  private UUID workspaceId;
+
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
@@ -98,6 +101,14 @@ public class UserEntity {
 
   public void setEnabled(boolean enabled) {
     this.enabled = enabled;
+  }
+
+  public UUID getWorkspaceId() {
+    return workspaceId;
+  }
+
+  public void setWorkspaceId(UUID workspaceId) {
+    this.workspaceId = workspaceId;
   }
 
   public Instant getCreatedAt() {
