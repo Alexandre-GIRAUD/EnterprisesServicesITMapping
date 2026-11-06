@@ -1,6 +1,5 @@
 package com.enterprise.itmapping.feature.integrations.github.presentation;
 
-import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubAccountService;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubConnectionStatus;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubReposService;
@@ -24,15 +23,12 @@ public class GitHubIntegrationController {
 
   private final GitHubReposService gitHubReposService;
   private final GitHubAccountService accounts;
-  private final CurrentUserResolver currentUser;
 
   public GitHubIntegrationController(
       GitHubReposService gitHubReposService,
-      GitHubAccountService accounts,
-      CurrentUserResolver currentUser) {
+      GitHubAccountService accounts) {
     this.gitHubReposService = gitHubReposService;
     this.accounts = accounts;
-    this.currentUser = currentUser;
   }
 
   @GetMapping("/connection")

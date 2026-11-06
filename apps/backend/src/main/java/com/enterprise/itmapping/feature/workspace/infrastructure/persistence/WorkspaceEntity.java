@@ -50,18 +50,21 @@ public class WorkspaceEntity {
     return name;
   }
 
-  public String getGithubLogin() {
+  public String getGitHubLogin() {
     return githubLogin;
   }
 
-  public String getGithubToken() {
+  public String getGitHubToken() {
     return githubToken;
   }
 
-  /** Both null to disconnect. */
   public void connectGitHub(String login, String encryptedToken) {
     this.githubLogin = login;
     this.githubToken = encryptedToken;
+  }
+
+  public void disconnectGitHub() {
+    connectGitHub(null, null);
   }
 
   public String getBitbucketUsername() {
@@ -72,15 +75,18 @@ public class WorkspaceEntity {
     return bitbucketToken;
   }
 
-  public String getGithubWebhookSecret() {
+  public void disconnectBitbucket() {
+    connectBitbucket(null, null);
+  }
+
+  public String getGitHubWebhookSecret() {
     return githubWebhookSecret;
   }
 
-  public void setGithubWebhookSecret(String encryptedSecret) {
+  public void setGitHubWebhookSecret(String encryptedSecret) {
     this.githubWebhookSecret = encryptedSecret;
   }
 
-  /** Both null to disconnect. */
   public void connectBitbucket(String username, String encryptedToken) {
     this.bitbucketUsername = username;
     this.bitbucketToken = encryptedToken;

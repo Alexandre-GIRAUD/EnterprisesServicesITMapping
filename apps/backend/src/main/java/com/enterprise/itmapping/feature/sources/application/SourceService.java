@@ -1,12 +1,12 @@
 package com.enterprise.itmapping.feature.sources.application;
 
-import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery;
 import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery.CatalogRow;
+import com.enterprise.itmapping.feature.applications.application.ApplicationCatalogQuery;
 import com.enterprise.itmapping.feature.applications.application.ApplicationNodeAttributePatchService;
 import com.enterprise.itmapping.feature.auth.security.JwtProperties;
 import com.enterprise.itmapping.feature.datamodel.application.DataModelService;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
-import com.enterprise.itmapping.feature.integrations.github.application.GitHubTokenCipher;
+import com.enterprise.itmapping.feature.integrations.CredentialCipher;
 import com.enterprise.itmapping.feature.sources.domain.SourceAuthType;
 import com.enterprise.itmapping.feature.sources.infrastructure.persistence.DataSourceEntity;
 import com.enterprise.itmapping.feature.sources.infrastructure.persistence.DataSourceRepository;
@@ -324,7 +324,7 @@ public class SourceService {
       entity.setSecretEncrypted(null);
     } else if (StringUtils.hasText(secret)) {
       requireEncryptionKey();
-      entity.setSecretEncrypted(GitHubTokenCipher.encrypt(secret, jwt.secret()));
+      entity.setSecretEncrypted(CredentialCipher.encrypt(secret, jwt.secret()));
     } else if (isEndpointChanged) {
       entity.setSecretEncrypted(null);
     }
@@ -335,7 +335,7 @@ public class SourceService {
       return null;
     }
     requireEncryptionKey();
-    return GitHubTokenCipher.decrypt(source.getSecretEncrypted(), jwt.secret());
+    return CredentialCipher.decrypt(source.getSecretEncrypted(), jwt.secret());
   }
 
   private void requireEncryptionKey() {

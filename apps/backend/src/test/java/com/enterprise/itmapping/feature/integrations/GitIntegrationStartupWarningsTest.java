@@ -10,7 +10,7 @@ class GitIntegrationStartupWarningsTest {
   @Test
   void serverWideGitSettingsAreReportedAsIgnoredOrLegacy() {
     List<String> warnings =
-        GitIntegrationStartupWarnings.warningsFor("a-token", "a-token", "a-secret");
+        GitIntegrationStartupWarnings.collectWarnings("a-token", "a-token", "a-secret");
 
     assertThat(warnings)
         .anyMatch(line -> line.contains("GITHUB_TOKEN is ignored"))
@@ -20,6 +20,6 @@ class GitIntegrationStartupWarningsTest {
 
   @Test
   void nothingToSayWhenTheyAreUnset() {
-    assertThat(GitIntegrationStartupWarnings.warningsFor("", null, " ")).isEmpty();
+    assertThat(GitIntegrationStartupWarnings.collectWarnings("", null, " ")).isEmpty();
   }
 }

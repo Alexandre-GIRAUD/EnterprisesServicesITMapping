@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.auth.security;
 import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
+import com.enterprise.itmapping.feature.integrations.github.presentation.GitHubWebhookController;
 import com.enterprise.itmapping.feature.workspace.security.WorkspaceBindingFilter;
 import java.util.Arrays;
 import java.util.List;
@@ -67,9 +68,10 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(antMatcher(HttpMethod.GET, "/config"))
                     .permitAll()
-                    .requestMatchers(antMatcher(HttpMethod.POST, "/webhooks/github/*"))
+                    .requestMatchers(
+                        antMatcher(HttpMethod.POST, GitHubWebhookController.WEBHOOK_PATH + "/*"))
                     .permitAll()
-                    .requestMatchers(antMatcher(HttpMethod.POST, "/webhooks/github"))
+                    .requestMatchers(antMatcher(HttpMethod.POST, GitHubWebhookController.WEBHOOK_PATH))
                     .permitAll()
                     .requestMatchers(antMatcher("/error"))
                     .permitAll()

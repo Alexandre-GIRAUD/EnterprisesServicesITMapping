@@ -59,24 +59,24 @@ export type GitHubWebhookSettings = { path: string; secret: string };
 const WEBHOOK_SETTINGS_PATH = '/api/integrations/github/webhook';
 
 export async function fetchGitHubWebhookSettings(): Promise<GitHubWebhookSettings> {
-  const res = await authenticatedFetch(resolveApiUrl(WEBHOOK_SETTINGS_PATH), {
+  const response = await authenticatedFetch(resolveApiUrl(WEBHOOK_SETTINGS_PATH), {
     headers: { Accept: 'application/json' },
   });
-  if (!res.ok) {
-    throw new Error(await githubError('GitHub webhook', res));
+  if (!response.ok) {
+    throw new Error(await githubError('GitHub webhook', response));
   }
-  return res.json();
+  return response.json();
 }
 
 export async function regenerateGitHubWebhookSecret(): Promise<GitHubWebhookSettings> {
-  const res = await authenticatedFetch(resolveApiUrl(`${WEBHOOK_SETTINGS_PATH}/secret`), {
+  const response = await authenticatedFetch(resolveApiUrl(`${WEBHOOK_SETTINGS_PATH}/secret`), {
     method: 'POST',
     headers: { Accept: 'application/json' },
   });
-  if (!res.ok) {
-    throw new Error(await githubError('GitHub webhook secret', res));
+  if (!response.ok) {
+    throw new Error(await githubError('GitHub webhook secret', response));
   }
-  return res.json();
+  return response.json();
 }
 
 export async function fetchGitHubRepos(): Promise<GitHubRepoDto[]> {

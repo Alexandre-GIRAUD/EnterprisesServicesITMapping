@@ -27,7 +27,7 @@ public class BitbucketReposService {
     if (!apiClient.hasToken()) {
       throw new ResponseStatusException(
           HttpStatus.SERVICE_UNAVAILABLE,
-          "Connect your Bitbucket account in Settings, or set BITBUCKET_TOKEN on the server.");
+          "This workspace has no Bitbucket connection. An admin connects Bitbucket in Settings.");
     }
     String uri =
         String.format(

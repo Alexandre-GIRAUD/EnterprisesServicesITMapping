@@ -20,10 +20,10 @@ public class GitIntegrationStartupWarnings {
 
   public GitIntegrationStartupWarnings(
       GitHubIntegrationProperties github, BitbucketIntegrationProperties bitbucket) {
-    warningsFor(github.token(), bitbucket.token(), github.webhookSecret()).forEach(log::warn);
+    collectWarnings(github.token(), bitbucket.token(), github.webhookSecret()).forEach(log::warn);
   }
 
-  static List<String> warningsFor(
+  static List<String> collectWarnings(
       String gitHubToken, String bitbucketToken, String gitHubWebhookSecret) {
     List<String> warnings = new ArrayList<>();
     if (StringUtils.hasText(gitHubToken)) {

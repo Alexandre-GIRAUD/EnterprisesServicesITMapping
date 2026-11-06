@@ -20,6 +20,16 @@ export function GitHubWebhookSettings() {
       );
   }, []);
 
+  async function copyValue(label: string, value: string) {
+    setErrorMessage(null);
+    try {
+      await navigator.clipboard.writeText(value);
+      setSuccessMessage(`${label} copied.`);
+    } catch {
+      setErrorMessage(`Could not copy the ${label.toLowerCase()}: select it and copy it by hand.`);
+    }
+  }
+
   async function regenerateSecret() {
     setIsBusy(true);
     setErrorMessage(null);
@@ -34,22 +44,38 @@ export function GitHubWebhookSettings() {
     }
   }
 
+  const payloadUrl = settings ? window.location.origin + settings.path : '';
+
   return (
     <section className="admin-users-panel" aria-label="GitHub webhook">
       <h2>GitHub webhook</h2>
       <p className="admin-users-lead">
-        In each repository, add a webhook with this payload URL, content type application/json,
-        this secret and the push event.
+        In each repository, add a webhook with this payload URL, content type application/json, this
+        secret and the push event.
       </p>
       {settings ? (
         <dl className="admin-users-list">
           <dt>Payload URL</dt>
           <dd>
-            <code>{window.location.origin + settings.path}</code>
+            <code>{payloadUrl}</code>{' '}
+            <button
+              type="button"
+              className="github-import-text-button"
+              onClick={() => void copyValue('Payload URL', payloadUrl)}
+            >
+              Copy
+            </button>
           </dd>
           <dt>Secret</dt>
           <dd>
-            <code>{settings.secret}</code>
+            <code>{settings.secret}</code>{' '}
+            <button
+              type="button"
+              className="github-import-text-button"
+              onClick={() => void copyValue('Secret', settings.secret)}
+            >
+              Copy
+            </button>
           </dd>
         </dl>
       ) : null}

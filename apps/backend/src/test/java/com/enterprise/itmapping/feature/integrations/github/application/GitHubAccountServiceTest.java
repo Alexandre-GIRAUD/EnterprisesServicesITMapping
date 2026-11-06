@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.enterprise.itmapping.feature.auth.security.JwtProperties;
+import com.enterprise.itmapping.feature.integrations.WorkspaceCredentials;
 import com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace;
 import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceEntity;
 import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceRepository;
@@ -32,9 +33,9 @@ class GitHubAccountServiceTest {
     when(workspaces.findById(workspaceId)).thenReturn(Optional.of(workspace));
     service =
         new GitHubAccountService(
-            workspaces,
-            tokens,
-            new JwtProperties("test-jwt-secret-at-least-32-bytes-long", 86_400_000));
+            new WorkspaceCredentials(
+                workspaces, new JwtProperties("test-jwt-secret-at-least-32-bytes-long", 86_400_000)),
+            tokens);
   }
 
   @Test
@@ -51,7 +52,7 @@ class GitHubAccountServiceTest {
           assertThat(status.login()).isEqualTo("octocat");
           assertThat(service.accessToken()).isEqualTo("workspace-access-token");
         });
-    assertThat(workspace.getGithubToken()).isNotEqualTo("workspace-access-token");
+    assertThat(workspace.getGitHubToken()).isNotEqualTo("workspace-access-token");
   }
 
   @Test
@@ -77,8 +78,8 @@ class GitHubAccountServiceTest {
 
           assertThat(service.status().connected()).isFalse();
         });
-    assertThat(workspace.getGithubLogin()).isNull();
-    assertThat(workspace.getGithubToken()).isNull();
+    assertThat(workspace.getGitHubLogin()).isNull();
+    assertThat(workspace.getGitHubToken()).isNull();
   }
 
   @Test

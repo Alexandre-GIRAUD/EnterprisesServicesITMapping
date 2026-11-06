@@ -1,4 +1,4 @@
-package com.enterprise.itmapping.feature.integrations.github.application;
+package com.enterprise.itmapping.feature.integrations;
 
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -12,12 +12,12 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 /** AES-GCM for a stored access token. The key is the SHA-256 of the JWT secret. */
-public final class GitHubTokenCipher {
+public final class CredentialCipher {
 
   private static final int IV_LENGTH = 12;
   private static final int TAG_BITS = 128;
 
-  private GitHubTokenCipher() {}
+  private CredentialCipher() {}
 
   public static String encrypt(String plain, String keyMaterial) {
     try {
@@ -31,7 +31,7 @@ public final class GitHubTokenCipher {
       System.arraycopy(encrypted, 0, packed, iv.length, encrypted.length);
       return Base64.getEncoder().encodeToString(packed);
     } catch (GeneralSecurityException e) {
-      throw new IllegalStateException("GitHub token encryption failed.", e);
+      throw new IllegalStateException("Credential encryption failed.", e);
     }
   }
 
@@ -47,7 +47,7 @@ public final class GitHubTokenCipher {
       cipher.init(Cipher.DECRYPT_MODE, key(keyMaterial), new GCMParameterSpec(TAG_BITS, iv));
       return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
     } catch (GeneralSecurityException | IllegalArgumentException e) {
-      throw new IllegalStateException("GitHub token decryption failed.", e);
+      throw new IllegalStateException("Credential decryption failed.", e);
     }
   }
 

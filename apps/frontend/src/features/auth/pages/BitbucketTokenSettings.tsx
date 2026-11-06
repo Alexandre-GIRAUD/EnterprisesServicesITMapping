@@ -67,15 +67,9 @@ export function BitbucketTokenSettings() {
     }
   }
 
-  return (
-    <section className="admin-users-panel" aria-label="Bitbucket token">
-      <h2>Bitbucket</h2>
-      <p className="admin-users-lead">
-        {isAdmin
-          ? 'Paste a Bitbucket API token for the whole workspace. It is stored encrypted and is not shown again.'
-          : 'The workspace administrators manage this connection.'}
-      </p>
-      {connection?.connected ? (
+  function renderConnection() {
+    if (connection?.connected) {
+      return (
         <div className="github-import-account">
           <span>Connected as {connection.username} (workspace connection)</span>
           {isAdmin ? (
@@ -89,35 +83,51 @@ export function BitbucketTokenSettings() {
             </button>
           ) : null}
         </div>
-      ) : !isAdmin ? (
+      );
+    }
+    if (!isAdmin) {
+      return (
         <p className="admin-users-lead">
           Not connected. Ask an administrator to connect Bitbucket.
         </p>
-      ) : (
-        <form
-          className="github-import-token-form"
-          onSubmit={(event) => void saveWorkspaceToken(event)}
+      );
+    }
+    return (
+      <form
+        className="github-import-token-form"
+        onSubmit={(event) => void saveWorkspaceToken(event)}
+      >
+        <input
+          className="github-import-search-input"
+          type="password"
+          name="bitbucket-token"
+          autoComplete="off"
+          placeholder="Bitbucket token"
+          aria-label="Bitbucket token"
+          value={workspaceToken}
+          disabled={isConnecting}
+          onChange={(event) => setWorkspaceToken(event.target.value)}
+        />
+        <button
+          type="submit"
+          className="github-import-primary"
+          disabled={isConnecting || workspaceToken.trim().length === 0}
         >
-          <input
-            className="github-import-search-input"
-            type="password"
-            name="bitbucket-token"
-            autoComplete="off"
-            placeholder="Bitbucket token"
-            aria-label="Bitbucket token"
-            value={workspaceToken}
-            disabled={isConnecting}
-            onChange={(event) => setWorkspaceToken(event.target.value)}
-          />
-          <button
-            type="submit"
-            className="github-import-primary"
-            disabled={isConnecting || workspaceToken.trim().length === 0}
-          >
-            Save token
-          </button>
-        </form>
-      )}
+          Save token
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <section className="admin-users-panel" aria-label="Bitbucket token">
+      <h2>Bitbucket</h2>
+      <p className="admin-users-lead">
+        {isAdmin
+          ? 'Paste a Bitbucket API token for the whole workspace. It is stored encrypted and is not shown again.'
+          : 'The workspace administrators manage this connection.'}
+      </p>
+      {renderConnection()}
       {errorMessage ? (
         <p className="github-import-state github-import-state-error" role="alert">
           {errorMessage}

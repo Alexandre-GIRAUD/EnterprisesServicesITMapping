@@ -1,6 +1,5 @@
 package com.enterprise.itmapping.feature.integrations.bitbucket.presentation;
 
-import com.enterprise.itmapping.feature.auth.application.CurrentUserResolver;
 import com.enterprise.itmapping.feature.integrations.bitbucket.application.BitbucketAccountService;
 import com.enterprise.itmapping.feature.integrations.bitbucket.application.BitbucketConnectionStatus;
 import com.enterprise.itmapping.feature.integrations.bitbucket.application.BitbucketReposService;
@@ -24,13 +23,11 @@ public class BitbucketIntegrationController {
 
   private final BitbucketReposService repos;
   private final BitbucketAccountService accounts;
-  private final CurrentUserResolver currentUser;
 
   public BitbucketIntegrationController(
-      BitbucketReposService repos, BitbucketAccountService accounts, CurrentUserResolver currentUser) {
+      BitbucketReposService repos, BitbucketAccountService accounts) {
     this.repos = repos;
     this.accounts = accounts;
-    this.currentUser = currentUser;
   }
 
   @GetMapping("/connection")

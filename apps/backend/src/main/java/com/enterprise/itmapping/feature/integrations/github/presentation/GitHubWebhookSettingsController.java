@@ -27,15 +27,15 @@ public class GitHubWebhookSettingsController {
 
   @GetMapping
   public WebhookSettings getWebhookSettings() {
-    return new WebhookSettings(workspaceWebhookPath(), webhookSecrets.currentSecret());
+    return new WebhookSettings(buildWorkspaceWebhookPath(), webhookSecrets.getOrCreateCurrentSecret());
   }
 
   @PostMapping("/secret")
   public WebhookSettings regenerateSecret() {
-    return new WebhookSettings(workspaceWebhookPath(), webhookSecrets.regenerate());
+    return new WebhookSettings(buildWorkspaceWebhookPath(), webhookSecrets.regenerate());
   }
 
-  private String workspaceWebhookPath() {
+  private String buildWorkspaceWebhookPath() {
     return contextPath + GitHubWebhookController.WEBHOOK_PATH + "/" + CurrentWorkspace.requireId();
   }
 
