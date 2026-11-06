@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -17,8 +18,12 @@ import com.enterprise.itmapping.feature.integrations.github.GitHubApiClient;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubIdentity;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubTokenClient;
 import com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace;
+import java.nio.charset.StandardCharsets;
+import java.util.HexFormat;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +51,9 @@ class WorkspaceGitConnectionsIntegrationTest {
 
   private static final String GITHUB_TOKEN_OF_A = "example-github-token-a";
   private static final String BITBUCKET_TOKEN_OF_A = "example-bitbucket-token-a";
+  private static final byte[] PUSH =
+      "{\"ref\":\"refs/heads/main\",\"repository\":{\"full_name\":\"acme/demo\"},\"after\":\"abc123def456\"}"
+          .getBytes(StandardCharsets.UTF_8);
 
   @Container
   static PostgreSQLContainer<?> postgres =
@@ -143,6 +151,78 @@ class WorkspaceGitConnectionsIntegrationTest {
 
     readConnection("github", workspaceA.member()).andExpect(jsonPath("$.connected").value(false));
     assertThat(gitHubTokenIn(workspaceA)).isEmpty();
+  }
+
+  @Test
+  void eachWorkspaceReceivesPushesOnItsOwnSignedUrl() throws Exception {
+    String secretOfA = readWebhookSecret(workspaceA);
+    String secretOfB = readWebhookSecret(workspaceB);
+    assertThat(secretOfA).isNotBlank().isNotEqualTo(secretOfB).isEqualTo(readWebhookSecret(workspaceA));
+
+    pushTo(workspaceA.id(), secretOfA).andExpect(status().isAccepted());
+    pushTo(workspaceB.id(), secretOfA).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void regeneratingTheSecretRetiresTheOldOne() throws Exception {
+    String oldSecret = readWebhookSecret(workspaceA);
+
+    String newSecret =
+        mockMvc
+            .perform(post("/integrations/github/webhook/secret").with(workspaceA.admin()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString()
+            .replaceAll(".*\"secret\":\"([^\"]+)\".*", "$1");
+
+    assertThat(newSecret).isNotEqualTo(oldSecret);
+    pushTo(workspaceA.id(), oldSecret).andExpect(status().isUnauthorized());
+    pushTo(workspaceA.id(), newSecret).andExpect(status().isAccepted());
+  }
+
+  @Test
+  void onlyAdminsSeeTheWebhookSecret() throws Exception {
+    mockMvc
+        .perform(get("/integrations/github/webhook").with(workspaceA.member()))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void theLegacyWebhookUrlIsGoneWithoutTheGlobalSecret() throws Exception {
+    mockMvc
+        .perform(
+            post("/webhooks/github")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-GitHub-Event", "push")
+                .content(PUSH))
+        .andExpect(status().isNotFound());
+  }
+
+  private String readWebhookSecret(Workspace workspace) throws Exception {
+    return mockMvc
+        .perform(get("/integrations/github/webhook").with(workspace.admin()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.path").value("/api/webhooks/github/" + workspace.id()))
+        .andReturn()
+        .getResponse()
+        .getContentAsString()
+        .replaceAll(".*\"secret\":\"([^\"]+)\".*", "$1");
+  }
+
+  private ResultActions pushTo(UUID workspaceId, String secret) throws Exception {
+    return mockMvc.perform(
+        post("/webhooks/github/" + workspaceId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .header("X-GitHub-Event", "push")
+            .header("X-Hub-Signature-256", "sha256=" + hmacSha256(secret, PUSH))
+            .content(PUSH));
+  }
+
+  private static String hmacSha256(String secret, byte[] body) throws Exception {
+    Mac mac = Mac.getInstance("HmacSHA256");
+    mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+    return HexFormat.of().formatHex(mac.doFinal(body));
   }
 
   @Test
