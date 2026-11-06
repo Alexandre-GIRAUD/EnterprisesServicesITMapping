@@ -57,6 +57,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers(antMatcher(HttpMethod.POST, "/auth/resend-verification"))
                     .permitAll()
+                    .requestMatchers(antMatcher(HttpMethod.POST, "/auth/confirm-email-change"))
+                    .permitAll()
                     .requestMatchers(antMatcher(HttpMethod.POST, "/auth/accept-invitation"))
                     .permitAll()
                     .requestMatchers(antMatcher(HttpMethod.POST, "/auth/forgot-password"))
