@@ -10,6 +10,7 @@ import { AuthProvider } from '@/features/auth/context/AuthContext';
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { AcceptInvitationPage } from '@/features/auth/pages/AcceptInvitationPage';
+import { ConfirmEmailPage } from '@/features/auth/pages/ConfirmEmailPage';
 import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage';
 import { SignupPage } from '@/features/auth/pages/SignupPage';
@@ -29,6 +30,7 @@ function App() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+        <Route path="/confirm-email" element={<ConfirmEmailPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<ProtectedRoute />}>

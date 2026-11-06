@@ -1,6 +1,7 @@
 import { useAuth } from '@/features/auth/context/AuthContext';
 import { AdminUsersPage } from '@/features/auth/pages/AdminUsersPage';
 import { BitbucketTokenSettings } from '@/features/auth/pages/BitbucketTokenSettings';
+import { EmailSettings } from '@/features/auth/pages/EmailSettings';
 import { GitHubTokenSettings } from '@/features/auth/pages/GitHubTokenSettings';
 import { JiraTokenSettings } from '@/features/auth/pages/JiraTokenSettings';
 
@@ -12,6 +13,7 @@ export function SettingsPage() {
       <div className="admin-users-header">
         <h1>Settings</h1>
       </div>
+      <EmailSettings />
       <GitHubTokenSettings />
       <BitbucketTokenSettings />
       <JiraTokenSettings />
