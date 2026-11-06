@@ -31,6 +31,10 @@ public class WorkspaceEntity {
   @Column(name = "bitbucket_token")
   private String bitbucketToken;
 
+  /** AES-GCM ciphertext of the secret GitHub signs this workspace's webhook deliveries with. */
+  @Column(name = "github_webhook_secret")
+  private String githubWebhookSecret;
+
   protected WorkspaceEntity() {}
 
   public WorkspaceEntity(UUID id, String name) {
@@ -66,6 +70,14 @@ public class WorkspaceEntity {
 
   public String getBitbucketToken() {
     return bitbucketToken;
+  }
+
+  public String getGithubWebhookSecret() {
+    return githubWebhookSecret;
+  }
+
+  public void setGithubWebhookSecret(String encryptedSecret) {
+    this.githubWebhookSecret = encryptedSecret;
   }
 
   /** Both null to disconnect. */

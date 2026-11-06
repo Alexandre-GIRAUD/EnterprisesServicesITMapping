@@ -1,6 +1,7 @@
 package com.enterprise.itmapping.feature.integrations;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -203,7 +204,8 @@ class WorkspaceGitConnectionsIntegrationTest {
     return mockMvc
         .perform(get("/integrations/github/webhook").with(workspace.admin()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.path").value("/api/webhooks/github/" + workspace.id()))
+        // The test configuration has no /api context path; production prefixes it.
+        .andExpect(jsonPath("$.path").value(endsWith("/webhooks/github/" + workspace.id())))
         .andReturn()
         .getResponse()
         .getContentAsString()
