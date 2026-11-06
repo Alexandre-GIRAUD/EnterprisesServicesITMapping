@@ -143,7 +143,12 @@ function LayoutShell() {
               <HelpMenu />
               <SettingsMenu />
               <div className="sidebar-account">
-                <SidebarProfile username={user.username} roles={user.roles} onSignOut={signOut} />
+                <SidebarProfile
+                  username={user.username}
+                  roles={user.roles}
+                  workspaceName={user.workspaceName}
+                  onSignOut={signOut}
+                />
                 <ThemeToggle theme={theme} onToggle={() => setTheme((current) => toggledColorTheme(current))} />
               </div>
             </div>

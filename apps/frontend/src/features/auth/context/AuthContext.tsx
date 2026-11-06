@@ -10,18 +10,19 @@ import {
   clearSession,
   getStoredRoles,
   getStoredUsername,
+  getStoredWorkspaceName,
   getToken,
   setSession,
   type LoginResponseDto,
 } from '@/config/api';
 
-type AuthUser = { username: string; roles: string[] };
+type AuthUser = { username: string; roles: string[]; workspaceName: string };
 
 function readUserFromStorage(): AuthUser | null {
   const t = getToken();
   const u = getStoredUsername();
   if (!t || !u) return null;
-  return { username: u, roles: getStoredRoles() };
+  return { username: u, roles: getStoredRoles(), workspaceName: getStoredWorkspaceName() };
 }
 
 type AuthContextValue = {
@@ -38,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback((dto: LoginResponseDto) => {
     setSession(dto);
-    setUser({ username: dto.username, roles: dto.roles });
+    setUser({ username: dto.username, roles: dto.roles, workspaceName: dto.workspaceName });
   }, []);
 
   const logout = useCallback(() => {

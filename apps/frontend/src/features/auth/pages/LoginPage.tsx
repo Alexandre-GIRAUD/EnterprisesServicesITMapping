@@ -1,9 +1,13 @@
-import { FormEvent, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import flowraLogo from '@/assets/flowra.svg';
-import { FLOWRA_HEADLINE_LINES, FLOWRA_LEAD, FLOWRA_MODES } from '@/features/about/flowraIntro';
+import { FormEvent, useEffect, useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/context/AuthContext';
-import { loginRequest } from '@/features/auth/api/authApi';
+import {
+  EmailNotVerifiedError,
+  fetchPublicConfig,
+  loginRequest,
+} from '@/features/auth/api/authApi';
+import { AuthLayout } from '@/features/auth/components/AuthLayout';
+import { CheckInbox } from '@/features/auth/components/CheckInbox';
 
 export function LoginPage() {
   const { user, login } = useAuth();
@@ -15,6 +19,14 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [signupEnabled, setSignupEnabled] = useState(false);
+
+  useEffect(() => {
+    fetchPublicConfig()
+      .then((config) => setSignupEnabled(config.signupEnabled))
+      .catch(() => setSignupEnabled(false));
+  }, []);
 
   if (user) {
     return <Navigate to={from} replace />;
@@ -29,73 +41,69 @@ export function LoginPage() {
       login(dto);
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed.');
+      if (err instanceof EmailNotVerifiedError) {
+        setUnverifiedEmail(username.trim());
+      } else {
+        setError(err instanceof Error ? err.message : 'Login failed.');
+      }
     } finally {
       setBusy(false);
     }
   }
 
-  return (
-    <div className="auth-page">
-      <div className="auth-split">
-        <section className="auth-story">
-          <header className="auth-brand">
-            <img src={flowraLogo} alt="" className="auth-brand-logo" aria-hidden />
-            <h1 className="auth-brand-title">Flowra</h1>
-          </header>
-          <h2>
-            {FLOWRA_HEADLINE_LINES.map((line) => (
-              <span key={line} className="auth-story-line">{line}</span>
-            ))}
-          </h2>
-          <p className="auth-story-lead">{FLOWRA_LEAD}</p>
-          <ul className="auth-story-modes">
-            {FLOWRA_MODES.map((mode) => (
-              <li key={mode.title}>
-                <strong>{mode.title}</strong>
-                <p>{mode.text}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
+  if (unverifiedEmail) {
+    return (
+      <AuthLayout>
+        <CheckInbox email={unverifiedEmail} />
+      </AuthLayout>
+    );
+  }
 
-        <div className="auth-card">
-          <h2 className="auth-section-title">Sign in</h2>
-          <p className="auth-subtitle">Access the application map</p>
-          <form className="auth-form" onSubmit={onSubmit}>
-            <label className="auth-label">
-              Username
-              <input
-                className="auth-input"
-                autoComplete="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
-            </label>
-            <label className="auth-label">
-              Password
-              <input
-                className="auth-input"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </label>
-            {error ? (
-              <p className="auth-error" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <button type="submit" className="auth-submit" disabled={busy}>
-              {busy ? 'Signing in…' : 'Sign in'}
-            </button>
-          </form>
-          <p className="auth-footnote">Accounts are created by an administrator.</p>
-        </div>
-      </div>
-    </div>
+  return (
+    <AuthLayout>
+      <h2 className="auth-section-title">Sign in</h2>
+      <p className="auth-subtitle">Access the application map</p>
+      <form className="auth-form" onSubmit={onSubmit}>
+        <label className="auth-label">
+          Email or username
+          <input
+            className="auth-input"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
+        </label>
+        <label className="auth-label">
+          Password
+          <input
+            className="auth-input"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </label>
+        {error ? (
+          <p className="auth-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <button type="submit" className="auth-submit" disabled={busy}>
+          {busy ? 'Signing in…' : 'Sign in'}
+        </button>
+      </form>
+      {signupEnabled ? (
+        <p className="auth-footnote">
+          New to Flowra?{' '}
+          <Link className="auth-link" to="/signup">
+            Create a workspace
+          </Link>
+        </p>
+      ) : (
+        <p className="auth-footnote">Accounts are created by an administrator.</p>
+      )}
+    </AuthLayout>
   );
 }
