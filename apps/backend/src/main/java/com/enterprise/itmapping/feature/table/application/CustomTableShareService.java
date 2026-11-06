@@ -85,7 +85,7 @@ public class CustomTableShareService {
     }
     UserEntity recipient =
         userRepository
-            .findByUsernameIgnoreCase(rawUsername.trim())
+            .findByUsernameIgnoreCaseAndWorkspaceId(rawUsername.trim(), sender.getWorkspaceId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, USER_NOT_FOUND));
     if (recipient.getId().equals(sender.getId())) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, CANNOT_SHARE_WITH_YOURSELF);
