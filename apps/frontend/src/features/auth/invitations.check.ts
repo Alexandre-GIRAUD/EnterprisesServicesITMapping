@@ -23,7 +23,7 @@ assert.match(panel, /Resend/);
 assert.match(panel, /Cancel/);
 assert.match(panel, /EXPIRED/);
 
-assert.match(accept, /searchParams\.get\('token'\)/);
+assert.match(accept, /searchParams\.get\(TOKEN_SEARCH_PARAM\)/);
 assert.match(accept, /acceptInvitationRequest/);
 assert.match(accept, /Join your workspace/);
 

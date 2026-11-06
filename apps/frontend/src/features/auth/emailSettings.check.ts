@@ -21,7 +21,7 @@ assert.match(panel, /aria-label="Email"/);
 assert.match(panel, /Check your inbox/);
 assert.match(panel, /requestEmailChange/);
 
-assert.match(confirm, /searchParams\.get\('token'\)/);
+assert.match(confirm, /searchParams\.get\(TOKEN_SEARCH_PARAM\)/);
 assert.match(confirm, /confirmEmailChangeRequest/);
 
 assert.match(api, /\/api\/account/);

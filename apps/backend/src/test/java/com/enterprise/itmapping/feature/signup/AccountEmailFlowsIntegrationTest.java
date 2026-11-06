@@ -285,7 +285,7 @@ class AccountEmailFlowsIntegrationTest {
     mockMvc
         .perform(
             json(post("/admin/invitations"), "{\"email\":\"%s\",\"role\":\"USER\"}".formatted(uniqueEmail()))
-                .with(user(member).roles("USER")))
+                .with(signedInAs(member, "USER")))
         .andExpect(status().isForbidden());
   }
 
@@ -303,9 +303,30 @@ class AccountEmailFlowsIntegrationTest {
     logIn(newEmail, OLD_PASSWORD).andExpect(status().isOk());
     logIn(oldEmail, OLD_PASSWORD).andExpect(status().isUnauthorized());
     mockMvc
-        .perform(get("/account").with(user(newEmail)))
+        .perform(get("/account").with(signedInAs(newEmail, "USER")))
         .andExpect(jsonPath("$.email").value(newEmail));
     confirmEmailChange(token).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void aSessionStaysWithItsAccountWhenTheOldAddressIsTakenAgain() throws Exception {
+    String oldEmail = createActiveUser();
+    String newEmail = uniqueEmail();
+    String session = sessionTokenOf(logIn(oldEmail, OLD_PASSWORD));
+    requestEmailChange(oldEmail, newEmail).andExpect(status().isAccepted());
+    confirmEmailChange(tokenFrom(sentEmail(newEmail), "/confirm-email")).andExpect(status().isOk());
+    jdbcTemplate.update(
+        "INSERT INTO users (id, username, email, password_hash, role, status, workspace_id)"
+            + " VALUES (?, ?, ?, 'x', 'ADMIN', 'ACTIVE', ?)",
+        UUID.randomUUID(),
+        oldEmail,
+        oldEmail,
+        Workspaces.DEFAULT_ID);
+
+    mockMvc
+        .perform(get("/account").header("Authorization", "Bearer " + session))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email").value(newEmail));
   }
 
   @Test
@@ -326,7 +347,7 @@ class AccountEmailFlowsIntegrationTest {
         .andExpect(jsonPath("$.username").value(username));
 
     mockMvc
-        .perform(get("/account").with(user(username)))
+        .perform(get("/account").with(signedInAs(username, "USER")))
         .andExpect(jsonPath("$.email").value(email));
   }
 
@@ -338,10 +359,17 @@ class AccountEmailFlowsIntegrationTest {
     verify(accountMailer, never()).send(anyString(), any(AccountEmail.class));
   }
 
+  private static String sessionTokenOf(ResultActions login) throws Exception {
+    String body = login.andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+    Matcher token = Pattern.compile("\"token\":\"([^\"]+)\"").matcher(body);
+    assertThat(token.find()).isTrue();
+    return token.group(1);
+  }
+
   private ResultActions requestEmailChange(String username, String newEmail) throws Exception {
     return mockMvc.perform(
         json(post("/account/email"), "{\"email\":\"%s\"}".formatted(newEmail))
-            .with(user(username)));
+            .with(signedInAs(username, "USER")));
   }
 
   private ResultActions confirmEmailChange(String token) throws Exception {
@@ -363,8 +391,15 @@ class AccountEmailFlowsIntegrationTest {
     return new Admin(email, workspaceId);
   }
 
-  private static RequestPostProcessor asAdmin(Admin admin) {
-    return user(admin.username()).roles("ADMIN");
+  private RequestPostProcessor asAdmin(Admin admin) {
+    return signedInAs(admin.username(), "ADMIN");
+  }
+
+  /** Sessions name the user id, as the JWT subject does. */
+  private RequestPostProcessor signedInAs(String username, String role) {
+    UUID id =
+        jdbcTemplate.queryForObject("SELECT id FROM users WHERE username = ?", UUID.class, username);
+    return user(id.toString()).roles(role);
   }
 
   private ResultActions invite(Admin admin, String email, String role) throws Exception {

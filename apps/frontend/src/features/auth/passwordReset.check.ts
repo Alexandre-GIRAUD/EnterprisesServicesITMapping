@@ -24,7 +24,7 @@ assert.match(forgot, /Reset your password/);
 assert.match(forgot, /forgotPasswordRequest/);
 assert.match(forgot, /If an account uses this email/);
 
-assert.match(reset, /searchParams\.get\('token'\)/);
+assert.match(reset, /searchParams\.get\(TOKEN_SEARCH_PARAM\)/);
 assert.match(reset, /resetPasswordRequest/);
 assert.match(reset, /MIN_PASSWORD_LENGTH/);
 

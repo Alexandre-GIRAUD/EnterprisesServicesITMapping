@@ -34,7 +34,7 @@ class WorkspaceBindingFilterTest {
     UserEntity alice = new UserEntity();
     alice.setUsername("alice");
     alice.setWorkspaceId(workspaceId);
-    when(userRepository.findByUsernameIgnoreCase("alice")).thenReturn(Optional.of(alice));
+    when(userRepository.findBySessionSubject("alice")).thenReturn(Optional.of(alice));
     SecurityContextHolder.getContext()
         .setAuthentication(new UsernamePasswordAuthenticationToken("alice", null, List.of()));
     AtomicReference<Optional<UUID>> seenInChain = new AtomicReference<>();
