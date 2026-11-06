@@ -4,16 +4,14 @@
  * `?asOf=YYYY-MM-DD` shows Production as it stood that day, read-only.
  */
 import { useLayoutEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { setViewingDay } from '@/config/api';
-import { SourceMappingAlert } from '@/features/sources/components/SourceMappingAlert';
 import { GraphCanvas } from '../components/GraphCanvas';
 
 const AS_OF_PARAM = 'asOf';
 
 export function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const viewingDay = searchParams.get(AS_OF_PARAM);
 
   // Layout effect: runs before the remounted canvas starts fetching.
@@ -32,9 +30,6 @@ export function MapPage() {
 
   return (
     <div className="map-page">
-      <SourceMappingAlert
-        onOpenMapping={(sourceId) => navigate(`/map/import-github?tab=data-sources&mapping=${sourceId}`)}
-      />
       <GraphCanvas
         key={viewingDay ?? 'live'}
         viewingDay={viewingDay}
