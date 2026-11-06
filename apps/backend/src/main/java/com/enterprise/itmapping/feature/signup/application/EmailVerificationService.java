@@ -17,14 +17,14 @@ public class EmailVerificationService {
 
   private static final int RESENDS_PER_EMAIL_PER_HOUR = 3;
 
-  private final VerificationTokens tokens;
+  private final AccountTokens tokens;
   private final VerificationLinks verificationLinks;
   private final UserRepository userRepository;
   private final AuthService authService;
   private final SlidingWindowLimiter resendsPerEmail;
 
   public EmailVerificationService(
-      VerificationTokens tokens,
+      AccountTokens tokens,
       VerificationLinks verificationLinks,
       UserRepository userRepository,
       AuthService authService,

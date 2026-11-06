@@ -1,8 +1,8 @@
 package com.enterprise.itmapping.feature.signup.application;
 
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
-import com.enterprise.itmapping.feature.signup.infrastructure.persistence.EmailVerificationTokenEntity;
-import com.enterprise.itmapping.feature.signup.infrastructure.persistence.EmailVerificationTokenRepository;
+import com.enterprise.itmapping.feature.signup.infrastructure.persistence.AccountTokenEntity;
+import com.enterprise.itmapping.feature.signup.infrastructure.persistence.AccountTokenRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -17,17 +17,17 @@ import org.springframework.stereotype.Component;
 
 /** Issues and redeems single-use email verification tokens. */
 @Component
-public class VerificationTokens {
+public class AccountTokens {
 
   private static final int TOKEN_BYTES = 32;
   private static final String HASH_ALGORITHM = "SHA-256";
   static final Duration VALIDITY = Duration.ofHours(24);
 
-  private final EmailVerificationTokenRepository repository;
+  private final AccountTokenRepository repository;
   private final Clock clock;
   private final SecureRandom random = new SecureRandom();
 
-  public VerificationTokens(EmailVerificationTokenRepository repository, Clock clock) {
+  public AccountTokens(AccountTokenRepository repository, Clock clock) {
     this.repository = repository;
     this.clock = clock;
   }
@@ -38,7 +38,7 @@ public class VerificationTokens {
     random.nextBytes(bytes);
     String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     Instant now = clock.instant();
-    repository.save(new EmailVerificationTokenEntity(user, hash(token), now, now.plus(VALIDITY)));
+    repository.save(new AccountTokenEntity(user, hash(token), now, now.plus(VALIDITY)));
     return token;
   }
 
@@ -51,7 +51,7 @@ public class VerificationTokens {
     if (repository.spendIfUsable(tokenHash, clock.instant()) == 0) {
       return Optional.empty();
     }
-    return repository.findByTokenHash(tokenHash).map(EmailVerificationTokenEntity::getUser);
+    return repository.findByTokenHash(tokenHash).map(AccountTokenEntity::getUser);
   }
 
   public static String hash(String token) {

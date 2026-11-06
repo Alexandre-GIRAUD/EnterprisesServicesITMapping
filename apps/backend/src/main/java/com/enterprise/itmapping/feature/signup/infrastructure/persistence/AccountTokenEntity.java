@@ -13,8 +13,8 @@ import java.util.UUID;
 
 /** One emailed verification link. Only the SHA-256 of the token is stored. */
 @Entity
-@Table(name = "email_verification_tokens")
-public class EmailVerificationTokenEntity {
+@Table(name = "account_tokens")
+public class AccountTokenEntity {
 
   @Id
   @Column(nullable = false, updatable = false)
@@ -36,9 +36,9 @@ public class EmailVerificationTokenEntity {
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
-  protected EmailVerificationTokenEntity() {}
+  protected AccountTokenEntity() {}
 
-  public EmailVerificationTokenEntity(
+  public AccountTokenEntity(
       UserEntity user, String tokenHash, Instant createdAt, Instant expiresAt) {
     this.id = UUID.randomUUID();
     this.user = user;

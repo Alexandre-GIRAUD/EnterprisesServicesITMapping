@@ -11,9 +11,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.enterprise.itmapping.feature.signup.application.AccountMailer;
+import com.enterprise.itmapping.feature.signup.application.AccountTokens;
 import com.enterprise.itmapping.feature.signup.application.PendingAccountPurge;
-import com.enterprise.itmapping.feature.signup.application.VerificationMailer;
-import com.enterprise.itmapping.feature.signup.application.VerificationTokens;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -80,7 +80,7 @@ class SignupFlowIntegrationTest {
   @Autowired MockMvc mockMvc;
   @Autowired JdbcTemplate jdbcTemplate;
   @Autowired PendingAccountPurge pendingAccountPurge;
-  @MockBean VerificationMailer verificationMailer;
+  @MockBean AccountMailer verificationMailer;
 
   @BeforeEach
   void forgetSentMail() {
@@ -170,9 +170,9 @@ class SignupFlowIntegrationTest {
     signUp(email, "Late", nextAddress()).andExpect(status().isAccepted());
     String token = tokenFromLink(sentLink(email));
     jdbcTemplate.update(
-        "UPDATE email_verification_tokens SET expires_at = ? WHERE token_hash = ?",
+        "UPDATE account_tokens SET expires_at = ? WHERE token_hash = ?",
         Timestamp.from(Instant.now().minus(1, ChronoUnit.MINUTES)),
-        VerificationTokens.hash(token));
+        AccountTokens.hash(token));
 
     mockMvc
         .perform(json(post("/auth/verify-email"), "{\"token\":\"" + token + "\"}"))

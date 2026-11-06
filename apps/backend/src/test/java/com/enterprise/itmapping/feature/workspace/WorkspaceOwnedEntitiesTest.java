@@ -17,7 +17,7 @@ import org.springframework.core.type.filter.AnnotationTypeFilter;
 class WorkspaceOwnedEntitiesTest {
 
   /** Tables read before any workspace is known: sign-in, signup and the workspace list. */
-  private static final Set<String> GLOBAL_ENTITIES = Set.of("UserEntity", "WorkspaceEntity", "EmailVerificationTokenEntity");
+  private static final Set<String> GLOBAL_ENTITIES = Set.of("UserEntity", "WorkspaceEntity", "AccountTokenEntity");
 
   @Test
   void everyEntityExceptUsersAndWorkspacesHasATenantId() throws Exception {

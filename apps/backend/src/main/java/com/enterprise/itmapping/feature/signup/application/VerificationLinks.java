@@ -12,12 +12,12 @@ public class VerificationLinks {
   /** Read by the frontend /verify-email page. */
   private static final String TOKEN_PARAMETER = "token";
 
-  private final VerificationTokens tokens;
-  private final VerificationMailer mailer;
+  private final AccountTokens tokens;
+  private final AccountMailer mailer;
   private final SignupProperties signupProperties;
 
   public VerificationLinks(
-      VerificationTokens tokens, VerificationMailer mailer, SignupProperties signupProperties) {
+      AccountTokens tokens, AccountMailer mailer, SignupProperties signupProperties) {
     this.tokens = tokens;
     this.mailer = mailer;
     this.signupProperties = signupProperties;

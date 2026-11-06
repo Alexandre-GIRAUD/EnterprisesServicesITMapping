@@ -13,7 +13,7 @@ import org.springframework.web.util.HtmlUtils;
 
 /** Sends the English verification email, as plain text and HTML. */
 @Component
-public class VerificationMailer {
+public class AccountMailer {
 
   private static final String SUBJECT = "Confirm your email address";
   private static final String TEXT_BODY =
@@ -39,7 +39,7 @@ public class VerificationMailer {
   private final ObjectProvider<JavaMailSender> mailSender;
   private final String from;
 
-  public VerificationMailer(
+  public AccountMailer(
       ObjectProvider<JavaMailSender> mailSender,
       @Value("${app.signup.mail-from:Flowra <no-reply@localhost>}") String from) {
     this.mailSender = mailSender;
@@ -55,7 +55,7 @@ public class VerificationMailer {
       helper.setFrom(from);
       helper.setTo(email);
       helper.setSubject(SUBJECT);
-      long validHours = VerificationTokens.VALIDITY.toHours();
+      long validHours = AccountTokens.VALIDITY.toHours();
       helper.setText(
           TEXT_BODY.formatted(link, validHours),
           HTML_BODY.formatted(HtmlUtils.htmlEscape(link), validHours));
