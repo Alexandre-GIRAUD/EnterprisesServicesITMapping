@@ -1,7 +1,13 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/features/auth/context/AuthContext';
-import { createUserRequest, listUsersRequest, type UserSummaryDto } from '@/features/auth/api/authApi';
+import {
+  createUserRequest,
+  fetchPublicConfig,
+  listUsersRequest,
+  type UserSummaryDto,
+} from '@/features/auth/api/authApi';
+import { InvitationsPanel } from '@/features/auth/components/InvitationsPanel';
 
 export function AdminUsersPage({
   heading = 'Users',
@@ -18,6 +24,13 @@ export function AdminUsersPage({
   const [createBusy, setCreateBusy] = useState(false);
   const [createMessage, setCreateMessage] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [isMailEnabled, setIsMailEnabled] = useState(false);
+
+  useEffect(() => {
+    fetchPublicConfig()
+      .then((config) => setIsMailEnabled(config.mailEnabled))
+      .catch(() => setIsMailEnabled(false));
+  }, []);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -70,6 +83,7 @@ export function AdminUsersPage({
 
   const accountPanels = (
     <>
+      {isMailEnabled ? <InvitationsPanel /> : null}
       <section className="admin-users-panel">
         <h2>New user</h2>
         <form className="auth-form" onSubmit={onCreate}>
