@@ -46,7 +46,7 @@ public class WorkspaceBindingFilter extends OncePerRequestFilter {
       return Optional.empty();
     }
     return userRepository
-        .findByUsernameIgnoreCase(authentication.getName())
+        .findBySessionSubject(authentication.getName())
         .map(UserEntity::getWorkspaceId);
   }
 }

@@ -49,8 +49,7 @@ public class SignupService {
           HttpStatus.TOO_MANY_REQUESTS, "Too many signups from this address. Try again in an hour.");
     }
     String email = normalizeEmail(request.email());
-    if (userRepository.existsByEmailIgnoreCase(email)
-        || userRepository.existsByUsernameIgnoreCase(email)) {
+    if (userRepository.existsAccountFor(email)) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "An account already uses this email. Sign in instead.");
     }

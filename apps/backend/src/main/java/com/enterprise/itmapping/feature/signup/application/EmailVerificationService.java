@@ -5,6 +5,8 @@ import com.enterprise.itmapping.feature.auth.domain.UserStatus;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
 import com.enterprise.itmapping.feature.auth.presentation.dto.LoginResponse;
+import com.enterprise.itmapping.feature.signup.domain.TokenPurpose;
+import com.enterprise.itmapping.feature.signup.infrastructure.persistence.AccountTokenEntity;
 import java.time.Clock;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -17,14 +19,14 @@ public class EmailVerificationService {
 
   private static final int RESENDS_PER_EMAIL_PER_HOUR = 3;
 
-  private final VerificationTokens tokens;
+  private final AccountTokens tokens;
   private final VerificationLinks verificationLinks;
   private final UserRepository userRepository;
   private final AuthService authService;
   private final SlidingWindowLimiter resendsPerEmail;
 
   public EmailVerificationService(
-      VerificationTokens tokens,
+      AccountTokens tokens,
       VerificationLinks verificationLinks,
       UserRepository userRepository,
       AuthService authService,
@@ -41,7 +43,8 @@ public class EmailVerificationService {
   public LoginResponse verify(String token) {
     UserEntity user =
         tokens
-            .redeem(token)
+            .redeem(token, TokenPurpose.VERIFY_EMAIL)
+            .map(AccountTokenEntity::getUser)
             .orElseThrow(
                 () ->
                     new ResponseStatusException(

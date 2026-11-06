@@ -37,7 +37,7 @@ class GitHubApiClientTokenTest {
   void connectedUserTokenReplacesTheServerToken() {
     UserEntity user = new UserEntity();
     user.setUsername("alex");
-    when(users.findByUsernameIgnoreCase("alex")).thenReturn(Optional.of(user));
+    when(users.findBySessionSubject("alex")).thenReturn(Optional.of(user));
     when(accounts.accessToken(user)).thenReturn("user-token");
     SecurityContextHolder.getContext()
         .setAuthentication(new UsernamePasswordAuthenticationToken("alex", "n/a", List.of()));
@@ -49,7 +49,7 @@ class GitHubApiClientTokenTest {
   void signedInUserWithoutAConnectionUsesTheServerToken() {
     UserEntity user = new UserEntity();
     user.setUsername("alex");
-    when(users.findByUsernameIgnoreCase("alex")).thenReturn(Optional.of(user));
+    when(users.findBySessionSubject("alex")).thenReturn(Optional.of(user));
     when(accounts.accessToken(user)).thenReturn("");
     SecurityContextHolder.getContext()
         .setAuthentication(new UsernamePasswordAuthenticationToken("alex", "n/a", List.of()));

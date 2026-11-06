@@ -28,7 +28,7 @@ assert.match(signup, /Create your workspace/);
 assert.match(signup, /workspaceName/);
 assert.match(signup, /<CheckInbox/);
 
-assert.match(verify, /searchParams\.get\('token'\)/);
+assert.match(verify, /searchParams\.get\(TOKEN_SEARCH_PARAM\)/);
 assert.match(verify, /verifyEmailRequest/);
 
 assert.match(inbox, /Check your inbox/);

@@ -1,8 +1,11 @@
 package com.enterprise.itmapping.feature.signup.infrastructure.persistence;
 
 import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
+import com.enterprise.itmapping.feature.signup.domain.TokenPurpose;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -11,10 +14,10 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
 
-/** One emailed verification link. Only the SHA-256 of the token is stored. */
+/** One emailed account link. Only the SHA-256 of the token is stored. */
 @Entity
-@Table(name = "email_verification_tokens")
-public class EmailVerificationTokenEntity {
+@Table(name = "account_tokens")
+public class AccountTokenEntity {
 
   @Id
   @Column(nullable = false, updatable = false)
@@ -23,6 +26,14 @@ public class EmailVerificationTokenEntity {
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "user_id", nullable = false, updatable = false)
   private UserEntity user;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, updatable = false, length = 32)
+  private TokenPurpose purpose;
+
+  /** The address to confirm, for {@link TokenPurpose#CHANGE_EMAIL} only. */
+  @Column(name = "new_email", updatable = false)
+  private String newEmail;
 
   @Column(name = "token_hash", nullable = false, updatable = false)
   private String tokenHash;
@@ -36,18 +47,28 @@ public class EmailVerificationTokenEntity {
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
-  protected EmailVerificationTokenEntity() {}
+  protected AccountTokenEntity() {}
 
-  public EmailVerificationTokenEntity(
-      UserEntity user, String tokenHash, Instant createdAt, Instant expiresAt) {
+  public AccountTokenEntity(
+      UserEntity user,
+      TokenPurpose purpose,
+      String newEmail,
+      String tokenHash,
+      Instant createdAt) {
     this.id = UUID.randomUUID();
     this.user = user;
+    this.purpose = purpose;
+    this.newEmail = newEmail;
     this.tokenHash = tokenHash;
     this.createdAt = createdAt;
-    this.expiresAt = expiresAt;
+    this.expiresAt = createdAt.plus(purpose.validity());
   }
 
   public UserEntity getUser() {
     return user;
+  }
+
+  public String getNewEmail() {
+    return newEmail;
   }
 }

@@ -62,7 +62,7 @@ public class AuthService {
   /** Signs {@code user} in: a JWT plus what the UI shows about the account. */
   public LoginResponse openSession(UserEntity user) {
     String role = user.getRole().name();
-    String token = jwtService.createToken(user.getUsername(), role);
+    String token = jwtService.createToken(user.getId().toString(), role);
     String workspaceName =
         workspaceRepository.findById(user.getWorkspaceId()).map(WorkspaceEntity::getName).orElse("");
     return new LoginResponse(token, user.getUsername(), List.of(role), workspaceName);

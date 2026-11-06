@@ -39,11 +39,12 @@ public class JwtService {
     this.secretKey = Keys.hmacShaKeyFor(bytes);
   }
 
-  public String createToken(String username, String roleName) {
+  /** @param subject the user id: stable across username and email changes */
+  public String createToken(String subject, String roleName) {
     Instant now = Instant.now();
     Instant exp = now.plusMillis(Math.max(60_000L, properties.expirationMs()));
     return Jwts.builder()
-        .subject(username)
+        .subject(subject)
         .claim("roles", roleName)
         .issuedAt(Date.from(now))
         .expiration(Date.from(exp))

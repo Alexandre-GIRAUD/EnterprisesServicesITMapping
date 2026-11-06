@@ -1,0 +1,29 @@
+package com.enterprise.itmapping.feature.signup.infrastructure.persistence;
+
+import com.enterprise.itmapping.feature.signup.domain.TokenPurpose;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+public interface AccountTokenRepository
+    extends JpaRepository<AccountTokenEntity, UUID> {
+
+  Optional<AccountTokenEntity> findByTokenHash(String tokenHash);
+
+  /** Marks the token used when it still can be; returns how many tokens it spent (0 or 1). */
+  @Modifying
+  @Query(
+      """
+      UPDATE AccountTokenEntity t SET t.usedAt = :now
+      WHERE t.tokenHash = :tokenHash AND t.purpose = :purpose
+        AND t.usedAt IS NULL AND t.expiresAt > :now
+      """)
+  int spendIfUsable(
+      @Param("tokenHash") String tokenHash,
+      @Param("purpose") TokenPurpose purpose,
+      @Param("now") Instant now);
+}

@@ -15,7 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.javamail.JavaMailSender;
 
-class VerificationMailerTest {
+class AccountMailerTest {
 
   @Test
   @SuppressWarnings("unchecked")
@@ -24,9 +24,11 @@ class VerificationMailerTest {
     when(sender.createMimeMessage()).thenReturn(new MimeMessage(Session.getInstance(new Properties())));
     ObjectProvider<JavaMailSender> provider = mock(ObjectProvider.class);
     when(provider.getObject()).thenReturn(sender);
-    VerificationMailer mailer = new VerificationMailer(provider, "no-reply@example.test");
+    AccountMailer mailer = new AccountMailer(provider, "no-reply@example.test");
 
-    mailer.sendVerificationLink("ada@example.test", "https://app.example.test/verify-email?token=abc");
+    mailer.send(
+        "ada@example.test",
+        AccountEmails.emailVerification("https://app.example.test/verify-email?token=abc"));
 
     ArgumentCaptor<MimeMessage> sent = ArgumentCaptor.forClass(MimeMessage.class);
     verify(sender).send(sent.capture());

@@ -3,12 +3,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { verifyEmailRequest } from '@/features/auth/api/authApi';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { useAuth } from '@/features/auth/context/AuthContext';
-import { HOME_PATH } from '@/features/auth/routes';
+import { HOME_PATH, TOKEN_SEARCH_PARAM } from '@/features/auth/routes';
 
 /** Target of the emailed link: confirms the address, signs in, opens the map. */
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  const token = searchParams.get(TOKEN_SEARCH_PARAM) ?? '';
   const { login } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
