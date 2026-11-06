@@ -15,6 +15,7 @@ assert.match(settings, /isAdmin \? <GitHubWebhookSettings \/> : null/);
 assert.match(panel, /aria-label="GitHub webhook"/);
 assert.match(panel, /Payload URL/);
 assert.match(panel, /Regenerate secret/);
+assert.match(panel, /navigator\.clipboard\.writeText/);
 assert.match(panel, /window\.location\.origin/);
 assert.match(api, /\/api\/integrations\/github\/webhook/);
 assert.match(api, /WEBHOOK_SETTINGS_PATH\}\/secret/);

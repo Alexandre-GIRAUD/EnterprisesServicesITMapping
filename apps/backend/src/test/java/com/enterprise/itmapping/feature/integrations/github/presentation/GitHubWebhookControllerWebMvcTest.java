@@ -53,7 +53,7 @@ class GitHubWebhookControllerWebMvcTest {
   @Test
   void aWorkspacePushIsCheckedWithThatWorkspaceSecretAndIngestedThere() throws Exception {
     UUID workspaceId = UUID.randomUUID();
-    when(webhookSecrets.secretFor(workspaceId)).thenReturn(Optional.of("workspace-secret"));
+    when(webhookSecrets.findSecretFor(workspaceId)).thenReturn(Optional.of("workspace-secret"));
     AtomicReference<Optional<UUID>> ingestedIn = recordIngestionWorkspace();
 
     push("/webhooks/github/" + workspaceId)
@@ -65,10 +65,10 @@ class GitHubWebhookControllerWebMvcTest {
   }
 
   @Test
-  void anUnknownWorkspaceAnswersNotFound() throws Exception {
-    when(webhookSecrets.secretFor(any())).thenReturn(Optional.empty());
+  void anUnknownWorkspaceAnswersLikeABadSignature() throws Exception {
+    when(webhookSecrets.findSecretFor(any())).thenReturn(Optional.empty());
 
-    push("/webhooks/github/" + UUID.randomUUID()).andExpect(status().isNotFound());
+    push("/webhooks/github/" + UUID.randomUUID()).andExpect(status().isUnauthorized());
 
     verify(changeDetectionService, never()).ingestPushWebhook(any());
   }
