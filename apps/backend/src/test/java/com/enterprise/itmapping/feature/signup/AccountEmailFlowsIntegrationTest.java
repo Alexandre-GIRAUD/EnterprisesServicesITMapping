@@ -190,7 +190,7 @@ class AccountEmailFlowsIntegrationTest {
 
     invite(admin, createActiveUser(), "USER")
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.message").value("This email already has a Flowra account."));
+        .andExpect(status().reason("This email already has a Flowra account."));
   }
 
   @Test

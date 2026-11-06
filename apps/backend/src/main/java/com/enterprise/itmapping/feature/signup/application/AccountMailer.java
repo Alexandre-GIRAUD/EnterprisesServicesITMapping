@@ -38,7 +38,8 @@ public class AccountMailer {
       helper.setSubject(email.subject());
       helper.setText(email.text(), email.html());
     } catch (MessagingException e) {
-      throw new MailSendException("Could not build the email \"" + email.subject() + "\" for " + to, e);
+      throw new MailSendException(
+          "Could not build the email \"" + email.subject() + "\" for " + to, e);
     }
     sender.send(message);
   }

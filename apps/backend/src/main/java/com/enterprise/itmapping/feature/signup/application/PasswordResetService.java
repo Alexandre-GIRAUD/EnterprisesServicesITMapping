@@ -46,7 +46,10 @@ public class PasswordResetService {
     this.requestsPerEmail = SlidingWindowLimiter.perHour(REQUESTS_PER_EMAIL_PER_HOUR, clock);
   }
 
-  /** Mails a link to an active account with this email. Silent otherwise: emails cannot be probed. */
+  /**
+   * Mails a link to an active account with this email. Silent otherwise, so emails cannot be
+   * probed.
+   */
   @Transactional
   public void requestReset(String rawEmail) {
     String email = SignupService.normalizeEmail(rawEmail);
@@ -77,6 +80,7 @@ public class PasswordResetService {
 
   private void sendResetLink(UserEntity user) {
     String token = tokens.issue(user, TokenPurpose.RESET_PASSWORD);
-    mailer.send(user.getEmail(), AccountEmails.passwordReset(accountLinks.build(RESET_PATH, token)));
+    String link = accountLinks.build(RESET_PATH, token);
+    mailer.send(user.getEmail(), AccountEmails.passwordReset(link));
   }
 }

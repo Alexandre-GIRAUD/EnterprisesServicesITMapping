@@ -23,7 +23,7 @@ public class AccountTokens {
 
   private final AccountTokenRepository repository;
   private final Clock clock;
-  private final SecureRandom random = new SecureRandom();
+  private static final SecureRandom RANDOM = new SecureRandom();
 
   public AccountTokens(AccountTokenRepository repository, Clock clock) {
     this.repository = repository;
@@ -37,9 +37,7 @@ public class AccountTokens {
 
   /** As {@link #issue(UserEntity, TokenPurpose)}, carrying the address an email change confirms. */
   public String issue(UserEntity user, TokenPurpose purpose, String newEmail) {
-    byte[] bytes = new byte[TOKEN_BYTES];
-    random.nextBytes(bytes);
-    String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    String token = newToken();
     repository.save(new AccountTokenEntity(user, purpose, newEmail, hash(token), clock.instant()));
     return token;
   }
@@ -54,6 +52,13 @@ public class AccountTokens {
       return Optional.empty();
     }
     return repository.findByTokenHash(tokenHash);
+  }
+
+  /** A random, URL-safe token for an emailed link. */
+  public static String newToken() {
+    byte[] bytes = new byte[TOKEN_BYTES];
+    RANDOM.nextBytes(bytes);
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
   }
 
   public static String hash(String token) {
