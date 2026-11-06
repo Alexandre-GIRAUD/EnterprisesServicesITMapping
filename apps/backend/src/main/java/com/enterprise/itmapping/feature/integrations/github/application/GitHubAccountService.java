@@ -1,70 +1,87 @@
 package com.enterprise.itmapping.feature.integrations.github.application;
 
-import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
-import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
 import com.enterprise.itmapping.feature.auth.security.JwtProperties;
+import com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceEntity;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceRepository;
+import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Links one Flowra user to a GitHub connection. The access token is encrypted with the JWT secret:
- * rotating {@code JWT_SECRET} makes stored connections unreadable, and the user connects again.
- */
+/** The workspace GitHub connection: one token per workspace, pasted by an admin. */
 @Service
 public class GitHubAccountService {
 
-  private final UserRepository users;
+  private final WorkspaceRepository workspaces;
   private final GitHubTokenClient tokens;
   private final JwtProperties jwt;
 
-  public GitHubAccountService(UserRepository users, GitHubTokenClient tokens, JwtProperties jwt) {
-    this.users = users;
+  public GitHubAccountService(
+      WorkspaceRepository workspaces, GitHubTokenClient tokens, JwtProperties jwt) {
+    this.workspaces = workspaces;
     this.tokens = tokens;
     this.jwt = jwt;
   }
 
-  /** Stores the token for this user's GitHub connection. The plaintext is not returned. */
+  /** Stores the token for the current workspace. The plaintext is not returned. */
   @Transactional
-  public GitHubConnectionStatus saveToken(UserEntity user, String rawToken) {
+  public GitHubConnectionStatus saveToken(String rawToken) {
     requireEncryptionKey();
     if (!StringUtils.hasText(rawToken)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A GitHub token is required.");
     }
     GitHubIdentity identity = tokens.identify(rawToken.trim());
-    user.setGithubLogin(identity.login());
-    user.setGithubAccessToken(GitHubTokenCipher.encrypt(identity.accessToken(), jwt.secret()));
-    users.save(user);
-    return status(user);
+    WorkspaceEntity workspace = requireCurrentWorkspace();
+    workspace.connectGitHub(
+        identity.login(), GitHubTokenCipher.encrypt(identity.accessToken(), jwt.secret()));
+    return status(workspace);
   }
 
   @Transactional
-  public void disconnect(UserEntity user) {
-    user.setGithubLogin(null);
-    user.setGithubAccessToken(null);
-    users.save(user);
+  public void disconnect() {
+    requireCurrentWorkspace().connectGitHub(null, null);
   }
 
-  public GitHubConnectionStatus status(UserEntity user) {
-    boolean connected =
-        StringUtils.hasText(user.getGithubLogin()) && StringUtils.hasText(user.getGithubAccessToken());
-    return new GitHubConnectionStatus(connected, connected ? user.getGithubLogin() : null);
+  @Transactional(readOnly = true)
+  public GitHubConnectionStatus status() {
+    return status(requireCurrentWorkspace());
   }
 
-  /** Decrypted token, or an empty string when this user has not connected or the key changed. */
-  public String accessToken(UserEntity user) {
-    if (user == null
-        || !StringUtils.hasText(user.getGithubAccessToken())
-        || !StringUtils.hasText(jwt.secret())) {
-      return "";
-    }
+  /** Decrypted workspace token; empty outside a workspace, when not connected or the key changed. */
+  @Transactional(readOnly = true)
+  public String accessToken() {
+    return currentWorkspace()
+        .map(WorkspaceEntity::getGithubToken)
+        .filter(StringUtils::hasText)
+        .filter(ignored -> StringUtils.hasText(jwt.secret()))
+        .map(this::decryptOrEmpty)
+        .orElse("");
+  }
+
+  private String decryptOrEmpty(String cipherText) {
     try {
-      return GitHubTokenCipher.decrypt(user.getGithubAccessToken(), jwt.secret());
+      return GitHubTokenCipher.decrypt(cipherText, jwt.secret());
     } catch (IllegalStateException ex) {
       return "";
     }
+  }
+
+  private static GitHubConnectionStatus status(WorkspaceEntity workspace) {
+    boolean isConnected =
+        StringUtils.hasText(workspace.getGithubLogin())
+            && StringUtils.hasText(workspace.getGithubToken());
+    return new GitHubConnectionStatus(isConnected, isConnected ? workspace.getGithubLogin() : null);
+  }
+
+  private Optional<WorkspaceEntity> currentWorkspace() {
+    return CurrentWorkspace.find().flatMap(workspaces::findById);
+  }
+
+  private WorkspaceEntity requireCurrentWorkspace() {
+    return workspaces.findById(CurrentWorkspace.requireId()).orElseThrow();
   }
 
   private void requireEncryptionKey() {

@@ -1,72 +1,89 @@
 package com.enterprise.itmapping.feature.integrations.bitbucket.application;
 
-import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserEntity;
-import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
 import com.enterprise.itmapping.feature.auth.security.JwtProperties;
 import com.enterprise.itmapping.feature.integrations.github.application.GitHubTokenCipher;
+import com.enterprise.itmapping.feature.workspace.application.CurrentWorkspace;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceEntity;
+import com.enterprise.itmapping.feature.workspace.infrastructure.persistence.WorkspaceRepository;
+import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Links one Flowra user to a Bitbucket Cloud connection. The access token is encrypted with the JWT
- * secret: rotating {@code JWT_SECRET} makes stored connections unreadable, and the user connects
- * again.
- */
+/** The workspace Bitbucket connection: one token per workspace, pasted by an admin. */
 @Service
 public class BitbucketAccountService {
 
-  private final UserRepository users;
+  private final WorkspaceRepository workspaces;
   private final BitbucketTokenClient tokens;
   private final JwtProperties jwt;
 
-  public BitbucketAccountService(UserRepository users, BitbucketTokenClient tokens, JwtProperties jwt) {
-    this.users = users;
+  public BitbucketAccountService(
+      WorkspaceRepository workspaces, BitbucketTokenClient tokens, JwtProperties jwt) {
+    this.workspaces = workspaces;
     this.tokens = tokens;
     this.jwt = jwt;
   }
 
+  /** Stores the token for the current workspace. The plaintext is not returned. */
   @Transactional
-  public BitbucketConnectionStatus saveToken(UserEntity user, String rawToken) {
+  public BitbucketConnectionStatus saveToken(String rawToken) {
     requireEncryptionKey();
     if (!StringUtils.hasText(rawToken)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A Bitbucket token is required.");
     }
     BitbucketIdentity identity = tokens.identify(rawToken.trim());
-    user.setBitbucketUsername(identity.username());
-    user.setBitbucketAccessToken(GitHubTokenCipher.encrypt(identity.accessToken(), jwt.secret()));
-    users.save(user);
-    return status(user);
+    WorkspaceEntity workspace = requireCurrentWorkspace();
+    workspace.connectBitbucket(
+        identity.username(), GitHubTokenCipher.encrypt(identity.accessToken(), jwt.secret()));
+    return status(workspace);
   }
 
   @Transactional
-  public void disconnect(UserEntity user) {
-    user.setBitbucketUsername(null);
-    user.setBitbucketAccessToken(null);
-    users.save(user);
+  public void disconnect() {
+    requireCurrentWorkspace().connectBitbucket(null, null);
   }
 
-  public BitbucketConnectionStatus status(UserEntity user) {
-    boolean connected =
-        StringUtils.hasText(user.getBitbucketUsername())
-            && StringUtils.hasText(user.getBitbucketAccessToken());
-    return new BitbucketConnectionStatus(connected, connected ? user.getBitbucketUsername() : null);
+  @Transactional(readOnly = true)
+  public BitbucketConnectionStatus status() {
+    return status(requireCurrentWorkspace());
   }
 
-  /** Decrypted token, or an empty string when this user has not connected or the key changed. */
-  public String accessToken(UserEntity user) {
-    if (user == null
-        || !StringUtils.hasText(user.getBitbucketAccessToken())
-        || !StringUtils.hasText(jwt.secret())) {
-      return "";
-    }
+  /** Decrypted workspace token; empty outside a workspace, when not connected or the key changed. */
+  @Transactional(readOnly = true)
+  public String accessToken() {
+    return currentWorkspace()
+        .map(WorkspaceEntity::getBitbucketToken)
+        .filter(StringUtils::hasText)
+        .filter(ignored -> StringUtils.hasText(jwt.secret()))
+        .map(this::decryptOrEmpty)
+        .orElse("");
+  }
+
+  private String decryptOrEmpty(String cipherText) {
     try {
-      return GitHubTokenCipher.decrypt(user.getBitbucketAccessToken(), jwt.secret());
+      return GitHubTokenCipher.decrypt(cipherText, jwt.secret());
     } catch (IllegalStateException ex) {
       return "";
     }
+  }
+
+  private static BitbucketConnectionStatus status(WorkspaceEntity workspace) {
+    boolean isConnected =
+        StringUtils.hasText(workspace.getBitbucketUsername())
+            && StringUtils.hasText(workspace.getBitbucketToken());
+    return new BitbucketConnectionStatus(
+        isConnected, isConnected ? workspace.getBitbucketUsername() : null);
+  }
+
+  private Optional<WorkspaceEntity> currentWorkspace() {
+    return CurrentWorkspace.find().flatMap(workspaces::findById);
+  }
+
+  private WorkspaceEntity requireCurrentWorkspace() {
+    return workspaces.findById(CurrentWorkspace.requireId()).orElseThrow();
   }
 
   private void requireEncryptionKey() {

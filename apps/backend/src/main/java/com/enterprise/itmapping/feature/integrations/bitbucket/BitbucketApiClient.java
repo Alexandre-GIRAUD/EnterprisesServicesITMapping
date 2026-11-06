@@ -1,11 +1,7 @@
 package com.enterprise.itmapping.feature.integrations.bitbucket;
 
-import com.enterprise.itmapping.feature.auth.infrastructure.persistence.UserRepository;
 import com.enterprise.itmapping.feature.integrations.bitbucket.application.BitbucketAccountService;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
@@ -18,24 +14,16 @@ public class BitbucketApiClient {
 
   private final BitbucketIntegrationProperties properties;
   private final BitbucketAccountService accounts;
-  private final UserRepository users;
 
   public BitbucketApiClient(
-      BitbucketIntegrationProperties properties, BitbucketAccountService accounts, UserRepository users) {
+      BitbucketIntegrationProperties properties, BitbucketAccountService accounts) {
     this.properties = properties;
     this.accounts = accounts;
-    this.users = users;
   }
 
-  /**
-   * Token for the signed-in user when they have connected Bitbucket. Otherwise the server token.
-   */
+  /** The current workspace connection token; empty when the workspace has none. */
   public String token() {
-    String personal = personalToken();
-    if (StringUtils.hasText(personal)) {
-      return personal;
-    }
-    return properties.token() != null ? properties.token().trim() : "";
+    return accounts.accessToken();
   }
 
   public boolean hasToken() {
@@ -52,21 +40,6 @@ public class BitbucketApiClient {
         .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
         .defaultHeader("Authorization", "Bearer " + token())
         .build();
-  }
-
-  private String personalToken() {
-    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-    if (auth == null
-        || !auth.isAuthenticated()
-        || auth instanceof AnonymousAuthenticationToken
-        || !StringUtils.hasText(auth.getName())
-        || "anonymousUser".equals(auth.getName())) {
-      return "";
-    }
-    return users
-        .findBySessionSubject(auth.getName())
-        .map(accounts::accessToken)
-        .orElse("");
   }
 
   private String apiBase() {

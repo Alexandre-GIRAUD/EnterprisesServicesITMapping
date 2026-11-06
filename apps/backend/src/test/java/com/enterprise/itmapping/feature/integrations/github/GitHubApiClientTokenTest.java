@@ -25,15 +25,10 @@ class GitHubApiClientTokenTest {
   }
 
   @Test
-  void aWorkspaceWithoutConnectionHasNoToken() {
+  void aWorkspaceWithoutConnectionHasNoTokenEvenWithAServerToken() {
     when(accounts.accessToken()).thenReturn("");
 
     assertThat(tokenInSomeWorkspace()).isEmpty();
-  }
-
-  @Test
-  void workOutsideAnyWorkspaceHasNoToken() {
-    assertThat(client.token()).isEmpty();
   }
 
   private String tokenInSomeWorkspace() {

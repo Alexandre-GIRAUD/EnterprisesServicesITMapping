@@ -70,7 +70,7 @@ services:
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-*}
       ADMIN_BOOTSTRAP_USERNAME: ${ADMIN_BOOTSTRAP_USERNAME}
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      # Legacy: only the Default workspace webhook URL; each workspace has its own in Settings.
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       # OpenAI chat model and temperature used by every AI scan; some models only accept temperature 1.
@@ -79,7 +79,7 @@ services:
       # Log final functional-doc JSON (truncated). Set false on shared/prod hosts.
       APP_FUNCTIONAL_DOC_LOG_FINAL_PAYLOAD: ${APP_FUNCTIONAL_DOC_LOG_FINAL_PAYLOAD:-true}
       LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: ${LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY:-INFO}
-      # Self-service signup (cloud). Off by default; when on, GITHUB_TOKEN must be empty.
+      # Self-service signup (cloud). Off by default.
       APP_SIGNUP_ENABLED: ${APP_SIGNUP_ENABLED:-false}
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-}
       # Empty by default so an open signup cannot boot without a real relay.
