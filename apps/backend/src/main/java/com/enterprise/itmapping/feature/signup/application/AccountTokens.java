@@ -14,16 +14,16 @@ import java.util.HexFormat;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
-/** Issues and redeems single-use email verification tokens. */
+/** Issues and redeems single-use account tokens: verification, password reset, email change. */
 @Component
 public class AccountTokens {
 
   private static final int TOKEN_BYTES = 32;
   private static final String HASH_ALGORITHM = "SHA-256";
+  private static final SecureRandom RANDOM = new SecureRandom();
 
   private final AccountTokenRepository repository;
   private final Clock clock;
-  private static final SecureRandom RANDOM = new SecureRandom();
 
   public AccountTokens(AccountTokenRepository repository, Clock clock) {
     this.repository = repository;

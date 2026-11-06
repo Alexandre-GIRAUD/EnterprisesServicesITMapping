@@ -20,6 +20,23 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
   boolean existsByEmailIgnoreCase(String email);
 
+  /**
+   * The user a session token names. The subject is the user id, which never changes, so a session
+   * stays with its account when the username changes and never follows a reused address.
+   */
+  default Optional<UserEntity> findBySessionSubject(String subject) {
+    try {
+      return findById(UUID.fromString(subject));
+    } catch (IllegalArgumentException notAnId) {
+      return Optional.empty();
+    }
+  }
+
+  /** Whether {@code email} already signs in an account, as its email or as its username. */
+  default boolean existsAccountFor(String email) {
+    return existsByEmailIgnoreCase(email) || existsByUsernameIgnoreCase(email);
+  }
+
   boolean existsByWorkspaceId(UUID workspaceId);
 
   Optional<UserEntity> findByEmailIgnoreCase(String email);

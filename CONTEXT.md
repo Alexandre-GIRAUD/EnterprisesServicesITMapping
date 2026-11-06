@@ -12,6 +12,10 @@ _Avoid_: tenant, organisation, environment, account
 A self-registered user whose email is not confirmed yet. It cannot sign in. Confirming the emailed link activates it; left unconfirmed for a week, it is removed, and so is the workspace it created when nobody else belongs to it.
 _Avoid_: inactive user, disabled account
 
+**Invitation**:
+An admin's emailed offer to join their workspace with a given role. The invitee opens the link within seven days, chooses a password and becomes a member; until then the admin can resend or cancel it.
+_Avoid_: invite (for a shared view or sandbox), sign-up link
+
 **Saved view**:
 A named set of filters and layout that belongs to one user. A shared view is a one-time copy of that preset; the recipient owns the copy.
 _Avoid_: Snapshot, pin, invite

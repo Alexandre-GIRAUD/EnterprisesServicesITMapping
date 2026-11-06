@@ -34,13 +34,13 @@ export function InvitationsPanel() {
     void reload();
   }, [reload]);
 
-  async function runAction(action: () => Promise<unknown>, success: string) {
+  async function runAction(action: () => Promise<unknown>, successMessage: string) {
     setError(null);
     setMessage(null);
     setIsBusy(true);
     try {
       await action();
-      setMessage(success);
+      setMessage(successMessage);
       await reload();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Something went wrong.');

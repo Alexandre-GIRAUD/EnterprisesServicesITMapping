@@ -66,7 +66,7 @@ public class GitHubApiClient {
       return "";
     }
     return users
-        .findByUsernameIgnoreCase(auth.getName())
+        .findBySessionSubject(auth.getName())
         .map(accounts::accessToken)
         .orElse("");
   }

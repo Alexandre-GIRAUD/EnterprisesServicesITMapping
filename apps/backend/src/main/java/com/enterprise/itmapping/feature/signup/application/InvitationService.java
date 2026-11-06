@@ -79,8 +79,7 @@ public class InvitationService {
   public InvitationResponse invite(String rawEmail, UserRole role) {
     UUID workspaceId = CurrentWorkspace.requireId();
     String email = SignupService.normalizeEmail(rawEmail);
-    if (userRepository.existsByEmailIgnoreCase(email)
-        || userRepository.existsByUsernameIgnoreCase(email)) {
+    if (userRepository.existsAccountFor(email)) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "This email already has a Flowra account.");
     }
@@ -89,9 +88,9 @@ public class InvitationService {
           HttpStatus.CONFLICT, "This email is already invited. Resend the invitation instead.");
     }
     requireInvitationBudget(workspaceId);
-    UUID inviter = currentUserResolver.requireCurrentUser().getId();
+    UUID inviterId = currentUserResolver.requireCurrentUser().getId();
     InvitationEntity invitation =
-        new InvitationEntity(workspaceId, email, role, inviter, clock.instant());
+        new InvitationEntity(workspaceId, email, role, inviterId, clock.instant());
     sendNewLink(invitation);
     return toResponse(invitations.save(invitation), clock.instant());
   }
@@ -118,7 +117,7 @@ public class InvitationService {
           "This invitation is invalid or has expired. Ask your administrator for a new one.");
     }
     InvitationEntity invitation = invitations.findByTokenHash(tokenHash).orElseThrow();
-    if (userRepository.existsByEmailIgnoreCase(invitation.getEmail())) {
+    if (userRepository.existsAccountFor(invitation.getEmail())) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "This email already has a Flowra account. Sign in instead.");
     }

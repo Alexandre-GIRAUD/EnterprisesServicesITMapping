@@ -1,9 +1,9 @@
 import { authenticatedFetch, resolveApiUrl, type LoginResponseDto } from '@/config/api';
+import { JSON_HEADERS, readFailureMessage } from '@/features/auth/api/apiResponses';
 
 /** `email` is null for accounts created before emails were stored. */
 export type AccountDto = { username: string; email: string | null };
 
-const JSON_HEADERS = { Accept: 'application/json', 'Content-Type': 'application/json' };
 
 export async function fetchAccountRequest(): Promise<AccountDto> {
   const res = await authenticatedFetch(resolveApiUrl('/api/account'), {
@@ -22,8 +22,7 @@ export async function requestEmailChange(email: string): Promise<void> {
     body: JSON.stringify({ email }),
   });
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { message?: string } | null;
-    throw new Error(body?.message || `Could not change the email (${res.status}).`);
+    throw new Error(await readFailureMessage(res, 'Could not change the email'));
   }
 }
 
@@ -34,10 +33,7 @@ export async function confirmEmailChangeRequest(token: string): Promise<LoginRes
     body: JSON.stringify({ token }),
   });
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { message?: string } | null;
-    throw new Error(
-      body?.message || 'This link is invalid or has expired. Ask for a new one in Settings.',
-    );
+    throw new Error(await readFailureMessage(res, 'Could not confirm the new email'));
   }
   return res.json() as Promise<LoginResponseDto>;
 }

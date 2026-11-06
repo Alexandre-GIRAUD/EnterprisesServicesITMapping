@@ -24,7 +24,7 @@ public class CurrentUserResolver {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Non authentifié.");
     }
     return userRepository
-        .findByUsernameIgnoreCase(auth.getName())
+        .findBySessionSubject(auth.getName())
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Utilisateur introuvable."));
   }
 
@@ -34,6 +34,6 @@ public class CurrentUserResolver {
     if (auth == null || !StringUtils.hasText(auth.getName())) {
       return Optional.empty();
     }
-    return userRepository.findByUsernameIgnoreCase(auth.getName());
+    return userRepository.findBySessionSubject(auth.getName());
   }
 }

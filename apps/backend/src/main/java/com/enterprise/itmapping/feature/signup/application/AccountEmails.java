@@ -31,59 +31,66 @@ public final class AccountEmails {
 
   private AccountEmails() {}
 
+  /** The wording of one email around its link. */
+  private record Wording(String subject, String intro, String action, String footer) {}
+
   public static AccountEmail emailVerification(String link) {
     return compose(
-        "Confirm your email address",
-        "Welcome to Flowra.",
-        "Confirm your email address to open your workspace",
+        new Wording(
+            "Confirm your email address",
+            "Welcome to Flowra.",
+            "Confirm your email address to open your workspace",
+            "If you did not sign up, ignore this email."),
         link,
-        TokenPurpose.VERIFY_EMAIL.validity(),
-        "If you did not sign up, ignore this email.");
+        TokenPurpose.VERIFY_EMAIL.validity());
   }
 
   public static AccountEmail passwordReset(String link) {
     return compose(
-        "Reset your Flowra password",
-        "Someone asked to reset the password of your Flowra account.",
-        "Choose a new password",
+        new Wording(
+            "Reset your Flowra password",
+            "Someone asked to reset the password of your Flowra account.",
+            "Choose a new password",
+            "If it was not you, ignore this email: your password stays the same."),
         link,
-        TokenPurpose.RESET_PASSWORD.validity(),
-        "If it was not you, ignore this email: your password stays the same.");
+        TokenPurpose.RESET_PASSWORD.validity());
   }
 
   public static AccountEmail invitation(String link, String workspaceName) {
     return compose(
-        "You are invited to " + workspaceName + " on Flowra",
-        "You are invited to join the " + workspaceName + " workspace on Flowra.",
-        "Accept the invitation and choose your password",
+        new Wording(
+            "You are invited to " + workspaceName + " on Flowra",
+            "You are invited to join the " + workspaceName + " workspace on Flowra.",
+            "Accept the invitation and choose your password",
+            "If you were not expecting it, ignore this email."),
         link,
-        INVITATION_VALIDITY,
-        "If you were not expecting it, ignore this email.");
+        INVITATION_VALIDITY);
   }
 
   public static AccountEmail emailChange(String link) {
     return compose(
-        "Confirm your new email address",
-        "You asked to use this address for your Flowra account.",
-        "Confirm this email address",
+        new Wording(
+            "Confirm your new email address",
+            "You asked to use this address for your Flowra account.",
+            "Confirm this email address",
+            "If it was not you, ignore this email: nothing changes."),
         link,
-        TokenPurpose.CHANGE_EMAIL.validity(),
-        "If it was not you, ignore this email: nothing changes.");
+        TokenPurpose.CHANGE_EMAIL.validity());
   }
 
-  private static AccountEmail compose(
-      String subject, String intro, String action, String link, Duration validity, String footer) {
+  private static AccountEmail compose(Wording wording, String link, Duration validity) {
     String lifetime = describe(validity);
-    String text = TEXT_LAYOUT.formatted(intro, action, link, lifetime, footer);
+    String text =
+        TEXT_LAYOUT.formatted(wording.intro(), wording.action(), link, lifetime, wording.footer());
     String html =
         HTML_LAYOUT.formatted(
-            HtmlUtils.htmlEscape(intro),
+            HtmlUtils.htmlEscape(wording.intro()),
             HtmlUtils.htmlEscape(link),
-            HtmlUtils.htmlEscape(action),
+            HtmlUtils.htmlEscape(wording.action()),
             HtmlUtils.htmlEscape(link),
             lifetime,
-            HtmlUtils.htmlEscape(footer));
-    return new AccountEmail(subject, text, html);
+            HtmlUtils.htmlEscape(wording.footer()));
+    return new AccountEmail(wording.subject(), text, html);
   }
 
   static String describe(Duration validity) {

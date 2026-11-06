@@ -3,12 +3,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MIN_PASSWORD_LENGTH, resetPasswordRequest } from '@/features/auth/api/authApi';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { useAuth } from '@/features/auth/context/AuthContext';
-import { HOME_PATH } from '@/features/auth/routes';
+import { HOME_PATH, TOKEN_SEARCH_PARAM } from '@/features/auth/routes';
 
 /** Target of the emailed reset link: choose a new password, then open the map signed in. */
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  const token = searchParams.get(TOKEN_SEARCH_PARAM) ?? '';
   const { login } = useAuth();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');

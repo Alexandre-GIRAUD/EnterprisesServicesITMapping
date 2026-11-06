@@ -4,7 +4,7 @@ import { MIN_PASSWORD_LENGTH } from '@/features/auth/api/authApi';
 import { acceptInvitationRequest } from '@/features/auth/api/invitationsApi';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { useAuth } from '@/features/auth/context/AuthContext';
-import { HOME_PATH } from '@/features/auth/routes';
+import { HOME_PATH, TOKEN_SEARCH_PARAM } from '@/features/auth/routes';
 
 /**
  * Target of the emailed invitation: choose a password, then open the map in the inviting
@@ -12,7 +12,7 @@ import { HOME_PATH } from '@/features/auth/routes';
  */
 export function AcceptInvitationPage() {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  const token = searchParams.get(TOKEN_SEARCH_PARAM) ?? '';
   const { login } = useAuth();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');

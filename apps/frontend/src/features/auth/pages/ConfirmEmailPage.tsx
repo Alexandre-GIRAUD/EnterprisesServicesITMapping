@@ -3,13 +3,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { confirmEmailChangeRequest } from '@/features/auth/api/accountApi';
 import { AuthLayout } from '@/features/auth/components/AuthLayout';
 import { useAuth } from '@/features/auth/context/AuthContext';
-
-const SETTINGS_PATH = '/settings';
+import { SETTINGS_PATH, TOKEN_SEARCH_PARAM } from '@/features/auth/routes';
 
 /** Target of the email change link: applies the new address, signs in, opens Settings. */
 export function ConfirmEmailPage() {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  const token = searchParams.get(TOKEN_SEARCH_PARAM) ?? '';
   const { login } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);

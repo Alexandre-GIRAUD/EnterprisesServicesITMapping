@@ -52,12 +52,12 @@ public class EmailChangeService {
   @Transactional
   public void requestChange(String rawEmail) {
     UserEntity user = currentUserResolver.requireCurrentUser();
-    String newEmail = SignupService.normalizeEmail(rawEmail);
-    requireAvailable(user, newEmail);
     if (!requestsPerUser.tryAcquire(user.getId().toString())) {
       throw new ResponseStatusException(
           HttpStatus.TOO_MANY_REQUESTS, "Too many email changes this hour. Try again later.");
     }
+    String newEmail = SignupService.normalizeEmail(rawEmail);
+    requireAvailable(user, newEmail);
     String token = tokens.issue(user, TokenPurpose.CHANGE_EMAIL, newEmail);
     mailer.send(newEmail, AccountEmails.emailChange(accountLinks.build(CONFIRM_PATH, token)));
   }

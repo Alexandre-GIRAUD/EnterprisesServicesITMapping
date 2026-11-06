@@ -3,6 +3,7 @@ import {
   resolveApiUrl,
   type LoginResponseDto,
 } from '@/config/api';
+import { JSON_HEADERS } from '@/features/auth/api/apiResponses';
 
 export type UserSummaryDto = {
   id: string;
@@ -11,7 +12,6 @@ export type UserSummaryDto = {
   createdAt: string;
 };
 
-const JSON_HEADERS = { Accept: 'application/json', 'Content-Type': 'application/json' };
 
 const HTTP_BAD_REQUEST = 400;
 const HTTP_FORBIDDEN = 403;

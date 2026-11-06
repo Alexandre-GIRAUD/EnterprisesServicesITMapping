@@ -1,4 +1,5 @@
 import { authenticatedFetch, resolveApiUrl, type LoginResponseDto } from '@/config/api';
+import { JSON_HEADERS, readFailureMessage } from '@/features/auth/api/apiResponses';
 
 export type InvitationRole = 'USER' | 'ADMIN';
 export type InvitationStatus = 'INVITED' | 'EXPIRED';
@@ -11,7 +12,6 @@ export type InvitationDto = {
   expiresAt: string;
 };
 
-const JSON_HEADERS = { Accept: 'application/json', 'Content-Type': 'application/json' };
 const INVITATIONS_PATH = '/api/admin/invitations';
 
 export async function listInvitationsRequest(): Promise<InvitationDto[]> {
@@ -31,7 +31,7 @@ export async function inviteRequest(email: string, role: InvitationRole): Promis
     body: JSON.stringify({ email, role }),
   });
   if (!res.ok) {
-    throw new Error(await describeFailure(res, 'Could not send the invitation'));
+    throw new Error(await readFailureMessage(res, 'Could not send the invitation'));
   }
   return res.json() as Promise<InvitationDto>;
 }
@@ -41,7 +41,7 @@ export async function resendInvitationRequest(id: string): Promise<void> {
     method: 'POST',
   });
   if (!res.ok) {
-    throw new Error(await describeFailure(res, 'Could not resend the invitation'));
+    throw new Error(await readFailureMessage(res, 'Could not resend the invitation'));
   }
 }
 
@@ -50,7 +50,7 @@ export async function cancelInvitationRequest(id: string): Promise<void> {
     method: 'DELETE',
   });
   if (!res.ok) {
-    throw new Error(await describeFailure(res, 'Could not cancel the invitation'));
+    throw new Error(await readFailureMessage(res, 'Could not cancel the invitation'));
   }
 }
 
@@ -64,13 +64,7 @@ export async function acceptInvitationRequest(
     body: JSON.stringify({ token, password }),
   });
   if (!res.ok) {
-    throw new Error(await describeFailure(res, 'Could not accept the invitation'));
+    throw new Error(await readFailureMessage(res, 'Could not accept the invitation'));
   }
   return res.json() as Promise<LoginResponseDto>;
-}
-
-/** The backend's own message when it gives one, else a generic line with the status. */
-async function describeFailure(res: Response, fallback: string): Promise<string> {
-  const body = (await res.json().catch(() => null)) as { message?: string } | null;
-  return body?.message || `${fallback} (${res.status}).`;
 }
