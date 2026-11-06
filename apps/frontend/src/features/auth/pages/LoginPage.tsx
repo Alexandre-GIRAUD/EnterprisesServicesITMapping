@@ -22,11 +22,18 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [isSignupEnabled, setIsSignupEnabled] = useState(false);
+  const [isMailEnabled, setIsMailEnabled] = useState(false);
 
   useEffect(() => {
     fetchPublicConfig()
-      .then((config) => setIsSignupEnabled(config.signupEnabled))
-      .catch(() => setIsSignupEnabled(false));
+      .then((config) => {
+        setIsSignupEnabled(config.signupEnabled);
+        setIsMailEnabled(config.mailEnabled);
+      })
+      .catch(() => {
+        setIsSignupEnabled(false);
+        setIsMailEnabled(false);
+      });
   }, []);
 
   if (user) {
@@ -95,6 +102,13 @@ export function LoginPage() {
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+      {isMailEnabled ? (
+        <p className="auth-footnote">
+          <Link className="auth-link" to="/forgot-password">
+            Forgot password?
+          </Link>
+        </p>
+      ) : null}
       {isSignupEnabled ? (
         <p className="auth-footnote">
           New to Flowra?{' '}

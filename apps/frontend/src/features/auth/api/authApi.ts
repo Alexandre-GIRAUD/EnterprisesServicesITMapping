@@ -32,12 +32,13 @@ export class EmailNotVerifiedError extends Error {
   }
 }
 
-export type PublicConfigDto = { signupEnabled: boolean };
+/** `mailEnabled`: invitations and password resets can be emailed. */
+export type PublicConfigDto = { signupEnabled: boolean; mailEnabled: boolean };
 
 export async function fetchPublicConfig(): Promise<PublicConfigDto> {
   const res = await fetch(resolveApiUrl('/api/config'), { headers: { Accept: 'application/json' } });
   if (!res.ok) {
-    return { signupEnabled: false };
+    return { signupEnabled: false, mailEnabled: false };
   }
   return res.json() as Promise<PublicConfigDto>;
 }
@@ -150,4 +151,32 @@ async function describeSignupFailure(res: Response): Promise<string> {
     return body.message;
   }
   return `Signup failed (${res.status}).`;
+}
+
+export async function forgotPasswordRequest(email: string): Promise<void> {
+  const res = await fetch(resolveApiUrl('/api/auth/forgot-password'), {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    throw new Error(`Could not send the reset email (${res.status}).`);
+  }
+}
+
+export async function resetPasswordRequest(token: string, password: string): Promise<LoginResponseDto> {
+  const res = await fetch(resolveApiUrl('/api/auth/reset-password'), {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ token, password }),
+  });
+  if (res.status === HTTP_BAD_REQUEST) {
+    throw new Error(
+      `This link is invalid or has expired, or the password has fewer than ${MIN_PASSWORD_LENGTH} characters.`,
+    );
+  }
+  if (!res.ok) {
+    throw new Error(`Could not reset the password (${res.status}).`);
+  }
+  return res.json() as Promise<LoginResponseDto>;
 }

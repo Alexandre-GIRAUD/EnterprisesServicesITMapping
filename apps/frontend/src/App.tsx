@@ -9,6 +9,8 @@ import { OverrideConflictDetailPage } from '@/features/map/pages/OverrideConflic
 import { AuthProvider } from '@/features/auth/context/AuthContext';
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
+import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage';
 import { SignupPage } from '@/features/auth/pages/SignupPage';
 import { VerifyEmailPage } from '@/features/auth/pages/VerifyEmailPage';
 import { AdminUsersPage } from '@/features/auth/pages/AdminUsersPage';
@@ -25,6 +27,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/map" replace />} />
