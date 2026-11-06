@@ -3,16 +3,16 @@ package com.enterprise.itmapping.feature.applications.infrastructure.persistence
 import com.enterprise.itmapping.feature.applications.application.ModuleGraphNodeRow;
 import com.enterprise.itmapping.feature.graph.application.GraphEdgeProjection;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.Neo4jValueMapping;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Repository;
 
 /**
- * Loads Application + Module subgraph via {@link Neo4jClient} (scalar projections only).
+ * Loads Application + Module subgraph via {@link WorkspaceGraph} (scalar projections only).
  *
  * <p>404 vs empty: {@link #applicationExists(String)} distinguishes unknown application from a
  * valid root with no modules (caller returns 404 or builds graph with root only).
@@ -22,7 +22,7 @@ public class ModuleGraphLoader {
 
   private static final String EXISTS_CYPHER =
       """
-      MATCH (a:Application)
+      MATCH (a:Application {workspaceId: $workspaceId})
       WHERE a.id = $appId
       RETURN count(a) AS cnt
       """;
@@ -38,19 +38,19 @@ public class ModuleGraphLoader {
           "mainJourney",
           "scope");
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
   private final int maxDepth;
 
   public ModuleGraphLoader(
-      Neo4jClient neo4jClient,
+      WorkspaceGraph graph,
       @Value("${app.module-graph.max-depth:10}") int maxDepth) {
-    this.neo4jClient = neo4jClient;
+    this.graph = graph;
     this.maxDepth = Math.min(Math.max(maxDepth, 1), 50);
   }
 
   public boolean applicationExists(String applicationId) {
     Long cnt =
-        neo4jClient
+        graph
             .query(EXISTS_CYPHER)
             .bind(applicationId).to("appId")
             .fetch()
@@ -66,7 +66,7 @@ public class ModuleGraphLoader {
 
   public List<ModuleGraphNodeRow> loadNodes(String applicationId) {
     String nodesCypher = buildNodesCypher();
-    return neo4jClient
+    return graph
         .query(nodesCypher)
         .bind(applicationId).to("appId")
         .fetch()
@@ -80,18 +80,18 @@ public class ModuleGraphLoader {
   private String buildNodesCypher() {
     int d = maxDepth;
     return """
-        MATCH (a:Application)
+        MATCH (a:Application {workspaceId: $workspaceId})
         WHERE a.id = $appId
         RETURN a.id AS id, a.name AS name, a.description AS description, 'Application' AS nodeType,
                null AS owner, null AS actors, null AS trigger, null AS dataIn, null AS dataOut,
                a.businessObjects AS businessObjects, a.mainJourney AS mainJourney, a.scope AS scope
         UNION
-        MATCH (a:Application)
+        MATCH (a:Application {workspaceId: $workspaceId})
         WHERE a.id = $appId
         MATCH path = (a)-[:CONTAINS*1.."""
         + d
         + """
-        ]->(m:Module)
+        ]->(m:Module {workspaceId: $workspaceId})
         RETURN DISTINCT m.id AS id, m.name AS name, m.description AS description, 'Module' AS nodeType,
                m.owner AS owner, m.actors AS actors, m.trigger AS trigger,
                m.dataIn AS dataIn, m.dataOut AS dataOut,
@@ -119,7 +119,7 @@ public class ModuleGraphLoader {
 
   public List<GraphEdgeProjection> loadEdges(String applicationId) {
     String edgesCypher = buildEdgesCypher();
-    return neo4jClient
+    return graph
         .query(edgesCypher)
         .bind(applicationId).to("appId")
         .fetch()
@@ -142,22 +142,22 @@ public class ModuleGraphLoader {
   private String buildEdgesCypher() {
     int d = maxDepth;
     return """
-        MATCH (a:Application)
+        MATCH (a:Application {workspaceId: $workspaceId})
         WHERE a.id = $appId
         MATCH path = (a)-[:CONTAINS*1.."""
         + d
         + """
-        ]->(m:Module)
+        ]->(m:Module {workspaceId: $workspaceId})
         UNWIND relationships(path) AS r
         RETURN DISTINCT startNode(r).id AS sourceId, endNode(r).id AS targetId, type(r) AS relType,
                null AS object
         UNION
-        MATCH (a:Application)
+        MATCH (a:Application {workspaceId: $workspaceId})
         WHERE a.id = $appId
         MATCH (a)-[:CONTAINS*1.."""
         + d
         + """
-        ]->(s:Module)-[f:FEEDS]->(t:Module)
+        ]->(s:Module {workspaceId: $workspaceId})-[f:FEEDS]->(t:Module {workspaceId: $workspaceId})
         MATCH (a)-[:CONTAINS*1.."""
         + d
         + """

@@ -2,6 +2,7 @@ package com.enterprise.itmapping.feature.datamodel.application;
 
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelConfig;
 import com.enterprise.itmapping.feature.datamodel.domain.DataModelField;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,7 +11,6 @@ import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -26,10 +26,10 @@ public class DataModelRefSyncService {
 
   private static final Logger log = LoggerFactory.getLogger(DataModelRefSyncService.class);
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public DataModelRefSyncService(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public DataModelRefSyncService(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   public void sync(DataModelConfig config) {
@@ -63,10 +63,10 @@ public class DataModelRefSyncService {
     params.put("fieldKey", fieldKey);
     params.put("value", value);
     params.put("name", name);
-    neo4jClient
+    graph
         .query(
             """
-            MERGE (r:DataModelRef {id: $id})
+            MERGE (r:DataModelRef {workspaceId: $workspaceId, id: $id})
             SET r.fieldKey = $fieldKey,
                 r.value = $value,
                 r.name = $name,
@@ -78,10 +78,10 @@ public class DataModelRefSyncService {
 
   private void softRetireMissing(String fieldKey, Set<String> activeIds) {
     List<String> keep = new ArrayList<>(activeIds);
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (r:DataModelRef {fieldKey: $fieldKey})
+            MATCH (r:DataModelRef {workspaceId: $workspaceId, fieldKey: $fieldKey})
             WHERE NOT r.id IN $keepIds
             SET r.active = false
             """)
@@ -93,10 +93,10 @@ public class DataModelRefSyncService {
   }
 
   private void softRetireRemovedFields(Set<String> activeFieldKeys) {
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (r:DataModelRef)
+            MATCH (r:DataModelRef {workspaceId: $workspaceId})
             WHERE size($activeFieldKeys) = 0 OR NOT r.fieldKey IN $activeFieldKeys
             SET r.active = false
             """)

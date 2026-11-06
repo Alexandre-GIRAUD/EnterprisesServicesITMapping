@@ -1,11 +1,11 @@
 package com.enterprise.itmapping.feature.history.infrastructure.persistence;
 
-import com.enterprise.itmapping.feature.history.application.SystemState;
 import com.enterprise.itmapping.feature.history.application.SystemState.Relationship;
+import com.enterprise.itmapping.feature.history.application.SystemState;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Component;
 
 /** Reads the whole Production graph into a {@link SystemState} and writes one back over it. */
@@ -23,10 +23,10 @@ public class SystemGraphState {
           new RelationshipKind("CONTAINS", MODULE, MODULE),
           new RelationshipKind("CLASSIFIED_AS", APPLICATION, DATA_MODEL_REF));
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public SystemGraphState(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public SystemGraphState(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   public SystemState read() {
@@ -41,15 +41,15 @@ public class SystemGraphState {
    * transaction that is rolled back.
    */
   public void overwriteWith(SystemState state) {
-    neo4jClient.query("MATCH (n) WHERE n:Application OR n:Module DETACH DELETE n").run();
+    graph.query("MATCH (n) WHERE (n:Application OR n:Module) AND n.workspaceId = $workspaceId DETACH DELETE n").run();
     createNodes(APPLICATION, state.applications());
     createNodes(MODULE, state.modules());
     RELATIONSHIP_KINDS.forEach(kind -> createRelationships(kind, state.relationships()));
   }
 
   private List<Map<String, Object>> readNodes(String label) {
-    return neo4jClient
-        .query("MATCH (n:" + label + ") RETURN properties(n) AS props")
+    return graph
+        .query("MATCH (n:" + label + " {workspaceId: $workspaceId}) RETURN properties(n) AS props")
         .fetch()
         .all()
         .stream()
@@ -58,9 +58,9 @@ public class SystemGraphState {
   }
 
   private List<Relationship> readRelationships(RelationshipKind kind) {
-    return neo4jClient
+    return graph
         .query(
-            "MATCH (s:%s)-[r:%s]->(t:%s) RETURN s.id AS sourceId, t.id AS targetId, properties(r) AS props"
+            "MATCH (s:%s {workspaceId: $workspaceId})-[r:%s]->(t:%s) RETURN s.id AS sourceId, t.id AS targetId, properties(r) AS props"
                 .formatted(kind.sourceLabel(), kind.type(), kind.targetLabel()))
         .fetch()
         .all()
@@ -81,8 +81,8 @@ public class SystemGraphState {
     if (rows.isEmpty()) {
       return;
     }
-    neo4jClient
-        .query("UNWIND $rows AS props CREATE (n:" + label + ") SET n = props")
+    graph
+        .query("UNWIND $rows AS props CREATE (n:" + label + ") SET n = props, n.workspaceId = $workspaceId")
         .bind(rows)
         .to("rows")
         .run();
@@ -102,12 +102,12 @@ public class SystemGraphState {
     if (rows.isEmpty()) {
       return;
     }
-    neo4jClient
+    graph
         .query(
             """
             UNWIND $rows AS rel
-            MATCH (s:%s {id: rel.sourceId})
-            MATCH (t:%s {id: rel.targetId})
+            MATCH (s:%s {workspaceId: $workspaceId, id: rel.sourceId})
+            MATCH (t:%s {workspaceId: $workspaceId, id: rel.targetId})
             CREATE (s)-[r:%s]->(t)
             SET r = rel.props
             """

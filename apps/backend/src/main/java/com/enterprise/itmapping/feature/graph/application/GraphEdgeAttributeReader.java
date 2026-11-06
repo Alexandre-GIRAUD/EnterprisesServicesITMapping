@@ -1,9 +1,9 @@
 package com.enterprise.itmapping.feature.graph.application;
 
 import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.Map;
 import java.util.Set;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -23,20 +23,20 @@ public class GraphEdgeAttributeReader {
           "validFrom",
           "validTo");
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public GraphEdgeAttributeReader(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public GraphEdgeAttributeReader(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   public boolean exists(String edgeId) {
     if (!StringUtils.hasText(edgeId)) {
       return false;
     }
-    return neo4jClient
+    return graph
         .query(
             """
-            MATCH ()-[r:DEPENDS_ON {id: $id}]->()
+            MATCH (:Application {workspaceId: $workspaceId})-[r:DEPENDS_ON {id: $id}]->()
             RETURN count(r) AS cnt
             """)
         .bind(edgeId.trim())
@@ -55,10 +55,10 @@ public class GraphEdgeAttributeReader {
     if (!StringUtils.hasText(edgeId)) {
       return Map.of();
     }
-    return neo4jClient
+    return graph
         .query(
             """
-            MATCH ()-[r:DEPENDS_ON {id: $id}]->()
+            MATCH (:Application {workspaceId: $workspaceId})-[r:DEPENDS_ON {id: $id}]->()
             RETURN properties(r) AS props
             LIMIT 1
             """)

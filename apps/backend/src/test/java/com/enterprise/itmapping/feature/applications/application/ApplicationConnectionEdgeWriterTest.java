@@ -7,6 +7,7 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -15,16 +16,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.neo4j.core.Neo4jClient;
 
 @ExtendWith(MockitoExtension.class)
 class ApplicationConnectionEdgeWriterTest {
 
   @Test
   void createUsesConnectionKindNotData() {
-    Neo4jClient neo4jClient = mock(Neo4jClient.class, RETURNS_DEEP_STUBS);
-    whenFetchEmpty(neo4jClient);
-    ApplicationConnectionEdgeWriter writer = new ApplicationConnectionEdgeWriter(neo4jClient);
+    WorkspaceGraph graph = mock(WorkspaceGraph.class, RETURNS_DEEP_STUBS);
+    whenFetchEmpty(graph);
+    ApplicationConnectionEdgeWriter writer = new ApplicationConnectionEdgeWriter(graph);
 
     writer.createOrMerge(
         "s1",
@@ -37,7 +37,7 @@ class ApplicationConnectionEdgeWriterTest {
         Map.of("product_line", "ALPHA"),
         Set.of("product_line"));
 
-    String createCypher = captureCypherContaining(neo4jClient, "CREATE (s)-[r:DEPENDS_ON");
+    String createCypher = captureCypherContaining(graph, "CREATE (s)-[r:DEPENDS_ON");
     assertThat(createCypher).contains("direction: $dir");
     assertThat(createCypher).doesNotContain("connection_kind");
     assertThat(createCypher).doesNotContain("channel:");
@@ -46,21 +46,21 @@ class ApplicationConnectionEdgeWriterTest {
 
   @Test
   void dedupQueryUsesConnectionKind() {
-    Neo4jClient neo4jClient = mock(Neo4jClient.class, RETURNS_DEEP_STUBS);
-    whenFetchEmpty(neo4jClient);
-    ApplicationConnectionEdgeWriter writer = new ApplicationConnectionEdgeWriter(neo4jClient);
+    WorkspaceGraph graph = mock(WorkspaceGraph.class, RETURNS_DEEP_STUBS);
+    whenFetchEmpty(graph);
+    ApplicationConnectionEdgeWriter writer = new ApplicationConnectionEdgeWriter(graph);
 
     writer.createOrMerge(
         "s1", "t1", "API", "", "outbound", "high", "app-1", Map.of(), Set.of());
 
-    String dedupCypher = captureCypherContaining(neo4jClient, "properties(r) AS props");
+    String dedupCypher = captureCypherContaining(graph, "properties(r) AS props");
     assertThat(dedupCypher).contains("DEPENDS_ON");
   }
 
   @Test
   void anEdgeWithTheSameDataModelValuesIsNotANewFlow() {
-    Neo4jClient neo4jClient = mock(Neo4jClient.class, RETURNS_DEEP_STUBS);
-    org.mockito.Mockito.when(neo4jClient.query(anyString()).bindAll(anyMap()).fetch().all())
+    WorkspaceGraph graph = mock(WorkspaceGraph.class, RETURNS_DEEP_STUBS);
+    org.mockito.Mockito.when(graph.query(anyString()).bindAll(anyMap()).fetch().all())
         .thenReturn(
             List.of(
                 Map.of(
@@ -68,7 +68,7 @@ class ApplicationConnectionEdgeWriterTest {
                     "edge-1",
                     "props",
                     Map.of("data", "PV", "frequency", "real-time"))));
-    ApplicationConnectionEdgeWriter writer = new ApplicationConnectionEdgeWriter(neo4jClient);
+    ApplicationConnectionEdgeWriter writer = new ApplicationConnectionEdgeWriter(graph);
 
     assertThat(
             writer.isNewFlow(
@@ -81,12 +81,12 @@ class ApplicationConnectionEdgeWriterTest {
 
   @Test
   void aDifferentDataModelValueIsANewFlow() {
-    Neo4jClient neo4jClient = mock(Neo4jClient.class, RETURNS_DEEP_STUBS);
-    org.mockito.Mockito.when(neo4jClient.query(anyString()).bindAll(anyMap()).fetch().all())
+    WorkspaceGraph graph = mock(WorkspaceGraph.class, RETURNS_DEEP_STUBS);
+    org.mockito.Mockito.when(graph.query(anyString()).bindAll(anyMap()).fetch().all())
         .thenReturn(List.of(Map.of("id", "edge-1", "props", Map.of("data", "PV"))));
-    org.mockito.Mockito.when(neo4jClient.query(anyString()).bindAll(anyMap()).fetch().first())
+    org.mockito.Mockito.when(graph.query(anyString()).bindAll(anyMap()).fetch().first())
         .thenReturn(Optional.empty());
-    ApplicationConnectionEdgeWriter writer = new ApplicationConnectionEdgeWriter(neo4jClient);
+    ApplicationConnectionEdgeWriter writer = new ApplicationConnectionEdgeWriter(graph);
 
     assertThat(
             writer.isNewFlow(
@@ -94,16 +94,16 @@ class ApplicationConnectionEdgeWriterTest {
         .isTrue();
   }
 
-  private static void whenFetchEmpty(Neo4jClient neo4jClient) {
-    org.mockito.Mockito.when(neo4jClient.query(anyString()).bindAll(anyMap()).fetch().first())
+  private static void whenFetchEmpty(WorkspaceGraph graph) {
+    org.mockito.Mockito.when(graph.query(anyString()).bindAll(anyMap()).fetch().first())
         .thenReturn(Optional.empty());
-    org.mockito.Mockito.when(neo4jClient.query(anyString()).bindAll(anyMap()).fetch().all())
+    org.mockito.Mockito.when(graph.query(anyString()).bindAll(anyMap()).fetch().all())
         .thenReturn(List.of());
   }
 
-  private static String captureCypherContaining(Neo4jClient neo4jClient, String needle) {
+  private static String captureCypherContaining(WorkspaceGraph graph, String needle) {
     ArgumentCaptor<String> cypherCaptor = ArgumentCaptor.forClass(String.class);
-    verify(neo4jClient, org.mockito.Mockito.atLeastOnce()).query(cypherCaptor.capture());
+    verify(graph, org.mockito.Mockito.atLeastOnce()).query(cypherCaptor.capture());
     return cypherCaptor.getAllValues().stream()
         .filter(c -> c.contains(needle))
         .findFirst()

@@ -1,9 +1,9 @@
 package com.enterprise.itmapping.feature.graph.infrastructure.persistence;
 
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
@@ -11,20 +11,20 @@ import org.springframework.util.StringUtils;
 @Repository
 public class DataModelRefFacetQuery {
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public DataModelRefFacetQuery(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public DataModelRefFacetQuery(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   public List<RefOption> activeOptions(String fieldKey) {
     if (!StringUtils.hasText(fieldKey)) {
       return List.of();
     }
-    return neo4jClient
+    return graph
         .query(
             """
-            MATCH (r:DataModelRef {fieldKey: $fieldKey})
+            MATCH (r:DataModelRef {workspaceId: $workspaceId, fieldKey: $fieldKey})
             WHERE coalesce(r.active, true) = true
             RETURN r.id AS id, r.name AS name, r.value AS value
             ORDER BY r.name
@@ -47,12 +47,12 @@ public class DataModelRefFacetQuery {
     if (!StringUtils.hasText(fieldKey)) {
       return false;
     }
-    return !neo4jClient
+    return !graph
         .query(
             """
-            MATCH (a:Application)
+            MATCH (a:Application {workspaceId: $workspaceId})
             WHERE NOT EXISTS {
-              MATCH (a)-[:CLASSIFIED_AS {fieldKey: $fieldKey}]->(:DataModelRef)
+              MATCH (a)-[:CLASSIFIED_AS {fieldKey: $fieldKey}]->(:DataModelRef {workspaceId: $workspaceId})
             }
             RETURN a LIMIT 1
             """)

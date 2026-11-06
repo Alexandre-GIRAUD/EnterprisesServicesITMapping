@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.config;
 
+import com.enterprise.itmapping.feature.workspace.domain.Workspaces;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -23,7 +24,18 @@ public class Neo4jIndexConfig implements ApplicationRunner {
       "CREATE RANGE INDEX module_id IF NOT EXISTS FOR (n:Module) ON (n.id)",
       "CREATE RANGE INDEX data_model_ref_id IF NOT EXISTS FOR (n:DataModelRef) ON (n.id)",
       "CREATE RANGE INDEX data_model_ref_field_key IF NOT EXISTS FOR (n:DataModelRef) ON (n.fieldKey)",
+      "CREATE RANGE INDEX application_workspace IF NOT EXISTS FOR (n:Application) ON (n.workspaceId, n.id)",
+      "CREATE RANGE INDEX module_workspace IF NOT EXISTS FOR (n:Module) ON (n.workspaceId, n.id)",
+      "CREATE RANGE INDEX data_model_ref_workspace IF NOT EXISTS FOR (n:DataModelRef) ON (n.workspaceId, n.id)",
   };
+
+  /** Nodes written before workspaces existed belong to the Default workspace. */
+  private static final String ADOPT_ORPHAN_NODES =
+      """
+      MATCH (n)
+      WHERE (n:Application OR n:Module OR n:DataModelRef) AND n.workspaceId IS NULL
+      SET n.workspaceId = $workspaceId
+      """;
 
   private final Neo4jClient neo4jClient;
 
@@ -40,5 +52,10 @@ public class Neo4jIndexConfig implements ApplicationRunner {
         log.warn("Index creation (may already exist): {}", e.getMessage());
       }
     }
+    neo4jClient
+        .query(ADOPT_ORPHAN_NODES)
+        .bind(Workspaces.DEFAULT_ID.toString())
+        .to("workspaceId")
+        .run();
   }
 }

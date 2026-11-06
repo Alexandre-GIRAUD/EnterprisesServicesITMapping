@@ -1,12 +1,13 @@
 package com.enterprise.itmapping.feature.graph.application;
 
-import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService.AttributeChangeRequest;
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService.LifecycleChange;
+import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditFieldScope;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditTargetType;
 import com.enterprise.itmapping.feature.attributeaudit.domain.HumanChangeReason;
 import com.enterprise.itmapping.feature.attributeaudit.presentation.dto.AttributeChangeMetaDto;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.LinkedHashMap;
@@ -16,7 +17,6 @@ import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,15 +37,15 @@ public class GraphEdgeLinkService {
   private static final Set<String> SNAPSHOT_EXCLUDED_PROP_KEYS =
       Set.of("id", "validFrom", "validTo");
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
   private final AttributeChangeAuditService auditService;
   private final ObjectMapper objectMapper;
 
   public GraphEdgeLinkService(
-      Neo4jClient neo4jClient,
+      WorkspaceGraph graph,
       AttributeChangeAuditService auditService,
       ObjectMapper objectMapper) {
-    this.neo4jClient = neo4jClient;
+    this.graph = graph;
     this.auditService = auditService;
     this.objectMapper = objectMapper;
   }
@@ -59,10 +59,10 @@ public class GraphEdgeLinkService {
     if (!StringUtils.hasText(edgeId)) {
       return Optional.empty();
     }
-    return neo4jClient
+    return graph
         .query(
             """
-            MATCH (s)-[r]->(t)
+            MATCH (s {workspaceId: $workspaceId})-[r]->(t)
             WHERE r.id = $id
             RETURN s.id AS sourceId, t.id AS targetId, type(r) AS type, properties(r) AS props
             LIMIT 1
@@ -157,10 +157,10 @@ public class GraphEdgeLinkService {
    */
   @Transactional
   public void recordDeletionsTouching(String applicationId) {
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (:Application {id: $id})-[r:DEPENDS_ON]-()
+            MATCH (:Application {workspaceId: $workspaceId, id: $id})-[r:DEPENDS_ON]-()
             WHERE r.id IS NOT NULL
             RETURN DISTINCT r.id AS id
             """)
@@ -226,10 +226,10 @@ public class GraphEdgeLinkService {
     }
 
     long deleted =
-        neo4jClient
+        graph
             .query(
                 """
-                MATCH ()-[r]->()
+                MATCH ({workspaceId: $workspaceId})-[r]->()
                 WHERE r.id = $id
                 WITH collect(r) AS rels
                 FOREACH (rel IN rels | DELETE rel)

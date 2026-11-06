@@ -1,31 +1,31 @@
 package com.enterprise.itmapping.feature.applications.application;
 
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Component;
 
 /**
  * Loads the lightweight catalogue of {@code Application} nodes (id + name + optional description)
  * used as context for the connection-discovery agent. Extracted from the suggestion service so the
- * orchestration logic can be unit-tested without the {@link Neo4jClient} fluent chain.
+ * orchestration logic can be unit-tested without the {@link WorkspaceGraph} fluent chain.
  */
 @Component
 public class ApplicationCatalogQuery {
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public ApplicationCatalogQuery(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public ApplicationCatalogQuery(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   /** All named applications except {@code excludeApplicationId}, ordered by name. */
   public List<CatalogRow> loadExcluding(String excludeApplicationId) {
     List<CatalogRow> rows = new ArrayList<>();
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application)
+            MATCH (a:Application {workspaceId: $workspaceId})
             WHERE a.id <> $excludeId AND a.name IS NOT NULL AND trim(a.name) <> ''
             RETURN a.id AS id, a.name AS name, a.description AS description
             ORDER BY a.name
@@ -54,10 +54,10 @@ public class ApplicationCatalogQuery {
   /** All named applications, ordered by name (lightweight id+name+description). */
   public List<CatalogRow> loadAllNamed() {
     List<CatalogRow> rows = new ArrayList<>();
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application)
+            MATCH (a:Application {workspaceId: $workspaceId})
             WHERE a.name IS NOT NULL AND trim(a.name) <> ''
             RETURN a.id AS id, a.name AS name, a.description AS description
             ORDER BY a.name
@@ -92,10 +92,10 @@ public class ApplicationCatalogQuery {
     int safeLimit = Math.min(50, Math.max(1, limit));
     String q = query.trim();
     List<CatalogRow> rows = new ArrayList<>();
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application)
+            MATCH (a:Application {workspaceId: $workspaceId})
             WHERE a.name IS NOT NULL AND trim(a.name) <> ''
               AND toLower(a.name) CONTAINS toLower($q)
             RETURN a.id AS id, a.name AS name, a.description AS description,

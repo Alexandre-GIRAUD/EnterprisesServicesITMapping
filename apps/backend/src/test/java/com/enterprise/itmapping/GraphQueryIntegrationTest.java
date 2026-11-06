@@ -6,6 +6,7 @@ import com.enterprise.itmapping.feature.graph.application.GraphService;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.GraphLoader;
 import com.enterprise.itmapping.feature.workspace.InDefaultWorkspace;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.Neo4jContainer;
@@ -72,7 +72,7 @@ class GraphQueryIntegrationTest {
   ModuleGraphService moduleGraphService;
 
   @Autowired
-  Neo4jClient neo4jClient;
+  WorkspaceGraph graph;
 
   @Nested
   @DisplayName("module-graph")
@@ -88,12 +88,12 @@ class GraphQueryIntegrationTest {
       bind.put("appId", appId);
       bind.put("m1", m1);
       bind.put("m2", m2);
-      neo4jClient
+      graph
           .query(
               """
-              CREATE (a:Application {id: $appId, name: 'ModParent', description: ''})
-              CREATE (x:Module {id: $m1, name: 'M1', description: ''})
-              CREATE (y:Module {id: $m2, name: 'M2', description: ''})
+              CREATE (a:Application {workspaceId: $workspaceId, id: $appId, name: 'ModParent', description: ''})
+              CREATE (x:Module {workspaceId: $workspaceId, id: $m1, name: 'M1', description: ''})
+              CREATE (y:Module {workspaceId: $workspaceId, id: $m2, name: 'M2', description: ''})
               CREATE (a)-[:CONTAINS]->(x)
               CREATE (x)-[:CONTAINS]->(y)
               """)
@@ -161,12 +161,12 @@ class GraphQueryIntegrationTest {
       bind.put("appA", appA);
       bind.put("appB", appB);
       bind.put("appC", appC);
-      neo4jClient
+      graph
           .query(
               """
-              CREATE (a:Application {id: $appA, name: 'A', description: '', tier: 'GOLD', region: 'EMEA'})
-              CREATE (b:Application {id: $appB, name: 'B', description: '', tier: 'SILVER', region: 'EMEA'})
-              CREATE (c:Application {id: $appC, name: 'C', description: '', tier: 'GOLD', region: 'APAC'})
+              CREATE (a:Application {workspaceId: $workspaceId, id: $appA, name: 'A', description: '', tier: 'GOLD', region: 'EMEA'})
+              CREATE (b:Application {workspaceId: $workspaceId, id: $appB, name: 'B', description: '', tier: 'SILVER', region: 'EMEA'})
+              CREATE (c:Application {workspaceId: $workspaceId, id: $appC, name: 'C', description: '', tier: 'GOLD', region: 'APAC'})
               CREATE (a)-[:DEPENDS_ON]->(b)
               CREATE (a)-[:DEPENDS_ON]->(c)
               """)
@@ -203,10 +203,10 @@ class GraphQueryIntegrationTest {
     @DisplayName("node rows expose business properties and hide identity ones")
     void exposesBusinessPropertiesOnly() {
       String appId = UUID.randomUUID().toString();
-      neo4jClient
+      graph
           .query(
               """
-              CREATE (a:Application {id: $appId, name: 'Props', description: 'd', tier: 'BRONZE'})
+              CREATE (a:Application {workspaceId: $workspaceId, id: $appId, name: 'Props', description: 'd', tier: 'BRONZE'})
               """)
           .bind(appId)
           .to("appId")
@@ -227,10 +227,10 @@ class GraphQueryIntegrationTest {
     @DisplayName("exposes flat business properties as node attributes")
     void findByIdExposesNodeAttributes() {
       String appId = UUID.randomUUID().toString();
-      neo4jClient
+      graph
           .query(
               """
-              CREATE (a:Application {id: $appId, name: 'AppX', description: '', tier: 'GOLD'})
+              CREATE (a:Application {workspaceId: $workspaceId, id: $appId, name: 'AppX', description: '', tier: 'GOLD'})
               """)
           .bind(appId)
           .to("appId")
@@ -244,8 +244,8 @@ class GraphQueryIntegrationTest {
     @DisplayName("has empty node attributes when the application carries none")
     void findByIdWithoutNodeAttributes() {
       String appId = UUID.randomUUID().toString();
-      neo4jClient
-          .query("CREATE (a:Application {id: $appId, name: 'Solo', description: ''})")
+      graph
+          .query("CREATE (a:Application {workspaceId: $workspaceId, id: $appId, name: 'Solo', description: ''})")
           .bind(appId)
           .to("appId")
           .run();
@@ -260,12 +260,12 @@ class GraphQueryIntegrationTest {
     bind.put("appA", appA);
     bind.put("appB", appB);
     bind.put("appC", appC);
-    neo4jClient
+    graph
         .query(
             """
-            CREATE (a:Application {id: $appA, name: 'A', description: ''})
-            CREATE (b:Application {id: $appB, name: 'B', description: ''})
-            CREATE (c:Application {id: $appC, name: 'C', description: ''})
+            CREATE (a:Application {workspaceId: $workspaceId, id: $appA, name: 'A', description: ''})
+            CREATE (b:Application {workspaceId: $workspaceId, id: $appB, name: 'B', description: ''})
+            CREATE (c:Application {workspaceId: $workspaceId, id: $appC, name: 'C', description: ''})
             CREATE (a)-[:DEPENDS_ON]->(b)
             CREATE (a)-[:DEPENDS_ON]->(c)
             """)

@@ -8,6 +8,7 @@ import com.enterprise.itmapping.feature.graph.application.dto.GraphEdgeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphNodeDto;
 import com.enterprise.itmapping.feature.graph.application.dto.GraphResponseDto;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.GraphLoader;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -17,7 +18,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +31,7 @@ public class GraphService {
   private static final Set<String> ALLOWED_EDGE_TYPES = Set.of("DEPENDS_ON", "CONTAINS");
 
   private final GraphLoader graphLoader;
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
   private final ApplicationRepository applicationRepository;
   private final DataModelService dataModelService;
   private final GraphNodeFilterResolver nodeFilterResolver;
@@ -39,14 +39,14 @@ public class GraphService {
 
   public GraphService(
       GraphLoader graphLoader,
-      Neo4jClient neo4jClient,
+      WorkspaceGraph graph,
       ApplicationRepository applicationRepository,
       DataModelService dataModelService,
       GraphNodeFilterResolver nodeFilterResolver,
       GraphEdgeLinkService edgeLinkService
   ) {
     this.graphLoader = graphLoader;
-    this.neo4jClient = neo4jClient;
+    this.graph = graph;
     this.applicationRepository = applicationRepository;
     this.dataModelService = dataModelService;
     this.nodeFilterResolver = nodeFilterResolver;
@@ -205,8 +205,8 @@ public class GraphService {
     }
 
     boolean sourceExists =
-        neo4jClient
-            .query("MATCH (a:Application {id: $id}) RETURN count(a) AS cnt")
+        graph
+            .query("MATCH (a:Application {workspaceId: $workspaceId, id: $id}) RETURN count(a) AS cnt")
             .bind(sourceId)
             .to("id")
             .fetch()
@@ -219,8 +219,8 @@ public class GraphService {
     }
 
     boolean targetExists =
-        neo4jClient
-            .query("MATCH (a:Application {id: $id}) RETURN count(a) AS cnt")
+        graph
+            .query("MATCH (a:Application {workspaceId: $workspaceId, id: $id}) RETURN count(a) AS cnt")
             .bind(targetId)
             .to("id")
             .fetch()
@@ -234,13 +234,13 @@ public class GraphService {
 
     String duplicateCypher =
         """
-        MATCH (s:Application {id: $sourceId})-[r:%s]->(t:Application {id: $targetId})
+        MATCH (s:Application {workspaceId: $workspaceId, id: $sourceId})-[r:%s]->(t:Application {workspaceId: $workspaceId, id: $targetId})
         RETURN count(r) AS cnt
         """
             .formatted(type);
 
     boolean duplicateExists =
-        neo4jClient
+        graph
             .query(duplicateCypher)
             .bind(sourceId)
             .to("sourceId")
@@ -258,8 +258,8 @@ public class GraphService {
     String edgeId = UUID.randomUUID().toString();
     String createCypher =
         """
-        MATCH (s:Application {id: $sourceId})
-        MATCH (t:Application {id: $targetId})
+        MATCH (s:Application {workspaceId: $workspaceId, id: $sourceId})
+        MATCH (t:Application {workspaceId: $workspaceId, id: $targetId})
         CREATE (s)-[r:%s]->(t)
         SET r.id = $edgeId
         RETURN r.id AS id, s.id AS sourceId, t.id AS targetId, type(r) AS type
@@ -267,7 +267,7 @@ public class GraphService {
             .formatted(type);
 
     CreateGraphEdgeResponseDto created =
-        neo4jClient
+        graph
             .query(createCypher)
             .bind(sourceId)
             .to("sourceId")

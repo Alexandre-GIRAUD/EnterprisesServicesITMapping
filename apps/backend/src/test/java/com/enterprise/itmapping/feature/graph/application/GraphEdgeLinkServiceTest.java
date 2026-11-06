@@ -6,12 +6,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
 import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService.AttributeChangeRequest;
+import com.enterprise.itmapping.feature.attributeaudit.application.AttributeChangeAuditService;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditActorType;
 import com.enterprise.itmapping.feature.attributeaudit.domain.AuditFieldScope;
 import com.enterprise.itmapping.feature.attributeaudit.domain.HumanChangeReason;
 import com.enterprise.itmapping.feature.attributeaudit.presentation.dto.AttributeChangeMetaDto;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,20 +21,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class GraphEdgeLinkServiceTest {
 
-  @Mock Neo4jClient neo4jClient;
+  @Mock WorkspaceGraph graph;
   @Mock AttributeChangeAuditService auditService;
 
   private GraphEdgeLinkService service;
 
   @BeforeEach
   void setUp() {
-    service = new GraphEdgeLinkService(neo4jClient, auditService, new ObjectMapper());
+    service = new GraphEdgeLinkService(graph, auditService, new ObjectMapper());
   }
 
   @Test

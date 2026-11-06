@@ -1,9 +1,9 @@
 package com.enterprise.itmapping.feature.applications.application;
 
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Repository;
 
 /** Reads and writes the editable details stored as properties on a {@code :Module} node. */
@@ -18,18 +18,18 @@ public class ModuleDetailsStore {
       List<String> dataIn,
       List<String> dataOut) {}
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public ModuleDetailsStore(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public ModuleDetailsStore(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   /** Empty when the module does not sit under the application. */
   public Optional<ModuleDetails> read(String applicationId, String moduleId) {
-    return neo4jClient
+    return graph
         .query(
             """
-            MATCH (:Application {id: $appId})-[:CONTAINS*1..50]->(m:Module {id: $moduleId})
+            MATCH (:Application {workspaceId: $workspaceId, id: $appId})-[:CONTAINS*1..50]->(m:Module {workspaceId: $workspaceId, id: $moduleId})
             RETURN m.description AS description, m.owner AS owner, m.actors AS actors,
                    m.trigger AS trigger, m.dataIn AS dataIn, m.dataOut AS dataOut
             LIMIT 1
@@ -53,10 +53,10 @@ public class ModuleDetailsStore {
 
   /** Empty values remove the property. */
   public void write(String moduleId, ModuleDetails details) {
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (m:Module {id: $moduleId})
+            MATCH (m:Module {workspaceId: $workspaceId, id: $moduleId})
             SET m.description = $description, m.owner = $owner, m.actors = $actors,
                 m.trigger = $trigger, m.dataIn = $dataIn, m.dataOut = $dataOut
             """)

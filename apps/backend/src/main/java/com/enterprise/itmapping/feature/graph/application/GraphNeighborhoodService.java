@@ -1,18 +1,18 @@
 package com.enterprise.itmapping.feature.graph.application;
 
 import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
-import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto.NeighborhoodApplicationDto;
 import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto.NeighborhoodEdgeDto;
+import com.enterprise.itmapping.feature.graph.application.dto.ApplicationNeighborhoodDto;
 import com.enterprise.itmapping.feature.graph.domain.NeighborhoodDirection;
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.Neo4jValueMapping;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,10 +28,10 @@ public class GraphNeighborhoodService {
 
   private static final Set<String> EXCLUDED_EDGE_KEYS = Set.of("validFrom", "validTo");
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public GraphNeighborhoodService(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public GraphNeighborhoodService(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   @Transactional(readOnly = true)
@@ -45,10 +45,10 @@ public class GraphNeighborhoodService {
     int limit = Math.max(1, maxEdges);
 
     Map<String, Object> appRow =
-        neo4jClient
+        graph
             .query(
                 """
-                MATCH (a:Application {id: $id})
+                MATCH (a:Application {workspaceId: $workspaceId, id: $id})
                 RETURN a.id AS id, a.name AS name, a.description AS description
                 """)
             .bind(id)
@@ -89,10 +89,10 @@ public class GraphNeighborhoodService {
     if (!StringUtils.hasText(leftId) || !StringUtils.hasText(rightId)) {
       return List.of();
     }
-    return neo4jClient
+    return graph
         .query(
             """
-            MATCH (a:Application {id: $left})-[r:DEPENDS_ON]-(b:Application {id: $right})
+            MATCH (a:Application {workspaceId: $workspaceId, id: $left})-[r:DEPENDS_ON]-(b:Application {workspaceId: $workspaceId, id: $right})
             RETURN r.id AS id
             """)
         .bind(leftId.trim())
@@ -114,19 +114,19 @@ public class GraphNeighborhoodService {
     String cypher =
         "OUT".equals(direction)
             ? """
-              MATCH (a:Application {id: $id})-[r:DEPENDS_ON]->(b:Application)
+              MATCH (a:Application {workspaceId: $workspaceId, id: $id})-[r:DEPENDS_ON]->(b:Application {workspaceId: $workspaceId})
               RETURN r.id AS edgeId, b.id AS otherId, b.name AS otherName, properties(r) AS props
               ORDER BY b.name
               LIMIT $limit
               """
             : """
-              MATCH (b:Application)-[r:DEPENDS_ON]->(a:Application {id: $id})
+              MATCH (b:Application {workspaceId: $workspaceId})-[r:DEPENDS_ON]->(a:Application {workspaceId: $workspaceId, id: $id})
               RETURN r.id AS edgeId, b.id AS otherId, b.name AS otherName, properties(r) AS props
               ORDER BY b.name
               LIMIT $limit
               """;
 
-    return neo4jClient
+    return graph
         .query(cypher)
         .bind(applicationId)
         .to("id")

@@ -1,12 +1,12 @@
 package com.enterprise.itmapping.feature.applications.application;
 
 import com.enterprise.itmapping.feature.graph.infrastructure.persistence.Neo4jValueMapping;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Component;
 
 /**
@@ -18,10 +18,10 @@ public class ApplicationModuleSubtreeQuery {
 
   private static final int MAX_CONTAINS_HOPS = 50;
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public ApplicationModuleSubtreeQuery(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public ApplicationModuleSubtreeQuery(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   /** True when at least one {@code Module} is reachable from the application through {@code CONTAINS}. */
@@ -31,11 +31,11 @@ public class ApplicationModuleSubtreeQuery {
     }
     String cypher =
         """
-        MATCH (a:Application {id: $id})
-        RETURN EXISTS((a)-[:CONTAINS*1..%d]->(:Module)) AS hasMods
+        MATCH (a:Application {workspaceId: $workspaceId, id: $id})
+        RETURN EXISTS((a)-[:CONTAINS*1..%d]->(:Module {workspaceId: $workspaceId})) AS hasMods
         """
             .formatted(MAX_CONTAINS_HOPS);
-    return neo4jClient
+    return graph
         .query(cypher)
         .bind(applicationId)
         .to("id")
@@ -68,13 +68,13 @@ public class ApplicationModuleSubtreeQuery {
     String cypher =
         """
         UNWIND $ids AS appId
-        MATCH (a:Application {id: appId})
-        RETURN a.id AS id, EXISTS((a)-[:CONTAINS*1..%d]->(:Module)) AS hasMods
+        MATCH (a:Application {workspaceId: $workspaceId, id: appId})
+        RETURN a.id AS id, EXISTS((a)-[:CONTAINS*1..%d]->(:Module {workspaceId: $workspaceId})) AS hasMods
         """
             .formatted(MAX_CONTAINS_HOPS);
 
     Map<String, Boolean> out = new HashMap<>();
-    neo4jClient.query(cypher).bind(ids).to("ids").fetch().all().forEach(row -> {
+    graph.query(cypher).bind(ids).to("ids").fetch().all().forEach(row -> {
       Map<String, Object> map = Neo4jValueMapping.asMap(row);
       String id = Neo4jValueMapping.asString(map.get("id"));
       Object v = map.get("hasMods");

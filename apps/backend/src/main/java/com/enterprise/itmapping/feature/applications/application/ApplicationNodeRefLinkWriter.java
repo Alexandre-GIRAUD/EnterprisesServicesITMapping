@@ -1,5 +1,6 @@
 package com.enterprise.itmapping.feature.applications.application;
 
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -7,7 +8,6 @@ import java.util.Map;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -23,10 +23,10 @@ public class ApplicationNodeRefLinkWriter {
 
   private static final Logger log = LoggerFactory.getLogger(ApplicationNodeRefLinkWriter.class);
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public ApplicationNodeRefLinkWriter(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public ApplicationNodeRefLinkWriter(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   /**
@@ -59,10 +59,10 @@ public class ApplicationNodeRefLinkWriter {
   }
 
   public void clearField(String applicationId, String fieldKey) {
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application {id: $appId})-[r:CLASSIFIED_AS {fieldKey: $fieldKey}]->(:DataModelRef)
+            MATCH (a:Application {workspaceId: $workspaceId, id: $appId})-[r:CLASSIFIED_AS {fieldKey: $fieldKey}]->(:DataModelRef {workspaceId: $workspaceId})
             DELETE r
             """)
         .bind(applicationId)
@@ -73,11 +73,11 @@ public class ApplicationNodeRefLinkWriter {
   }
 
   private void link(String applicationId, String fieldKey, String refId) {
-    neo4jClient
+    graph
         .query(
             """
-            MATCH (a:Application {id: $appId})
-            MATCH (ref:DataModelRef {id: $refId})
+            MATCH (a:Application {workspaceId: $workspaceId, id: $appId})
+            MATCH (ref:DataModelRef {workspaceId: $workspaceId, id: $refId})
             WHERE ref.fieldKey = $fieldKey AND coalesce(ref.active, true) = true
             MERGE (a)-[r:CLASSIFIED_AS {fieldKey: $fieldKey}]->(ref)
             """)
@@ -96,10 +96,10 @@ public class ApplicationNodeRefLinkWriter {
       return Map.of();
     }
     List<String> values = new ArrayList<>(canonicalValues);
-    return neo4jClient
+    return graph
         .query(
             """
-            MATCH (r:DataModelRef {fieldKey: $fieldKey})
+            MATCH (r:DataModelRef {workspaceId: $workspaceId, fieldKey: $fieldKey})
             WHERE coalesce(r.active, true) = true
               AND any(v IN $values WHERE toLower(toString(r.value)) = toLower(v))
             RETURN r.id AS id, r.value AS value

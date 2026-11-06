@@ -1,12 +1,12 @@
 package com.enterprise.itmapping.feature.graph.application;
 
 import com.enterprise.itmapping.feature.datamodel.application.AttributeValues;
+import com.enterprise.itmapping.feature.workspace.infrastructure.WorkspaceGraph;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -16,10 +16,10 @@ public class GraphEdgeAttributeWriter {
 
   private static final Logger log = LoggerFactory.getLogger(GraphEdgeAttributeWriter.class);
 
-  private final Neo4jClient neo4jClient;
+  private final WorkspaceGraph graph;
 
-  public GraphEdgeAttributeWriter(Neo4jClient neo4jClient) {
-    this.neo4jClient = neo4jClient;
+  public GraphEdgeAttributeWriter(WorkspaceGraph graph) {
+    this.graph = graph;
   }
 
   public int write(String edgeId, Map<String, ?> dataModelAttributes, Set<String> allowedKeys) {
@@ -27,10 +27,10 @@ public class GraphEdgeAttributeWriter {
     if (!StringUtils.hasText(edgeId) || dynamicProps.isEmpty()) {
       return 0;
     }
-    neo4jClient
+    graph
         .query(
             """
-            MATCH ()-[r:DEPENDS_ON {id: $id}]->()
+            MATCH (:Application {workspaceId: $workspaceId})-[r:DEPENDS_ON {id: $id}]->()
             SET r += $dynamicProps
             """)
         .bind(edgeId.trim())
@@ -48,10 +48,10 @@ public class GraphEdgeAttributeWriter {
     }
     String removals =
         validatedKeys.stream().map(key -> "r.`" + key + "`").collect(Collectors.joining(", "));
-    neo4jClient
+    graph
         .query(
             """
-            MATCH ()-[r:DEPENDS_ON {id: $id}]->()
+            MATCH (:Application {workspaceId: $workspaceId})-[r:DEPENDS_ON {id: $id}]->()
             REMOVE %s
             """
                 .formatted(removals))
