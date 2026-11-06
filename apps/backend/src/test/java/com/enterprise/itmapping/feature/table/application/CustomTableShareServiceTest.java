@@ -3,6 +3,7 @@ package com.enterprise.itmapping.feature.table.application;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,9 +43,13 @@ class CustomTableShareServiceTest {
   private final UUID recipientId = UUID.fromString("00000000-0000-0000-0000-000000000002");
   private final ObjectMapper objectMapper = new ObjectMapper();
 
+  /** Recipients are looked up only in the sender's workspace. */
+  private static final UUID WORKSPACE = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
+
   @BeforeEach
   void setUp() {
     when(currentUserResolver.requireCurrentUser()).thenReturn(sender);
+    lenient().when(sender.getWorkspaceId()).thenReturn(WORKSPACE);
   }
 
   @Test
@@ -52,7 +57,7 @@ class CustomTableShareServiceTest {
     when(sender.getId()).thenReturn(senderId);
     when(sender.getUsername()).thenReturn("alice");
     when(recipient.getId()).thenReturn(recipientId);
-    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.of(recipient));
+    when(userRepository.findByUsernameIgnoreCaseAndWorkspaceId("bob", WORKSPACE)).thenReturn(Optional.of(recipient));
     JsonNode document = objectMapper.readTree("{\"name\":\"Regions\",\"row\":null}");
 
     customTableShareService.share(" bob ", " Regions ", document);
@@ -67,7 +72,7 @@ class CustomTableShareServiceTest {
 
   @Test
   void shareRejectsAnUnknownUsername() {
-    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.empty());
+    when(userRepository.findByUsernameIgnoreCaseAndWorkspaceId("bob", WORKSPACE)).thenReturn(Optional.empty());
 
     ResponseStatusException unknownUser =
         assertThrows(
@@ -81,7 +86,7 @@ class CustomTableShareServiceTest {
   @Test
   void shareRejectsSharingWithYourself() {
     when(sender.getId()).thenReturn(senderId);
-    when(userRepository.findByUsernameIgnoreCase("alice")).thenReturn(Optional.of(sender));
+    when(userRepository.findByUsernameIgnoreCaseAndWorkspaceId("alice", WORKSPACE)).thenReturn(Optional.of(sender));
 
     ResponseStatusException selfShare =
         assertThrows(
@@ -96,7 +101,7 @@ class CustomTableShareServiceTest {
   void shareRejectsABlankName() {
     when(sender.getId()).thenReturn(senderId);
     when(recipient.getId()).thenReturn(recipientId);
-    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.of(recipient));
+    when(userRepository.findByUsernameIgnoreCaseAndWorkspaceId("bob", WORKSPACE)).thenReturn(Optional.of(recipient));
 
     assertThrows(
         ResponseStatusException.class,
@@ -120,7 +125,7 @@ class CustomTableShareServiceTest {
   void shareRejectsAnOversizedDocument() throws Exception {
     when(sender.getId()).thenReturn(senderId);
     when(recipient.getId()).thenReturn(recipientId);
-    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.of(recipient));
+    when(userRepository.findByUsernameIgnoreCaseAndWorkspaceId("bob", WORKSPACE)).thenReturn(Optional.of(recipient));
     String oversized = "x".repeat(CustomTableShareService.MAX_DOCUMENT_CHARS);
     JsonNode document = objectMapper.readTree("{\"body\":\"" + oversized + "\"}");
 
@@ -137,7 +142,7 @@ class CustomTableShareServiceTest {
   void shareRejectsAMissingDocument() {
     when(sender.getId()).thenReturn(senderId);
     when(recipient.getId()).thenReturn(recipientId);
-    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.of(recipient));
+    when(userRepository.findByUsernameIgnoreCaseAndWorkspaceId("bob", WORKSPACE)).thenReturn(Optional.of(recipient));
 
     ResponseStatusException missing =
         assertThrows(ResponseStatusException.class, () -> customTableShareService.share("bob", "Regions", null));
@@ -158,7 +163,7 @@ class CustomTableShareServiceTest {
   void shareRejectsAnOverlongName() {
     when(sender.getId()).thenReturn(senderId);
     when(recipient.getId()).thenReturn(recipientId);
-    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.of(recipient));
+    when(userRepository.findByUsernameIgnoreCaseAndWorkspaceId("bob", WORKSPACE)).thenReturn(Optional.of(recipient));
 
     ResponseStatusException tooLong =
         assertThrows(

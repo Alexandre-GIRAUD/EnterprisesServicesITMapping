@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -47,9 +48,13 @@ class ShareLibraryServiceTest {
   private final UUID recipientId = UUID.fromString("00000000-0000-0000-0000-000000000002");
   private final UUID viewId = UUID.fromString("00000000-0000-0000-0000-000000000010");
 
+  /** Recipients are looked up only in the sender's workspace. */
+  private static final UUID WORKSPACE = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
+
   @BeforeEach
   void setUp() {
     when(currentUserResolver.requireCurrentUser()).thenReturn(sender);
+    lenient().when(sender.getWorkspaceId()).thenReturn(WORKSPACE);
   }
 
   private void senderIsAlice() {
@@ -66,7 +71,7 @@ class ShareLibraryServiceTest {
     source.setApplicationIds(List.of("app-1"));
     senderIsAlice();
     when(graphSnapshotRepository.findByIdAndUser_Id(viewId, senderId)).thenReturn(Optional.of(source));
-    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.of(recipient));
+    when(userRepository.findByUsernameIgnoreCaseAndWorkspaceId("bob", WORKSPACE)).thenReturn(Optional.of(recipient));
     when(recipient.getId()).thenReturn(recipientId);
     when(graphSnapshotRepository.existsSiblingName(recipientId, null, "Payments", null)).thenReturn(true);
 
@@ -83,7 +88,7 @@ class ShareLibraryServiceTest {
 
   @Test
   void shareViewRejectsAnUnknownUsername() {
-    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.empty());
+    when(userRepository.findByUsernameIgnoreCaseAndWorkspaceId("bob", WORKSPACE)).thenReturn(Optional.empty());
 
     assertThrows(ResponseStatusException.class, () -> shareLibraryService.shareView(viewId, "bob"));
 
@@ -107,7 +112,7 @@ class ShareLibraryServiceTest {
     outside.setUser(sender);
 
     senderIsAlice();
-    when(userRepository.findByUsernameIgnoreCase("bob")).thenReturn(Optional.of(recipient));
+    when(userRepository.findByUsernameIgnoreCaseAndWorkspaceId("bob", WORKSPACE)).thenReturn(Optional.of(recipient));
     when(recipient.getId()).thenReturn(recipientId);
     when(graphViewFolderRepository.findByIdAndUser_Id(teamId, senderId)).thenReturn(Optional.of(team));
     when(graphViewFolderRepository.findByUser_IdOrderByNameAsc(senderId)).thenReturn(List.of(inner, team));
