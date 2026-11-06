@@ -1,5 +1,7 @@
 package com.enterprise.itmapping.feature.auth.infrastructure.persistence;
 
+import com.enterprise.itmapping.feature.auth.domain.UserStatus;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,4 +17,10 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
   Optional<UserEntity> findByUsernameIgnoreCaseAndWorkspaceId(String username, UUID workspaceId);
 
   List<UserEntity> findAllByWorkspaceIdOrderByUsernameAsc(UUID workspaceId);
+
+  boolean existsByEmailIgnoreCase(String email);
+
+  Optional<UserEntity> findByEmailIgnoreCase(String email);
+
+  List<UserEntity> findAllByStatusAndCreatedAtBefore(UserStatus status, Instant createdBefore);
 }

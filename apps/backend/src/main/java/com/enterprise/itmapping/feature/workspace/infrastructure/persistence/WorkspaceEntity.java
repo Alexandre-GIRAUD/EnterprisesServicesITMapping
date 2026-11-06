@@ -14,9 +14,21 @@ public class WorkspaceEntity {
   @Column(nullable = false, updatable = false)
   private UUID id;
 
+  @Column(nullable = false, length = 128)
+  private String name;
+
   protected WorkspaceEntity() {}
+
+  public WorkspaceEntity(UUID id, String name) {
+    this.id = id;
+    this.name = name;
+  }
 
   public UUID getId() {
     return id;
+  }
+
+  public String getName() {
+    return name;
   }
 }

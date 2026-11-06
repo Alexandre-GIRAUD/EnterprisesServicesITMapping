@@ -32,7 +32,7 @@ class AuthControllerWebMvcTest {
   @Test
   void loginReturnsJson() throws Exception {
     when(authService.login(any(LoginRequest.class)))
-        .thenReturn(new LoginResponse("jwt-test", "admin", List.of("ADMIN")));
+        .thenReturn(new LoginResponse("jwt-test", "admin", List.of("ADMIN"), "Default"));
 
     mockMvc
         .perform(

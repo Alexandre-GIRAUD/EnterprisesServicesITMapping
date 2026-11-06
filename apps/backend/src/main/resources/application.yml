@@ -46,6 +46,9 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  # Behind the nginx proxy, take the client address from X-Forwarded-For (trusted proxies only):
+  # signup throttling counts per client address.
+  forward-headers-strategy: native
   error:
     include-message: always
   servlet:
@@ -139,6 +142,7 @@ app:
   signup:
     enabled: ${APP_SIGNUP_ENABLED:false}
     public-url: ${APP_PUBLIC_URL:}
+    mail-from: ${APP_MAIL_FROM:Flowra <no-reply@localhost>}
   cors:
     # Patterns: localhost vs 127.0.0.1 are different Origins; * ports cover Vite (3000) and 5173.
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*}
